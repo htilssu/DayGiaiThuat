@@ -1,26 +1,173 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-primary: 16 185 129;
+  --color-secondary: 245 158 11;
+  --color-accent: 244 63 94;
+  --color-background: 255 255 255;
+  --color-foreground: 15 23 42;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-theme="dark"] {
+  --color-primary: 5 150 105;
+  --color-secondary: 217 119 6;
+  --color-accent: 225 29 72;
+  --color-background: 15 23 42;
+  --color-foreground: 248 250 252;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    @apply transition-colors duration-300 ease-in-out;
+  }
+
+  body {
+    @apply bg-[rgb(var(--color-background))] text-[rgb(var(--color-foreground))];
+    @apply transition-colors duration-300 ease-in-out;
+  }
+
+  /* Hiệu ứng chuyển đổi theme cho các phần tử chính */
+  a,
+  button,
+  input,
+  textarea,
+  select,
+  svg {
+    @apply transition-colors duration-300 ease-in-out;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Gradient utilities */
+.text-gradient-theme {
+  @apply bg-gradient-to-r from-[rgb(var(--color-primary))] via-[rgb(var(--color-secondary))] to-[rgb(var(--color-primary))] bg-clip-text text-transparent;
+}
+
+.btn-gradient-primary {
+  @apply bg-gradient-to-r from-[rgb(var(--color-primary))] via-[rgb(var(--color-primary))] to-[rgb(var(--color-secondary))];
+  @apply text-white;
+}
+
+.btn-gradient-contrast {
+  @apply bg-gradient-to-r from-[rgb(var(--color-primary))] to-[rgb(var(--color-accent))];
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgb(var(--color-background) / 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-primary) / 0.3);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--color-primary) / 0.5);
+}
+
+/* Background patterns */
+.bg-grid-white {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='rgb(255 255 255 / 0.05)'%3e%3cpath d='M0 .5H31.5V32'/%3e%3c/svg%3e");
+}
+
+/* Animation utilities */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  opacity: 0;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+/* Utility classes for themes */
+.bg-background {
+  background-color: rgb(var(--color-background));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+.bg-foreground {
+  background-color: rgb(var(--color-foreground));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+.text-foreground {
+  color: rgb(var(--color-foreground));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+.text-background {
+  color: rgb(var(--color-background));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+.bg-primary {
+  background-color: rgb(var(--color-primary));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+.bg-secondary {
+  background-color: rgb(var(--color-secondary));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+.bg-accent {
+  background-color: rgb(var(--color-accent));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+.text-primary {
+  color: rgb(var(--color-primary));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+.text-secondary {
+  color: rgb(var(--color-secondary));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+.text-accent {
+  color: rgb(var(--color-accent));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+.border-primary {
+  border-color: rgb(var(--color-primary));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+.border-secondary {
+  border-color: rgb(var(--color-secondary));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+.border-background {
+  border-color: rgb(var(--color-background));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+.border-foreground {
+  border-color: rgb(var(--color-foreground));
+  @apply transition-colors duration-300 ease-in-out;
+}
+
+/* Hiệu ứng cho theme toggle */
+.theme-transition {
+  @apply transition-all duration-300 ease-in-out;
 }
