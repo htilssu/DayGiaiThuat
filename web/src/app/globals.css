@@ -16,6 +16,14 @@
   --color-foreground: 248 250 252;
 }
 
+@theme inline {
+  --color-primary: rgb(var(--color-primary));
+  --color-secondary: rgb(var(--color-secondary));
+  --color-accent: rgb(var(--color-accent));
+  --color-background: rgb(var(--color-background));
+  --color-foreground: rgb(var(--color-foreground));
+}
+
 @layer base {
   html {
     @apply transition-colors duration-300 ease-in-out;

@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import ThemeInitializer from "../components/ThemeInitializer";
+import HeadScripts from "./head-scripts";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,11 +43,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" suppressHydrationWarning>
+      <head>
+        <HeadScripts />
+      </head>
       <body
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased transition-theme min-h-screen bg-background text-foreground`}
       >
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <ThemeInitializer />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
