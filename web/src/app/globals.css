@@ -24,6 +24,8 @@
   --color-foreground: rgb(var(--color-foreground));
 }
 
+@custom-variant light (&:where([data-theme="light"] *));
+
 @layer base {
   html {
     @apply transition-colors duration-300 ease-in-out;
