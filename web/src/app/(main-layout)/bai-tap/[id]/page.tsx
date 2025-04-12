@@ -1,12 +1,6 @@
-"use client";
-
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { Suspense } from "react";
 import { ExerciseDetail } from "./components/types";
-import ExerciseSubmission from "./components/ExerciseSubmission";
-import ExerciseHeader from "./components/ExerciseHeader";
-import ExerciseContent from "./components/ExerciseContent";
+import ClientPage from "./components/ClientPage";
 
 /**
  * Dữ liệu mẫu chi tiết bài tập
@@ -209,137 +203,37 @@ print(quick_sort(arr))  # Kết quả mong đợi: [2, 3, 5, 6, 7, 9, 10, 11, 12
 };
 
 /**
- * Trang chi tiết bài tập
+ * Trang chi tiết bài tập (Server Component)
  *
  * @param {Object} props - Props của component
  * @param {Object} props.params - Tham số của trang
  * @param {string} props.params.id - ID của bài tập
  * @returns {JSX.Element} Trang chi tiết bài tập
  */
-export default function ExerciseDetailPage({
+export default async function ExerciseDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const router = useRouter();
-  const [exercise, setExercise] = useState<ExerciseDetail | null>(null);
-  const [userCode, setUserCode] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentTab, setCurrentTab] = useState<"description" | "submission">(
-    "description"
-  );
+  // Lấy dữ liệu bài tập từ ID
+  const pr = await params;
+  const exercise = exerciseData[pr.id];
 
-  // Tải dữ liệu bài tập khi component được render
-  useEffect(() => {
-    const loadExercise = () => {
-      // Giả lập việc gọi API với dữ liệu giả
-      setIsLoading(true);
-      setTimeout(() => {
-        const exercise = exerciseData[params.id];
-
-        if (!exercise) {
-          // Nếu không tìm thấy bài tập, chuyển hướng về trang danh sách
-          router.push("/bai-tap");
-          return;
-        }
-
-        setExercise(exercise);
-        setUserCode(exercise.codeTemplate || "");
-        setIsLoading(false);
-      }, 500);
-    };
-
-    loadExercise();
-  }, [params.id, router]);
-
-  // Xử lý khi người dùng nộp bài
-  const handleSubmit = () => {
-    // Giả lập việc gửi code đi để chấm điểm
-    setCurrentTab("submission");
-
-    // Giả lập lưu tiến độ hoàn thành
-    if (exercise) {
-      setExercise({
-        ...exercise,
-        completed: true,
-      });
-    }
-  };
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-[50vh] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  // Nếu không tìm thấy bài tập
+  // Nếu không tìm thấy bài tập, trả về thông báo lỗi
   if (!exercise) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-semibold text-foreground mb-2">
-          Không tìm thấy bài tập
-        </h2>
-        <p className="text-foreground/60 mb-4">
-          Bài tập này không tồn tại hoặc đã bị xóa.
-        </p>
-        <Link
-          href="/bai-tap"
-          className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
-        >
-          Quay lại danh sách bài tập
-        </Link>
+      <div className="container mx-auto p-8">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400">
+          <p className="font-medium">Không tìm thấy bài tập</p>
+          <p className="mt-1">Bài tập với ID {pr.id} không tồn tại.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Header bài tập */}
-      <ExerciseHeader exercise={exercise} />
-
-      {/* Tab điều hướng */}
-      <div className="border-b border-foreground/10 mb-6">
-        <div className="flex space-x-4">
-          <button
-            onClick={() => setCurrentTab("description")}
-            className={`py-3 px-1 border-b-2 font-medium text-sm ${
-              currentTab === "description"
-                ? "border-primary text-primary"
-                : "border-transparent text-foreground/70 hover:text-foreground hover:border-foreground/20"
-            } transition-colors`}
-          >
-            Đề bài
-          </button>
-          <button
-            onClick={() => setCurrentTab("submission")}
-            className={`py-3 px-1 border-b-2 font-medium text-sm ${
-              currentTab === "submission"
-                ? "border-primary text-primary"
-                : "border-transparent text-foreground/70 hover:text-foreground hover:border-foreground/20"
-            } transition-colors`}
-          >
-            Nộp bài
-          </button>
-        </div>
-      </div>
-
-      {/* Nội dung bài tập */}
-      {currentTab === "description" && (
-        <ExerciseContent content={exercise.content} />
-      )}
-
-      {/* Phần nộp bài */}
-      {currentTab === "submission" && (
-        <ExerciseSubmission
-          exercise={exercise}
-          userCode={userCode}
-          setUserCode={setUserCode}
-          onSubmit={handleSubmit}
-        />
-      )}
-    </div>
+    <Suspense fallback={<div>Đang tải...</div>}>
+      <ClientPage exercise={exercise} />
+    </Suspense>
   );
 }

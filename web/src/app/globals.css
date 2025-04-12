@@ -181,3 +181,84 @@
 .theme-transition {
   @apply transition-all duration-300 ease-in-out;
 }
+
+/* Theme transition */
+html {
+  transition: background-color 0.3s ease;
+}
+
+html.theme-loaded * {
+  transition: background-color 0.3s ease, border-color 0.3s ease,
+    color 0.2s ease;
+}
+
+/* Base styles */
+body {
+  color: rgb(var(--color-foreground));
+  background-color: rgb(var(--color-background));
+}
+
+/* Utility classes */
+.text-foreground\/5 {
+  color: rgba(var(--color-foreground), 0.05);
+}
+
+.text-foreground\/10 {
+  color: rgba(var(--color-foreground), 0.1);
+}
+
+.text-foreground\/20 {
+  color: rgba(var(--color-foreground), 0.2);
+}
+
+.text-foreground\/30 {
+  color: rgba(var(--color-foreground), 0.3);
+}
+
+.text-foreground\/40 {
+  color: rgba(var(--color-foreground), 0.4);
+}
+
+.text-foreground\/50 {
+  color: rgba(var(--color-foreground), 0.5);
+}
+
+.text-foreground\/60 {
+  color: rgba(var(--color-foreground), 0.6);
+}
+
+.text-foreground\/70 {
+  color: rgba(var(--color-foreground), 0.7);
+}
+
+.text-foreground\/80 {
+  color: rgba(var(--color-foreground), 0.8);
+}
+
+.text-foreground\/90 {
+  color: rgba(var(--color-foreground), 0.9);
+}
+
+.bg-foreground\/5 {
+  background-color: rgba(var(--color-foreground), 0.05);
+}
+
+.bg-foreground\/10 {
+  background-color: rgba(var(--color-foreground), 0.1);
+}
+
+.bg-foreground\/20 {
+  background-color: rgba(var(--color-foreground), 0.2);
+}
+
+.border-foreground\/5 {
+  border-color: rgba(var(--color-foreground), 0.05);
+}
+
+.border-foreground\/10 {
+  border-color: rgba(var(--color-foreground), 0.1);
+}
+
+.border-foreground\/20 {
+  border-color: rgba(var(--color-foreground), 0.2);
+}

@@ -1,8 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import {
+  IconCircleCheck,
+  IconCircleX,
+  IconPlayerPlay,
+  IconCircle,
+} from "@tabler/icons-react";
 import { ExerciseDetail, TestResult } from "./types";
-import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
 
 /**
  * Component cho phần nộp bài tập và chạy test
@@ -128,25 +133,7 @@ export default function ExerciseSubmission({
             ) : testResults.length === 0 ? (
               <div className="text-center text-foreground/60 h-full flex items-center justify-center">
                 <div>
-                  <svg
-                    className="mx-auto h-12 w-12 text-foreground/30"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="1.5"
-                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="1.5"
-                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
+                  <IconPlayerPlay className="mx-auto h-12 w-12 text-foreground/30" />
                   <p className="mt-2">
                     Nhấn nút "Chạy Test" để kiểm tra code của bạn
                   </p>
@@ -174,7 +161,17 @@ export default function ExerciseSubmission({
                             : "text-red-600 dark:text-red-400"
                         }`}
                       >
-                        {result.passed ? "Pass" : "Fail"}
+                        {result.passed ? (
+                          <span className="flex items-center">
+                            <IconCircleCheck className="h-4 w-4 mr-1" />
+                            Pass
+                          </span>
+                        ) : (
+                          <span className="flex items-center">
+                            <IconCircleX className="h-4 w-4 mr-1" />
+                            Fail
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -256,19 +253,7 @@ export default function ExerciseSubmission({
         <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg dark:bg-green-900/20 dark:border-green-900/30 dark:text-green-400 theme-transition">
           <div className="flex">
             <div className="flex-shrink-0">
-              <svg
-                className="h-5 w-5 text-green-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
+              <IconCircleCheck className="h-5 w-5 text-green-500" />
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium">

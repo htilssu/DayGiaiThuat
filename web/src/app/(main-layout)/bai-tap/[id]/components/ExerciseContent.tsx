@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import { useTheme } from "@/contexts/ThemeContext";
 
 /**
@@ -49,15 +49,14 @@ export default function ExerciseContent({ content }: { content: string }) {
       <ReactMarkdown
         components={{
           // Tùy chỉnh cách hiển thị code
-          code({ node, inline, className, children, ...props }) {
+          code({ className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || "");
-            return !inline && match ? (
+            return match ? (
               <SyntaxHighlighter
-                style={oneDark}
+                style={oneDark as any}
                 language={match[1]}
                 PreTag="div"
                 className="rounded-md border border-foreground/10 bg-foreground/5 theme-transition"
-                {...props}
               >
                 {String(children).replace(/\n$/, "")}
               </SyntaxHighlighter>

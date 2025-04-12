@@ -18,6 +18,9 @@ export default function HeadScripts(): React.ReactElement {
           __html: `
             (function() {
               try {
+                // Thêm CSS để ẩn nội dung cho đến khi theme được áp dụng
+                document.documentElement.style.visibility = 'hidden';
+                
                 // Lấy theme từ localStorage nếu có
                 var savedTheme = localStorage.getItem('theme');
                 
@@ -31,6 +34,12 @@ export default function HeadScripts(): React.ReactElement {
                 // Áp dụng theme vào document
                 document.documentElement.setAttribute('data-theme', savedTheme);
                 document.documentElement.dataset.theme = savedTheme;
+                
+                // Hiện nội dung sau khi theme đã được áp dụng
+                document.documentElement.style.visibility = '';
+                
+                // Thêm class CSS để xử lý transition mượt mà
+                document.documentElement.classList.add('theme-loaded');
               } catch (e) {}
             })();
           `,
