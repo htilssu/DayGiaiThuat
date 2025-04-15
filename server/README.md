@@ -33,14 +33,28 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Cấu hình
+## Cấu hình môi trường
 
-1. Tạo file `.env` trong thư mục server với nội dung sau:
+1. Sao chép file `.env.example` thành file `.env`:
 
-```env
-JWT_SECRET_KEY=your_secret_key
-DATABASE_URL=your_database_url
+- Windows:
+
+```bash
+copy .env.example .env
 ```
+
+- Linux/Mac:
+
+```bash
+cp .env.example .env
+```
+
+2. Chỉnh sửa các giá trị trong file `.env`:
+
+- `JWT_SECRET_KEY`: Khóa bí mật để tạo JWT token (nên là một chuỗi ngẫu nhiên phức tạp)
+- `DATABASE_URL`: URL kết nối đến database
+- `BACKEND_CORS_ORIGINS`: Danh sách các domain được phép truy cập API
+- Các cấu hình khác tùy theo nhu cầu
 
 ## Chạy server
 
@@ -65,6 +79,7 @@ Server sẽ chạy tại địa chỉ: http://localhost:8000
 server/
 ├── main.py              # File chính để chạy server
 ├── requirements.txt     # Danh sách các thư viện cần thiết
+├── .env.example        # File mẫu cho cấu hình môi trường
 ├── routes/             # Chứa các route của API
 ├── models/            # Chứa các model dữ liệu
 ├── schemas/           # Chứa các schema Pydantic
@@ -74,6 +89,7 @@ server/
 ## Lưu ý
 
 - Đảm bảo đã kích hoạt môi trường ảo trước khi chạy server
-- Kiểm tra file `.env` đã được cấu hình đúng
+- Kiểm tra file `.env` đã được cấu hình đúng và đầy đủ
 - Đảm bảo cổng 8000 không bị sử dụng bởi ứng dụng khác
 - Cần có kết nối internet để load giao diện Swagger UI và ReDoc
+- KHÔNG commit file `.env` lên git repository (đã được thêm vào .gitignore)

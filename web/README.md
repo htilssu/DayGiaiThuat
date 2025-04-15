@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Agent Giải Thuật - Web Frontend
 
-## Getting Started
+## Yêu cầu hệ thống
 
-First, run the development server:
+- Node.js 18.0.0 trở lên
+- pnpm 8.0.0 trở lên
+
+## Các bước cài đặt
+
+1. Cài đặt dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Cấu hình môi trường:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Sao chép file môi trường mẫu:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Windows:
 
-## Learn More
+```bash
+copy .env.example .env.local
+```
 
-To learn more about Next.js, take a look at the following resources:
+- Linux/Mac:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cp .env.example .env.local
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Chỉnh sửa các giá trị trong file `.env.local`:
 
-## Deploy on Vercel
+- `NEXT_PUBLIC_API_URL`: URL của backend API
+- `NEXT_PUBLIC_API_VERSION`: Version của API
+- Các cấu hình khác tùy theo nhu cầu
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Phát triển
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Chạy môi trường development:
+
+```bash
+pnpm dev
+```
+
+Ứng dụng sẽ chạy tại: http://localhost:3000
+
+## Build và Deploy
+
+Build ứng dụng:
+
+```bash
+pnpm build
+```
+
+Chạy bản production:
+
+```bash
+pnpm start
+```
+
+## Cấu trúc thư mục
+
+```
+web/
+├── src/                # Mã nguồn chính
+│   ├── app/           # Next.js app router
+│   ├── components/    # React components
+│   ├── hooks/         # Custom hooks
+│   ├── contexts/      # React contexts
+│   ├── services/      # API services
+│   ├── types/         # TypeScript types
+│   └── utils/         # Utility functions
+├── public/            # Static files
+├── .env.example       # File mẫu cấu hình môi trường
+└── package.json       # Project dependencies
+```
+
+## Tính năng
+
+- 🔐 Xác thực người dùng
+- 🎨 Giao diện người dùng hiện đại với Tailwind CSS
+- 🌐 Tích hợp với REST API
+- 📱 Responsive design
+- 🔍 SEO friendly
+
+## Lưu ý
+
+- Đảm bảo backend API đang chạy trước khi khởi động frontend
+- Kiểm tra file `.env.local` đã được cấu hình đúng
+- KHÔNG commit file `.env.local` lên git repository
+- Sử dụng `NEXT_PUBLIC_` prefix cho các biến môi trường cần được expose ra client-side
