@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import BrandLogo from "@/components/ui/BrandLogo";
+import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * Trang đăng nhập người dùng
@@ -13,6 +14,7 @@ import BrandLogo from "@/components/ui/BrandLogo";
  */
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [rememberVisible, setRememberVisible] = useState(false);
   const [formData, setFormData] = useState({
@@ -84,19 +86,44 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Simulating API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            username: formData.email, // API nhận username là email
+            password: formData.password,
+          }),
+        }
+      );
 
-      // Replace with actual authentication logic
-      console.log("Đăng nhập với:", formData);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Đăng nhập thất bại");
+      }
+
+      // Lưu token và cập nhật context
+      if (formData.rememberMe) {
+        localStorage.setItem("token", data.access_token);
+      } else {
+        sessionStorage.setItem("token", data.access_token);
+      }
+
+      await login(data.access_token);
 
       // Redirect to dashboard after successful login
       router.push("/");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Lỗi đăng nhập:", error);
       setErrors({
         ...errors,
-        general: "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.",
+        general:
+          error.message ||
+          "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.",
       });
     } finally {
       setIsLoading(false);

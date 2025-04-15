@@ -6,17 +6,10 @@
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
-      "args": [
-        "server.main:app",
-        "--reload",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        "8000"
-      ],
+      "args": ["main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
       "jinja": true,
       "justMyCode": true,
-      "cwd": "${workspaceFolder}"
+      "cwd": "${workspaceFolder}/server"
     },
     {
       "name": "Next.js: Web",

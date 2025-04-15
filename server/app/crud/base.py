@@ -1,0 +1,120 @@
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
+from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.db.session import Base
+
+ModelType = TypeVar("ModelType", bound=Base)
+CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
+UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
+
+class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
+    """
+    Base class cho CRUD operations
+    
+    Attributes:
+        model (Type[ModelType]): SQLAlchemy model class
+    """
+    def __init__(self, model: Type[ModelType]):
+        """
+        Khởi tạo CRUD object với model
+        
+        Args:
+            model (Type[ModelType]): SQLAlchemy model class
+        """
+        self.model = model
+
+    def get(self, db: Session, id: Any) -> Optional[ModelType]:
+        """
+        Lấy object theo ID
+        
+        Args:
+            db (Session): Database session
+            id (Any): ID của object
+            
+        Returns:
+            Optional[ModelType]: Object nếu tìm thấy, None nếu không
+        """
+        return db.query(self.model).filter(self.model.id == id).first()
+
+    def get_multi(
+        self, db: Session, *, skip: int = 0, limit: int = 100
+    ) -> List[ModelType]:
+        """
+        Lấy nhiều objects với phân trang
+        
+        Args:
+            db (Session): Database session
+            skip (int): Số records bỏ qua
+            limit (int): Số records lấy về
+            
+        Returns:
+            List[ModelType]: Danh sách objects
+        """
+        return db.query(self.model).offset(skip).limit(limit).all()
+
+    def create(self, db: Session, *, obj_in: CreateSchemaType) -> ModelType:
+        """
+        Tạo object mới
+        
+        Args:
+            db (Session): Database session
+            obj_in (CreateSchemaType): Schema dữ liệu đầu vào
+            
+        Returns:
+            ModelType: Object đã tạo
+        """
+        obj_in_data = jsonable_encoder(obj_in)
+        db_obj = self.model(**obj_in_data)
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
+
+    def update(
+        self,
+        db: Session,
+        *,
+        db_obj: ModelType,
+        obj_in: Union[UpdateSchemaType, Dict[str, Any]]
+    ) -> ModelType:
+        """
+        Cập nhật object
+        
+        Args:
+            db (Session): Database session
+            db_obj (ModelType): Object cần cập nhật
+            obj_in (Union[UpdateSchemaType, Dict[str, Any]]): Dữ liệu cập nhật
+            
+        Returns:
+            ModelType: Object đã cập nhật
+        """
+        obj_data = jsonable_encoder(db_obj)
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.dict(exclude_unset=True)
+        for field in obj_data:
+            if field in update_data:
+                setattr(db_obj, field, update_data[field])
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
+
+    def remove(self, db: Session, *, id: int) -> ModelType:
+        """
+        Xóa object
+        
+        Args:
+            db (Session): Database session
+            id (int): ID của object cần xóa
+            
+        Returns:
+            ModelType: Object đã xóa
+        """
+        obj = db.query(self.model).get(id)
+        db.delete(obj)
+        db.commit()
+        return obj 

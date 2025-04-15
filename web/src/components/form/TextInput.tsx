@@ -47,7 +47,7 @@ const TextInput: React.FC<TextInputProps> = ({
             : "border-gray-300 dark:border-gray-600"
         } rounded-md focus:outline-none focus:ring-2 ${
           error ? "focus:ring-red-500" : "focus:ring-indigo-500"
-        } focus:border-transparent text-gray-900 dark:text-gray-100 bg-transparent transition-all duration-200`}
+        } focus:border-transparent text-gray-900 dark:text-gray-100 bg-transparent after:transition-all after:duration-200`}
         placeholder={placeholder}
       />
       <label

@@ -4,6 +4,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ThemeInitializer from "../components/ThemeInitializer";
 import HeadScripts from "./head-scripts";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,8 +53,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased transition-theme min-h-screen bg-background text-foreground`}
       >
         <ThemeProvider>
-          <ThemeInitializer />
-          {children}
+          <AuthProvider>
+            <ThemeInitializer />
+            {children}
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
