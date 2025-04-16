@@ -7,8 +7,6 @@
       "request": "launch",
       "module": "uvicorn",
       "args": ["main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
-      "jinja": true,
-      "justMyCode": true,
       "cwd": "${workspaceFolder}/server"
     },
     {
@@ -16,7 +14,7 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}/web",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "pnpm",
       "runtimeArgs": ["run", "dev"],
       "skipFiles": ["<node_internals>/**"],
       "console": "integratedTerminal"

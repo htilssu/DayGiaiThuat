@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import BrandLogo from "@/components/ui/BrandLogo";
 import { useAuth } from "@/contexts/AuthContext";
+import api from "@/lib/api";
 
 /**
  * Trang đăng nhập người dùng
@@ -86,25 +87,13 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: new URLSearchParams({
-            username: formData.email, // API nhận username là email
-            password: formData.password,
-          }),
-        }
-      );
+      console.log(`Đang đăng nhập với: ${formData.email}`);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Đăng nhập thất bại");
-      }
+      // Sử dụng API util thay thế cho fetch trực tiếp
+      const data = (await api.auth.login(
+        formData.email,
+        formData.password
+      )) as { access_token: string };
 
       // Lưu token và cập nhật context
       if (formData.rememberMe) {
@@ -134,11 +123,14 @@ export default function LoginPage() {
   const handleSocialLogin = (provider: string) => {
     setIsLoading(true);
     console.log(`Đăng nhập với ${provider}`);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      router.push("/");
-    }, 1000);
+
+    // Hiển thị thông báo tính năng đang phát triển
+    setErrors({
+      ...errors,
+      general: `Đăng nhập bằng ${provider} đang được phát triển. Vui lòng sử dụng phương thức đăng nhập thông thường.`,
+    });
+
+    setIsLoading(false);
   };
 
   return (

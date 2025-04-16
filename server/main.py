@@ -53,9 +53,6 @@ app = FastAPI(
     redoc_url=None,
 )
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # Custom Swagger UI với theme và các tùy chỉnh
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():

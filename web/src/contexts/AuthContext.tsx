@@ -8,6 +8,7 @@ import {
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import api from "@/lib/api";
 
 /**
  * Interface định nghĩa dữ liệu người dùng
@@ -58,26 +59,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (token) {
         try {
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/auth/me`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
+          console.log("Kiểm tra xác thực với token");
 
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-          } else {
-            // Nếu token không hợp lệ, xóa token và chuyển về trang login
-            localStorage.removeItem("token");
-            sessionStorage.removeItem("token");
-            router.push("/auth/login");
-          }
-        } catch (error) {
+          // Sử dụng API util thay thế cho fetch trực tiếp
+          const userData = (await api.auth.getProfile()) as User;
+          setUser(userData);
+        } catch (error: any) {
           console.error("Lỗi khi kiểm tra xác thực:", error);
+
+          // Nếu token không hợp lệ, xóa token và chuyển về trang login
+          localStorage.removeItem("token");
+          sessionStorage.removeItem("token");
+          router.push("/auth/login");
         }
       }
 
@@ -93,19 +86,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const login = async (token: string) => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/me`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      }
+      // Sử dụng API util thay thế cho fetch trực tiếp
+      const userData = (await api.auth.getProfile()) as User;
+      setUser(userData);
     } catch (error) {
       console.error("Lỗi khi lấy thông tin user:", error);
     }

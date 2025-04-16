@@ -2,7 +2,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from typing import Any
+from typing import Any, Annotated
 
 from app.schemas.user import UserCreate, UserLogin, Token, User
 from app.models.user import User as UserModel
@@ -12,7 +12,8 @@ from app.utils.auth import (
     get_password_hash,
     create_access_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
-    get_current_user
+    get_current_user,
+    oauth2_scheme
 )
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -76,10 +77,13 @@ async def register(user: UserCreate, db: Session = Depends(get_db)) -> Any:
             detail="Có lỗi xảy ra khi tạo tài khoản"
         )
 
-@router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)) -> Any:
+@router.post("/token", response_model=Token)
+async def login_for_access_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Session = Depends(get_db)
+) -> Any:
     """
-    Đăng nhập và lấy token
+    OAuth2 tiêu chuẩn token endpoint
     
     Args:
         form_data (OAuth2PasswordRequestForm): Form data đăng nhập (username, password)
@@ -119,6 +123,26 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+@router.post("/login", response_model=Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)) -> Any:
+    """
+    Đăng nhập và lấy token (giữ lại cho tương thích ngược)
+    
+    Args:
+        form_data (OAuth2PasswordRequestForm): Form data đăng nhập (username, password)
+        db (Session): Database session
+        
+    Returns:
+        Token: JWT token
+        
+    Raises:
+        HTTPException: 
+            - 401: Thông tin đăng nhập không chính xác
+            - 400: Tài khoản bị vô hiệu hóa
+    """
+    # Gọi lại hàm login_for_access_token
+    return await login_for_access_token(form_data, db)
+
 @router.get("/me", response_model=User)
 async def read_users_me(current_user: UserModel = Depends(get_current_user)) -> Any:
     """
@@ -130,4 +154,17 @@ async def read_users_me(current_user: UserModel = Depends(get_current_user)) -> 
     Returns:
         User: Thông tin user
     """
-    return current_user 
+    return current_user
+
+@router.get("/test-token")
+async def test_token(token: Annotated[str, Depends(oauth2_scheme)]):
+    """
+    Endpoint kiểm tra token có hợp lệ không
+    
+    Args:
+        token (str): JWT token từ OAuth2PasswordBearer
+        
+    Returns:
+        dict: Token được cung cấp
+    """
+    return {"token": token} 

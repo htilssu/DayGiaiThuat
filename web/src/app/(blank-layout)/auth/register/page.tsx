@@ -5,6 +5,30 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import TextInput from "@/components/form/TextInput";
 import BrandLogo from "@/components/ui/BrandLogo";
+import api from "@/lib/api";
+
+/**
+ * Interface cho dữ liệu form đăng ký
+ */
+interface RegisterFormData {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  agreeToTerms: boolean;
+}
+
+/**
+ * Interface cho các lỗi trong form đăng ký
+ */
+interface RegisterFormErrors {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  agreeToTerms: string;
+  general: string;
+}
 
 /**
  * Trang đăng ký tài khoản
@@ -15,14 +39,14 @@ export default function RegisterPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formStep, setFormStep] = useState(0); // For multi-step form experience
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<RegisterFormData>({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
     agreeToTerms: false,
   });
-  const [errors, setErrors] = useState({
+  const [errors, setErrors] = useState<RegisterFormErrors>({
     name: "",
     email: "",
     password: "",
@@ -33,6 +57,9 @@ export default function RegisterPage() {
 
   // App name from environment variable
   const appName = process.env.NEXT_PUBLIC_APP_NAME || "AIGiảiThuật";
+  // API URL from environment variables
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const apiVersion = process.env.NEXT_PUBLIC_API_VERSION || "/api/v1";
 
   // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,24 +145,72 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      // Simulating API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Gọi API đăng ký sử dụng tiện ích
+      try {
+        const data = await api.auth.register({
+          username: formData.name.toLowerCase().replace(/\s+/g, "_"),
+          email: formData.email,
+          password: formData.password,
+        });
 
-      // Replace with actual registration logic
-      console.log("Đăng ký với:", formData);
+        // Đăng ký thành công
+        console.log("Đăng ký thành công:", data);
+        setFormStep(1); // Move to success step
 
-      // Show success message and redirect
-      setFormStep(1); // Move to success step
-
-      // Redirect to login after delay
-      setTimeout(() => {
-        router.push("/auth/login");
-      }, 3000);
+        // Redirect to login after delay
+        setTimeout(() => {
+          router.push("/auth/login");
+        }, 3000);
+      } catch (apiError: any) {
+        // Xử lý các lỗi cụ thể từ API
+        if (apiError.data?.detail) {
+          const errorDetail = apiError.data.detail;
+          if (typeof errorDetail === "string") {
+            if (errorDetail.includes("Email đã được đăng ký")) {
+              setErrors({
+                ...errors,
+                email:
+                  "Email này đã được đăng ký, vui lòng sử dụng email khác.",
+                general: "",
+              });
+            } else if (errorDetail.includes("Tên đăng nhập đã được sử dụng")) {
+              setErrors({
+                ...errors,
+                name: "Tên đăng nhập đã tồn tại, vui lòng chọn tên khác.",
+                general: "",
+              });
+            } else if (errorDetail.includes("Mật khẩu phải có ít nhất")) {
+              setErrors({
+                ...errors,
+                password: errorDetail,
+                general: "",
+              });
+            } else {
+              setErrors({
+                ...errors,
+                general:
+                  errorDetail || "Đăng ký thất bại. Vui lòng thử lại sau.",
+              });
+            }
+          } else {
+            setErrors({
+              ...errors,
+              general: "Đăng ký thất bại. Vui lòng thử lại sau.",
+            });
+          }
+        } else {
+          setErrors({
+            ...errors,
+            general:
+              apiError.message || "Đăng ký thất bại. Vui lòng thử lại sau.",
+          });
+        }
+      }
     } catch (error) {
       console.error("Lỗi đăng ký:", error);
       setErrors({
         ...errors,
-        general: "Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.",
+        general: "Lỗi kết nối đến server. Vui lòng thử lại sau.",
       });
     } finally {
       setIsLoading(false);
@@ -146,15 +221,14 @@ export default function RegisterPage() {
   const handleSocialRegister = (provider: string) => {
     setIsLoading(true);
     console.log(`Đăng ký với ${provider}`);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      setFormStep(1);
-      // Redirect to login after delay
-      setTimeout(() => {
-        router.push("/auth/login");
-      }, 3000);
-    }, 1000);
+
+    // Hiển thị thông báo tính năng đang phát triển
+    setErrors({
+      ...errors,
+      general: `Đăng ký bằng ${provider} đang được phát triển. Vui lòng sử dụng phương thức đăng ký thông thường.`,
+    });
+
+    setIsLoading(false);
   };
 
   // Success step content
