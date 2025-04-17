@@ -89,20 +89,17 @@ export default function LoginPage() {
     try {
       console.log(`Đang đăng nhập với: ${formData.email}`);
 
-      // Sử dụng API util thay thế cho fetch trực tiếp
+      // Sử dụng API util - cookie sẽ được tự động thiết lập bởi server
       const data = (await api.auth.login(
         formData.email,
         formData.password
       )) as { access_token: string };
 
-      // Lưu token và cập nhật context
-      if (formData.rememberMe) {
-        localStorage.setItem("token", data.access_token);
-      } else {
-        sessionStorage.setItem("token", data.access_token);
-      }
+      // Luôn lưu token vào localStorage để đảm bảo hoạt động đúng
+      localStorage.setItem("token", data.access_token);
 
-      await login(data.access_token);
+      // Login với hàm từ context
+      await login();
 
       // Redirect to dashboard after successful login
       router.push("/");

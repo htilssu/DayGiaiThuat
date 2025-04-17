@@ -6,6 +6,8 @@ import ThemeInitializer from "../components/ThemeInitializer";
 import HeadScripts from "./head-scripts";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import "@mantine/core/styles.css";
+import { MantineThemeProvider } from "@/components/MantineThemeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,7 +57,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <ThemeInitializer />
-            {children}
+            <MantineThemeProvider>{children}</MantineThemeProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

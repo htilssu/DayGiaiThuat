@@ -69,6 +69,14 @@ const authApi = {
   getProfile: (): Promise<UserData> => {
     return get<UserData>("/auth/me");
   },
+
+  /**
+   * Đăng xuất người dùng
+   * @returns Promise chứa thông báo đăng xuất thành công
+   */
+  logout: (): Promise<{ message: string }> => {
+    return post<{ message: string }>("/auth/logout");
+  },
 };
 
 export default authApi;

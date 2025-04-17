@@ -22,6 +22,12 @@ export const API_VERSION = process.env.NEXT_PUBLIC_API_VERSION || "/api/v1";
 export const BASE_URL = `${API_URL}${API_VERSION}`;
 
 /**
+ * Tên cookie lưu JWT token
+ */
+export const TOKEN_COOKIE_NAME =
+  process.env.NEXT_PUBLIC_TOKEN_COOKIE_NAME || "access_token";
+
+/**
  * Trình xử lý lỗi mặc định cho các yêu cầu API
  * @param error - Lỗi từ Axios
  * @returns Object chứa thông tin lỗi chuẩn hóa
@@ -59,16 +65,46 @@ export const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  // Quan trọng: Cho phép gửi cookie trong các yêu cầu cross-domain
+  withCredentials: true,
 });
 
-// Thêm interceptor để xử lý token
+// Thêm interceptor để xử lý token từ localStorage (khi cookie không khả dụng)
 apiClient.interceptors.request.use((config) => {
+  // Luôn ưu tiên sử dụng token từ localStorage nếu có
   const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+/**
+ * Lấy token từ cookie
+ * @returns Giá trị token hoặc null nếu không tìm thấy
+ */
+export const getTokenFromCookie = (): string | null => {
+  const cookies = document.cookie.split(";");
+  for (let cookie of cookies) {
+    const [name, value] = cookie.trim().split("=");
+    if (name === TOKEN_COOKIE_NAME) {
+      return decodeURIComponent(value);
+    }
+  }
+  return null;
+};
+
+/**
+ * Kiểm tra người dùng đã đăng nhập hay chưa
+ * @returns true nếu người dùng đã đăng nhập, ngược lại false
+ */
+export const isAuthenticated = (): boolean => {
+  // Kiểm tra token trong localStorage trước, sau đó mới kiểm tra cookie
+  const localToken = localStorage.getItem("token");
+  const cookieToken = getTokenFromCookie();
+
+  return !!localToken || !!cookieToken;
+};
 
 /**
  * Thực hiện yêu cầu GET

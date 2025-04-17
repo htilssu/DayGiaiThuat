@@ -1,5 +1,5 @@
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import Any, Annotated
@@ -15,6 +15,7 @@ from app.utils.auth import (
     get_current_user,
     oauth2_scheme
 )
+from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -79,6 +80,7 @@ async def register(user: UserCreate, db: Session = Depends(get_db)) -> Any:
 
 @router.post("/token", response_model=Token)
 async def login_for_access_token(
+    response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Session = Depends(get_db)
 ) -> Any:
@@ -86,6 +88,7 @@ async def login_for_access_token(
     OAuth2 tiêu chuẩn token endpoint
     
     Args:
+        response (Response): FastAPI response object để thiết lập cookie
         form_data (OAuth2PasswordRequestForm): Form data đăng nhập (username, password)
         db (Session): Database session
         
@@ -121,14 +124,36 @@ async def login_for_access_token(
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
+    
+    # Thiết lập cookie
+    cookie_params = {
+        "key": settings.COOKIE_NAME,
+        "value": access_token,
+        "max_age": settings.COOKIE_MAX_AGE,
+        "httponly": settings.COOKIE_HTTPONLY,
+        "secure": settings.COOKIE_SECURE,
+        "samesite": settings.COOKIE_SAMESITE
+    }
+    
+    # Chỉ thêm domain nếu được cấu hình
+    if settings.COOKIE_DOMAIN:
+        cookie_params["domain"] = settings.COOKIE_DOMAIN
+    
+    response.set_cookie(**cookie_params)
+    
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)) -> Any:
+async def login(
+    response: Response,
+    form_data: OAuth2PasswordRequestForm = Depends(), 
+    db: Session = Depends(get_db)
+) -> Any:
     """
     Đăng nhập và lấy token (giữ lại cho tương thích ngược)
     
     Args:
+        response (Response): FastAPI response object để thiết lập cookie
         form_data (OAuth2PasswordRequestForm): Form data đăng nhập (username, password)
         db (Session): Database session
         
@@ -141,7 +166,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
             - 400: Tài khoản bị vô hiệu hóa
     """
     # Gọi lại hàm login_for_access_token
-    return await login_for_access_token(form_data, db)
+    return await login_for_access_token(response, form_data, db)
 
 @router.get("/me", response_model=User)
 async def read_users_me(current_user: UserModel = Depends(get_current_user)) -> Any:
@@ -167,4 +192,31 @@ async def test_token(token: Annotated[str, Depends(oauth2_scheme)]):
     Returns:
         dict: Token được cung cấp
     """
-    return {"token": token} 
+    return {"token": token}
+
+@router.post("/logout")
+async def logout(response: Response):
+    """
+    Đăng xuất người dùng bằng cách xóa cookie
+    
+    Args:
+        response (Response): FastAPI response object để xóa cookie
+        
+    Returns:
+        dict: Thông báo đăng xuất thành công
+    """
+    # Xóa cookie
+    cookie_params = {
+        "key": settings.COOKIE_NAME,
+        "httponly": settings.COOKIE_HTTPONLY,
+        "secure": settings.COOKIE_SECURE,
+        "samesite": settings.COOKIE_SAMESITE
+    }
+    
+    # Chỉ thêm domain nếu được cấu hình
+    if settings.COOKIE_DOMAIN:
+        cookie_params["domain"] = settings.COOKIE_DOMAIN
+    
+    response.delete_cookie(**cookie_params)
+    
+    return {"message": "Đăng xuất thành công"} 

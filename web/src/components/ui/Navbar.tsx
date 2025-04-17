@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 
 /**
@@ -12,9 +13,12 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
  */
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const pathname = usePathname();
   const { theme } = useTheme();
+  const { user, isAuthenticated, logout } = useAuth();
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // App name from environment variable
   const appName = process.env.NEXT_PUBLIC_APP_NAME || "AIGiảiThuật";
@@ -32,6 +36,23 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Xử lý close menu khi click bên ngoài
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsUserMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   // Tính toán các giá trị dựa trên scrollY
   const scrollProgress = Math.min(scrollY / 100, 1);
   const backdropBlur = Math.min(8 + scrollProgress * 8, 16); // Từ 8px đến 16px
@@ -39,6 +60,25 @@ export default function Navbar() {
 
   // Chỉ hiển thị shadow khi đã cuộn xuống đủ xa
   const shouldShowShadow = scrollY > 20;
+
+  /**
+   * Xử lý đăng xuất
+   */
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Lỗi khi đăng xuất:", error);
+    }
+  };
+
+  /**
+   * Hiển thị tên người dùng viết tắt
+   */
+  const getInitials = () => {
+    if (!user) return "?";
+    return user.username.charAt(0).toUpperCase();
+  };
 
   return (
     <header
@@ -79,30 +119,31 @@ export default function Navbar() {
           <ul className="flex items-center gap-8">
             <NavItem href="/" label="Trang chủ" isActive={pathname === "/"} />
             <NavItem
-              href="/khoa-hoc"
+              href="/courses"
               label="Khóa học"
               isActive={
-                pathname === "/khoa-hoc" || pathname.startsWith("/khoa-hoc/")
+                pathname === "/courses" || pathname.startsWith("/courses/")
               }
             />
             <NavItem
-              href="/bai-tap"
+              href="/exercises"
               label="Bài tập"
               isActive={
-                pathname === "/bai-tap" || pathname.startsWith("/bai-tap/")
+                pathname === "/exercises" || pathname.startsWith("/exercises/")
               }
             />
             <NavItem
-              href="/thao-luan"
+              href="/discussions"
               label="Thảo luận"
               isActive={
-                pathname === "/thao-luan" || pathname.startsWith("/thao-luan/")
+                pathname === "/discussions" ||
+                pathname.startsWith("/discussions/")
               }
             />
             <NavItem
-              href="/gioi-thieu"
+              href="/about"
               label="Giới thiệu"
-              isActive={pathname === "/gioi-thieu"}
+              isActive={pathname === "/about"}
             />
           </ul>
         </nav>
@@ -113,18 +154,69 @@ export default function Navbar() {
             {/* Theme Toggle */}
             <ThemeToggle />
 
-            <Link
-              href="/auth/login"
-              className="px-4 py-2 text-sm font-medium rounded-lg hover:bg-foreground/5 transition-colors text-foreground theme-transition"
-            >
-              Đăng nhập
-            </Link>
-            <Link
-              href="/auth/register"
-              className="px-5 py-2 text-sm font-medium btn-gradient-primary rounded-lg transition-all shadow-sm hover:shadow transform hover:-translate-y-0.5 theme-transition"
-            >
-              Đăng ký
-            </Link>
+            {isAuthenticated ? (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary text-white font-medium shadow-sm hover:shadow transition-all transform hover:-translate-y-0.5"
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  aria-label="Menu người dùng"
+                >
+                  {getInitials()}
+                </button>
+
+                {/* Dropdown menu */}
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 py-2 bg-background border border-foreground/10 rounded-lg shadow-lg overflow-hidden z-50 theme-transition">
+                    <div className="px-4 py-2 border-b border-foreground/10">
+                      <p className="text-sm font-medium text-foreground">
+                        {user?.username}
+                      </p>
+                      <p className="text-xs text-foreground/60 truncate">
+                        {user?.email}
+                      </p>
+                    </div>
+                    <Link
+                      href="/profile"
+                      className="block px-4 py-2 text-sm text-foreground hover:bg-foreground/5 transition-colors"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      Hồ sơ
+                    </Link>
+                    <Link
+                      href="/settings"
+                      className="block px-4 py-2 text-sm text-foreground hover:bg-foreground/5 transition-colors"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      Cài đặt
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        handleLogout();
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      Đăng xuất
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  className="px-4 py-2 text-sm font-medium rounded-lg hover:bg-foreground/5 transition-colors text-foreground theme-transition"
+                >
+                  Đăng nhập
+                </Link>
+                <Link
+                  href="/auth/register"
+                  className="px-5 py-2 text-sm font-medium btn-gradient-primary rounded-lg transition-all shadow-sm hover:shadow transform hover:-translate-y-0.5 theme-transition"
+                >
+                  Đăng ký
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Menu Toggle - Mobile */}
@@ -186,33 +278,34 @@ export default function Navbar() {
               onClick={() => setIsMenuOpen(false)}
             />
             <MobileNavItem
-              href="/khoa-hoc"
+              href="/courses"
               label="Khóa học"
               isActive={
-                pathname === "/khoa-hoc" || pathname.startsWith("/khoa-hoc/")
+                pathname === "/courses" || pathname.startsWith("/courses/")
               }
               onClick={() => setIsMenuOpen(false)}
             />
             <MobileNavItem
-              href="/bai-tap"
+              href="/exercises"
               label="Bài tập"
               isActive={
-                pathname === "/bai-tap" || pathname.startsWith("/bai-tap/")
+                pathname === "/exercises" || pathname.startsWith("/exercises/")
               }
               onClick={() => setIsMenuOpen(false)}
             />
             <MobileNavItem
-              href="/thao-luan"
+              href="/discussions"
               label="Thảo luận"
               isActive={
-                pathname === "/thao-luan" || pathname.startsWith("/thao-luan/")
+                pathname === "/discussions" ||
+                pathname.startsWith("/discussions/")
               }
               onClick={() => setIsMenuOpen(false)}
             />
             <MobileNavItem
-              href="/gioi-thieu"
+              href="/about"
               label="Giới thiệu"
-              isActive={pathname === "/gioi-thieu"}
+              isActive={pathname === "/about"}
               onClick={() => setIsMenuOpen(false)}
             />
           </nav>
@@ -223,22 +316,70 @@ export default function Navbar() {
               <ThemeToggle />
             </div>
 
-            <Link
-              href="/auth/login"
-              className={`w-full py-2.5 text-center text-sm font-medium border rounded-lg hover:bg-foreground/5 transition-colors theme-transition ${
-                theme === "dark" ? "border-slate-800" : "border-gray-200"
-              }`}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Đăng nhập
-            </Link>
-            <Link
-              href="/auth/register"
-              className="w-full py-2.5 text-center text-sm font-medium bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 rounded-lg transition-colors shadow-sm hover:shadow text-white"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Đăng ký
-            </Link>
+            {isAuthenticated ? (
+              <>
+                {/* User info - Mobile */}
+                <div className="flex items-center gap-3 p-3 bg-foreground/5 rounded-lg mb-2">
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary text-white font-medium flex items-center justify-center">
+                    {getInitials()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {user?.username}
+                    </p>
+                    <p className="text-xs text-foreground/60 truncate max-w-[200px]">
+                      {user?.email}
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/profile"
+                  className={`w-full py-2.5 px-3 text-left text-sm font-medium border rounded-lg hover:bg-foreground/5 transition-colors theme-transition ${
+                    theme === "dark" ? "border-slate-800" : "border-gray-200"
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Hồ sơ của tôi
+                </Link>
+                <Link
+                  href="/settings"
+                  className={`w-full py-2.5 px-3 text-left text-sm font-medium border rounded-lg hover:bg-foreground/5 transition-colors theme-transition ${
+                    theme === "dark" ? "border-slate-800" : "border-gray-200"
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Cài đặt
+                </Link>
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="w-full py-2.5 text-left px-3 text-sm font-medium border border-red-200 text-red-500 hover:bg-red-50/30 rounded-lg transition-colors"
+                >
+                  Đăng xuất
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  className={`w-full py-2.5 text-center text-sm font-medium border rounded-lg hover:bg-foreground/5 transition-colors theme-transition ${
+                    theme === "dark" ? "border-slate-800" : "border-gray-200"
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Đăng nhập
+                </Link>
+                <Link
+                  href="/auth/register"
+                  className="w-full py-2.5 text-center text-sm font-medium bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 rounded-lg transition-colors shadow-sm hover:shadow text-white"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Đăng ký
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

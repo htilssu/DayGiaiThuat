@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from pydantic_settings import BaseSettings
 from pydantic import AnyHttpUrl, validator
 import json
@@ -18,6 +18,10 @@ class Settings(BaseSettings):
         DB_NAME (str): Tên database
         SECRET_KEY (str): Key để mã hóa JWT token
         ACCESS_TOKEN_EXPIRE_MINUTES (int): Thời gian hết hạn của token (phút)
+        COOKIE_DOMAIN (str): Domain cho cookie
+        COOKIE_SECURE (bool): Secure flag cho cookie
+        COOKIE_SAMESITE (str): SameSite setting cho cookie
+        COOKIE_NAME (str): Tên cookie lưu JWT token
     """
     API_V1_STR: str
     PROJECT_NAME: str
@@ -58,6 +62,14 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    
+    # Cookie settings
+    COOKIE_DOMAIN: Optional[str] = ""  # Sử dụng chuỗi rỗng thay vì None
+    COOKIE_SECURE: bool = False  # True trong production
+    COOKIE_SAMESITE: str = "lax"  # 'lax', 'strict', or 'none'
+    COOKIE_NAME: str = "access_token"
+    COOKIE_HTTPONLY: bool = True
+    COOKIE_MAX_AGE: int = 1800  # 30 phút, tương đương với ACCESS_TOKEN_EXPIRE_MINUTES
     
     @property
     def DATABASE_URI(self) -> str:
