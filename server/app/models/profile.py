@@ -1,41 +1,10 @@
-from pydantic import BaseModel, EmailStr
-from typing import List, Dict, Optional
+from typing import List, Optional
 from datetime import datetime
-
-class UserBase(BaseModel):
-    """
-    Schema cơ bản cho User
-    
-    Attributes:
-        email (EmailStr): Email của user
-        username (str): Tên đăng nhập của user
-    """
-    email: EmailStr
-    username: str
-
-class UserCreate(UserBase):
-    """
-    Schema cho việc tạo User mới, kế thừa từ UserBase
-    
-    Attributes:
-        password (str): Mật khẩu của user
-    """
-    password: str
-
-class UserLogin(BaseModel):
-    """
-    Schema cho việc đăng nhập
-    
-    Attributes:
-        username (str): Tên đăng nhập hoặc email
-        password (str): Mật khẩu
-    """
-    username: str
-    password: str
+from pydantic import BaseModel, Field, validator
 
 class Badge(BaseModel):
     """
-    Schema cho huy hiệu người dùng
+    Mô hình dữ liệu cho huy hiệu người dùng
     
     Attributes:
         id (int): Mã định danh duy nhất của huy hiệu
@@ -52,7 +21,7 @@ class Badge(BaseModel):
 
 class Activity(BaseModel):
     """
-    Schema cho hoạt động của người dùng
+    Mô hình dữ liệu cho hoạt động của người dùng
     
     Attributes:
         id (int): Mã định danh duy nhất của hoạt động
@@ -69,9 +38,41 @@ class Activity(BaseModel):
     score: Optional[str] = None
     progress: Optional[str] = None
 
+class LearningProgress(BaseModel):
+    """
+    Mô hình dữ liệu cho tiến độ học tập của người dùng
+    
+    Attributes:
+        algorithms (int): Tiến độ học thuật toán (0-100%)
+        data_structures (int): Tiến độ học cấu trúc dữ liệu (0-100%)
+        dynamic_programming (int): Tiến độ học quy hoạch động (0-100%)
+    """
+    algorithms: int = Field(default=0, ge=0, le=100)
+    data_structures: int = Field(default=0, ge=0, le=100)
+    dynamic_programming: int = Field(default=0, ge=0, le=100)
+
+class CourseProgress(BaseModel):
+    """
+    Mô hình dữ liệu cho tiến độ khóa học
+    
+    Attributes:
+        id (str): Mã định danh duy nhất của khóa học
+        name (str): Tên khóa học
+        progress (int): Tiến độ hoàn thành (0-100%)
+        color_from (str): Mã màu bắt đầu cho gradient
+        color_to (str): Mã màu kết thúc cho gradient
+        image_url (Optional[str]): Đường dẫn đến hình ảnh khóa học (nếu có)
+    """
+    id: str
+    name: str
+    progress: int = Field(default=0, ge=0, le=100)
+    color_from: str
+    color_to: str
+    image_url: Optional[str] = None
+
 class UserStats(BaseModel):
     """
-    Schema cho thống kê người dùng
+    Mô hình dữ liệu cho thống kê người dùng
     
     Attributes:
         completed_exercises (int): Số bài tập đã hoàn thành
@@ -88,41 +89,9 @@ class UserStats(BaseModel):
     level: int = 1
     problems_solved: int = 0
 
-class LearningProgress(BaseModel):
+class ProfileBase(BaseModel):
     """
-    Schema cho tiến độ học tập của người dùng
-    
-    Attributes:
-        algorithms (int): Tiến độ học thuật toán (0-100%)
-        data_structures (int): Tiến độ học cấu trúc dữ liệu (0-100%)
-        dynamic_programming (int): Tiến độ học quy hoạch động (0-100%)
-    """
-    algorithms: int = 0
-    data_structures: int = 0
-    dynamic_programming: int = 0
-
-class CourseProgress(BaseModel):
-    """
-    Schema cho tiến độ khóa học
-    
-    Attributes:
-        id (str): Mã định danh duy nhất của khóa học
-        name (str): Tên khóa học
-        progress (int): Tiến độ hoàn thành (0-100%)
-        color_from (str): Mã màu bắt đầu cho gradient
-        color_to (str): Mã màu kết thúc cho gradient
-        image_url (Optional[str]): Đường dẫn đến hình ảnh khóa học (nếu có)
-    """
-    id: str
-    name: str
-    progress: int = 0
-    color_from: str
-    color_to: str
-    image_url: Optional[str] = None
-
-class UserUpdate(BaseModel):
-    """
-    Schema cho việc cập nhật thông tin người dùng
+    Mô hình dữ liệu cơ sở cho profile người dùng
     
     Attributes:
         full_name (Optional[str]): Họ và tên đầy đủ
@@ -133,47 +102,51 @@ class UserUpdate(BaseModel):
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
 
-class User(UserBase):
+class ProfileUpdate(ProfileBase):
     """
-    Schema cho thông tin User trả về, kế thừa từ UserBase
+    Mô hình dữ liệu cho cập nhật profile người dùng
+    """
+    pass
+
+class ProfileResponse(ProfileBase):
+    """
+    Mô hình dữ liệu cho phản hồi profile người dùng
     
     Attributes:
-        id (int): ID của user
-        is_active (bool): Trạng thái hoạt động của tài khoản
+        id (str): Mã định danh người dùng
+        username (str): Tên người dùng
+        email (str): Địa chỉ email
         created_at (datetime): Thời điểm tạo tài khoản
-        updated_at (datetime): Thời điểm cập nhật gần nhất
-        full_name (Optional[str]): Họ và tên đầy đủ
-        bio (Optional[str]): Giới thiệu ngắn về bản thân
-        avatar_url (Optional[str]): Đường dẫn đến ảnh đại diện
         stats (UserStats): Thống kê người dùng
         badges (List[Badge]): Danh sách huy hiệu
         activities (List[Activity]): Lịch sử hoạt động
         learning_progress (LearningProgress): Tiến độ học tập
         courses (List[CourseProgress]): Danh sách khóa học đang theo dõi
     """
-    id: int
-    is_active: bool
+    id: str
+    username: str
+    email: str
     created_at: datetime
-    updated_at: datetime
-    full_name: Optional[str] = None
-    bio: Optional[str] = None
-    avatar_url: Optional[str] = None
     stats: UserStats
-    badges: List[Badge] = []
-    activities: List[Activity] = []
+    badges: List[Badge]
+    activities: List[Activity]
     learning_progress: LearningProgress
-    courses: List[CourseProgress] = []
-
+    courses: List[CourseProgress]
+    
     class Config:
-        from_attributes = True
-
-class Token(BaseModel):
+        orm_mode = True
+        
+        
+class ProfileInDB(ProfileResponse):
     """
-    Schema cho token trả về khi đăng nhập thành công
+    Mô hình dữ liệu cho profile người dùng trong database
     
     Attributes:
-        access_token (str): JWT token
-        token_type (str): Loại token (Bearer)
+        user_id (str): Mã định danh người dùng trong database
+        updated_at (datetime): Thời điểm cập nhật gần nhất
     """
-    access_token: str
-    token_type: str 
+    user_id: str
+    updated_at: datetime
+    
+    class Config:
+        orm_mode = True 

@@ -61,7 +61,7 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     
     # Cookie settings
     COOKIE_DOMAIN: Optional[str] = ""  # Sử dụng chuỗi rỗng thay vì None
@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "lax"  # 'lax', 'strict', or 'none'
     COOKIE_NAME: str = "access_token"
     COOKIE_HTTPONLY: bool = True
-    COOKIE_MAX_AGE: int = 1800  # 30 phút, tương đương với ACCESS_TOKEN_EXPIRE_MINUTES
+    COOKIE_MAX_AGE: int = 3600  # 30 phút, tương đương với ACCESS_TOKEN_EXPIRE_MINUTES
     
     @property
     def DATABASE_URI(self) -> str:

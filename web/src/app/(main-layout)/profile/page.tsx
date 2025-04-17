@@ -1,70 +1,85 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Tabs } from "@mantine/core";
 import Image from "next/image";
+import { useAuth } from "@/contexts/AuthContext";
+import profileService, { ProfileData } from "@/services/profile.service";
+import { Skeleton } from "@mantine/core";
 
 /**
  * Trang hồ sơ người dùng
  * Hiển thị thông tin cá nhân, tiến độ học tập, thành tích, lịch sử hoạt động
  */
 const ProfilePage = () => {
-  // Dữ liệu mẫu cho profile người dùng
-  const userProfile = {
-    name: "Nguyễn Văn A",
-    username: "nguyenvana",
-    email: "nguyenvana@example.com",
-    joinDate: "15/04/2023",
-    bio: "Học viên đam mê thuật toán và lập trình. Đang theo đuổi ngành Khoa học máy tính.",
-    avatar: "/placeholder-avatar.png",
-    level: 12,
-    completedExercises: 48,
-    completedCourses: 3,
-    totalPoints: 1250,
-    streak: 15, // Số ngày liên tiếp hoạt động
-    badges: [
-      {
-        id: 1,
-        name: "Người mới",
-        icon: "🔰",
-        description: "Hoàn thành đăng ký tài khoản",
-      },
-      {
-        id: 2,
-        name: "Siêu sao",
-        icon: "⭐",
-        description: "Đạt điểm tối đa trong 5 bài tập",
-      },
-      {
-        id: 3,
-        name: "Chăm chỉ",
-        icon: "🔥",
-        description: "Hoạt động 10 ngày liên tiếp",
-      },
-    ],
-    recentActivities: [
-      {
-        id: 1,
-        type: "exercise",
-        name: "Tìm kiếm nhị phân",
-        date: "15/04/2025",
-        score: "95/100",
-      },
-      {
-        id: 2,
-        type: "course",
-        name: "Cấu trúc dữ liệu cơ bản",
-        date: "10/04/2025",
-        progress: "75%",
-      },
-      {
-        id: 3,
-        type: "discussion",
-        name: "Thuật toán sắp xếp nhanh",
-        date: "08/04/2025",
-      },
-    ],
-  };
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!isAuthenticated || !user) return;
+
+      try {
+        setIsLoading(true);
+        const data = await profileService.getProfile(user.id);
+        setProfileData(data);
+        setError(null);
+      } catch (err) {
+        console.error("Lỗi khi tải thông tin profile:", err);
+        setError("Không thể tải thông tin hồ sơ. Vui lòng thử lại sau.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [user, isAuthenticated]);
+
+  if (authLoading || isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="bg-background rounded-xl shadow-sm p-6 mb-6 border border-foreground/10 flex flex-col md:flex-row gap-6 items-center md:items-start">
+          <Skeleton height={112} width={112} radius="xl" />
+          <div className="flex-1">
+            <Skeleton height={32} width={200} radius="md" mb="md" />
+            <Skeleton height={20} radius="md" mb="md" />
+            <Skeleton height={60} radius="md" mb="md" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <Skeleton height={80} radius="md" />
+              <Skeleton height={80} radius="md" />
+              <Skeleton height={80} radius="md" />
+              <Skeleton height={80} radius="md" />
+            </div>
+          </div>
+        </div>
+
+        <Skeleton height={50} radius="md" mb="lg" />
+        <Skeleton height={300} radius="md" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="bg-background rounded-xl shadow-sm p-6 border border-foreground/10 flex flex-col items-center justify-center">
+          <div className="text-red-500 text-xl mb-4">⚠️ {error}</div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors"
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profileData) {
+    return null;
+  }
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -73,30 +88,30 @@ const ProfilePage = () => {
         {/* Avatar */}
         <div className="relative">
           <div className="w-28 h-28 rounded-full overflow-hidden bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border-4 border-background shadow-lg">
-            {userProfile.avatar ? (
+            {profileData.avatar ? (
               <Image
-                src={userProfile.avatar}
-                alt={userProfile.name}
+                src={profileData.avatar}
+                alt={profileData.fullName}
                 width={100}
                 height={100}
                 className="object-cover"
               />
             ) : (
-              <span className="text-4xl">{userProfile.name.charAt(0)}</span>
+              <span className="text-4xl">{profileData.fullName.charAt(0)}</span>
             )}
           </div>
           <span className="absolute -bottom-2 -right-2 bg-primary text-white text-xs font-bold rounded-full w-8 h-8 flex items-center justify-center shadow-md">
-            Lv{userProfile.level}
+            Lv{profileData.stats.level}
           </span>
         </div>
 
         {/* Thông tin cơ bản */}
         <div className="flex-1 text-center md:text-left">
           <h1 className="text-2xl font-bold text-foreground">
-            {userProfile.name}
+            {profileData.fullName}
           </h1>
-          <p className="text-foreground/60 mb-3">@{userProfile.username}</p>
-          <p className="text-foreground/80 mb-4 max-w-2xl">{userProfile.bio}</p>
+          <p className="text-foreground/60 mb-3">@{profileData.username}</p>
+          <p className="text-foreground/80 mb-4 max-w-2xl">{profileData.bio}</p>
 
           {/* Stats grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-2">
@@ -105,7 +120,7 @@ const ProfilePage = () => {
                 Bài tập đã hoàn thành
               </p>
               <p className="text-xl font-semibold">
-                {userProfile.completedExercises}
+                {profileData.stats.completedExercises}
               </p>
             </div>
             <div className="bg-background/50 p-3 rounded-lg border border-foreground/10 theme-transition">
@@ -113,17 +128,20 @@ const ProfilePage = () => {
                 Khóa học đã hoàn thành
               </p>
               <p className="text-xl font-semibold">
-                {userProfile.completedCourses}
+                {profileData.stats.completedCourses}
               </p>
             </div>
             <div className="bg-background/50 p-3 rounded-lg border border-foreground/10 theme-transition">
               <p className="text-foreground/60 text-xs">Tổng điểm</p>
-              <p className="text-xl font-semibold">{userProfile.totalPoints}</p>
+              <p className="text-xl font-semibold">
+                {profileData.stats.totalPoints}
+              </p>
             </div>
             <div className="bg-background/50 p-3 rounded-lg border border-foreground/10 theme-transition">
               <p className="text-foreground/60 text-xs">Chuỗi hoạt động</p>
               <p className="text-xl font-semibold flex items-center gap-1">
-                {userProfile.streak} <span className="text-amber-500">🔥</span>
+                {profileData.stats.streak}{" "}
+                <span className="text-amber-500">🔥</span>
               </p>
             </div>
           </div>
@@ -158,13 +176,15 @@ const ProfilePage = () => {
                     Thuật toán cơ bản
                   </span>
                   <span className="text-sm font-medium text-foreground/80">
-                    75%
+                    {profileData.learningProgress.algorithms}%
                   </span>
                 </div>
                 <div className="w-full bg-foreground/10 rounded-full h-2.5">
                   <div
                     className="bg-primary h-2.5 rounded-full"
-                    style={{ width: "75%" }}
+                    style={{
+                      width: `${profileData.learningProgress.algorithms}%`,
+                    }}
                   ></div>
                 </div>
               </div>
@@ -174,13 +194,15 @@ const ProfilePage = () => {
                     Cấu trúc dữ liệu
                   </span>
                   <span className="text-sm font-medium text-foreground/80">
-                    60%
+                    {profileData.learningProgress.dataStructures}%
                   </span>
                 </div>
                 <div className="w-full bg-foreground/10 rounded-full h-2.5">
                   <div
                     className="bg-primary h-2.5 rounded-full"
-                    style={{ width: "60%" }}
+                    style={{
+                      width: `${profileData.learningProgress.dataStructures}%`,
+                    }}
                   ></div>
                 </div>
               </div>
@@ -190,13 +212,15 @@ const ProfilePage = () => {
                     Lập trình động
                   </span>
                   <span className="text-sm font-medium text-foreground/80">
-                    30%
+                    {profileData.learningProgress.dynamicProgramming}%
                   </span>
                 </div>
                 <div className="w-full bg-foreground/10 rounded-full h-2.5">
                   <div
                     className="bg-primary h-2.5 rounded-full"
-                    style={{ width: "30%" }}
+                    style={{
+                      width: `${profileData.learningProgress.dynamicProgramming}%`,
+                    }}
                   ></div>
                 </div>
               </div>
@@ -209,57 +233,39 @@ const ProfilePage = () => {
               Khóa học đang tham gia
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Khóa học 1 */}
-              <div className="border border-foreground/10 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-background/50 theme-transition">
-                <div className="h-40 bg-gradient-to-r from-blue-500 to-purple-600 relative">
-                  <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent">
-                    <h3 className="text-white font-medium">
-                      Cấu trúc dữ liệu nâng cao
-                    </h3>
+              {profileData.courses.map((course) => (
+                <div
+                  key={course.id}
+                  className="border border-foreground/10 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-background/50 theme-transition"
+                >
+                  <div
+                    className={`h-40 bg-gradient-to-r from-${course.colorFrom} to-${course.colorTo} relative`}
+                  >
+                    <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent">
+                      <h3 className="text-white font-medium">{course.name}</h3>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm text-foreground/80">
+                        Tiến độ
+                      </span>
+                      <span className="text-sm text-foreground/80">
+                        {course.progress}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-foreground/10 rounded-full h-1.5 mb-3">
+                      <div
+                        className="bg-primary h-1.5 rounded-full"
+                        style={{ width: `${course.progress}%` }}
+                      ></div>
+                    </div>
+                    <button className="w-full py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded text-sm font-medium transition-colors">
+                      Tiếp tục học
+                    </button>
                   </div>
                 </div>
-                <div className="p-4">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm text-foreground/80">Tiến độ</span>
-                    <span className="text-sm text-foreground/80">35%</span>
-                  </div>
-                  <div className="w-full bg-foreground/10 rounded-full h-1.5 mb-3">
-                    <div
-                      className="bg-primary h-1.5 rounded-full"
-                      style={{ width: "35%" }}
-                    ></div>
-                  </div>
-                  <button className="w-full py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded text-sm font-medium transition-colors">
-                    Tiếp tục học
-                  </button>
-                </div>
-              </div>
-
-              {/* Khóa học 2 */}
-              <div className="border border-foreground/10 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-background/50 theme-transition">
-                <div className="h-40 bg-gradient-to-r from-green-500 to-teal-600 relative">
-                  <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent">
-                    <h3 className="text-white font-medium">
-                      Thuật toán tìm đường đi ngắn nhất
-                    </h3>
-                  </div>
-                </div>
-                <div className="p-4">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm text-foreground/80">Tiến độ</span>
-                    <span className="text-sm text-foreground/80">60%</span>
-                  </div>
-                  <div className="w-full bg-foreground/10 rounded-full h-1.5 mb-3">
-                    <div
-                      className="bg-primary h-1.5 rounded-full"
-                      style={{ width: "60%" }}
-                    ></div>
-                  </div>
-                  <button className="w-full py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded text-sm font-medium transition-colors">
-                    Tiếp tục học
-                  </button>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </Tabs.Panel>
@@ -271,38 +277,47 @@ const ProfilePage = () => {
               Huy hiệu đạt được
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {userProfile.badges.map((badge) => (
-                <div
-                  key={badge.id}
-                  className="flex items-center gap-4 p-4 border border-foreground/10 rounded-lg bg-background/50 hover:shadow-sm transition-shadow theme-transition"
-                >
-                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-2xl">
-                    {badge.icon}
+              {profileData.badges
+                .filter((badge) => badge.unlocked)
+                .map((badge) => (
+                  <div
+                    key={badge.id}
+                    className="flex items-center gap-4 p-4 border border-foreground/10 rounded-lg bg-background/50 hover:shadow-sm transition-shadow theme-transition"
+                  >
+                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-2xl">
+                      {badge.icon}
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-foreground">
+                        {badge.name}
+                      </h3>
+                      <p className="text-sm text-foreground/60">
+                        {badge.description}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-foreground">
-                      {badge.name}
-                    </h3>
-                    <p className="text-sm text-foreground/60">
-                      {badge.description}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                ))}
               {/* Huy hiệu khóa - chưa đạt được */}
-              <div className="flex items-center gap-4 p-4 border border-foreground/10 rounded-lg bg-background/50 opacity-50 theme-transition">
-                <div className="w-12 h-12 bg-foreground/10 rounded-full flex items-center justify-center text-2xl">
-                  🏆
-                </div>
-                <div>
-                  <h3 className="font-medium text-foreground">
-                    Bậc thầy thuật toán
-                  </h3>
-                  <p className="text-sm text-foreground/60">
-                    Hoàn thành 100 bài tập
-                  </p>
-                </div>
-              </div>
+              {profileData.badges
+                .filter((badge) => !badge.unlocked)
+                .map((badge) => (
+                  <div
+                    key={badge.id}
+                    className="flex items-center gap-4 p-4 border border-foreground/10 rounded-lg bg-background/50 opacity-50 theme-transition"
+                  >
+                    <div className="w-12 h-12 bg-foreground/10 rounded-full flex items-center justify-center text-2xl">
+                      {badge.icon}
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-foreground">
+                        {badge.name}
+                      </h3>
+                      <p className="text-sm text-foreground/60">
+                        {badge.description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
             </div>
           </div>
 
@@ -367,7 +382,7 @@ const ProfilePage = () => {
               Hoạt động gần đây
             </h2>
             <div className="space-y-4">
-              {userProfile.recentActivities.map((activity) => (
+              {profileData.activities.map((activity) => (
                 <div
                   key={activity.id}
                   className="flex gap-4 p-4 border-b border-foreground/10 last:border-0"
@@ -454,7 +469,7 @@ const ProfilePage = () => {
                 </label>
                 <input
                   type="text"
-                  defaultValue={userProfile.name}
+                  defaultValue={profileData.fullName}
                   className="w-full p-2 border border-foreground/20 rounded-lg bg-background theme-transition"
                 />
               </div>
@@ -464,7 +479,7 @@ const ProfilePage = () => {
                 </label>
                 <input
                   type="text"
-                  defaultValue={userProfile.username}
+                  defaultValue={profileData.username}
                   className="w-full p-2 border border-foreground/20 rounded-lg bg-background theme-transition"
                 />
               </div>
@@ -474,7 +489,7 @@ const ProfilePage = () => {
                 </label>
                 <input
                   type="email"
-                  defaultValue={userProfile.email}
+                  defaultValue={profileData.email}
                   className="w-full p-2 border border-foreground/20 rounded-lg bg-background theme-transition"
                 />
               </div>
@@ -483,7 +498,7 @@ const ProfilePage = () => {
                   Giới thiệu
                 </label>
                 <textarea
-                  defaultValue={userProfile.bio}
+                  defaultValue={profileData.bio}
                   rows={3}
                   className="w-full p-2 border border-foreground/20 rounded-lg bg-background theme-transition"
                 ></textarea>

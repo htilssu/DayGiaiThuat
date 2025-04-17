@@ -7,10 +7,14 @@ from fastapi.openapi.docs import (
     get_swagger_ui_oauth2_redirect_html,
 )
 from fastapi.staticfiles import StaticFiles
+import logging
 
-from app.database.database import engine, Base
+from app.database.database import engine, Base, run_migrations
 from app.routers import auth
 from app.core.config import settings
+
+# Khởi tạo logger
+logger = logging.getLogger(__name__)
 
 # Khởi tạo FastAPI app
 app = FastAPI(
@@ -90,7 +94,30 @@ app.add_middleware(
 # Thêm router
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 
-# Tạo database tables
+# Event khi khởi động ứng dụng
+@app.on_event("startup")
+async def startup_event():
+    """
+    Chạy khi ứng dụng khởi động
+    - Kết nối đến database
+    - Chạy migration tự động
+    """
+    try:
+        # Kết nối đến database và tạo tables
+        logger.info("Kết nối đến cơ sở dữ liệu...")
+        Base.metadata.create_all(bind=engine)
+        logger.info("Kết nối cơ sở dữ liệu thành công!")
+        
+        # Chạy migration tự động
+        logger.info("Đang chạy migration tự động...")
+        if run_migrations():
+            logger.info("Migration thành công!")
+        else:
+            logger.warning("Có lỗi xảy ra trong quá trình migration, vui lòng kiểm tra logs.")
+    except Exception as e:
+        logger.error(f"Lỗi khởi động ứng dụng: {str(e)}")
+
+# Tạo database tables (giữ lại để tương thích ngược)
 try:
     Base.metadata.create_all(bind=engine)
     print("Database connected successfully!")

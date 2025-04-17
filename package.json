@@ -1,9 +1,11 @@
 {
 	"dependencies": {
 		"@mantine/core": "^7.17.4",
+		"@mantine/hooks": "^7.17.4",
 		"@tanstack/react-query": "^5.74.3"
 	},
 	"devDependencies": {
-		"@tanstack/eslint-plugin-query": "^5.73.3"
+		"@tanstack/eslint-plugin-query": "^5.73.3",
+		"postcss-preset-mantine": "^1.17.0"
 	}
 }
