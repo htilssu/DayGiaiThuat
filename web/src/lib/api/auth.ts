@@ -46,7 +46,7 @@ const authApi = {
     formData.append("username", email);
     formData.append("password", password);
 
-    return post<TokenResponse>("/auth/token", formData, {
+    return post<TokenResponse>("/auth/login", formData, {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
@@ -67,7 +67,7 @@ const authApi = {
    * @returns Promise chứa thông tin người dùng
    */
   getProfile: (): Promise<UserData> => {
-    return get<UserData>("/auth/me");
+    return get<UserData>("/users/me");
   },
 
   /**

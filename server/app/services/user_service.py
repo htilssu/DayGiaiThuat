@@ -1,18 +1,15 @@
-from sqlalchemy.orm import Session
-from sqlalchemy.future import select
 from fastapi import HTTPException, status
-from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from datetime import datetime
+from typing import Optional, Dict, Any
 import random
 
 from ..database.database import SessionLocal
 from ..models.user import User
-from ..schemas.user import UserCreate, UserUpdate, Badge, Activity, UserStats
+from ..schemas.auth import UserCreate
+from ..schemas.user_profile import UserUpdate
 
 from passlib.context import CryptContext
-from jose import JWTError, jwt
 
-from ..core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

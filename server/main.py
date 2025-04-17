@@ -1,6 +1,5 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import sqlalchemy.exc
 from fastapi.openapi.docs import (
     get_redoc_html,
     get_swagger_ui_html,
@@ -8,25 +7,49 @@ from fastapi.openapi.docs import (
 )
 from fastapi.staticfiles import StaticFiles
 import logging
+from contextlib import asynccontextmanager
 
-from app.database.database import engine, Base, run_migrations
-from app.routers import auth
+from app.database.database import run_migrations
+from app.database.seeder import run_seeder
+from app.routers import auth, users
 from app.core.config import settings
 
 # Khởi tạo logger
 logger = logging.getLogger(__name__)
 
-# Khởi tạo FastAPI app
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager để quản lý vòng đời của ứng dụng.
+    Mã trong phần 'yield' trước sẽ chạy khi khởi động,
+    và mã sau 'yield' sẽ chạy khi kết thúc.
+    
+    Args:
+        app (FastAPI): Instance của ứng dụng FastAPI
+    """
+    # Startup: chạy khi ứng dụng khởi động
+    try:
+        # Kết nối đến database và chạy migrations
+        logger.info("Đang khởi động ứng dụng và chuẩn bị database...")
+        if run_migrations():
+            logger.info("Migrations đã chạy thành công!")
+            
+            # Tạo dữ liệu mẫu
+            run_seeder()
+        else:
+            logger.error("Migrations thất bại!")
+    except Exception as e:
+        logger.error(f"Lỗi khởi động ứng dụng: {str(e)}")
+    
+    yield
+    
+    # Shutdown: chạy khi ứng dụng kết thúc
+    logger.info("Đóng kết nối và dọn dẹp tài nguyên...")
+
+# Khởi tạo FastAPI app với lifespan manager
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="""
-    🚀 API hệ thống xác thực với FastAPI
-
-    ## Tính năng
-
-    * **Đăng ký** - Tạo tài khoản mới
-    * **Đăng nhập** - Xác thực và lấy token
-    * **Quản lý profile** - Xem và cập nhật thông tin cá nhân
 
     ## Tài liệu API
 
@@ -55,6 +78,7 @@ app = FastAPI(
     ],
     docs_url=None,
     redoc_url=None,
+    lifespan=lifespan  # Sử dụng lifespan context manager
 )
 
 # Custom Swagger UI với theme và các tùy chỉnh
@@ -93,38 +117,8 @@ app.add_middleware(
 
 # Thêm router
 app.include_router(auth.router, prefix=settings.API_V1_STR)
+app.include_router(users.router, prefix=settings.API_V1_STR)
 
-# Event khi khởi động ứng dụng
-@app.on_event("startup")
-async def startup_event():
-    """
-    Chạy khi ứng dụng khởi động
-    - Kết nối đến database
-    - Chạy migration tự động
-    """
-    try:
-        # Kết nối đến database và tạo tables
-        logger.info("Kết nối đến cơ sở dữ liệu...")
-        Base.metadata.create_all(bind=engine)
-        logger.info("Kết nối cơ sở dữ liệu thành công!")
-        
-        # Chạy migration tự động
-        logger.info("Đang chạy migration tự động...")
-        if run_migrations():
-            logger.info("Migration thành công!")
-        else:
-            logger.warning("Có lỗi xảy ra trong quá trình migration, vui lòng kiểm tra logs.")
-    except Exception as e:
-        logger.error(f"Lỗi khởi động ứng dụng: {str(e)}")
-
-# Tạo database tables (giữ lại để tương thích ngược)
-try:
-    Base.metadata.create_all(bind=engine)
-    print("Database connected successfully!")
-except sqlalchemy.exc.OperationalError as e:
-    print(f"Could not connect to database: {e}")
-    # Không raise exception ở đây để ứng dụng vẫn khởi động được
-    # ngay cả khi không kết nối được database
 
 @app.get("/", tags=["root"])
 async def root():
@@ -141,16 +135,3 @@ async def root():
             "redoc": "/redoc"
         }
     }
-
-@app.get("/hello/{name}", tags=["examples"])
-async def say_hello(name: str):
-    """
-    Chào một người dùng
-    
-    Args:
-        name (str): Tên người dùng
-        
-    Returns:
-        dict: Lời chào
-    """
-    return {"message": f"Hello {name}"}

@@ -134,7 +134,7 @@ class ProfileResponse(ProfileBase):
     courses: List[CourseProgress]
     
     class Config:
-        orm_mode = True
+        from_attributes = True
         
         
 class ProfileInDB(ProfileResponse):
@@ -149,4 +149,4 @@ class ProfileInDB(ProfileResponse):
     updated_at: datetime
     
     class Config:
-        orm_mode = True 
+        from_attributes = True 

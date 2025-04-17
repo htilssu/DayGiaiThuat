@@ -55,7 +55,7 @@ class UserStateInDB(UserStateBase):
     notifications: Dict[str, Any]
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserState(UserStateInDB):
     """

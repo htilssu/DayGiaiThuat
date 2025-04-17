@@ -48,7 +48,7 @@ class BadgeInDB(BadgeBase):
     updated_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Badge(BadgeInDB):
     """
@@ -65,7 +65,7 @@ class UserBadge(BaseModel):
     is_featured: bool
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class BadgeList(BaseModel):
     """

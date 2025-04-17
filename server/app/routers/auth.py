@@ -4,7 +4,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import Any, Annotated
 
-from app.schemas.user import UserCreate, UserLogin, Token, User
+from app.schemas.auth import UserCreate, UserLogin, Token
+from app.schemas.user_profile import User
 from app.models.user import User as UserModel
 from app.utils.auth import (
     get_db,
@@ -12,7 +13,6 @@ from app.utils.auth import (
     get_password_hash,
     create_access_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
-    get_current_user,
     oauth2_scheme
 )
 from app.core.config import settings
@@ -78,14 +78,14 @@ async def register(user: UserCreate, db: Session = Depends(get_db)) -> Any:
             detail="Có lỗi xảy ra khi tạo tài khoản"
         )
 
-@router.post("/token", response_model=Token)
-async def login_for_access_token(
+@router.post("/login", response_model=Token)
+async def login(
     response: Response,
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    form_data: OAuth2PasswordRequestForm = Depends(), 
     db: Session = Depends(get_db)
 ) -> Any:
     """
-    OAuth2 tiêu chuẩn token endpoint
+    Đăng nhập và lấy token
     
     Args:
         response (Response): FastAPI response object để thiết lập cookie
@@ -106,10 +106,17 @@ async def login_for_access_token(
         (UserModel.email == form_data.username)
     ).first()
     
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Tên đăng nhập hoặc mật khẩu không chính xác",
+            detail="Tài khoản không tồn tại",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Mật khẩu không chính xác",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -142,44 +149,6 @@ async def login_for_access_token(
     response.set_cookie(**cookie_params)
     
     return {"access_token": access_token, "token_type": "bearer"}
-
-@router.post("/login", response_model=Token)
-async def login(
-    response: Response,
-    form_data: OAuth2PasswordRequestForm = Depends(), 
-    db: Session = Depends(get_db)
-) -> Any:
-    """
-    Đăng nhập và lấy token (giữ lại cho tương thích ngược)
-    
-    Args:
-        response (Response): FastAPI response object để thiết lập cookie
-        form_data (OAuth2PasswordRequestForm): Form data đăng nhập (username, password)
-        db (Session): Database session
-        
-    Returns:
-        Token: JWT token
-        
-    Raises:
-        HTTPException: 
-            - 401: Thông tin đăng nhập không chính xác
-            - 400: Tài khoản bị vô hiệu hóa
-    """
-    # Gọi lại hàm login_for_access_token
-    return await login_for_access_token(response, form_data, db)
-
-@router.get("/me", response_model=User)
-async def read_users_me(current_user: UserModel = Depends(get_current_user)) -> Any:
-    """
-    Lấy thông tin user hiện tại
-    
-    Args:
-        current_user (UserModel): User hiện tại (từ token)
-        
-    Returns:
-        User: Thông tin user
-    """
-    return current_user
 
 @router.get("/test-token")
 async def test_token(token: Annotated[str, Depends(oauth2_scheme)]):

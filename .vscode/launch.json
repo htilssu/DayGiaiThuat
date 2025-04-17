@@ -23,7 +23,7 @@
       "name": "Docker-compose: Toàn bộ ứng dụng",
       "type": "node-terminal",
       "request": "launch",
-      "command": "docker-compose up",
+      "command": "docker-compose up -d",
       "cwd": "${workspaceFolder}",
       "skipFiles": ["<node_internals>/**"]
     },

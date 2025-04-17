@@ -21,11 +21,12 @@ class User(Base):
         full_name (str): Họ và tên đầy đủ của người dùng
         bio (str): Giới thiệu ngắn về bản thân
         avatar_url (str): Đường dẫn đến ảnh đại diện
-        stats (Dict): Thống kê người dùng (completed_exercises, completed_courses, total_points, streak_days, level, problems_solved)
-        badges (List): Danh sách huy hiệu người dùng
-        activities (List): Lịch sử hoạt động của người dùng
-        learning_progress (Dict): Tiến độ học tập của người dùng (algorithms, data_structures, dynamic_programming)
-        courses (List): Danh sách khóa học đang theo dõi
+        
+    Relationships:
+        state (UserState): Thông tin trạng thái người dùng (one-to-one)
+        learning_progresses (List[LearningProgress]): Danh sách tiến độ học tập (one-to-many)
+        badge_collection (List[Badge]): Danh sách huy hiệu (many-to-many)
+        enrolled_courses (List[Course]): Danh sách khóa học đã đăng ký (thông qua learning_progresses)
     """
     __tablename__ = "users"
 
@@ -44,37 +45,41 @@ class User(Base):
     bio = Column(String, nullable=True)
     avatar_url = Column(String, nullable=True)
     
-    # Các trường JSON để lưu trữ dữ liệu phức tạp
-    stats = Column(JSON, default=lambda: {
-        "completed_exercises": 0,
-        "completed_courses": 0,
-        "total_points": 0,
-        "streak_days": 0,
-        "level": 1,
-        "problems_solved": 0
-    })
-    
-    badges = Column(JSON, default=lambda: [
-        {
-            "id": 1,
-            "name": "Người mới",
-            "icon": "🔰",
-            "description": "Hoàn thành đăng ký tài khoản",
-            "unlocked": True
-        }
-    ])
-    
+    # Các trường JSON giữ lại để tương thích ngược
     activities = Column(JSON, default=list)
     
-    learning_progress = Column(JSON, default=lambda: {
-        "algorithms": 0,
-        "data_structures": 0,
-        "dynamic_programming": 0
-    })
+    # Relationship với các bảng khác
+    # Quan hệ one-to-one với UserState
+    state = relationship("UserState", uselist=False, back_populates="user", cascade="all, delete-orphan")
     
-    courses = Column(JSON, default=list)
+    # Quan hệ one-to-many với LearningProgress
+    learning_progresses = relationship("LearningProgress", back_populates="user", cascade="all, delete-orphan")
     
-    # Relationship với các bảng mới
-    state = relationship("UserState", uselist=False, back_populates="user")
-    learning_progresses = relationship("LearningProgress", back_populates="user")
-    badge_collection = relationship("Badge", secondary=user_badges, back_populates="users") 
+    # Quan hệ many-to-many với Badge
+    badge_collection = relationship("Badge", secondary=user_badges, back_populates="users")
+    
+    @property
+    def enrolled_courses(self):
+        """
+        Lấy danh sách các khóa học đã đăng ký thông qua learning_progresses
+        
+        Returns:
+            List: Danh sách các Course
+        """
+        from sqlalchemy.orm import Session
+        from app.database.database import SessionLocal
+        
+        # Lấy danh sách ID khóa học từ learning_progresses
+        course_ids = [lp.course_id for lp in self.learning_progresses]
+        
+        if not course_ids:
+            return []
+            
+        # Truy vấn các khóa học từ database
+        db = SessionLocal()
+        try:
+            from app.models.course import Course
+            courses = db.query(Course).filter(Course.id.in_(course_ids)).all()
+            return courses
+        finally:
+            db.close() 

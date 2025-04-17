@@ -3,17 +3,11 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 
 from ..models.user import User
-from ..schemas.user import (
-    UserCreate, 
-    User as UserResponse, 
-    UserUpdate,
-    Badge,
-    Activity,
-    UserStats,
-    LearningProgress,
-    CourseProgress
-)
-from ..dependencies.auth import get_current_user
+from ..schemas.auth import UserCreate
+from ..schemas.user_profile import UserUpdate, User as UserResponse
+from ..schemas.badge import Badge
+from ..schemas.user_stats import Activity, UserStats, LearningProgress, CourseProgress
+from ..utils.auth import get_current_user
 from ..services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])

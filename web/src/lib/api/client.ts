@@ -35,10 +35,32 @@ export const TOKEN_COOKIE_NAME =
 export const handleApiError = (error: AxiosError) => {
   if (error.response) {
     // Phản hồi từ server với mã trạng thái nằm ngoài phạm vi 2xx
+    const responseData = error.response.data as any;
+
+    // Lấy thông báo lỗi chi tiết từ server nếu có
+    let errorMessage = "Lỗi phản hồi từ server";
+
+    if (responseData) {
+      console.log(responseData);
+      if (responseData.detail) {
+        // FastAPI thường trả về lỗi trong trường 'detail'
+        errorMessage =
+          typeof responseData.detail === "string"
+            ? responseData.detail
+            : JSON.stringify(responseData.detail);
+      } else if (responseData.message) {
+        // Hoặc trường 'message'
+        errorMessage = responseData.message;
+      } else if (typeof responseData === "string") {
+        // Nếu responseData là string
+        errorMessage = responseData;
+      }
+    }
+
     return {
       status: error.response.status,
       data: error.response.data,
-      message: "Lỗi phản hồi từ server",
+      message: errorMessage,
     };
   } else if (error.request) {
     // Yêu cầu đã được thực hiện nhưng không nhận được phản hồi

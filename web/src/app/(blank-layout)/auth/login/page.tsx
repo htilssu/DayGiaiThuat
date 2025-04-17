@@ -105,12 +105,36 @@ export default function LoginPage() {
       router.push("/");
     } catch (error: any) {
       console.error("Lỗi đăng nhập:", error);
-      setErrors({
-        ...errors,
-        general:
-          error.message ||
-          "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.",
-      });
+
+      // Hiển thị thông báo lỗi chi tiết từ server nếu có
+      const errorMessage =
+        error.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.";
+
+      // Kiểm tra nếu lỗi liên quan đến email hoặc mật khẩu
+      if (
+        errorMessage.toLowerCase().includes("email") ||
+        errorMessage.toLowerCase().includes("username")
+      ) {
+        setErrors({
+          ...errors,
+          email: errorMessage,
+          general: "",
+        });
+      } else if (
+        errorMessage.toLowerCase().includes("password") ||
+        errorMessage.toLowerCase().includes("mật khẩu")
+      ) {
+        setErrors({
+          ...errors,
+          password: errorMessage,
+          general: "",
+        });
+      } else {
+        setErrors({
+          ...errors,
+          general: errorMessage,
+        });
+      }
     } finally {
       setIsLoading(false);
     }
