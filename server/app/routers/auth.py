@@ -19,21 +19,26 @@ from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
-@router.post("/register", response_model=User, status_code=status.HTTP_201_CREATED)
-async def register(user: UserCreate, db: Session = Depends(get_db)) -> Any:
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+async def register(
+    response: Response,
+    user: UserCreate, 
+    db: Session = Depends(get_db)
+) -> Any:
     """
-    Đăng ký tài khoản mới
+    Đăng ký tài khoản mới và trả về token đăng nhập
     
     Args:
-        user (UserCreate): Thông tin user cần đăng ký
+        response (Response): FastAPI response object để thiết lập cookie
+        user (UserCreate): Thông tin user cần đăng ký (email, password, fullname)
         db (Session): Database session
         
     Returns:
-        User: Thông tin user đã đăng ký
+        Token: JWT token
         
     Raises:
         HTTPException: 
-            - 400: Email hoặc username đã tồn tại
+            - 400: Email đã tồn tại
             - 422: Dữ liệu không hợp lệ
     """
     # Validate dữ liệu
@@ -51,26 +56,43 @@ async def register(user: UserCreate, db: Session = Depends(get_db)) -> Any:
             detail="Email đã được đăng ký"
         )
     
-    # Kiểm tra username đã tồn tại
-    db_user = db.query(UserModel).filter(UserModel.username == user.username).first()
-    if db_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tên đăng nhập đã được sử dụng"
-        )
-    
     try:
-        # Tạo user mới
+        # Tạo user mới với username là None
         hashed_password = get_password_hash(user.password)
         db_user = UserModel(
             email=user.email,
-            username=user.username,
-            hashed_password=hashed_password
+            username=None,  # Username luôn là None khi đăng ký
+            hashed_password=hashed_password,
+            full_name=user.fullname
         )
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
-        return db_user
+        
+        # Tạo access token - Luôn sử dụng email vì username là None
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": db_user.email}, expires_delta=access_token_expires
+        )
+        
+        # Thiết lập cookie
+        cookie_params = {
+            "key": settings.COOKIE_NAME,
+            "value": access_token,
+            "max_age": settings.COOKIE_MAX_AGE,
+            "httponly": settings.COOKIE_HTTPONLY,
+            "secure": settings.COOKIE_SECURE,
+            "samesite": settings.COOKIE_SAMESITE
+        }
+        
+        # Chỉ thêm domain nếu được cấu hình
+        if settings.COOKIE_DOMAIN:
+            cookie_params["domain"] = settings.COOKIE_DOMAIN
+        
+        response.set_cookie(**cookie_params)
+        
+        return {"access_token": access_token, "token_type": "bearer"}
+        
     except Exception as e:
         db.rollback()
         raise HTTPException(
@@ -126,10 +148,11 @@ async def login(
             detail="Tài khoản đã bị vô hiệu hóa"
         )
     
-    # Tạo access token
+    # Tạo access token - Sử dụng email nếu username là null
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    token_data = {"sub": user.email if user.username is None else user.username}
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data=token_data, expires_delta=access_token_expires
     )
     
     # Thiết lập cookie

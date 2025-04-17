@@ -90,13 +90,7 @@ export default function LoginPage() {
       console.log(`Đang đăng nhập với: ${formData.email}`);
 
       // Sử dụng API util - cookie sẽ được tự động thiết lập bởi server
-      const data = (await api.auth.login(
-        formData.email,
-        formData.password
-      )) as { access_token: string };
-
-      // Luôn lưu token vào localStorage để đảm bảo hoạt động đúng
-      localStorage.setItem("token", data.access_token);
+      await api.auth.login(formData.email, formData.password);
 
       // Login với hàm từ context
       await login();

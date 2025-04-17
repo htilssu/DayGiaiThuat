@@ -4,14 +4,15 @@
  */
 
 import { get, post } from "./client";
+import { ProfileData } from "@/services/profile.service";
 
 /**
  * Interface cho dữ liệu đăng ký
  */
 export interface RegisterData {
-  username: string;
   email: string;
   password: string;
+  fullname?: string;
 }
 
 /**
@@ -26,7 +27,7 @@ export interface TokenResponse {
  * Interface cho dữ liệu người dùng
  */
 export interface UserData {
-  id: string;
+  id: number;
   email: string;
   username: string;
 }
@@ -56,18 +57,18 @@ const authApi = {
   /**
    * Đăng ký tài khoản mới
    * @param userData - Thông tin người dùng đăng ký
-   * @returns Promise chứa thông tin người dùng đã đăng ký
+   * @returns Promise chứa thông tin token
    */
-  register: (userData: RegisterData): Promise<UserData> => {
-    return post<UserData>("/auth/register", userData);
+  register: (userData: RegisterData): Promise<TokenResponse> => {
+    return post<TokenResponse>("/auth/register", userData);
   },
 
   /**
    * Lấy thông tin người dùng hiện tại
    * @returns Promise chứa thông tin người dùng
    */
-  getProfile: (): Promise<UserData> => {
-    return get<UserData>("/users/me");
+  getProfile: (): Promise<ProfileData> => {
+    return get<ProfileData>("/users/me");
   },
 
   /**

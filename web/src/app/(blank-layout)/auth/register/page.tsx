@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import TextInput from "@/components/form/TextInput";
 import BrandLogo from "@/components/ui/BrandLogo";
 import api from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * Interface cho dữ liệu form đăng ký
@@ -37,8 +38,10 @@ interface RegisterFormErrors {
  */
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [formStep, setFormStep] = useState(0); // For multi-step form experience
+  const [formStep, setFormStep] = useState(0);
   const [formData, setFormData] = useState<RegisterFormData>({
     name: "",
     email: "",
@@ -57,9 +60,6 @@ export default function RegisterPage() {
 
   // App name from environment variable
   const appName = process.env.NEXT_PUBLIC_APP_NAME || "AIGiảiThuật";
-  // API URL from environment variables
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  const apiVersion = process.env.NEXT_PUBLIC_API_VERSION || "/api/v1";
 
   // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,20 +147,23 @@ export default function RegisterPage() {
     try {
       // Gọi API đăng ký sử dụng tiện ích
       try {
-        const data = await api.auth.register({
-          username: formData.name.toLowerCase().replace(/\s+/g, "_"),
+        const tokenData = await api.auth.register({
           email: formData.email,
           password: formData.password,
+          fullname: formData.name, // Gửi họ và tên dưới dạng fullname
         });
 
-        // Đăng ký thành công
-        console.log("Đăng ký thành công:", data);
-        setFormStep(1); // Move to success step
+        // Đăng ký thành công, đăng nhập luôn
+        await login();
 
-        // Redirect to login after delay
+        // Hiển thị thông báo thành công
+        setFormStep(1);
+
+        // Chuyển hướng đến trang chủ hoặc return URL sau khoảng thời gian ngắn
+        const returnUrl = searchParams.get("returnUrl") || "/";
         setTimeout(() => {
-          router.push("/auth/login");
-        }, 3000);
+          router.push(returnUrl);
+        }, 1500);
       } catch (apiError: any) {
         // Xử lý các lỗi cụ thể từ API
         if (apiError.data?.detail) {
@@ -256,17 +259,9 @@ export default function RegisterPage() {
             Đăng ký thành công!
           </h2>
           <p className="mt-2 text-foreground/60">
-            Tài khoản của bạn đã được tạo. Bạn sẽ được chuyển tới trang đăng
-            nhập trong giây lát.
+            Tài khoản của bạn đã được tạo. Bạn sẽ được chuyển đến trang chủ
+            trong giây lát.
           </p>
-          <div className="mt-5">
-            <Link
-              href="/auth/login"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white btn-gradient-primary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50 transition-all"
-            >
-              Đăng nhập ngay
-            </Link>
-          </div>
         </div>
       </div>
     );

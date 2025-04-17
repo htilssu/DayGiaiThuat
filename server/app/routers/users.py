@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 
 from ..models.user import User
@@ -13,6 +13,7 @@ from ..services.user_service import UserService
 router = APIRouter(prefix="/users", tags=["users"])
 user_service = UserService()
 
+
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """
@@ -25,6 +26,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Người dùng không tồn tại"
         )
+    
     return user
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -43,7 +45,7 @@ async def get_user_by_id(
             detail="Người dùng không tồn tại"
         )
     
-    return user
+    return create_user_response(user)
 
 @router.put("/me", response_model=UserResponse)
 async def update_current_user_profile(
@@ -65,7 +67,7 @@ async def update_current_user_profile(
             detail="Không thể cập nhật thông tin người dùng"
         )
     
-    return updated_user
+    return create_user_response(updated_user)
 
 @router.post("/me/change-password", response_model=dict)
 async def change_user_password(
@@ -120,7 +122,7 @@ async def add_user_activity(
     # Cập nhật streak khi có hoạt động mới
     await user_service.update_streak(current_user.id)
     
-    return updated_user
+    return create_user_response(updated_user)
 
 @router.post("/me/update-streak", response_model=UserResponse)
 async def update_user_streak(
@@ -137,7 +139,7 @@ async def update_user_streak(
             detail="Không thể cập nhật streak"
         )
     
-    return updated_user
+    return create_user_response(updated_user)
 
 @router.put("/me/learning-progress", response_model=UserResponse)
 async def update_learning_progress(
@@ -155,7 +157,7 @@ async def update_learning_progress(
             detail="Không thể cập nhật tiến độ học tập"
         )
     
-    return updated_user
+    return create_user_response(updated_user)
 
 @router.put("/me/courses/{course_id}", response_model=UserResponse)
 async def update_course_progress(
@@ -180,7 +182,7 @@ async def update_course_progress(
             detail="Không thể cập nhật tiến độ khóa học"
         )
     
-    return updated_user
+    return create_user_response(updated_user)
 
 @router.post("/me/check-badges", response_model=UserResponse)
 async def check_user_badges(
@@ -197,4 +199,4 @@ async def check_user_badges(
             detail="Không thể cập nhật huy hiệu"
         )
     
-    return updated_user 
+    return create_user_response(updated_user) 

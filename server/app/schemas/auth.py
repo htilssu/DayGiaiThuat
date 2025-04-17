@@ -7,10 +7,10 @@ class UserBase(BaseModel):
     
     Attributes:
         email (EmailStr): Email của user
-        username (str): Tên đăng nhập của user
+        fullname (Optional[str]): Họ và tên đầy đủ của user
     """
     email: EmailStr
-    username: str
+    fullname: Optional[str] = None
 
 class UserCreate(UserBase):
     """

@@ -31,13 +31,13 @@ async def lifespan(app: FastAPI):
     try:
         # Kết nối đến database và chạy migrations
         logger.info("Đang khởi động ứng dụng và chuẩn bị database...")
-        if run_migrations():
-            logger.info("Migrations đã chạy thành công!")
+        # if run_migrations():
+        #     logger.info("Migrations đã chạy thành công!")
             
-            # Tạo dữ liệu mẫu
-            run_seeder()
-        else:
-            logger.error("Migrations thất bại!")
+        #     # Tạo dữ liệu mẫu
+        #     run_seeder()
+        # else:
+        #     logger.error("Migrations thất bại!")
     except Exception as e:
         logger.error(f"Lỗi khởi động ứng dụng: {str(e)}")
     

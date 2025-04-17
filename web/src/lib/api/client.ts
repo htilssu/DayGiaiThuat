@@ -91,16 +91,6 @@ export const apiClient = axios.create({
   withCredentials: true,
 });
 
-// Thêm interceptor để xử lý token từ localStorage (khi cookie không khả dụng)
-apiClient.interceptors.request.use((config) => {
-  // Luôn ưu tiên sử dụng token từ localStorage nếu có
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
 /**
  * Lấy token từ cookie
  * @returns Giá trị token hoặc null nếu không tìm thấy
@@ -121,11 +111,9 @@ export const getTokenFromCookie = (): string | null => {
  * @returns true nếu người dùng đã đăng nhập, ngược lại false
  */
 export const isAuthenticated = (): boolean => {
-  // Kiểm tra token trong localStorage trước, sau đó mới kiểm tra cookie
-  const localToken = localStorage.getItem("token");
+  // Kiểm tra token chỉ trong cookie
   const cookieToken = getTokenFromCookie();
-
-  return !!localToken || !!cookieToken;
+  return !!cookieToken;
 };
 
 /**

@@ -4,7 +4,7 @@
  */
 
 import { get, post, put, del } from "./client";
-import { UserData } from "./auth";
+import { AuthUserData } from "@/services/profile.service";
 
 /**
  * Interface cho dữ liệu cập nhật hồ sơ người dùng
@@ -19,7 +19,7 @@ export interface UpdateProfileData {
  * Interface cho phản hồi danh sách người dùng
  */
 export interface UsersListResponse {
-  items: UserData[];
+  items: AuthUserData[];
   total: number;
   page: number;
   perPage: number;
@@ -48,8 +48,8 @@ const userApi = {
    * @param userId - ID của người dùng
    * @returns Promise chứa thông tin người dùng
    */
-  getUserById: (userId: string): Promise<UserData> => {
-    return get<UserData>(`/users/${userId}`);
+  getUserById: (userId: string): Promise<AuthUserData> => {
+    return get<AuthUserData>(`/users/${userId}`);
   },
 
   /**
@@ -57,8 +57,15 @@ const userApi = {
    * @param profileData - Dữ liệu cập nhật hồ sơ
    * @returns Promise chứa thông tin người dùng đã cập nhật
    */
-  updateProfile: (profileData: UpdateProfileData): Promise<UserData> => {
-    return put<UserData>("/users/me", profileData);
+  updateProfile: (profileData: UpdateProfileData): Promise<AuthUserData> => {
+    // Chuyển đổi tên trường để phù hợp với API
+    const apiData = {
+      full_name: profileData.fullName,
+      avatar_url: profileData.avatar,
+      bio: profileData.bio,
+    };
+
+    return put<AuthUserData>("/users/me", apiData);
   },
 
   /**
