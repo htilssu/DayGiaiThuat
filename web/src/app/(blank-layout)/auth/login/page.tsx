@@ -2,7 +2,7 @@
 
 import TextInput from "@/components/form/TextInput";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import BrandLogo from "@/components/ui/BrandLogo";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,8 @@ import api from "@/lib/api";
  */
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get("returnUrl") || "/";
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [rememberVisible, setRememberVisible] = useState(false);
@@ -95,8 +97,7 @@ export default function LoginPage() {
       // Login với hàm từ context
       await login();
 
-      // Redirect to dashboard after successful login
-      router.push("/");
+      router.push(returnUrl);
     } catch (error: any) {
       console.error("Lỗi đăng nhập:", error);
 

@@ -7,14 +7,15 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
-import api, { getTokenFromCookie, isAuthenticated } from "@/lib/api";
+import { useRouter, usePathname } from "next/navigation";
+import api from "@/lib/api";
 import {
   ProfileData,
   transformUserData,
   AppError,
   ErrorType,
 } from "@/services/profile.service";
+import { publicPaths } from "@/middleware";
 
 /**
  * Interface định nghĩa context xác thực
@@ -51,6 +52,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   /**
    * Hàm xóa thông báo lỗi
@@ -59,50 +61,71 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setError(null);
   };
 
+  /**
+   * Kiểm tra nếu đường dẫn hiện tại là đường dẫn công khai
+   * @param {string} path - Đường dẫn cần kiểm tra
+   * @returns {boolean} - true nếu đường dẫn là công khai
+   */
+  const isPublicPath = (path: string): boolean => {
+    return publicPaths.some((publicPath) => path.startsWith(publicPath));
+  };
+
+  /**
+   * Hàm xử lý khi token hết hạn hoặc không hợp lệ
+   * @param redirectUrl - Đường dẫn chuyển hướng sau khi xử lý
+   */
+  const handleAuthError = (redirectUrl: string = "/auth/login") => {
+    setUser(null);
+
+    // Chỉ chuyển hướng nếu không phải là đường dẫn công khai
+    if (!isPublicPath(pathname || "")) {
+      // Thêm đường dẫn hiện tại vào callbackUrl
+      const loginUrl = `${redirectUrl}?callbackUrl=${encodeURIComponent(
+        pathname || "/"
+      )}`;
+      router.push(loginUrl);
+    }
+  };
+
   // Kiểm tra token và lấy thông tin user khi component được mount
   useEffect(() => {
     const checkAuth = async () => {
-      // Kiểm tra xem người dùng đã đăng nhập chưa (thông qua cookie)
-      if (isAuthenticated()) {
-        try {
-          setIsLoading(true);
-          // Lấy thông tin người dùng từ API
-          const apiUserData = (await api.auth.getProfile()) as ProfileData;
+      try {
+        setIsLoading(true);
+        // Lấy thông tin người dùng từ API
+        const apiUserData = (await api.auth.getProfile()) as ProfileData;
 
-          // Chuyển đổi dữ liệu để phù hợp với cấu trúc frontend
-          const userData = transformUserData(apiUserData);
+        // Chuyển đổi dữ liệu để phù hợp với cấu trúc frontend
+        const userData = transformUserData(apiUserData);
 
-          setUser(userData);
-          clearError();
-        } catch (error: any) {
-          console.error("Lỗi khi kiểm tra xác thực:", error);
+        setUser(userData);
+        clearError();
+      } catch (error: any) {
+        console.error("Lỗi khi kiểm tra xác thực:", error);
 
-          let errorMessage = "Lỗi xác thực không xác định";
+        let errorMessage = "Lỗi xác thực không xác định";
 
-          if (error instanceof AppError) {
-            errorMessage = error.message;
+        if (error instanceof AppError) {
+          errorMessage = error.message;
 
-            // Nếu lỗi xác thực, đưa người dùng về trang đăng nhập
-            if (error.type === ErrorType.AUTHENTICATION_ERROR) {
-              router.push("/auth/login");
-            }
-          } else {
-            // Nếu token không hợp lệ, đưa người dùng về trang login
-            router.push("/auth/login");
+          // Xử lý lỗi xác thực
+          if (error.type === ErrorType.AUTHENTICATION_ERROR) {
+            handleAuthError();
           }
-
-          setError(errorMessage);
-          setUser(null);
-        } finally {
-          setIsLoading(false);
+        } else {
+          // Xử lý lỗi khác
+          handleAuthError();
         }
-      } else {
+
+        setError(errorMessage);
+        setUser(null);
+      } finally {
         setIsLoading(false);
       }
     };
 
     checkAuth();
-  }, [router]);
+  }, [router, pathname]);
 
   /**
    * Hàm xử lý đăng nhập
@@ -111,15 +134,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (token?: string) => {
     try {
       setIsLoading(true);
-
-      // Token được xử lý tự động thông qua cookie từ phản hồi của server
-      // Nếu không có cookie token, đây là lỗi
-      if (!getTokenFromCookie()) {
-        throw new AppError(
-          "Không tìm thấy token xác thực",
-          ErrorType.AUTHENTICATION_ERROR
-        );
-      }
 
       // Lấy thông tin người dùng từ API
       const apiUserData = (await api.auth.getProfile()) as ProfileData;
@@ -176,6 +190,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       // Dù API có lỗi hay không, vẫn xóa dữ liệu người dùng ở client
       setUser(null);
+      // Chuyển hướng đến trang đăng nhập sau khi đăng xuất
       router.push("/auth/login");
       setIsLoading(false);
     }

@@ -92,31 +92,6 @@ export const apiClient = axios.create({
 });
 
 /**
- * Lấy token từ cookie
- * @returns Giá trị token hoặc null nếu không tìm thấy
- */
-export const getTokenFromCookie = (): string | null => {
-  const cookies = document.cookie.split(";");
-  for (let cookie of cookies) {
-    const [name, value] = cookie.trim().split("=");
-    if (name === TOKEN_COOKIE_NAME) {
-      return decodeURIComponent(value);
-    }
-  }
-  return null;
-};
-
-/**
- * Kiểm tra người dùng đã đăng nhập hay chưa
- * @returns true nếu người dùng đã đăng nhập, ngược lại false
- */
-export const isAuthenticated = (): boolean => {
-  // Kiểm tra token chỉ trong cookie
-  const cookieToken = getTokenFromCookie();
-  return !!cookieToken;
-};
-
-/**
  * Thực hiện yêu cầu GET
  * @param endpoint - Endpoint API
  * @param config - Cấu hình tùy chọn Axios
