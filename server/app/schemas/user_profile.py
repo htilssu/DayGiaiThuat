@@ -35,7 +35,7 @@ class User(UserBase):
         badges (List[Badge]): Danh sách huy hiệu
         activities (List[Activity]): Lịch sử hoạt động
         learning_progress (LearningProgress): Tiến độ học tập
-        courses (List[CourseProgress]): Danh sách khóa học đang theo dõi
+        course_progress (List[CourseProgress]): Danh sách khóa học đang theo dõi
     """
     id: int
     is_active: bool
@@ -48,7 +48,7 @@ class User(UserBase):
     badges: List[Badge] = []
     activities: List[Activity] = []
     learning_progress: LearningProgress
-    courses: List[CourseProgress] = []
+    course_progress: List[CourseProgress] = []
 
     class Config:
         from_attributes = True 

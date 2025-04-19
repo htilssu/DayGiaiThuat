@@ -13,6 +13,7 @@ from app.database.database import run_migrations
 from app.database.seeder import run_seeder
 from app.routers import auth, users
 from app.core.config import settings
+from app.middleware.camel_case_middleware import CamelCaseMiddleware
 
 # Khởi tạo logger
 logger = logging.getLogger(__name__)
@@ -31,13 +32,13 @@ async def lifespan(app: FastAPI):
     try:
         # Kết nối đến database và chạy migrations
         logger.info("Đang khởi động ứng dụng và chuẩn bị database...")
-        # if run_migrations():
-        #     logger.info("Migrations đã chạy thành công!")
+        if run_migrations():
+            logger.info("Migrations đã chạy thành công!")
             
-        #     # Tạo dữ liệu mẫu
-        #     run_seeder()
-        # else:
-        #     logger.error("Migrations thất bại!")
+            # Tạo dữ liệu mẫu
+            run_seeder()
+        else:
+            logger.error("Migrations thất bại!")
     except Exception as e:
         logger.error(f"Lỗi khởi động ứng dụng: {str(e)}")
     
@@ -114,6 +115,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Thêm middleware để chuyển đổi response sang camelCase
+app.add_middleware(CamelCaseMiddleware)
 
 # Thêm router
 app.include_router(auth.router, prefix=settings.API_V1_STR)

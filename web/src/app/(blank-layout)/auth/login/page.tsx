@@ -97,6 +97,7 @@ export default function LoginPage() {
       // Login với hàm từ context
       await login();
 
+      // Chuyển hướng đến returnUrl nếu có, hoặc về trang chủ
       router.push(returnUrl);
     } catch (error: any) {
       console.error("Lỗi đăng nhập:", error);

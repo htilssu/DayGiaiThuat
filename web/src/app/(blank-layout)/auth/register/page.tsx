@@ -150,7 +150,7 @@ export default function RegisterPage() {
         const tokenData = await api.auth.register({
           email: formData.email,
           password: formData.password,
-          fullname: formData.name, // Gửi họ và tên dưới dạng fullname
+          fullName: formData.name,
         });
 
         // Đăng ký thành công, đăng nhập luôn

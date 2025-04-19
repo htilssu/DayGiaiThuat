@@ -12,15 +12,15 @@ import { ProfileData } from "@/services/profile.service";
 export interface RegisterData {
   email: string;
   password: string;
-  fullname?: string;
+  fullName?: string;
 }
 
 /**
  * Interface cho phản hồi token
  */
 export interface TokenResponse {
-  access_token: string;
-  token_type: string;
+  accessToken: string;
+  tokenType: string;
 }
 
 /**

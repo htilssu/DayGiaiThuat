@@ -14,6 +14,7 @@ import {
   transformUserData,
   AppError,
   ErrorType,
+  TransformedUserData,
 } from "@/services/profile.service";
 import { publicPaths } from "@/middleware";
 
@@ -21,13 +22,13 @@ import { publicPaths } from "@/middleware";
  * Interface định nghĩa context xác thực
  */
 interface AuthContextType {
-  user: any | null;
+  user: TransformedUserData | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
   login: (token?: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateUserInfo: (userData: Partial<any>) => void;
+  updateUserInfo: (userData: Partial<TransformedUserData>) => void;
   clearError: () => void;
 }
 
@@ -48,7 +49,7 @@ interface AuthProviderProps {
  * @param children - Các component con
  */
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<TransformedUserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -79,8 +80,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Chỉ chuyển hướng nếu không phải là đường dẫn công khai
     if (!isPublicPath(pathname || "")) {
-      // Thêm đường dẫn hiện tại vào callbackUrl
-      const loginUrl = `${redirectUrl}?callbackUrl=${encodeURIComponent(
+      // Thêm đường dẫn hiện tại vào returnUrl
+      const loginUrl = `${redirectUrl}?returnUrl=${encodeURIComponent(
         pathname || "/"
       )}`;
       router.push(loginUrl);
@@ -163,7 +164,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Cập nhật thông tin người dùng
    * @param userData - Thông tin người dùng cần cập nhật
    */
-  const updateUserInfo = (userData: Partial<any>) => {
+  const updateUserInfo = (userData: Partial<TransformedUserData>) => {
     if (user) {
       setUser({ ...user, ...userData });
     }

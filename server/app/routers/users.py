@@ -9,10 +9,34 @@ from ..schemas.badge import Badge
 from ..schemas.user_stats import Activity, UserStats, LearningProgress, CourseProgress
 from ..utils.auth import get_current_user
 from ..services.user_service import UserService
+from ..utils.case_utils import convert_dict_to_camel_case
 
 router = APIRouter(prefix="/users", tags=["users"])
 user_service = UserService()
 
+def create_user_response(user: User) -> UserResponse:
+    """
+    Chuyển đổi model User thành schema UserResponse
+    """
+    return {
+        "id": user.id,
+        "email": user.email,
+        "username": user.username,
+        "full_name": user.full_name,
+        "bio": user.bio,
+        "avatar_url": user.avatar_url,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+        "is_active": user.is_active,
+        "is_verified": user.is_verified,
+        "last_login": user.last_login,
+        "preferences": user.preferences,
+        "badges": user.badges,
+        "stats": user.stats or {},
+        "learning_progress": user.learning_progress or {},
+        "course_progress": user.course_progress or {},
+        "activities": user.activities or [],
+    }
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
