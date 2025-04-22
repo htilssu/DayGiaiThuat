@@ -13,7 +13,11 @@ from app.utils.auth import (
     get_password_hash,
     create_access_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
-    oauth2_scheme
+    oauth2_scheme,
+    oauth2_cookie_scheme,
+    set_auth_cookie,
+    clear_auth_cookie,
+    get_current_user_from_cookie
 )
 from app.core.config import settings
 
@@ -76,21 +80,8 @@ async def register(
             data={"sub": db_user.email}, expires_delta=access_token_expires
         )
 
-        # Thiết lập cookie
-        cookie_params = {
-            "key": settings.COOKIE_NAME,
-            "value": access_token,
-            "max_age": settings.COOKIE_MAX_AGE,
-            "httponly": settings.COOKIE_HTTPONLY,
-            "secure": settings.COOKIE_SECURE,
-            "samesite": settings.COOKIE_SAMESITE
-        }
-
-        # Chỉ thêm domain nếu được cấu hình
-        if settings.COOKIE_DOMAIN:
-            cookie_params["domain"] = settings.COOKIE_DOMAIN
-
-        response.set_cookie(**cookie_params)
+        # Thiết lập cookie sử dụng hàm tiện ích
+        set_auth_cookie(response, access_token)
 
         return {"access_token": access_token, "token_type": "bearer"}
 
@@ -130,10 +121,9 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Tài khoản không tồn tại",
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not verify_password(data.password, user.hashed_password):
+    if not verify_password(data.password, str(user.hashed_password)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Mật khẩu không chính xác",
@@ -153,21 +143,8 @@ async def login(
         data=token_data, expires_delta=access_token_expires
     )
 
-    # Thiết lập cookie
-    cookie_params = {
-        "key": settings.COOKIE_NAME,
-        "value": access_token,
-        "max_age": settings.COOKIE_MAX_AGE,
-        "httponly": settings.COOKIE_HTTPONLY,
-        "secure": settings.COOKIE_SECURE,
-        "samesite": settings.COOKIE_SAMESITE
-    }
-
-    # Chỉ thêm domain nếu được cấu hình
-    if settings.COOKIE_DOMAIN:
-        cookie_params["domain"] = settings.COOKIE_DOMAIN
-
-    response.set_cookie(**cookie_params)
+    # Thiết lập cookie sử dụng hàm tiện ích
+    set_auth_cookie(response, access_token)
 
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -175,7 +152,7 @@ async def login(
 @router.get("/test-token")
 async def test_token(token: Annotated[str, Depends(oauth2_scheme)]):
     """
-    Endpoint kiểm tra token có hợp lệ không
+    Endpoint kiểm tra token có hợp lệ không (từ Authorization header)
     
     Args:
         token (str): JWT token từ OAuth2PasswordBearer
@@ -183,7 +160,35 @@ async def test_token(token: Annotated[str, Depends(oauth2_scheme)]):
     Returns:
         dict: Token được cung cấp
     """
-    return {"token": token}
+    return {"token": token, "source": "header"}
+
+
+@router.get("/test-cookie")
+async def test_cookie(token: Annotated[str, Depends(oauth2_cookie_scheme)]):
+    """
+    Endpoint kiểm tra token có hợp lệ không (từ cookie)
+    
+    Args:
+        token (str): JWT token từ OAuth2PasswordCookie
+        
+    Returns:
+        dict: Token được cung cấp
+    """
+    return {"token": token, "source": "cookie"}
+
+
+@router.get("/me-cookie", response_model=User)
+async def read_users_me_cookie(current_user: Annotated[UserModel, Depends(get_current_user_from_cookie)]):
+    """
+    Lấy thông tin người dùng hiện tại dựa trên token từ cookie
+    
+    Args:
+        current_user (UserModel): Thông tin người dùng hiện tại
+        
+    Returns:
+        User: Thông tin người dùng
+    """
+    return current_user
 
 
 @router.post("/logout")
@@ -197,18 +202,7 @@ async def logout(response: Response):
     Returns:
         dict: Thông báo đăng xuất thành công
     """
-    # Xóa cookie
-    cookie_params = {
-        "key": settings.COOKIE_NAME,
-        "httponly": settings.COOKIE_HTTPONLY,
-        "secure": settings.COOKIE_SECURE,
-        "samesite": settings.COOKIE_SAMESITE
-    }
-
-    # Chỉ thêm domain nếu được cấu hình
-    if settings.COOKIE_DOMAIN:
-        cookie_params["domain"] = settings.COOKIE_DOMAIN
-
-    response.delete_cookie(**cookie_params)
+    # Xóa cookie sử dụng hàm tiện ích
+    clear_auth_cookie(response)
 
     return {"message": "Đăng xuất thành công"}

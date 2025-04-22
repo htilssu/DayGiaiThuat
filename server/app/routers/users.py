@@ -7,7 +7,7 @@ from ..schemas.auth import UserCreate
 from ..schemas.user_profile import UserUpdate, User as UserResponse
 from ..schemas.badge import Badge
 from ..schemas.user_stats import Activity, UserStats, LearningProgress, CourseProgress
-from ..utils.auth import get_current_user
+from ..utils.auth import get_current_user, get_current_user_from_cookie
 from ..services.user_service import UserService
 from ..utils.case_utils import convert_dict_to_camel_case
 
@@ -39,7 +39,7 @@ def create_user_response(user: User) -> UserResponse:
     }
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
+async def get_current_user_info(current_user: User = Depends(get_current_user_from_cookie)):
     """
     Lấy thông tin người dùng hiện tại
     """
@@ -74,7 +74,7 @@ async def get_user_by_id(
 @router.put("/me", response_model=UserResponse)
 async def update_current_user_profile(
     profile_data: UserUpdate,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user_from_cookie)
 ):
     """
     Cập nhật thông tin profile người dùng hiện tại
