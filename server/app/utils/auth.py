@@ -18,9 +18,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 # Cấu hình mã hóa mật khẩu
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Sử dụng đường dẫn tương đối để đảm bảo hoạt động đúng với các prefix
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"auth/token")
 # Tạo instance mới sử dụng cookie
-oauth2_cookie_scheme = OAuth2PasswordCookie(tokenUrl=f"{settings.API_V1_STR}/auth/token")
+oauth2_cookie_scheme = OAuth2PasswordCookie(tokenUrl=f"auth/token")
 
 def get_db():
     """

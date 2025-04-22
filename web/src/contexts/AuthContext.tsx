@@ -88,7 +88,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  // Kiểm tra token và lấy thông tin user khi component được mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -126,7 +125,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     checkAuth();
-  }, [router, pathname]);
+  }, []);
 
   /**
    * Hàm xử lý đăng nhập
