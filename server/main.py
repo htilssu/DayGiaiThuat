@@ -120,8 +120,8 @@ app.add_middleware(
 app.add_middleware(CamelCaseMiddleware)
 
 # Thêm router
-app.include_router(auth.router, prefix=settings.API_V1_STR)
-app.include_router(users.router, prefix=settings.API_V1_STR)
+app.include_router(auth.router)
+app.include_router(users.router)
 
 
 @app.get("/", tags=["root"])

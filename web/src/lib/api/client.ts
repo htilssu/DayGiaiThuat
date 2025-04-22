@@ -13,14 +13,9 @@ export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 /**
- * Phiên bản API
- */
-export const API_VERSION = process.env.NEXT_PUBLIC_API_VERSION || "/api/v1";
-
-/**
  * URL đầy đủ của API bao gồm URL cơ sở và phiên bản
  */
-export const BASE_URL = `${API_URL}${API_VERSION}`;
+export const BASE_URL = `${API_URL}`;
 
 /**
  * Tên cookie lưu JWT token

@@ -8,7 +8,6 @@ class Settings(BaseSettings):
     Cấu hình ứng dụng, đọc từ biến môi trường
     
     Attributes:
-        API_V1_STR (str): Prefix cho API v1
         PROJECT_NAME (str): Tên dự án
         BACKEND_CORS_ORIGINS (List[AnyHttpUrl]): Danh sách origins được phép CORS
         DB_USER (str): Username database
@@ -23,7 +22,6 @@ class Settings(BaseSettings):
         COOKIE_SAMESITE (str): SameSite setting cho cookie
         COOKIE_NAME (str): Tên cookie lưu JWT token
     """
-    API_V1_STR: str
     PROJECT_NAME: str
     
     # CORS
