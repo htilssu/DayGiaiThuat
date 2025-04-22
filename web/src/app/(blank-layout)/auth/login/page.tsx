@@ -89,9 +89,6 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      console.log(`Đang đăng nhập với: ${formData.email}`);
-
-      // Sử dụng API util - cookie sẽ được tự động thiết lập bởi server
       await api.auth.login(formData.email, formData.password);
 
       // Login với hàm từ context

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import uuid
 import random
 
-from ..database.mongodb import get_database
+from ..database.database import get_database
 from ..models.profile import (
     ProfileResponse,
     ProfileUpdate,

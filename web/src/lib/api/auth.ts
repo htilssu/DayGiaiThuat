@@ -42,15 +42,10 @@ const authApi = {
    * @param password - Mật khẩu người dùng
    * @returns Promise chứa thông tin token
    */
-  login: (email: string, password: string): Promise<TokenResponse> => {
-    const formData = new FormData();
-    formData.append("username", email);
-    formData.append("password", password);
-
-    return post<TokenResponse>("/auth/login", formData, {
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
+  login: (username: string, password: string): Promise<TokenResponse> => {
+    return post<TokenResponse>("/auth/login", {
+      username,
+      password,
     });
   },
 
