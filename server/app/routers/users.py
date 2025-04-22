@@ -1,15 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
 
 from ..models.user import User
-from ..schemas.auth import UserCreate
 from ..schemas.user_profile import UserUpdate, User as UserResponse
-from ..schemas.badge import Badge
-from ..schemas.user_stats import Activity, UserStats, LearningProgress, CourseProgress
 from ..utils.auth import get_current_user, get_current_user_from_cookie
 from ..services.user_service import UserService
-from ..utils.case_utils import convert_dict_to_camel_case
 
 router = APIRouter(prefix="/users", tags=["users"])
 user_service = UserService()

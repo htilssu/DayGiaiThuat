@@ -76,7 +76,6 @@ class OAuth2PasswordCookie(OAuth2):
         """
         # Lấy token từ cookie
         token = request.cookies.get(self.cookie_name)
-        print(token)
         
         if not token:
             if self.auto_error:

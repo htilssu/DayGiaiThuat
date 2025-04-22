@@ -10,6 +10,7 @@ class UserBase(BaseModel):
         full_name (Optional[str]): Họ và tên đầy đủ của user
     """
     email: EmailStr
+    username: str
     full_name: Optional[str] = None
 
 class UserCreate(UserBase):

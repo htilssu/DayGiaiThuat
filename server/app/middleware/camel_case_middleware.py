@@ -35,14 +35,13 @@ class CamelCaseMiddleware:
         async def send_wrapper(message: Message):
             if message["type"] == "http.response.start":
                 self.initial_message = message
+                return
             elif message["type"] == "http.response.body":
                 # Chỉ xử lý response có body là JSON
                 is_json = False
-                content_type = None
                 for key, value in self.initial_message["headers"]:
                     if key == b"content-type" and b"application/json" in value:
                         is_json = True
-                        content_type = value
                         break
 
                 if is_json and message.get("body"):
@@ -66,6 +65,9 @@ class CamelCaseMiddleware:
                     except (json.JSONDecodeError, UnicodeDecodeError):
                         # Nếu không phải JSON hợp lệ thì gửi nguyên body
                         pass
+                    
+            await send(self.initial_message)
+            await send(message)
 
         await self.app(scope, request._receive, send_wrapper)
 
