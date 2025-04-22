@@ -4,7 +4,6 @@
  */
 
 import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
-import { transformToCamelCase } from "../utils";
 
 /**
  * URL cơ sở của API
@@ -85,23 +84,6 @@ export const apiClient = axios.create({
   },
   // Quan trọng: Cho phép gửi cookie trong các yêu cầu cross-domain
   withCredentials: true,
-});
-
-// Thêm interceptor để tự động biến đổi request data từ format nào cũng được thành camelCase
-apiClient.interceptors.request.use((config) => {
-  if (config.data) {
-    // Đảm bảo dữ liệu gửi đi luôn ở dạng camelCase
-    config.data = transformToCamelCase(config.data);
-  }
-  return config;
-});
-
-// Thêm interceptor để tự động chuyển đổi response data sang camelCase
-apiClient.interceptors.response.use((response) => {
-  if (response.data) {
-    response.data = transformToCamelCase(response.data);
-  }
-  return response;
 });
 
 /**
