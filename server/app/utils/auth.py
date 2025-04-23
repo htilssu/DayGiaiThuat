@@ -13,7 +13,6 @@ from app.utils.oauth2 import OAuth2PasswordCookie
 
 # Cấu hình bảo mật
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Cấu hình mã hóa mật khẩu
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -183,12 +182,6 @@ def clear_auth_cookie(response: Response) -> None:
     """
     cookie_params = {
         "key": settings.COOKIE_NAME,
-        "value": "",
-        "expires": 0,
-        "max_age": 0,
-        "httponly": settings.COOKIE_HTTPONLY,
-        "samesite": settings.COOKIE_SAMESITE,
-        "secure": settings.COOKIE_SECURE
     }
     
     # Chỉ thêm domain nếu có cấu hình

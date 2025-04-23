@@ -177,6 +177,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsLoading(true);
       // Gọi API đăng xuất để xóa cookie phía server
       await api.auth.logout();
+      setUser(null);
     } catch (error: any) {
       console.error("Lỗi khi đăng xuất:", error);
 

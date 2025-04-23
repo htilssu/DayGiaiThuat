@@ -89,7 +89,11 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await api.auth.login(formData.email, formData.password);
+      await api.auth.login(
+        formData.email,
+        formData.password,
+        formData.rememberMe
+      );
 
       // Login với hàm từ context
       await login();

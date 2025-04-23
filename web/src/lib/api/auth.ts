@@ -42,10 +42,15 @@ const authApi = {
    * @param password - Mật khẩu người dùng
    * @returns Promise chứa thông tin token
    */
-  login: (username: string, password: string): Promise<TokenResponse> => {
+  login: (
+    username: string,
+    password: string,
+    rememberMe: boolean
+  ): Promise<TokenResponse> => {
     return post<TokenResponse>("/auth/login", {
       username,
       password,
+      rememberMe,
     });
   },
 

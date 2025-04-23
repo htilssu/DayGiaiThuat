@@ -32,6 +32,7 @@ class UserLogin(BaseModel):
     """
     username: str
     password: str
+    remember_me: bool
 
 class Token(BaseModel):
     """

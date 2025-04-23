@@ -12,14 +12,12 @@ from app.utils.auth import (
     verify_password,
     get_password_hash,
     create_access_token,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
     oauth2_scheme,
     oauth2_cookie_scheme,
     set_auth_cookie,
     clear_auth_cookie,
     get_current_user_from_cookie
 )
-from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -75,9 +73,8 @@ async def register(
         db.refresh(db_user)
 
         # Tạo access token - Luôn sử dụng email vì username là None
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": db_user.email}, expires_delta=access_token_expires
+            data={"sub": db_user.email}, expires_delta=60*24*30
         )
 
         # Thiết lập cookie sử dụng hàm tiện ích
@@ -137,10 +134,9 @@ async def login(
         )
 
     # Tạo access token - Sử dụng email nếu username là null
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     token_data = {"sub": user.email if user.username is None else user.username}
     access_token = create_access_token(
-        data=token_data, expires_delta=access_token_expires
+        data=token_data, expires_delta=60*24*30 if data.remember_me else None
     )
 
     # Thiết lập cookie sử dụng hàm tiện ích
