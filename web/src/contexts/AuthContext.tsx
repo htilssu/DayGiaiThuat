@@ -177,7 +177,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsLoading(true);
       // Gọi API đăng xuất để xóa cookie phía server
       await api.auth.logout();
-      setUser(null);
     } catch (error: any) {
       console.error("Lỗi khi đăng xuất:", error);
 
@@ -189,10 +188,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       setError(errorMessage);
     } finally {
-      // Dù API có lỗi hay không, vẫn xóa dữ liệu người dùng ở client
       setUser(null);
-      // Chuyển hướng đến trang đăng nhập sau khi đăng xuất
-      router.push("/auth/login");
       setIsLoading(false);
     }
   };
