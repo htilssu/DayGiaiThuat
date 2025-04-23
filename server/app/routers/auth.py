@@ -64,9 +64,10 @@ async def register(
         hashed_password = get_password_hash(user.password)
         db_user = UserModel(
             email=user.email,
-            username=None,  # Username luôn là None khi đăng ký
+            username=user.username,
             hashed_password=hashed_password,
-            full_name=user.fullname
+            first_name=user.first_name,
+            last_name=user.last_name
         )
         db.add(db_user)
         db.commit()

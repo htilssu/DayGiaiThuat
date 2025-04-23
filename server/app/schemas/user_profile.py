@@ -11,11 +11,13 @@ class UserUpdate(BaseModel):
     Schema cho việc cập nhật thông tin người dùng
     
     Attributes:
-        full_name (Optional[str]): Họ và tên đầy đủ
+        first_name (Optional[str]): Tên của người dùng
+        last_name (Optional[str]): Họ của người dùng
         bio (Optional[str]): Giới thiệu ngắn về bản thân
         avatar_url (Optional[str]): Đường dẫn đến ảnh đại diện
     """
-    full_name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
 
@@ -28,7 +30,8 @@ class User(UserBase):
         is_active (bool): Trạng thái hoạt động của tài khoản
         created_at (datetime): Thời điểm tạo tài khoản
         updated_at (datetime): Thời điểm cập nhật gần nhất
-        full_name (Optional[str]): Họ và tên đầy đủ
+        first_name (Optional[str]): Tên của người dùng
+        last_name (Optional[str]): Họ của người dùng
         bio (Optional[str]): Giới thiệu ngắn về bản thân
         avatar_url (Optional[str]): Đường dẫn đến ảnh đại diện
         stats (UserStats): Thống kê người dùng
@@ -41,7 +44,8 @@ class User(UserBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    full_name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
     stats: UserStats

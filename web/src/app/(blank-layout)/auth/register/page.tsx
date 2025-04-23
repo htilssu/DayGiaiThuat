@@ -12,7 +12,8 @@ import { useAuth } from "@/contexts/AuthContext";
  * Interface cho dữ liệu form đăng ký
  */
 interface RegisterFormData {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -23,7 +24,8 @@ interface RegisterFormData {
  * Interface cho các lỗi trong form đăng ký
  */
 interface RegisterFormErrors {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -43,14 +45,16 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [formStep, setFormStep] = useState(0);
   const [formData, setFormData] = useState<RegisterFormData>({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
     agreeToTerms: false,
   });
   const [errors, setErrors] = useState<RegisterFormErrors>({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -82,7 +86,8 @@ export default function RegisterPage() {
   const validateForm = () => {
     let isValid = true;
     const newErrors = {
-      name: "",
+      firstName: "",
+      lastName: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -90,12 +95,21 @@ export default function RegisterPage() {
       general: "",
     };
 
-    // Name validation
-    if (!formData.name.trim()) {
-      newErrors.name = "Họ và tên không được để trống";
+    // FirstName validation
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = "Tên không được để trống";
       isValid = false;
-    } else if (formData.name.trim().length < 2) {
-      newErrors.name = "Họ và tên phải có ít nhất 2 ký tự";
+    } else if (formData.firstName.trim().length < 2) {
+      newErrors.firstName = "Tên phải có ít nhất 2 ký tự";
+      isValid = false;
+    }
+
+    // LastName validation
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = "Họ không được để trống";
+      isValid = false;
+    } else if (formData.lastName.trim().length < 2) {
+      newErrors.lastName = "Họ phải có ít nhất 2 ký tự";
       isValid = false;
     }
 
@@ -150,7 +164,8 @@ export default function RegisterPage() {
         const tokenData = await api.auth.register({
           email: formData.email,
           password: formData.password,
-          fullName: formData.name,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
         });
 
         // Đăng ký thành công, đăng nhập luôn
@@ -179,8 +194,7 @@ export default function RegisterPage() {
             } else if (errorDetail.includes("Tên đăng nhập đã được sử dụng")) {
               setErrors({
                 ...errors,
-                name: "Tên đăng nhập đã tồn tại, vui lòng chọn tên khác.",
-                general: "",
+                general: "Tên đăng nhập đã tồn tại, vui lòng chọn tên khác.",
               });
             } else if (errorDetail.includes("Mật khẩu phải có ít nhất")) {
               setErrors({
@@ -306,17 +320,31 @@ export default function RegisterPage() {
           {/* Form đăng ký */}
           <form onSubmit={handleSubmit} className="mt-8 space-y-6">
             <div className="space-y-4">
-              <TextInput
-                id="name"
-                name="name"
-                label="Họ và tên"
-                type="text"
-                value={formData.name}
-                onChange={handleChange}
-                error={errors.name}
-                autoComplete="name"
-                required
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <TextInput
+                  id="lastName"
+                  name="lastName"
+                  label="Họ"
+                  type="text"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  error={errors.lastName}
+                  autoComplete="family-name"
+                  required
+                />
+
+                <TextInput
+                  id="firstName"
+                  name="firstName"
+                  label="Tên"
+                  type="text"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  error={errors.firstName}
+                  autoComplete="given-name"
+                  required
+                />
+              </div>
 
               <TextInput
                 id="email"
@@ -340,6 +368,7 @@ export default function RegisterPage() {
                 error={errors.password}
                 autoComplete="new-password"
                 required
+                showPasswordToggle
               />
 
               <TextInput
@@ -352,6 +381,7 @@ export default function RegisterPage() {
                 error={errors.confirmPassword}
                 autoComplete="new-password"
                 required
+                showPasswordToggle
               />
             </div>
 

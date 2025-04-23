@@ -18,7 +18,8 @@ class User(Base):
         is_active (bool): Trạng thái hoạt động của tài khoản
         created_at (DateTime): Thời điểm tạo tài khoản
         updated_at (DateTime): Thời điểm cập nhật gần nhất
-        full_name (str): Họ và tên đầy đủ của người dùng
+        first_name (str): Tên của người dùng
+        last_name (str): Họ của người dùng
         bio (str): Giới thiệu ngắn về bản thân
         avatar_url (str): Đường dẫn đến ảnh đại diện
         
@@ -40,8 +41,9 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
-    # Các trường từ ProfileBase
-    full_name = Column(String, nullable=True)
+    # Các trường thông tin cá nhân
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
     bio = Column(String, nullable=True)
     avatar_url = Column(String, nullable=True)
     
@@ -57,6 +59,22 @@ class User(Base):
     
     # Quan hệ many-to-many với Badge
     badge_collection = relationship("Badge", secondary=user_badges, back_populates="users")
+    
+    @property
+    def full_name(self):
+        """
+        Trả về họ và tên đầy đủ của người dùng
+        
+        Returns:
+            str: Họ và tên đầy đủ
+        """
+        if self.first_name and self.last_name:
+            return f"{self.last_name} {self.first_name}"
+        elif self.first_name:
+            return self.first_name
+        elif self.last_name:
+            return self.last_name
+        return None
     
     @property
     def enrolled_courses(self):

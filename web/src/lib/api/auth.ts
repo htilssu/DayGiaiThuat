@@ -12,7 +12,9 @@ import { ProfileData } from "@/services/profile.service";
 export interface RegisterData {
   email: string;
   password: string;
-  fullName?: string;
+  firstName: string;
+  lastName: string;
+  fullName?: string; // Giữ lại để đảm bảo khả năng tương thích ngược
 }
 
 /**

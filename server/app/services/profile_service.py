@@ -49,10 +49,11 @@ class ProfileService:
         Tạo profile mặc định cho người dùng mới
         """
         # Tạo dữ liệu mặc định cho profile
-        now = datetime.utcnow()
+        now = datetime.now()
         default_profile = {
             "user_id": user.id,
-            "full_name": user.username,
+            "first_name": user.first_name or "",
+            "last_name": user.last_name or "",
             "bio": "",
             "avatar_url": f"/avatars/default-{random.randint(1, 5)}.png",
             "updated_at": now,
@@ -105,10 +106,10 @@ class ProfileService:
             return None
         
         # Chuyển đổi Pydantic model thành dict
-        update_data = profile_data.dict(exclude_unset=True)
+        update_data = profile_data.model_dump(exclude_unset=True)
         
         # Cập nhật thời gian
-        update_data["updated_at"] = datetime.utcnow()
+        update_data["updated_at"] = datetime.now()
         
         # Cập nhật trong database
         await self.collection.update_one(

@@ -21,7 +21,8 @@ sample_users = [
         "username": "admin",
         "email": "admin@example.com",
         "password": "admin123",
-        "full_name": "Admin User",
+        "first_name": "Admin",
+        "last_name": "User",
         "is_active": True,
         "bio": "Quản trị viên hệ thống",
         "avatar_url": "https://ui-avatars.com/api/?name=Admin+User&background=random"
@@ -30,7 +31,8 @@ sample_users = [
         "username": "user1",
         "email": "user1@example.com",
         "password": "user123",
-        "full_name": "Nguyễn Văn A",
+        "first_name": "Nguyễn",
+        "last_name": "Văn A",
         "is_active": True,
         "bio": "Học viên tích cực",
         "avatar_url": "https://ui-avatars.com/api/?name=Nguyen+Van+A&background=random"
@@ -39,7 +41,8 @@ sample_users = [
         "username": "user2",
         "email": "user2@example.com",
         "password": "user123",
-        "full_name": "Trần Thị B",
+        "first_name": "Trần",
+        "last_name": "Thị B",
         "is_active": True,
         "bio": "Đam mê học thuật toán",
         "avatar_url": "https://ui-avatars.com/api/?name=Tran+Thi+B&background=random"
@@ -48,7 +51,8 @@ sample_users = [
         "username": "user3",
         "email": "user3@example.com",
         "password": "user123",
-        "full_name": "Lê Văn C",
+        "first_name": "Lê",
+        "last_name": "Văn C",
         "is_active": True,
         "bio": "Đang tìm hiểu về cấu trúc dữ liệu",
         "avatar_url": "https://ui-avatars.com/api/?name=Le+Van+C&background=random"
@@ -57,7 +61,8 @@ sample_users = [
         "username": "user4",
         "email": "user4@example.com",
         "password": "user123",
-        "full_name": "Phạm Thị D",
+        "first_name": "Phạm",
+        "last_name": "Thị D",
         "is_active": True,
         "bio": "Sinh viên năm cuối ngành Khoa học máy tính",
         "avatar_url": "https://ui-avatars.com/api/?name=Pham+Thi+D&background=random"
@@ -239,7 +244,8 @@ def seed_users(db: Session):
             username=user_data["username"],
             email=user_data["email"],
             hashed_password=hashed_password,
-            full_name=user_data["full_name"],
+            first_name=user_data["first_name"],
+            last_name=user_data["last_name"],
             is_active=user_data["is_active"],
             bio=user_data["bio"],
             avatar_url=user_data["avatar_url"]
