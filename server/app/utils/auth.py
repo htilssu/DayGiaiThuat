@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
-from typing import Optional
+import logging
+from typing import Optional, Any, Coroutine, Type
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status, Request, Response
@@ -20,6 +21,8 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 # Tạo instance mới sử dụng cookie
 oauth2_cookie_scheme = OAuth2PasswordCookie(tokenUrl="auth/token")
+
+logger = logging.getLogger(__name__)
 
 def get_db():
     """
@@ -116,7 +119,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
     return user 
 
-async def get_current_user_from_cookie(token: str = Depends(oauth2_cookie_scheme), db: Session = Depends(get_db)) -> User:
+async def get_current_user_from_cookie(token: str = Depends(oauth2_cookie_scheme), db: Session = Depends(get_db)) -> \
+Type[User]:
     """
     Lấy thông tin user hiện tại từ token trong cookie
     
@@ -139,13 +143,14 @@ async def get_current_user_from_cookie(token: str = Depends(oauth2_cookie_scheme
     )
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        user_id: str = payload.get("sub")
+        if user_id is None:
             raise credentials_exception
-    except JWTError:
+    except JWTError as e:
+        logger.error(f"JWTError: {e}")
         raise credentials_exception
     
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
     return user 

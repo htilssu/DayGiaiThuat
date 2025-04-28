@@ -56,7 +56,7 @@ def run_migrations():
         alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URI)
         
         # Chạy migration để cập nhật schema lên phiên bản mới nhất
-        with engine.connect() as connection:
+        with engine.connect():
             command.upgrade(alembic_cfg, "head")
         
         

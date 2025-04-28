@@ -133,7 +133,7 @@ async def login(
         )
 
     # Tạo access token - Sử dụng email nếu username là null
-    token_data = {"sub": user.id}
+    token_data = {"sub": str(user.id)}
     access_token = create_access_token(
         data=token_data, expires_delta=timedelta(minutes=60*24*30) if data.remember_me else None
     )

@@ -101,8 +101,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(userData);
         clearError();
       } catch (error: any) {
-        console.error("Lỗi khi kiểm tra xác thực:", error);
-
         let errorMessage = "Lỗi xác thực không xác định";
 
         if (error instanceof AppError) {
