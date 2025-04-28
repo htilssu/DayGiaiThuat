@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, status
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from typing import List, Optional, Dict, Any
-from app.schemas.course import CourseCreate, CourseResponse, CourseUpdate, CourseListResponse
-from app.models.course import Course
+from sqlalchemy.orm import Session
+
 from app.database.database import get_db
+from app.models.course import Course
+from app.schemas.course import CourseCreate, CourseResponse, CourseUpdate, CourseListResponse
 
 router = APIRouter(
     prefix="/courses",
@@ -12,11 +12,12 @@ router = APIRouter(
     responses={404: {"description": "Không tìm thấy khóa học"}},
 )
 
+
 @router.get("", response_model=CourseListResponse)
 async def get_courses(
-    page: int = Query(1, gt=0, description="Số trang"),
-    limit: int = Query(10, gt=0, le=100, description="Số item mỗi trang"),
-    db: Session = Depends(get_db)
+        page: int = Query(1, gt=0, description="Số trang"),
+        limit: int = Query(10, gt=0, le=100, description="Số item mỗi trang"),
+        db: Session = Depends(get_db)
 ):
     """
     Lấy danh sách khóa học với phân trang
@@ -31,14 +32,14 @@ async def get_courses(
     """
     # Tính toán offset
     offset = (page - 1) * limit
-    
+
     # Truy vấn khóa học
     total_courses = db.query(Course).count()
     courses = db.query(Course).order_by(Course.created_at.desc()).offset(offset).limit(limit).all()
-    
+
     # Tính tổng số trang
     total_pages = (total_courses + limit - 1) // limit
-    
+
     return {
         "items": courses,
         "total": total_courses,
@@ -46,6 +47,7 @@ async def get_courses(
         "limit": limit,
         "totalPages": total_pages
     }
+
 
 @router.get("/{course_id}", response_model=CourseResponse)
 async def get_course_by_id(course_id: int, db: Session = Depends(get_db)):
@@ -70,6 +72,7 @@ async def get_course_by_id(course_id: int, db: Session = Depends(get_db)):
         )
     return course
 
+
 @router.post("", response_model=CourseResponse, status_code=status.HTTP_201_CREATED)
 async def create_course(course_data: CourseCreate, db: Session = Depends(get_db)):
     """
@@ -88,12 +91,12 @@ async def create_course(course_data: CourseCreate, db: Session = Depends(get_db)
     try:
         # Tạo đối tượng Course từ dữ liệu đầu vào
         new_course = Course(**course_data.dict())
-        
+
         # Thêm vào database
         db.add(new_course)
         db.commit()
         db.refresh(new_course)
-        
+
         return new_course
     except SQLAlchemyError as e:
         db.rollback()
@@ -101,6 +104,7 @@ async def create_course(course_data: CourseCreate, db: Session = Depends(get_db)
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi tạo khóa học: {str(e)}"
         )
+
 
 @router.put("/{course_id}", response_model=CourseResponse)
 async def update_course(course_id: int, course_data: CourseUpdate, db: Session = Depends(get_db)):
@@ -126,16 +130,16 @@ async def update_course(course_id: int, course_data: CourseUpdate, db: Session =
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Không tìm thấy khóa học với ID {course_id}"
             )
-        
+
         # Cập nhật thông tin khóa học từ dữ liệu đầu vào
         course_dict = course_data.dict(exclude_unset=True)
         for key, value in course_dict.items():
             setattr(course, key, value)
-        
+
         # Lưu thay đổi vào database
         db.commit()
         db.refresh(course)
-        
+
         return course
     except SQLAlchemyError as e:
         db.rollback()
@@ -143,6 +147,7 @@ async def update_course(course_id: int, course_data: CourseUpdate, db: Session =
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi cập nhật khóa học: {str(e)}"
         )
+
 
 @router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_course(course_id: int, db: Session = Depends(get_db)):
@@ -164,7 +169,7 @@ async def delete_course(course_id: int, db: Session = Depends(get_db)):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Không tìm thấy khóa học với ID {course_id}"
             )
-        
+
         # Xóa khóa học
         db.delete(course)
         db.commit()
@@ -173,4 +178,4 @@ async def delete_course(course_id: int, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi xóa khóa học: {str(e)}"
-        ) 
+        )

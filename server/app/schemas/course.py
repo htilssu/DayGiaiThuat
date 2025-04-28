@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
 from datetime import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel, Field
+
 
 class CourseBase(BaseModel):
     """
@@ -27,13 +29,16 @@ class CourseBase(BaseModel):
     is_published: Optional[bool] = Field(False, description="Trạng thái xuất bản của khóa học")
     tags: Optional[str] = Field("", description="Các thẻ tag liên quan đến khóa học")
     requirements: Optional[str] = Field(None, description="Các yêu cầu cần có trước khi học (JSON string)")
-    what_you_will_learn: Optional[str] = Field(None, description="Những gì người học sẽ đạt được sau khóa học (JSON string)")
+    what_you_will_learn: Optional[str] = Field(None,
+                                               description="Những gì người học sẽ đạt được sau khóa học (JSON string)")
+
 
 class CourseCreate(CourseBase):
     """
     Schema cho việc tạo mới khóa học
     """
     pass
+
 
 class CourseUpdate(BaseModel):
     """
@@ -46,12 +51,15 @@ class CourseUpdate(BaseModel):
     description: Optional[str] = Field(None, description="Mô tả chi tiết về khóa học")
     thumbnail_url: Optional[str] = Field(None, max_length=500, description="Đường dẫn đến ảnh thumbnail của khóa học")
     level: Optional[str] = Field(None, description="Cấp độ khó của khóa học")
-    duration: Optional[int] = Field(None, ge=0, description="Thời lượng ước tính để hoàn thành khóa học (tính bằng phút)")
+    duration: Optional[int] = Field(None, ge=0,
+                                    description="Thời lượng ước tính để hoàn thành khóa học (tính bằng phút)")
     price: Optional[float] = Field(None, ge=0, description="Giá của khóa học (0 nếu miễn phí)")
     is_published: Optional[bool] = Field(None, description="Trạng thái xuất bản của khóa học")
     tags: Optional[str] = Field(None, description="Các thẻ tag liên quan đến khóa học")
     requirements: Optional[str] = Field(None, description="Các yêu cầu cần có trước khi học (JSON string)")
-    what_you_will_learn: Optional[str] = Field(None, description="Những gì người học sẽ đạt được sau khóa học (JSON string)")
+    what_you_will_learn: Optional[str] = Field(None,
+                                               description="Những gì người học sẽ đạt được sau khóa học (JSON string)")
+
 
 class CourseResponse(CourseBase):
     """
@@ -69,6 +77,7 @@ class CourseResponse(CourseBase):
     class Config:
         """Cấu hình cho Pydantic model"""
         from_attributes = True
+
 
 class CourseListResponse(BaseModel):
     """

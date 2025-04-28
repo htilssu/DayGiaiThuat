@@ -1,5 +1,7 @@
-from pydantic import BaseModel
 from typing import Optional
+
+from pydantic import BaseModel
+
 
 class Activity(BaseModel):
     """
@@ -20,6 +22,7 @@ class Activity(BaseModel):
     score: Optional[str] = None
     progress: Optional[str] = None
 
+
 class UserStats(BaseModel):
     """
     Schema cho thống kê người dùng
@@ -39,6 +42,7 @@ class UserStats(BaseModel):
     level: int = 1
     problems_solved: int = 0
 
+
 class LearningProgress(BaseModel):
     """
     Schema cho tiến độ học tập của người dùng
@@ -51,6 +55,7 @@ class LearningProgress(BaseModel):
     algorithms: int = 0
     data_structures: int = 0
     dynamic_programming: int = 0
+
 
 class CourseProgress(BaseModel):
     """
@@ -69,4 +74,4 @@ class CourseProgress(BaseModel):
     progress: int = 0
     color_from: str
     color_to: str
-    image_url: Optional[str] = None 
+    image_url: Optional[str] = None

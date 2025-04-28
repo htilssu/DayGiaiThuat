@@ -1,6 +1,7 @@
-from sqlalchemy import Boolean, Column, Integer, String, DateTime, Float, ForeignKey, Table, Text
-from sqlalchemy.sql import func
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, ForeignKey, Table, Text
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
 from app.database.database import Base
 
 # Bảng liên kết nhiều-nhiều giữa User và Badge

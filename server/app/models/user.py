@@ -1,10 +1,12 @@
-from sqlalchemy import Boolean, Column, Integer, String, DateTime, JSON
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
-from app.database.database import Base
-from typing import Dict, List, Optional
+from typing import List
 
+from sqlalchemy import Boolean, Column, Integer, String, DateTime
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from app.database.database import Base
 from app.models.badge import user_badges
+
 
 class User(Base):
     """
@@ -81,7 +83,6 @@ class User(Base):
         Returns:
             List: Danh sách các Course
         """
-        from sqlalchemy.orm import Session
         from app.database.database import SessionLocal
         
         # Lấy danh sách ID khóa học từ learning_progresses

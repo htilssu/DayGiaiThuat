@@ -3,10 +3,11 @@ Module này chứa các hàm seeder cho việc gán huy hiệu cho người dùn
 """
 import logging
 import random
+
 from sqlalchemy.orm import Session
 
-from app.models.user import User
 from app.models.badge import Badge
+from app.models.user import User
 
 # Tạo logger
 logger = logging.getLogger(__name__)

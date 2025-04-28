@@ -1,9 +1,10 @@
-from typing import Optional
-from fastapi import Depends, HTTPException, Request
-from fastapi.security.oauth2 import OAuth2, OAuthFlowsModel
-from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
-from starlette.status import HTTP_401_UNAUTHORIZED
 from typing import Any, Dict, cast
+from typing import Optional
+
+from fastapi import HTTPException, Request
+from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
+from fastapi.security.oauth2 import OAuth2
+from starlette.status import HTTP_401_UNAUTHORIZED
 
 from app.core.config import settings
 
@@ -23,15 +24,15 @@ class OAuth2PasswordCookie(OAuth2):
         auto_error (bool): Tự động báo lỗi khi không tìm thấy token
         cookie_name (str): Tên của cookie chứa token
     """
-    
+
     def __init__(
-        self,
-        tokenUrl: str,
-        scheme_name: Optional[str] = None,
-        scopes: Optional[Dict[str, str]] = None,
-        description: Optional[str] = None,
-        auto_error: bool = True,
-        cookie_name: Optional[str] = None,
+            self,
+            tokenUrl: str,
+            scheme_name: Optional[str] = None,
+            scopes: Optional[Dict[str, str]] = None,
+            description: Optional[str] = None,
+            auto_error: bool = True,
+            cookie_name: Optional[str] = None,
     ):
         """
         Khởi tạo OAuth2PasswordCookie.
@@ -46,14 +47,14 @@ class OAuth2PasswordCookie(OAuth2):
         """
         if not scopes:
             scopes = {}
-        
+
         # Sử dụng tên cookie từ tham số hoặc settings nếu không được cung cấp
         self.cookie_name = cookie_name or settings.COOKIE_NAME
-        
+
         flows = OAuthFlowsModel(
             password=cast(Any, {"tokenUrl": tokenUrl, "scopes": scopes})
         )
-        
+
         super().__init__(
             flows=flows,
             scheme_name=scheme_name,
@@ -76,7 +77,7 @@ class OAuth2PasswordCookie(OAuth2):
         """
         # Lấy token từ cookie
         token = request.cookies.get(self.cookie_name)
-        
+
         if not token:
             if self.auto_error:
                 raise HTTPException(
@@ -85,5 +86,5 @@ class OAuth2PasswordCookie(OAuth2):
                 )
             else:
                 return None
-        
-        return token 
+
+        return token

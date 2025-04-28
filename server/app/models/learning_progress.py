@@ -1,8 +1,9 @@
-from sqlalchemy import Boolean, Column, Integer, String, DateTime, Float, ForeignKey, JSON, Text
-from sqlalchemy.sql import func
+from sqlalchemy import Boolean, Column, Integer, DateTime, Float, ForeignKey, JSON, Text
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
 from app.database.database import Base
-from typing import Dict, List, Optional
+
 
 class LearningProgress(Base):
     """

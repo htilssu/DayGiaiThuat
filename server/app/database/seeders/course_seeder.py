@@ -3,6 +3,7 @@ Module này chứa các hàm seeder cho model Course.
 """
 import json
 import logging
+
 from sqlalchemy.orm import Session
 
 from app.models.course import Course

@@ -1,6 +1,8 @@
-from typing import List, Optional
 from datetime import datetime
-from pydantic import BaseModel, Field, validator
+from typing import List, Optional
+
+from pydantic import BaseModel, Field
+
 
 class Badge(BaseModel):
     """

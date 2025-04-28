@@ -3,7 +3,8 @@ Utility functions để xử lý chuyển đổi định dạng snake_case và c
 """
 
 import re
-from typing import Any, Dict, List, Union
+from typing import Any, Dict
+
 
 def to_camel_case(snake_str: str) -> str:
     """
@@ -18,11 +19,12 @@ def to_camel_case(snake_str: str) -> str:
     # Xử lý các trường hợp đặc biệt như chuỗi rỗng
     if not snake_str:
         return snake_str
-        
+
     # Chuyển đổi từ snake_case sang camelCase
     components = snake_str.split('_')
     # Giữ nguyên thành phần đầu tiên và chuyển các thành phần tiếp theo sang dạng title
     return components[0] + ''.join(x.title() for x in components[1:])
+
 
 def to_snake_case(camel_str: str) -> str:
     """
@@ -37,12 +39,13 @@ def to_snake_case(camel_str: str) -> str:
     # Xử lý các trường hợp đặc biệt như chuỗi rỗng
     if not camel_str:
         return camel_str
-    
+
     # Sử dụng regex để tách các từ bắt đầu bằng chữ hoa
     # Đầu tiên thay thế chữ cái viết hoa (không phải đầu chuỗi) với '_' và chữ đó
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', camel_str)
     # Tiếp theo xử lý các chữ cái viết hoa liên tiếp
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
 
 def convert_dict_to_camel_case(obj: Any) -> Any:
     """
@@ -68,6 +71,7 @@ def convert_dict_to_camel_case(obj: Any) -> Any:
     else:
         # Trả về nguyên giá trị nếu không phải dict hoặc list
         return obj
+
 
 def convert_dict_to_snake_case(obj: Any) -> Any:
     """

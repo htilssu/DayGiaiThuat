@@ -2,6 +2,7 @@
 Module này chứa các hàm seeder cho model User.
 """
 import logging
+
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -81,9 +82,15 @@ def seed_users(db: Session):
         # Hash mật khẩu
         hashed_password = get_password_hash(user_data["password"])
         
+        # Kiểm tra username có null hay không
+        username = user_data.get("username")
+        if not username:
+            logger.warning(f"Phát hiện username null hoặc rỗng trong dữ liệu người dùng: {user_data}")
+            username = f"user_{len(db.query(User).all()) + 1}"  # Tạo username mặc định nếu null
+            
         # Tạo user mới
         user = User(
-            username=user_data["username"],
+            username=username,
             email=user_data["email"],
             hashed_password=hashed_password,
             first_name=user_data["first_name"],

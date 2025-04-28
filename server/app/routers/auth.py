@@ -1,13 +1,13 @@
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Response
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import or_
-from sqlalchemy.orm import Session
 from typing import Any, Annotated
 
+from fastapi import APIRouter, Depends, HTTPException, status, Response
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
+
+from app.models.user import User as UserModel
 from app.schemas.auth import UserCreate, UserLogin, Token
 from app.schemas.user_profile import User
-from app.models.user import User as UserModel
 from app.utils.auth import (
     get_db,
     verify_password,
@@ -76,7 +76,7 @@ async def register(
 
         # Tạo access token - Luôn sử dụng email vì username là None
         access_token = create_access_token(
-            data={"sub": db_user.email}, expires_delta=timedelta(minutes=60*24*30)
+            data={"sub": db_user.email}, expires_delta=timedelta(minutes=60 * 24 * 30)
         )
 
         # Thiết lập cookie sử dụng hàm tiện ích
@@ -111,7 +111,8 @@ async def login(
                            - 400: Tài khoản đã bị vô hiệu hóa
     """
     # Tìm user theo username hoặc email
-    user = db.query(UserModel).filter(or_(UserModel.username == data.username, UserModel.email == data.username)).first()
+    user = db.query(UserModel).filter(
+        or_(UserModel.username == data.username, UserModel.email == data.username)).first()
 
     if not user:
         raise HTTPException(
@@ -135,7 +136,7 @@ async def login(
     # Tạo access token - Sử dụng email nếu username là null
     token_data = {"sub": str(user.id)}
     access_token = create_access_token(
-        data=token_data, expires_delta=timedelta(minutes=60*24*30) if data.remember_me else None
+        data=token_data, expires_delta=timedelta(minutes=60 * 24 * 30) if data.remember_me else None
     )
 
     # Thiết lập cookie sử dụng hàm tiện ích

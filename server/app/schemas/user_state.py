@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
 from datetime import datetime
+from typing import Optional, Dict, Any
+
+from pydantic import BaseModel, Field
+
 
 class UserStateBase(BaseModel):
     """
@@ -14,6 +16,7 @@ class UserStateBase(BaseModel):
     daily_goal: Optional[int] = Field(default=30)
     daily_progress: Optional[int] = Field(default=0)
 
+
 class UserStateCreate(UserStateBase):
     """
     Schema dùng để tạo trạng thái người dùng mới
@@ -22,6 +25,7 @@ class UserStateCreate(UserStateBase):
     current_lesson_id: Optional[int] = None
     preferences: Optional[Dict[str, Any]] = None
     notifications: Optional[Dict[str, Any]] = None
+
 
 class UserStateUpdate(BaseModel):
     """
@@ -40,6 +44,7 @@ class UserStateUpdate(BaseModel):
     preferences: Optional[Dict[str, Any]] = None
     notifications: Optional[Dict[str, Any]] = None
 
+
 class UserStateInDB(UserStateBase):
     """
     Schema đại diện cho trạng thái người dùng trong database
@@ -53,12 +58,13 @@ class UserStateInDB(UserStateBase):
     updated_at: datetime
     preferences: Dict[str, Any]
     notifications: Dict[str, Any]
-    
+
     class Config:
         from_attributes = True
+
 
 class UserState(UserStateInDB):
     """
     Schema đầy đủ của trạng thái người dùng để trả về cho client
     """
-    pass 
+    pass

@@ -4,10 +4,11 @@ Module này chứa các hàm seeder cho model UserState.
 import logging
 import random
 from datetime import datetime, timedelta
+
 from sqlalchemy.orm import Session
 
-from app.models.user import User
 from app.models.course import Course
+from app.models.user import User
 from app.models.user_state import UserState
 
 # Tạo logger

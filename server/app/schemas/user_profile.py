@@ -1,10 +1,12 @@
-from pydantic import BaseModel, EmailStr
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel
 
 from app.schemas.auth import UserBase
 from app.schemas.badge import Badge
 from app.schemas.user_stats import UserStats, Activity, LearningProgress, CourseProgress
+
 
 class UserUpdate(BaseModel):
     """
@@ -20,6 +22,7 @@ class UserUpdate(BaseModel):
     last_name: Optional[str] = None
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
+
 
 class User(UserBase):
     """
@@ -55,4 +58,4 @@ class User(UserBase):
     course_progress: List[CourseProgress] = []
 
     class Config:
-        from_attributes = True 
+        from_attributes = True

@@ -1,12 +1,10 @@
+import logging
+
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import os
-import logging
-from alembic.config import Config
-from alembic import command
-import contextlib
-import io
 
 from app.core.config import settings
 

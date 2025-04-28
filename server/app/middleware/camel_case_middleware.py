@@ -1,14 +1,14 @@
 """
 Middleware để chuyển đổi FastAPI request sang snake_case và response sang camelCase
 """
-from http.client import responses
-from typing import Callable, Optional
 
-from starlette.datastructures import MutableHeaders
-from starlette.types import ASGIApp, Message, Scope, Receive, Send
+import json
+
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
-import json
+from starlette.datastructures import MutableHeaders
+from starlette.types import Message, Scope, Receive, Send
+
 from app.utils.case_utils import convert_dict_to_camel_case, convert_dict_to_snake_case
 
 

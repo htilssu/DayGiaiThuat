@@ -1,22 +1,23 @@
-from fastapi import FastAPI, HTTPException
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import (
     get_redoc_html,
     get_swagger_ui_html,
     get_swagger_ui_oauth2_redirect_html,
 )
-from fastapi.staticfiles import StaticFiles
-import logging
-from contextlib import asynccontextmanager
 
+from app.core.config import settings
 from app.database.database import run_migrations
 from app.database.seeder import run_seeder
-from app.routers import auth, users, courses
-from app.core.config import settings
 from app.middleware.camel_case_middleware import CamelCaseMiddleware
+from app.routers import auth, users, courses
 
 # Khởi tạo logger
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -36,9 +37,9 @@ async def lifespan(app: FastAPI):
             run_seeder()
     except Exception as e:
         logger.error(f"Lỗi khởi động ứng dụng: {str(e)}")
-    
+
     yield
-    
+
     # Shutdown: chạy khi ứng dụng kết thúc
     logger.info("Đóng kết nối và dọn dẹp tài nguyên...")
 
@@ -82,6 +83,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+
 # Custom Swagger UI với theme và các tùy chỉnh
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
@@ -94,6 +96,7 @@ async def custom_swagger_ui_html():
         swagger_favicon_url="https://fastapi.tiangolo.com/img/favicon.png",
     )
 
+
 @app.get("/redoc", include_in_schema=False)
 async def redoc_html():
     return get_redoc_html(
@@ -103,9 +106,11 @@ async def redoc_html():
         redoc_favicon_url="https://fastapi.tiangolo.com/img/favicon.png",
     )
 
+
 @app.get("/docs/oauth2-redirect", include_in_schema=False)
 async def swagger_ui_redirect():
     return get_swagger_ui_oauth2_redirect_html()
+
 
 # Cấu hình CORS
 app.add_middleware(

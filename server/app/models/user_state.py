@@ -1,8 +1,9 @@
-from sqlalchemy import Boolean, Column, Integer, String, DateTime, Float, ForeignKey, JSON, Text
-from sqlalchemy.sql import func
+from sqlalchemy import Column, Integer, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
 from app.database.database import Base
-from typing import Dict, List, Optional
+
 
 class UserState(Base):
     """
@@ -37,7 +38,7 @@ class UserState(Base):
     current_course_id = Column(Integer, ForeignKey("courses.id"), nullable=True)
     current_lesson_id = Column(Integer, nullable=True)  # Sẽ thêm foreign key khi tạo bảng Lesson
     streak_last_date = Column(DateTime(timezone=True), nullable=True)
-    
+
     # Các trường thống kê được chuyển từ stats của User
     streak_count = Column(Integer, default=0)
     total_points = Column(Integer, default=0)
@@ -48,16 +49,16 @@ class UserState(Base):
     completed_exercises = Column(Integer, default=0)
     completed_courses = Column(Integer, default=0)
     problems_solved = Column(Integer, default=0)
-    
+
     # Các trường tiến độ học tập chuyển từ learning_progress của User
     algorithms_progress = Column(Integer, default=0)  # Tiến độ học thuật toán (0-100%)
     data_structures_progress = Column(Integer, default=0)  # Tiến độ học cấu trúc dữ liệu (0-100%)
     dynamic_programming_progress = Column(Integer, default=0)  # Tiến độ học quy hoạch động (0-100%)
-    
+
     # Các trường thời gian
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
+
     # Các trường JSON
     preferences = Column(JSON, default=lambda: {
         "theme": "light",
@@ -65,7 +66,7 @@ class UserState(Base):
         "sound_enabled": True,
         "language": "vi"
     })
-    
+
     notifications = Column(JSON, default=lambda: {
         "email": True,
         "push": True,
@@ -73,7 +74,7 @@ class UserState(Base):
         "streak_reminder": True,
         "new_content": True
     })
-    
+
     # Relationship với các bảng khác
     user = relationship("User", back_populates="state")
-    current_course = relationship("Course", back_populates="user_states") 
+    current_course = relationship("Course", back_populates="user_states")

@@ -4,11 +4,12 @@ Module này chứa các hàm seeder cho model LearningProgress.
 import logging
 import random
 from datetime import datetime, timedelta
+
 from sqlalchemy.orm import Session
 
-from app.models.user import User
 from app.models.course import Course
 from app.models.learning_progress import LearningProgress
+from app.models.user import User
 
 # Tạo logger
 logger = logging.getLogger(__name__)
@@ -62,6 +63,9 @@ def seed_learning_progress(db: Session):
                 for i in range(1, random.randint(1, 5)) if random.random() > 0.3
             }
             
+            # Đảm bảo username không null khi tạo ghi chú
+            username = user.username if user.username else f"user_{user.id}"
+            
             progress = LearningProgress(
                 user_id=user.id,
                 course_id=course.id,
@@ -69,7 +73,7 @@ def seed_learning_progress(db: Session):
                 last_accessed=datetime.utcnow() - timedelta(days=random.randint(0, 14)),
                 is_completed=is_completed,
                 completion_date=datetime.utcnow() - timedelta(days=random.randint(1, 30)) if is_completed else None,
-                notes=f"Ghi chú của {user.username} về khóa học {course.title}" if random.random() > 0.7 else None,
+                notes=f"Ghi chú của {username} về khóa học {course.title}" if random.random() > 0.7 else None,
                 favorite=random.random() > 0.7,
                 completed_lessons=completed_lessons,
                 quiz_scores=quiz_scores

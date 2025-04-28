@@ -2,6 +2,7 @@
 Module này chứa các hàm seeder cho model Badge.
 """
 import logging
+
 from sqlalchemy.orm import Session
 
 from app.models.badge import Badge

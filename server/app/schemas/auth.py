@@ -1,5 +1,7 @@
-from pydantic import BaseModel, EmailStr
 from typing import Optional
+
+from pydantic import BaseModel, EmailStr
+
 
 class UserBase(BaseModel):
     """
@@ -15,6 +17,7 @@ class UserBase(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
 
+
 class UserCreate(UserBase):
     """
     Schema cho việc tạo User mới, kế thừa từ UserBase
@@ -25,6 +28,7 @@ class UserCreate(UserBase):
     password: str
     first_name: str
     last_name: str
+
 
 class UserLogin(BaseModel):
     """
@@ -38,6 +42,7 @@ class UserLogin(BaseModel):
     password: str
     remember_me: bool
 
+
 class Token(BaseModel):
     """
     Schema cho token trả về khi đăng nhập thành công
@@ -47,4 +52,4 @@ class Token(BaseModel):
         token_type (str): Loại token (Bearer)
     """
     access_token: str
-    token_type: str 
+    token_type: str

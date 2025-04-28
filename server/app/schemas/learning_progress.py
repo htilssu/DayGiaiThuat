@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
 from datetime import datetime
+from typing import List, Optional, Dict, Any
+
+from pydantic import BaseModel, Field
+
 
 class LearningProgressBase(BaseModel):
     """

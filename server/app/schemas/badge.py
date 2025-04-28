@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
 from datetime import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel, Field
+
 
 class BadgeBase(BaseModel):
     """
@@ -14,13 +16,15 @@ class BadgeBase(BaseModel):
     criteria: Optional[str] = None
     points: Optional[int] = Field(default=0)
     rarity: Optional[str] = Field(default="Common")
-    
+
+
 class BadgeCreate(BadgeBase):
     """
     Schema dùng để tạo huy hiệu mới
     """
     is_hidden: Optional[bool] = Field(default=False)
     is_active: Optional[bool] = Field(default=True)
+
 
 class BadgeUpdate(BadgeBase):
     """
@@ -37,6 +41,7 @@ class BadgeUpdate(BadgeBase):
     is_hidden: Optional[bool] = None
     is_active: Optional[bool] = None
 
+
 class BadgeInDB(BadgeBase):
     """
     Schema đại diện cho huy hiệu trong database
@@ -46,15 +51,17 @@ class BadgeInDB(BadgeBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
+
 
 class Badge(BadgeInDB):
     """
     Schema đầy đủ của huy hiệu để trả về cho client
     """
     pass
+
 
 class UserBadge(BaseModel):
     """
@@ -63,13 +70,14 @@ class UserBadge(BaseModel):
     badge: Badge
     earned_at: datetime
     is_featured: bool
-    
+
     class Config:
         from_attributes = True
+
 
 class BadgeList(BaseModel):
     """
     Schema danh sách huy hiệu
     """
     badges: List[Badge]
-    total: int 
+    total: int
