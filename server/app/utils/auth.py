@@ -17,9 +17,9 @@ ALGORITHM = "HS256"
 # Cấu hình mã hóa mật khẩu
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Sử dụng đường dẫn tương đối để đảm bảo hoạt động đúng với các prefix
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 # Tạo instance mới sử dụng cookie
-oauth2_cookie_scheme = OAuth2PasswordCookie(tokenUrl=f"auth/token")
+oauth2_cookie_scheme = OAuth2PasswordCookie(tokenUrl="auth/token")
 
 def get_db():
     """

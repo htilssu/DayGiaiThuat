@@ -27,6 +27,11 @@ class CamelCaseMiddleware:
         self.initial_message = {}
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        # Bỏ qua các sự kiện lifespan
+        if scope["type"] == "lifespan":
+            await self.app(scope, receive, send)
+            return
+            
         # Xử lý request body từ camelCase sang snake_case
         request = Request(scope, receive)
         request = await self._process_request(request)

@@ -2,7 +2,6 @@ from sqlalchemy import Boolean, Column, Integer, String, DateTime, Float, Foreig
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database.database import Base
-from typing import Dict, List, Optional
 
 # Bảng liên kết nhiều-nhiều giữa User và Badge
 user_badges = Table(

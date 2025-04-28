@@ -47,9 +47,6 @@ class User(Base):
     bio = Column(String, nullable=True)
     avatar_url = Column(String, nullable=True)
     
-    # Các trường JSON giữ lại để tương thích ngược
-    activities = Column(JSON, default=list)
-    
     # Relationship với các bảng khác
     # Quan hệ one-to-one với UserState
     state = relationship("UserState", uselist=False, back_populates="user", cascade="all, delete-orphan")

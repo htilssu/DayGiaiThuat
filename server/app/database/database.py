@@ -26,6 +26,20 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Tạo Base class để kế thừa cho các model
 Base = declarative_base()
 
+def get_db():
+    """
+    Tạo và trả về một database session mới cho mỗi request
+    và đảm bảo đóng kết nối sau khi xử lý xong.
+    
+    Yields:
+        Session: Database session
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 def run_migrations():
     """
     Chạy migration tự động khi ứng dụng khởi động sử dụng Alembic API
@@ -43,7 +57,6 @@ def run_migrations():
         
         # Chạy migration để cập nhật schema lên phiên bản mới nhất
         with engine.connect() as connection:
-            alembic_cfg.attributes["connection"] = connection
             command.upgrade(alembic_cfg, "head")
         
         

@@ -5,11 +5,13 @@
 
 import authApi from "./auth";
 import userApi from "./user";
+import coursesApi from "./courses";
 
 // Export các module API
 const api = {
   auth: authApi,
   user: userApi,
+  courses: coursesApi,
   // Thêm các module API khác tại đây, ví dụ:
   // product: productApi,
   // ...
@@ -21,5 +23,6 @@ export * from "./client";
 // Export type từ các module
 export * from "./auth";
 export * from "./user";
+export * from "./courses";
 
 export default api;

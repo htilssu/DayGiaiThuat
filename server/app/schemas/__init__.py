@@ -8,7 +8,7 @@ from app.schemas.user_stats import (
     UserStats, Activity, LearningProgress, CourseProgress
 )
 from app.schemas.course import (
-    Course, CourseCreate, CourseUpdate, CourseInDB, CourseList
+    CourseBase, CourseCreate, CourseUpdate, CourseResponse, CourseListResponse
 )
 from app.schemas.badge import (
     Badge, BadgeCreate, BadgeUpdate, BadgeInDB, BadgeList, UserBadge

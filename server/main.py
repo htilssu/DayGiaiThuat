@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 
 from app.database.database import run_migrations
 from app.database.seeder import run_seeder
-from app.routers import auth, users
+from app.routers import auth, users, courses
 from app.core.config import settings
 from app.middleware.camel_case_middleware import CamelCaseMiddleware
 
@@ -33,12 +33,7 @@ async def lifespan(app: FastAPI):
         # Kết nối đến database và chạy migrations
         logger.info("Đang khởi động ứng dụng và chuẩn bị database...")
         if run_migrations():
-            logger.info("Migrations đã chạy thành công!")
-            
-            # Tạo dữ liệu mẫu
             run_seeder()
-        else:
-            logger.error("Migrations thất bại!")
     except Exception as e:
         logger.error(f"Lỗi khởi động ứng dụng: {str(e)}")
     
@@ -46,6 +41,7 @@ async def lifespan(app: FastAPI):
     
     # Shutdown: chạy khi ứng dụng kết thúc
     logger.info("Đóng kết nối và dọn dẹp tài nguyên...")
+
 
 # Khởi tạo FastAPI app với lifespan manager
 app = FastAPI(
@@ -76,10 +72,14 @@ app = FastAPI(
             "name": "users",
             "description": "Các API liên quan đến quản lý người dùng",
         },
+        {
+            "name": "courses",
+            "description": "Các API liên quan đến quản lý khóa học",
+        },
     ],
     docs_url=None,
     redoc_url=None,
-    lifespan=lifespan  # Sử dụng lifespan context manager
+    lifespan=lifespan
 )
 
 # Custom Swagger UI với theme và các tùy chỉnh
@@ -122,20 +122,4 @@ app.add_middleware(CamelCaseMiddleware)
 # Thêm router
 app.include_router(auth.router)
 app.include_router(users.router)
-
-
-@app.get("/", tags=["root"])
-async def root():
-    """
-    Root endpoint
-    
-    Returns:
-        dict: Thông tin welcome
-    """
-    return {
-        "message": f"Welcome to {settings.PROJECT_NAME}",
-        "docs": {
-            "swagger": "/docs",
-            "redoc": "/redoc"
-        }
-    }
+app.include_router(courses.router)
