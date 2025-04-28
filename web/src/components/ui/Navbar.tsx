@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 
@@ -16,7 +15,6 @@ export default function Navbar() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const pathname = usePathname();
-  const { theme } = useTheme();
   const { user, isAuthenticated, logout } = useAuth();
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -91,10 +89,6 @@ export default function Navbar() {
       }}
       className={`w-full py-4 sticky top-0 z-50 transition-all duration-500 bg-background/95 border-b theme-transition ${
         scrollY > 10
-          ? theme === "dark"
-            ? "border-slate-800/60"
-            : "border-gray-200/60"
-          : "border-primary/10"
       }`}
     >
       <div className="container mx-auto flex items-center justify-between px-4">
@@ -266,9 +260,7 @@ export default function Navbar() {
       {/* Menu Mobile */}
       {isMenuOpen && (
         <div
-          className={`md:hidden bg-background py-4 px-4 border-t border-primary/10 animate-fade-in theme-transition ${
-            theme === "dark" ? "border-slate-800/60" : "border-gray-200/30"
-          }`}
+          className={`md:hidden bg-background py-4 px-4 border-t border-primary/10 animate-fade-in theme-transition`}
         >
           <nav className="flex flex-col gap-2">
             <MobileNavItem
@@ -334,18 +326,14 @@ export default function Navbar() {
                 </div>
                 <Link
                   href="/profile"
-                  className={`w-full py-2.5 px-3 text-left text-sm font-medium border rounded-lg hover:bg-foreground/5 transition-colors theme-transition ${
-                    theme === "dark" ? "border-slate-800" : "border-gray-200"
-                  }`}
+                  className={`w-full py-2.5 px-3 text-left text-sm font-medium border rounded-lg hover:bg-foreground/5 transition-colors theme-transition`}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Hồ sơ của tôi
                 </Link>
                 <Link
                   href="/settings"
-                  className={`w-full py-2.5 px-3 text-left text-sm font-medium border rounded-lg hover:bg-foreground/5 transition-colors theme-transition ${
-                    theme === "dark" ? "border-slate-800" : "border-gray-200"
-                  }`}
+                  className={`w-full py-2.5 px-3 text-left text-sm font-medium border rounded-lg hover:bg-foreground/5 transition-colors theme-transition`}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Cài đặt
@@ -364,9 +352,7 @@ export default function Navbar() {
               <>
                 <Link
                   href="/auth/login"
-                  className={`w-full py-2.5 text-center text-sm font-medium border rounded-lg hover:bg-foreground/5 transition-colors theme-transition ${
-                    theme === "dark" ? "border-slate-800" : "border-gray-200"
-                  }`}
+                  className={`w-full py-2.5 text-center text-sm font-medium border rounded-lg hover:bg-foreground/5 transition-colors theme-transition`}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Đăng nhập

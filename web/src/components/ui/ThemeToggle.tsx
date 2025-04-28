@@ -1,6 +1,9 @@
 "use client";
 
-import { useTheme } from "@/contexts/ThemeContext";
+import { setTheme } from "@/lib/utils";
+
+import { getTheme } from "@/lib/utils";
+import { useState } from "react";
 
 /**
  * Component chuyển đổi theme
@@ -8,12 +11,14 @@ import { useTheme } from "@/contexts/ThemeContext";
  * @returns {React.ReactNode} Component chuyển đổi theme
  */
 export default function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-
   // Xử lý khi click vào nút chuyển đổi theme
+  const [shouldRender, setShouldRender] = useState(false);
+  const currentTheme = getTheme();
+
   const handleToggle = () => {
-    // Chuyển đổi qua lại giữa light và dark
-    setTheme(theme === "dark" ? "light" : "dark");
+    const newTheme = currentTheme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    setShouldRender(!shouldRender);
   };
 
   // Biểu tượng cho light mode (mặt trời)
@@ -49,20 +54,24 @@ export default function ThemeToggle() {
       />
     </svg>
   );
-
+  if (currentTheme === "dark") {
+    return (
+      <button
+        onClick={handleToggle}
+        className={`p-2 rounded-full hover:bg-foreground/10 transition-colors`}
+        aria-label="Chuyển đổi theme"
+      >
+        <MoonIcon />
+      </button>
+    );
+  }
   return (
     <button
       onClick={handleToggle}
-      className={`p-2 rounded-full hover:bg-foreground/10 transition-colors ${
-        theme === "dark"
-          ? "bg-slate-800/50 hover:bg-slate-700/50"
-          : "bg-gray-100/80 hover:bg-gray-200/80"
-      }`}
-      aria-label={
-        theme === "dark" ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"
-      }
+      className={`p-2 rounded-full bg-primary transition-colors`}
+      aria-label="Chuyển đổi theme"
     >
-      {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+      <SunIcon />
     </button>
   );
 }

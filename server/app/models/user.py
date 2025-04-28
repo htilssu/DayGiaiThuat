@@ -50,10 +50,10 @@ class User(Base):
     avatar_url = Column(String, nullable=True)
     
     # Relationship với các bảng khác
-    # Quan hệ one-to-one với UserState
+    # Quan hệ one-to-one với UserState - sử dụng string để tránh circular import
     state = relationship("UserState", uselist=False, back_populates="user", cascade="all, delete-orphan")
     
-    # Quan hệ one-to-many với LearningProgress
+    # Quan hệ one-to-many với LearningProgress - sử dụng string để tránh circular import
     learning_progresses = relationship("LearningProgress", back_populates="user", cascade="all, delete-orphan")
     
     # Quan hệ many-to-many với Badge

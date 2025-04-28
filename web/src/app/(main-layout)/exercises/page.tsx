@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { useTheme } from "@/contexts/ThemeContext";
+import { useState } from "react";
 
 /**
  * Interface mô tả cấu trúc dữ liệu bài tập
@@ -502,7 +501,7 @@ export default function ExercisesPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="w-full bg-foreground/10 rounded-full h-1.5 w-24 mr-2">
+                      <div className="w-full bg-foreground/10 rounded-full h-1.5 mr-2">
                         <div
                           className="bg-primary h-1.5 rounded-full"
                           style={{ width: `${exercise.completionRate}%` }}

@@ -11,7 +11,6 @@ from fastapi.openapi.docs import (
 
 from app.core.config import settings
 from app.database.database import run_migrations
-from app.database.seeder import run_seeder
 from app.middleware.camel_case_middleware import CamelCaseMiddleware
 from app.routers import auth, users, courses
 

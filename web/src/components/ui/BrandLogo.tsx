@@ -1,7 +1,5 @@
 "use client";
 
-import { useTheme } from "@/contexts/ThemeContext";
-
 /**
  * Props cho BrandLogo component
  * @interface BrandLogoProps
@@ -29,32 +27,9 @@ export default function BrandLogo({
   withText = true,
   variant = "primary",
 }: BrandLogoProps): React.ReactElement {
-  const { theme } = useTheme();
   const appName = process.env.NEXT_PUBLIC_APP_NAME || "AIGiảiThuật";
 
   // Xác định màu sắc dựa trên variant và theme
-  let primaryColor: string;
-  let secondaryColor: string;
-  let textColor: string;
-
-  switch (variant) {
-    case "white":
-      primaryColor = "#FFFFFF";
-      secondaryColor = "#F0F0F0";
-      textColor = "#FFFFFF";
-      break;
-    case "theme":
-      primaryColor = theme === "dark" ? "#5eead4" : "#10b981";
-      secondaryColor = theme === "dark" ? "#0d9488" : "#f59e0b";
-      textColor = theme === "dark" ? "#f8fafc" : "#0f172a";
-      break;
-    case "primary":
-    default:
-      primaryColor = "#10b981";
-      secondaryColor = "#f59e0b";
-      textColor = "currentColor";
-      break;
-  }
 
   return (
     <div className={`flex items-center ${className}`}>
@@ -86,8 +61,8 @@ export default function BrandLogo({
             y2="100"
             gradientUnits="userSpaceOnUse"
           >
-            <stop offset="0%" stopColor={primaryColor} />
-            <stop offset="100%" stopColor={secondaryColor} />
+            <stop offset="0%" stopColor="#10b981" />
+            <stop offset="100%" stopColor="#f59e0b" />
           </linearGradient>
         </defs>
       </svg>
@@ -101,11 +76,6 @@ export default function BrandLogo({
               ? "text-white"
               : ""
           }`}
-          style={
-            variant !== "theme" && variant !== "white"
-              ? { color: textColor }
-              : undefined
-          }
         >
           {appName}
         </span>

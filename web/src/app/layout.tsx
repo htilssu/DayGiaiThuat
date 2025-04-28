@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/contexts/ThemeContext";
 import ThemeInitializer from "../components/ThemeInitializer";
 import HeadScripts from "./head-scripts";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -54,12 +53,10 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased transition-theme min-h-screen bg-background text-foreground`}
       >
-        <ThemeProvider>
-          <AuthProvider>
-            <ThemeInitializer />
-            <MantineThemeProvider>{children}</MantineThemeProvider>
-          </AuthProvider>
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeInitializer />
+          <MantineThemeProvider>{children}</MantineThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

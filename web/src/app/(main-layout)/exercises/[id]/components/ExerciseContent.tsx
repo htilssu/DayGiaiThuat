@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import { useTheme } from "@/contexts/ThemeContext";
 
 /**
  * Component hiển thị nội dung bài tập dạng Markdown
@@ -14,9 +13,7 @@ import { useTheme } from "@/contexts/ThemeContext";
  * @returns {JSX.Element} Nội dung bài tập đã được render
  */
 export default function ExerciseContent({ content }: { content: string }) {
-  const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-
   // Đảm bảo rằng component chỉ được render ở client-side
   useEffect(() => {
     setMounted(true);

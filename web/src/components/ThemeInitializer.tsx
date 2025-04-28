@@ -1,6 +1,5 @@
 "use client";
 
-import { useTheme } from "@/contexts/ThemeContext";
 import { useEffect } from "react";
 
 /**
@@ -10,8 +9,6 @@ import { useEffect } from "react";
  * @returns {null} Không render gì ra UI
  */
 export default function ThemeInitializer(): null {
-  const { theme, isLoaded } = useTheme();
-
   // Script để thêm ngay vào <head> để áp dụng theme trước khi React render
   useEffect(() => {
     // Script chạy một lần khi component mount
@@ -48,14 +45,6 @@ export default function ThemeInitializer(): null {
       document.head.appendChild(scriptEl);
     }
   }, []);
-
-  // Áp dụng theme khi theme thay đổi (sau khi đã load xong từ localStorage)
-  useEffect(() => {
-    if (isLoaded && typeof document !== "undefined") {
-      document.documentElement.setAttribute("data-theme", theme);
-      document.documentElement.dataset.theme = theme;
-    }
-  }, [theme, isLoaded]);
 
   // Component này không render gì cả
   return null;

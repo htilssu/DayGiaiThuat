@@ -87,8 +87,17 @@ alembic downgrade -1
 5. Tạo dữ liệu mẫu (seed data) sau khi migration:
 
 ```bash
+# Cách 1: Sử dụng script riêng để chạy seeder
+python scripts/run_seeder.py
+
+# Hoặc cách 2: Sử dụng setup script với flag --seed
+python scripts/setup.py --seed
+
+# Hoặc cách 3: Sử dụng import trực tiếp (không khuyến khích)
 python -c "from app.database.seeder import run_seeder; run_seeder()"
 ```
+
+Xem thêm hướng dẫn chi tiết tại: `docs/setup_guide.md`
 
 ## Chạy server
 
@@ -113,15 +122,20 @@ Server sẽ chạy tại địa chỉ: http://localhost:8000
 server/
 ├── main.py              # File chính để chạy server
 ├── requirements.txt     # Danh sách các thư viện cần thiết
-├── .env.example        # File mẫu cho cấu hình môi trường
-├── routes/             # Chứa các route của API
-├── models/            # Chứa các model dữ liệu
-├── schemas/           # Chứa các schema Pydantic
-├── database/          # Chứa các module liên quan đến database
-│   ├── database.py    # Cấu hình kết nối database
-│   ├── seeder.py      # File chính để seed dữ liệu
-│   └── seeders/       # Các module seed dữ liệu cho từng model
-└── utils/            # Chứa các utility function
+├── .env.example         # File mẫu cho cấu hình môi trường
+├── scripts/             # Các script tiện ích
+│   ├── run_seeder.py    # Script để chạy seeder
+│   └── setup.py         # Script cài đặt tự động
+├── routes/              # Chứa các route của API
+├── models/              # Chứa các model dữ liệu
+├── schemas/             # Chứa các schema Pydantic
+├── database/            # Chứa các module liên quan đến database
+│   ├── database.py      # Cấu hình kết nối database
+│   ├── seeder.py        # File chính để seed dữ liệu
+│   └── seeders/         # Các module seed dữ liệu cho từng model
+├── docs/                # Tài liệu hướng dẫn
+│   └── setup_guide.md   # Hướng dẫn cài đặt chi tiết
+└── utils/               # Chứa các utility function
 ```
 
 ## Lưu ý

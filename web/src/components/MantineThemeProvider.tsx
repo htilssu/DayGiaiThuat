@@ -2,7 +2,6 @@
 
 import React from "react";
 import { MantineProvider, createTheme } from "@mantine/core";
-import { useTheme } from "@/contexts/ThemeContext";
 
 /**
  * Theme Mantine tùy chỉnh
@@ -24,14 +23,5 @@ export function MantineThemeProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { theme } = useTheme();
-
-  return (
-    <MantineProvider
-      theme={mantineTheme}
-      forceColorScheme={theme === "dark" ? "dark" : "light"}
-    >
-      {children}
-    </MantineProvider>
-  );
+  return <MantineProvider theme={mantineTheme}>{children}</MantineProvider>;
 }
