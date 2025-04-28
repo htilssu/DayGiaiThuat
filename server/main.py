@@ -30,13 +30,7 @@ async def lifespan(app: FastAPI):
         app (FastAPI): Instance của ứng dụng FastAPI
     """
     # Startup: chạy khi ứng dụng khởi động
-    try:
-        # Kết nối đến database và chạy migrations
-        logger.info("Đang khởi động ứng dụng và chuẩn bị database...")
-        if run_migrations():
-            run_seeder()
-    except Exception as e:
-        logger.error(f"Lỗi khởi động ứng dụng: {str(e)}")
+
 
     yield
 

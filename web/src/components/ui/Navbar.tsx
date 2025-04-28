@@ -77,7 +77,7 @@ export default function Navbar() {
    */
   const getInitials = () => {
     if (!user) return "?";
-    return user.username.charAt(0).toUpperCase();
+    return user.username?.charAt(0).toUpperCase();
   };
 
   return (
