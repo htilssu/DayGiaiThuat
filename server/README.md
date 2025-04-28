@@ -56,6 +56,40 @@ cp .env.example .env
 - `BACKEND_CORS_ORIGINS`: Danh sách các domain được phép truy cập API
 - Các cấu hình khác tùy theo nhu cầu
 
+## Database Migration
+
+Dự án sử dụng Alembic để quản lý migration database.
+
+1. Tạo migration mới khi thay đổi model:
+
+```bash
+alembic revision --autogenerate -m "Mô tả thay đổi"
+```
+
+2. Áp dụng migration để cập nhật cơ sở dữ liệu:
+
+```bash
+alembic upgrade head
+```
+
+3. Xem lịch sử migration:
+
+```bash
+alembic history
+```
+
+4. Quay về version trước đó:
+
+```bash
+alembic downgrade -1
+```
+
+5. Tạo dữ liệu mẫu (seed data) sau khi migration:
+
+```bash
+python -c "from app.database.seeder import run_seeder; run_seeder()"
+```
+
 ## Chạy server
 
 1. Kích hoạt môi trường ảo (nếu chưa kích hoạt)
@@ -83,6 +117,10 @@ server/
 ├── routes/             # Chứa các route của API
 ├── models/            # Chứa các model dữ liệu
 ├── schemas/           # Chứa các schema Pydantic
+├── database/          # Chứa các module liên quan đến database
+│   ├── database.py    # Cấu hình kết nối database
+│   ├── seeder.py      # File chính để seed dữ liệu
+│   └── seeders/       # Các module seed dữ liệu cho từng model
 └── utils/            # Chứa các utility function
 ```
 

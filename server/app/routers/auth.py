@@ -116,13 +116,13 @@ async def login(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Tài khoản không tồn tại",
         )
 
     if not verify_password(data.password, str(user.hashed_password)):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Mật khẩu không chính xác",
             headers={"WWW-Authenticate": "Bearer"},
         )

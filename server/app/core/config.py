@@ -79,6 +79,7 @@ class Settings(BaseSettings):
         Returns:
             str: Connection string
         """
+        # Sử dụng driver psycopg2 thay vì asyncpg cho SQLAlchemy đồng bộ
         return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     class Config:
