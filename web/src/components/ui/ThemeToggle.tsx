@@ -12,13 +12,12 @@ import { useState } from "react";
  */
 export default function ThemeToggle() {
   // Xử lý khi click vào nút chuyển đổi theme
-  const [shouldRender, setShouldRender] = useState(false);
-  const currentTheme = getTheme();
+  const [currentTheme, setCurrentTheme] = useState(getTheme());
 
   const handleToggle = () => {
     const newTheme = currentTheme === "light" ? "dark" : "light";
     setTheme(newTheme);
-    setShouldRender(!shouldRender);
+    setCurrentTheme(newTheme);
   };
 
   // Biểu tượng cho light mode (mặt trời)
@@ -41,7 +40,7 @@ export default function ThemeToggle() {
   // Biểu tượng cho dark mode (mặt trăng)
   const MoonIcon = () => (
     <svg
-      className="w-5 h-5 text-primary/90"
+      className="w-5 h-5 text-orange-400"
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
@@ -58,7 +57,7 @@ export default function ThemeToggle() {
     return (
       <button
         onClick={handleToggle}
-        className={`p-2 rounded-full hover:bg-foreground/10 transition-colors`}
+        className={`p-2 rounded-full hover:bg-primary/10 transition-colors`}
         aria-label="Chuyển đổi theme"
       >
         <MoonIcon />
@@ -67,6 +66,7 @@ export default function ThemeToggle() {
   }
   return (
     <button
+      key={currentTheme}
       onClick={handleToggle}
       className={`p-2 rounded-full bg-primary transition-colors`}
       aria-label="Chuyển đổi theme"
