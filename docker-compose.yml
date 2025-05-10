@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   postgres:
     image: postgres:latest
@@ -10,10 +8,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: giaithuat
-      # Create n8n database on startup
-      POSTGRES_MULTIPLE_DATABASES: "n8n"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./volumes/postgres_data:/var/lib/postgresql/data
   n8n:
     image: n8nio/n8n:latest
     container_name: giaithuat-n8n
@@ -32,10 +28,16 @@ services:
       - N8N_RUNNERS_ENABLED=true
       - N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES=false
     volumes:
-      - ./n8n_data:/home/node/.n8n
+      - ./volumes/n8n_data:/home/node/.n8n
     depends_on:
       - postgres
-
-volumes:
-  postgres_data:
-    name: giaithuat-postgres-data
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: giaithuat-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=root@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    volumes:
+      - ./volumes/pgadmin_data:/pgadmin4/servers.json

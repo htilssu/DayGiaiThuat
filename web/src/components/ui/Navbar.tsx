@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import { Button } from "@mantine/core";
 
 /**
  * Component Navbar chứa menu điều hướng và các tùy chọn người dùng
@@ -160,8 +161,8 @@ export default function Navbar() {
 
                 {/* Dropdown menu */}
                 {isUserMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 py-2 bg-background border border-foreground/10 rounded-lg shadow-lg overflow-hidden z-50 theme-transition">
-                    <div className="px-4 py-2 border-b border-foreground/10">
+                  <div className="absolute right-0 mt-2 w-48 bg-background border border-foreground/10 rounded-lg shadow-lg overflow-hidden z-50 theme-transition">
+                    <div className="px-4 py-4 border-b border-foreground/10">
                       <p className="text-sm font-medium text-foreground">
                         {user?.username}
                       </p>
@@ -171,27 +172,27 @@ export default function Navbar() {
                     </div>
                     <Link
                       href="/profile"
-                      className="block px-4 py-2 text-sm text-foreground hover:bg-foreground/5 transition-colors"
+                      className="block px-4 py-2 text-sm text-foreground hover:bg-foreground/10 transition-colors"
                       onClick={() => setIsUserMenuOpen(false)}
                     >
                       Hồ sơ
                     </Link>
                     <Link
                       href="/settings"
-                      className="block px-4 py-2 text-sm text-foreground hover:bg-foreground/5 transition-colors"
+                      className="block px-4 py-2 text-sm text-foreground hover:bg-foreground/10 transition-colors"
                       onClick={() => setIsUserMenuOpen(false)}
                     >
                       Cài đặt
                     </Link>
-                    <button
-                      onClick={() => {
+                    <div
+                      onClick={() => { 
                         setIsUserMenuOpen(false);
                         handleLogout();
                       }}
-                      className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                      className="w-full flex text-left px-4 py-2 text-sm text-red-500 hover:bg-foreground/10 transition-colors"
                     >
                       Đăng xuất
-                    </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -199,7 +200,7 @@ export default function Navbar() {
               <>
                 <Link
                   href="/auth/login"
-                  className="px-4 py-2 text-sm font-medium rounded-lg hover:bg-foreground/5 transition-colors text-foreground theme-transition"
+                  className="px-4 py-2 text-sm font-medium rounded-lg hover:bg-foreground/10 transition-colors text-foreground theme-transition"
                 >
                   Đăng nhập
                 </Link>
@@ -215,7 +216,7 @@ export default function Navbar() {
 
           {/* Menu Toggle - Mobile */}
           <button
-            className="md:hidden flex items-center justify-center w-10 h-10 rounded-full hover:bg-foreground/5 transition-colors"
+            className="md:hidden flex items-center justify-center w-10 h-10 rounded-full hover:bg-foreground/10 transition-colors"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label={isMenuOpen ? "Đóng menu" : "Mở menu"}
           >
@@ -326,14 +327,14 @@ export default function Navbar() {
                 </div>
                 <Link
                   href="/profile"
-                  className={`w-full py-2.5 px-3 text-left text-sm font-medium border rounded-lg hover:bg-foreground/5 transition-colors theme-transition`}
+                  className={`w-full py-2.5 px-3 text-left text-sm font-medium border rounded-lg hover:bg-foreground/10 transition-colors theme-transition`}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Hồ sơ của tôi
                 </Link>
                 <Link
                   href="/settings"
-                  className={`w-full py-2.5 px-3 text-left text-sm font-medium border rounded-lg hover:bg-foreground/5 transition-colors theme-transition`}
+                  className={`w-full py-2.5 px-3 text-left text-sm font-medium border rounded-lg hover:bg-foreground/10 transition-colors theme-transition`}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Cài đặt
@@ -352,7 +353,7 @@ export default function Navbar() {
               <>
                 <Link
                   href="/auth/login"
-                  className={`w-full py-2.5 text-center text-sm font-medium border rounded-lg hover:bg-foreground/5 transition-colors theme-transition`}
+                  className={`w-full py-2.5 text-center text-sm font-medium border rounded-lg hover:bg-foreground/10 transition-colors theme-transition`}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Đăng nhập
@@ -443,7 +444,7 @@ function MobileNavItem({
       className={`relative px-4 py-2.5 rounded-lg theme-transition overflow-hidden group ${
         isActive
           ? "text-primary font-medium"
-          : "text-foreground/80 hover:bg-foreground/5 hover:text-primary"
+          : "text-foreground/80 hover:bg-foreground/10 hover:text-primary"
       } transition-all duration-300 hover:pl-6`}
       onClick={onClick}
     >
