@@ -25,7 +25,7 @@ class Settings(BaseSettings):
         COOKIE_NAME (str): Tên cookie lưu JWT token
     """
     PROJECT_NAME: str
-    
+
     # CORS
     BACKEND_CORS_ORIGINS: List[str]
 
@@ -62,20 +62,18 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    
+
     # Cookie settings
     COOKIE_DOMAIN: Optional[str] = ""  # Sử dụng chuỗi rỗng thay vì None
     COOKIE_SECURE: bool = False  # True trong production
     COOKIE_SAMESITE: str = "lax"  # 'lax', 'strict', or 'none'
     COOKIE_NAME: str = "access_token"
     COOKIE_HTTPONLY: bool = True
-    COOKIE_MAX_AGE: int = 3600  # 30 phút, tương đương với ACCESS_TOKEN_EXPIRE_MINUTES
+    COOKIE_MAX_AGE: int = 3600  #  phút, tương đương với ACCESS_TOKEN_EXPIRE_MINUTES
 
     # Agent
     GOOGLE_API_KEY: str
     PINECONE_API_KEY: str
-    PINECONE_ENVIRONMENT: str
-    PINECONE_INDEX: str
     MONGO_URI: str
 
     @property
@@ -93,5 +91,6 @@ class Settings(BaseSettings):
         case_sensitive = True
         env_file = ".env"
 
+
 # Tạo instance của Settings để sử dụng trong ứng dụng
-settings = Settings() 
+settings = Settings()

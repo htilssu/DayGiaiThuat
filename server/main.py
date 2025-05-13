@@ -11,7 +11,7 @@ from fastapi.openapi.docs import (
 
 from app.core.config import settings
 from app.middleware.camel_case_middleware import CamelCaseMiddleware
-from app.routers import auth, users, courses, tutor
+from app.routers import auth, users, courses, tutor, exercise
 
 # Khởi tạo logger
 logger = logging.getLogger(__name__)
@@ -121,3 +121,4 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(courses.router)
 app.include_router(tutor.router)
+app.include_router(exercise.router)
