@@ -2,12 +2,12 @@ from typing import List, Optional
 
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain.output_parsers import OutputFixingParser
-from langchain_community.chat_message_histories import MongoDBChatMessageHistory
 from langchain_core.messages import SystemMessage
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, HumanMessagePromptTemplate
 from langchain_core.runnables import RunnableConfig, RunnableWithMessageHistory
 from langchain_core.tools import Tool
+from langchain_mongodb import MongoDBChatMessageHistory
 from pydantic import BaseModel, Field
 
 from app.core.agents.components.document_store import pinecone_vector_store
@@ -71,6 +71,9 @@ Khi tạo ngữ cảnh đời thường, hãy chọn các tình huống quen thu
 Nếu bài tập liên quan đến đồ thị hoặc cây, hãy mô tả rõ ràng cấu trúc bằng văn bản, bao gồm các nút, cạnh và thuộc tính liên quan.
 
 Mục tiêu là tạo ra các bài tập hấp dẫn, mang tính giáo dục và thực tế, giúp người dùng cải thiện kỹ năng tư duy giải thuật và lập trình.
+
+Parser đầu ra của bạn phải là một JSON object với các trường sau:
+{parse_instruction}
 """
 
 
@@ -107,7 +110,7 @@ class GenerateExerciseQuestionAgent(metaclass=GenerateExerciseMetadata):
         self.pinecone_index_name = pinecone_index_name
 
         self.retriever = pinecone_vector_store.as_retriever(search_kwargs={"k": 3})  # Lấy top 3 kết quả
-
+        self.llm_model = create_new_gemini_llm_model()
         # 4. Tạo Retriever Tool
         self.retriever_tool = Tool(
             name="AlgoVaultRetriever",
@@ -115,19 +118,24 @@ class GenerateExerciseQuestionAgent(metaclass=GenerateExerciseMetadata):
             coroutine=self.retriever.ainvoke,  # Sử dụng ainvoke cho retriever bất đồng bộ
             description="Truy xuất thông tin và kiến thức về giải thuật từ cơ sở dữ liệu vector AlgoVault để hỗ trợ việc tạo bài tập.",
         )
-        self.tools = [self.retriever_tool]
-
         self.output_parser = PydanticOutputParser(pydantic_object=ExerciseDetail)
+
+        output_fixing_parser = OutputFixingParser.from_llm(self.llm_model, self.output_parser)
+
+        self.output_fixing_parser_tool = Tool("OutputFixingParser", func=output_fixing_parser.invoke,
+                                              coroutine=output_fixing_parser.ainvoke,
+                                              description="Sửa lỗi đầu ra từ mô hình ngôn ngữ để đảm bảo định dạng chính xác và đầy đủ cho bài tập giải thuật.")
+
+        self.tools = [self.retriever_tool, self.output_fixing_parser_tool]
 
         # 6. Tạo Prompt Template
         self.prompt = ChatPromptTemplate.from_messages([
-            SystemMessage(content=SYSTEM_PROMPT_TEMPLATE),
+            SystemMessage(
+                content=SYSTEM_PROMPT_TEMPLATE.format(parse_instruction=self.output_parser.get_format_instructions())),
             MessagesPlaceholder(variable_name="history", optional=True),
             HumanMessagePromptTemplate.from_template("{input}"),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
         ])
-
-        self.llm_model = create_new_gemini_llm_model()
 
         # Tạo callback manager với LangSmith tracer
         self.callback_manager = get_callback_manager("default")
@@ -138,6 +146,7 @@ class GenerateExerciseQuestionAgent(metaclass=GenerateExerciseMetadata):
             self.tools,
             prompt=self.prompt,
         )
+
         self.agent_executor = AgentExecutor(
             agent=self.agent,
             tools=self.tools,
@@ -182,16 +191,9 @@ class GenerateExerciseQuestionAgent(metaclass=GenerateExerciseMetadata):
             )
 
             if isinstance(response_from_agent, dict):
-                # Nếu response là dict, chuyển đổi sang ExerciseDetail
-                exercise_detail = ExerciseDetail(**response_from_agent)
-                return exercise_detail
-            elif response_from_agent.has_key("output"):
-                output_content = response_from_agent.get("output")
-                if isinstance(output_content, dict):
-                    exercise_detail = ExerciseDetail(**output_content)
-                    return exercise_detail
-                else:
-                    raise ValueError(f"Định dạng không hỗ trợ từ agent: {type(response_from_agent)}")
+                if response_from_agent["output"] is None:
+                    raise ValueError("Không thể tạo bài tập, đầu ra không hợp lệ.")
+                return self.output_parser.parse(response_from_agent["output"])
             else:
                 raise ValueError(f"Định dạng không hỗ trợ từ agent: {type(response_from_agent)}")
 
