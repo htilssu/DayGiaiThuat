@@ -69,12 +69,15 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "lax"  # 'lax', 'strict', or 'none'
     COOKIE_NAME: str = "access_token"
     COOKIE_HTTPONLY: bool = True
-    COOKIE_MAX_AGE: int = 3600  #  phút, tương đương với ACCESS_TOKEN_EXPIRE_MINUTES
+    COOKIE_MAX_AGE: int = 3600  # phút, tương đương với ACCESS_TOKEN_EXPIRE_MINUTES
 
     # Agent
     GOOGLE_API_KEY: str
     PINECONE_API_KEY: str
     MONGO_URI: str
+    LANGSMITH_API_KEY: str
+    LANGSMITH_TRACING: bool = False
+    LANGSMITH_PROJECT: str = "default"
 
     @property
     def DATABASE_URI(self) -> str:

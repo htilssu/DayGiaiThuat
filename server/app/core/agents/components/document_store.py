@@ -9,5 +9,5 @@ pc = Pinecone(api_key=settings.PINECONE_API_KEY)
 
 pc_index = pc.Index("giaithuat")
 
-pinecone_index =  PineconeVectorStore(index=pc_index, embedding=gemini_embedding_model)
+pinecone_vector_store =  PineconeVectorStore(index=pc_index, embedding=gemini_embedding_model)
 

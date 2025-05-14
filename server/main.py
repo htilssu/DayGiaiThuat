@@ -11,7 +11,7 @@ from fastapi.openapi.docs import (
 
 from app.core.config import settings
 from app.middleware.camel_case_middleware import CamelCaseMiddleware
-from app.routers import auth, users, courses, tutor, exercise
+from app.routers import auth, users, courses, tutor, exercise, agent_tracing
 
 # Khởi tạo logger
 logger = logging.getLogger(__name__)
@@ -28,7 +28,6 @@ async def lifespan(app: FastAPI):
         app (FastAPI): Instance của ứng dụng FastAPI
     """
     # Startup: chạy khi ứng dụng khởi động
-
 
     yield
 
@@ -68,6 +67,10 @@ app = FastAPI(
         {
             "name": "courses",
             "description": "Các API liên quan đến quản lý khóa học",
+        },
+        {
+            "name": "agent-tracing",
+            "description": "Các API liên quan đến theo dõi và phân tích agent",
         },
     ],
     docs_url=None,
@@ -122,3 +125,4 @@ app.include_router(users.router)
 app.include_router(courses.router)
 app.include_router(tutor.router)
 app.include_router(exercise.router)
+app.include_router(agent_tracing.router)

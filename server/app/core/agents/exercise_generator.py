@@ -1,24 +1,22 @@
 from typing import List, Optional
 
 from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain_core.messages import SystemMessage, HumanMessage
-from langchain_core.output_parsers import PydanticOutputParser, JsonOutputParser
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import RunnableConfig
-from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain.output_parsers import OutputFixingParser
+from langchain_community.chat_message_histories import MongoDBChatMessageHistory
+from langchain_core.messages import SystemMessage
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, HumanMessagePromptTemplate
+from langchain_core.runnables import RunnableConfig, RunnableWithMessageHistory
 from langchain_core.tools import Tool
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain_mongodb.chat_message_histories import MongoDBChatMessageHistory
-from langchain_pinecone import PineconeVectorStore
-from pydantic import BaseModel as LangchainBaseModel, Field as LangchainField
+from pydantic import BaseModel, Field
 
-from app.core.agents.components.embedding_model import gemini_embedding_model
-from app.core.agents.components.llm_model import llm_model_name, gemini_llm_model
+from app.core.agents.components.document_store import pinecone_vector_store
+from app.core.agents.components.llm_model import create_new_gemini_llm_model
 from app.core.config import settings
-from app.core.service.pinecone_component import pc_index
+from app.core.tracing import get_callback_manager, trace_agent
 
 
-class TestCase(LangchainBaseModel):
+class TestCase(BaseModel):
     """
     Mô tả một trường hợp thử nghiệm cho bài toán giải thuật.
 
@@ -27,12 +25,12 @@ class TestCase(LangchainBaseModel):
         output_data (str): Kết quả đầu ra mong đợi. Alias là "output".
         explain (str): Giải thích cho trường hợp thử nghiệm.
     """
-    input_data: str = LangchainField(..., alias="input", description="Dữ liệu đầu vào cho trường hợp thử nghiệm.")
-    output_data: str = LangchainField(..., alias="output", description="Kết quả đầu ra mong đợi.")
-    explain: str = LangchainField(..., description="Giải thích cho trường hợp thử nghiệm.")
+    input_data: str = Field(..., alias="input", description="Dữ liệu đầu vào cho trường hợp thử nghiệm.")
+    output_data: str = Field(..., alias="output", description="Kết quả đầu ra mong đợi.")
+    explain: str = Field(..., description="Giải thích cho trường hợp thử nghiệm.")
 
 
-class ExerciseDetail(LangchainBaseModel):
+class ExerciseDetail(BaseModel):
     """
     Mô tả chi tiết một bài tập giải thuật được tạo ra.
 
@@ -43,13 +41,13 @@ class ExerciseDetail(LangchainBaseModel):
         suggest (Optional[str]): Gợi ý để giải bài toán.
         case (List[TestCase]): Danh sách các trường hợp thử nghiệm, yêu cầu tối thiểu 3 trường hợp.
     """
-    name: str = LangchainField(..., description="Tên của bài toán.")
-    description: str = LangchainField(..., description="Mô tả chi tiết về bài toán.")
-    constraints: Optional[str] = LangchainField(None,
-                                                description="Các ràng buộc của bài toán (ví dụ: giới hạn đầu vào).")
-    suggest: Optional[str] = LangchainField(None, description="Gợi ý để giải bài toán.")
-    case: List[TestCase] = LangchainField(..., min_items=3,
-                                          description="Danh sách các trường hợp thử nghiệm, yêu cầu tối thiểu 3 trường hợp.")
+    name: str = Field(..., description="Tên của bài toán.")
+    description: str = Field(..., description="Mô tả chi tiết về bài toán.")
+    constraints: Optional[str] = Field(None,
+                                       description="Các ràng buộc của bài toán (ví dụ: giới hạn đầu vào).")
+    suggest: Optional[str] = Field(None, description="Gợi ý để giải bài toán.")
+    case: List[TestCase] = Field(min_length=3,
+                                 description="Danh sách các trường hợp thử nghiệm, yêu cầu tối thiểu 3 trường hợp.")
 
 
 # System prompt được lấy từ n8n workflow
@@ -73,9 +71,6 @@ Khi tạo ngữ cảnh đời thường, hãy chọn các tình huống quen thu
 Nếu bài tập liên quan đến đồ thị hoặc cây, hãy mô tả rõ ràng cấu trúc bằng văn bản, bao gồm các nút, cạnh và thuộc tính liên quan.
 
 Mục tiêu là tạo ra các bài tập hấp dẫn, mang tính giáo dục và thực tế, giúp người dùng cải thiện kỹ năng tư duy giải thuật và lập trình.
-
-Hãy đảm bảo câu trả lời của bạn tuân thủ định dạng JSON được mô tả bởi schema sau:
-{format_instructions}
 """
 
 
@@ -107,31 +102,11 @@ class GenerateExerciseQuestionAgent(metaclass=GenerateExerciseMetadata):
             mongodb_db_name: str = "chat_history",
             mongodb_collection_name: str = "exercise_chat_history",
     ):
-        """
-        Khởi tạo GenerateExerciseQuestionAgent.
-
-        Args:
-            pinecone_index_name (str): Tên của Pinecone index. Mặc định là "giaithuat".
-            mongodb_db_name (str): Tên database MongoDB để lưu lịch sử chat. Mặc định là "chat_history".
-            mongodb_collection_name (str): Tên collection MongoDB để lưu lịch sử chat. Mặc định là "exercise_sessions".
-
-        Raises:
-            ValueError: Nếu thiếu các API key hoặc thông tin cấu hình cần thiết.
-        """
         self.mongodb_collection_name = mongodb_collection_name
         self.mongodb_db_name = mongodb_db_name
         self.pinecone_index_name = pinecone_index_name
-        self.google_api_key = settings.GOOGLE_API_KEY
-        self.mongodb_uri = settings.MONGO_URI
 
-        if not self.google_api_key:
-            raise ValueError("Google API key is required. Set GOOGLE_API_KEY environment variable or pass as argument.")
-        if not self.mongodb_uri:
-            raise ValueError("MongoDB URI is required. Set MONGODB_URI environment variable or pass as argument.")
-
-        # 3. Khởi tạo Pinecone Vector Store và Retriever
-        self.vector_store = PineconeVectorStore(index=pc_index, embedding=gemini_embedding_model)
-        self.retriever = self.vector_store.as_retriever(search_kwargs={"k": 3})  # Lấy top 3 kết quả
+        self.retriever = pinecone_vector_store.as_retriever(search_kwargs={"k": 3})  # Lấy top 3 kết quả
 
         # 4. Tạo Retriever Tool
         self.retriever_tool = Tool(
@@ -146,101 +121,83 @@ class GenerateExerciseQuestionAgent(metaclass=GenerateExerciseMetadata):
 
         # 6. Tạo Prompt Template
         self.prompt = ChatPromptTemplate.from_messages([
-            SystemMessage(content=SYSTEM_PROMPT_TEMPLATE.format(
-                format_instructions=self.output_parser.get_format_instructions())),
+            SystemMessage(content=SYSTEM_PROMPT_TEMPLATE),
             MessagesPlaceholder(variable_name="history", optional=True),
-            HumanMessage(content="{input}"),
+            HumanMessagePromptTemplate.from_template("{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
         ])
 
-        # 7. Tạo Agent
-        # Lưu ý: create_tool_calling_agent thường dùng cho các model hỗ trợ "tool calling" rõ ràng.
-        # Gemini hỗ trợ điều này, nhưng cú pháp prompt và cách agent hoạt động có thể cần điều chỉnh.
-        # Nếu gặp vấn đề, có thể xem xét create_structured_chat_agent hoặc các loại agent khác.
-        agent = create_tool_calling_agent(gemini_llm_model, self.tools, self.prompt)
+        self.llm_model = create_new_gemini_llm_model()
 
-        # 8. Tạo Agent Executor
+        # Tạo callback manager với LangSmith tracer
+        self.callback_manager = get_callback_manager("default")
+
+        # Cấu hình agent với tracing
+        self.agent = create_tool_calling_agent(
+            self.llm_model,
+            self.tools,
+            prompt=self.prompt,
+        )
         self.agent_executor = AgentExecutor(
-            agent=agent,
+            agent=self.agent,
             tools=self.tools,
-            verbose=True,  # Đặt thành False trong production
-            handle_parsing_errors=True  # Xử lý lỗi parsing, có thể trả về thông báo lỗi cho người dùng hoặc thử lại
+            verbose=True,
+            handle_parsing_errors=True
         )
 
-    def _get_session_history(self, session_id: str) -> MongoDBChatMessageHistory:
-        """
-        Lấy hoặc tạo lịch sử hội thoại cho một session_id cụ thể từ MongoDB.
-
-        Args:
-            session_id (str): ID của session hội thoại.
-
-        Returns:
-            MongoDBChatMessageHistory: Đối tượng lịch sử hội thoại.
-        """
-        return MongoDBChatMessageHistory(
-            connection_string=settings.MONGO_URI,
-            session_id=session_id,
-            database_name=self.mongodb_db_name,
-            collection_name=self.mongodb_collection_name,
-        )
-
+    @trace_agent(project_name="default", tags=["exercise", "generator"])
     async def generate_exercise(self, topic: str, session_id: str) -> ExerciseDetail:
         """
-        Tạo một bài tập giải thuật dựa trên yêu cầu của người dùng.
+        Tạo bài tập giải thuật dựa trên chủ đề được cung cấp.
 
         Args:
-            topic (str): Chủ đề của bài tập.
-            session_id (str): ID của session hội thoại để duy trì ngữ cảnh.
+            topic (str): Chủ đề để tạo bài tập
+            session_id (str): ID phiên làm việc, dùng cho việc theo dõi và ghi log
 
         Returns:
-            ExerciseDetail: Đối tượng Pydantic chứa chi tiết bài tập đã được tạo.
-
-        Raises:
-            Exception: Nếu có lỗi trong quá trình tạo bài tập hoặc parsing kết quả.
+            ExerciseDetail: Chi tiết bài tập được tạo
         """
+        run_config = RunnableConfig(
+            callbacks=self.callback_manager.handlers,
+            metadata={
+                "session_id": session_id,
+                "topic": topic,
+                "agent_type": "exercise_generator",
+            },
+            tags=["exercise", "generator", f"session:{session_id}"]
+        )
 
-        config : RunnableConfig = {"configurable": {"session_id": session_id}}
+        agent_with_chat_history = RunnableWithMessageHistory(self.agent_executor, history_messages_key="history",
+                                                             get_session_history=lambda: MongoDBChatMessageHistory(
+                                                                 settings.MONGO_URI, session_id, self.mongodb_db_name,
+                                                                 self.mongodb_collection_name))
 
-        history_runnable = RunnableWithMessageHistory(self.agent_executor, self._get_session_history,
-                                                      input_messages_key="input", history_messages_key="history")
-
-        response_from_agent = await history_runnable.ainvoke({
-            "input": topic,
-        }, config=config)
-
-        if isinstance(response_from_agent, dict):
-            response_content = response_from_agent.get("output")
-            if response_content is None:
-
-                print(f"Warning: 'output' key not found in agent response. Full response: {response_from_agent}")
-                try:
-                    parsed_exercise = ExerciseDetail.model_validate(response_from_agent)
-                    return parsed_exercise
-                except Exception:  # Not our target structure
-                    response_content = str(response_from_agent)  # Fallback to string representation
-        elif isinstance(response_from_agent, str):
-            response_content = response_from_agent
-        else:
-            raise ValueError(f"Unexpected response type from agent: {type(response_from_agent)}")
-
-        if not response_content:
-            raise Exception("Agent did not produce any output content to parse.")
-
+        # Đảm bảo input được truyền đúng định dạng
         try:
-            # Phân tích cú pháp output của agent
-            parsed_exercise = self.output_parser.parse(response_content)
-        except Exception as e:
-            print(f"Error parsing LLM output: {e}")
-            print(f"Raw output was: {response_content}")
-            # Fallback: cố gắng parse bằng JsonOutputParser nếu PydanticOutputParser thất bại
-            try:
-                print("Attempting fallback JSON parsing...")
-                json_parser = JsonOutputParser(pydantic_object=ExerciseDetail)
-                parsed_exercise = json_parser.parse(response_content)
-            except Exception as e2:
-                raise Exception(
-                    f"Failed to parse agent output into ExerciseDetail structure. Original error: {e}. Fallback error: {e2}. Raw output: {response_content}") from e2
+            response_from_agent = await agent_with_chat_history.ainvoke(
+                {
+                    "input": topic,
+                },
+                config=run_config
+            )
 
-        return parsed_exercise
+            if isinstance(response_from_agent, dict):
+                # Nếu response là dict, chuyển đổi sang ExerciseDetail
+                exercise_detail = ExerciseDetail(**response_from_agent)
+                return exercise_detail
+            elif response_from_agent.has_key("output"):
+                output_content = response_from_agent.get("output")
+                if isinstance(output_content, dict):
+                    exercise_detail = ExerciseDetail(**output_content)
+                    return exercise_detail
+                else:
+                    raise ValueError(f"Định dạng không hỗ trợ từ agent: {type(response_from_agent)}")
+            else:
+                raise ValueError(f"Định dạng không hỗ trợ từ agent: {type(response_from_agent)}")
+
+        except Exception as e:
+            print(f"Lỗi khi tạo bài tập: {e}")
+            raise Exception(f"Lỗi khi tạo bài tập: {str(e)}")
 
 
 def get_exercise_agent():
