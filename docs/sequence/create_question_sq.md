@@ -19,10 +19,11 @@ sequenceDiagram
     P3 -->>- P2: data
     P2 ->>+ P5: generate_exercise()
     P5 -->>- P2: exercise
-    P1 -) P4: save_exercise()
     P2 -->>- P1: exercise
+    P1 -) P4: save_exercise()
   else not_empty
     P1 ->> P1: exercise = random_exercise()
   end
   P1 -->>- A1: exercise
+
 ```
