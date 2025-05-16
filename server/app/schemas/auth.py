@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserBase(BaseModel):
@@ -18,16 +18,16 @@ class UserBase(BaseModel):
     last_name: Optional[str] = None
 
 
-class UserCreate(UserBase):
+class UserRegister(UserBase):
     """
     Schema cho việc tạo User mới, kế thừa từ UserBase
     
     Attributes:
         password (str): Mật khẩu của user
     """
-    password: str
-    first_name: str
-    last_name: str
+    password: str = Field(min_length=8)
+    first_name: str = Field(..., min_length=1)
+    last_name: str = Field(..., min_length=1)
 
 
 class UserLogin(BaseModel):

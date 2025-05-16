@@ -1,5 +1,5 @@
 from app.schemas.auth import (
-    UserBase, UserCreate, UserLogin, Token
+    UserBase, UserRegister, UserLogin, Token
 )
 from app.schemas.user_profile import (
     User, UserUpdate

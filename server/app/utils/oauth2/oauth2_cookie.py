@@ -12,17 +12,12 @@ from app.core.config import settings
 class OAuth2PasswordCookie(OAuth2):
     """
     OAuth2 flow cho xác thực sử dụng bearer token từ cookie.
-    
-    Lớp này hoạt động tương tự như OAuth2PasswordBearer, nhưng lấy token từ cookie
-    thay vì từ Authorization header. Tên cookie được cấu hình trong settings.
-    
-    Attributes:
-        tokenUrl (str): URL để lấy token OAuth2
-        scheme_name (str): Tên của scheme bảo mật trong OpenAPI
-        scopes (Dict[str, str]): Các scopes OAuth2 được yêu cầu
-        description (str): Mô tả scheme bảo mật trong OpenAPI
-        auto_error (bool): Tự động báo lỗi khi không tìm thấy token
-        cookie_name (str): Tên của cookie chứa token
+    :argument tokenUrl: URL để lấy token OAuth2 (đường dẫn đến path operation)
+    :argument scheme_name: Tên của scheme bảo mật trong OpenAPI
+    :argument scopes: Các scopes OAuth2 được yêu cầu
+    :argument description: Mô tả scheme bảo mật trong OpenAPI
+    :argument auto_error: Tự động báo lỗi khi không tìm thấy token
+    :argument cookie_name: Tên của cookie chứa token, mặc định lấy từ settings
     """
 
     def __init__(
@@ -63,18 +58,6 @@ class OAuth2PasswordCookie(OAuth2):
         )
 
     async def __call__(self, request: Request) -> Optional[str]:
-        """
-        Lấy token từ cookie thay vì Authorization header.
-        
-        Args:
-            request (Request): Đối tượng Request của FastAPI
-            
-        Returns:
-            Optional[str]: Token nếu tìm thấy, None nếu không tìm thấy
-            
-        Raises:
-            HTTPException: Nếu auto_error=True và không tìm thấy token
-        """
         # Lấy token từ cookie
         token = request.cookies.get(self.cookie_name)
 

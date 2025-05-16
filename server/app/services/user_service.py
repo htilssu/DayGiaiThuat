@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 
 from ..database.database import SessionLocal
 from ..models.user import User
-from ..schemas.auth import UserCreate
+from ..schemas.auth import UserRegister
 from ..schemas.user_profile import UserUpdate
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -112,12 +112,12 @@ class UserService:
         """
         return pwd_context.hash(password)
 
-    async def create_user(self, user_data: UserCreate) -> User:
+    async def create_user(self, user_data: UserRegister) -> User:
         """
         Tạo người dùng mới
         
         Args:
-            user_data (UserCreate): Thông tin người dùng mới
+            user_data (UserRegister): Thông tin người dùng mới
             
         Returns:
             User: Người dùng đã được tạo

@@ -1,7 +1,7 @@
 import json
 from typing import List, Optional
 
-from pydantic import validator
+from pydantic import validator, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     # CORS
     BACKEND_CORS_ORIGINS: List[str]
 
-    @validator("BACKEND_CORS_ORIGINS", pre=True)
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
         """
         Xử lý giá trị BACKEND_CORS_ORIGINS từ biến môi trường

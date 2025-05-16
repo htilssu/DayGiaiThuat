@@ -1,13 +1,12 @@
 from datetime import timedelta
-from typing import Any, Annotated
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.user import User as UserModel
-from app.schemas.auth import UserCreate, UserLogin, Token
-from app.schemas.user_profile import User
+from app.schemas.auth import UserRegister, UserLogin, Token
 from app.utils.auth import (
     get_db,
     verify_password,
@@ -23,7 +22,7 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(
         response: Response,
-        user: UserCreate,
+        user: UserRegister,
         db: Session = Depends(get_db)
 ) -> Any:
     """
@@ -31,7 +30,7 @@ async def register(
     
     Args:
         response (Response): FastAPI response object để thiết lập cookie
-        user (UserCreate): Thông tin user cần đăng ký (email, password, fullname)
+        user (UserRegister): Thông tin user cần đăng ký (email, password, fullname)
         db (Session): Database session
         
     Returns:
@@ -42,12 +41,6 @@ async def register(
             - 400: Email đã tồn tại
             - 422: Dữ liệu không hợp lệ
     """
-    # Validate dữ liệu
-    if len(user.password) < 6:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Mật khẩu phải có ít nhất 6 ký tự"
-        )
 
     # Kiểm tra email đã tồn tại
     db_user = db.query(UserModel).filter(UserModel.email == user.email).first()
@@ -140,6 +133,7 @@ async def login(
     set_auth_cookie(response, access_token)
 
     return {"access_token": access_token, "token_type": "bearer"}
+
 
 @router.post("/logout")
 async def logout(response: Response):
