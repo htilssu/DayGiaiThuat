@@ -10,6 +10,7 @@ from fastapi.openapi.docs import (
 )
 
 from app.core.config import settings
+from app.exceptions.exception_handler import add_exception_handlers
 from app.middleware.camel_case_middleware import CamelCaseMiddleware
 from app.routers import auth, users, courses, tutor, exercise, agent_tracing, document
 
@@ -46,6 +47,7 @@ app = FastAPI(
     * **/redoc** - ReDoc UI
     """,
     version="1.0.0",
+    openapi_url=f"/openapi.json",
     contact={
         "name": "AI Agent Giải Thuật Team",
         "url": "https://github.com/yourusername/your-repo",
@@ -55,26 +57,6 @@ app = FastAPI(
         "name": "MIT License",
         "url": "https://opensource.org/licenses/MIT",
     },
-    openapi_tags=[
-        {
-            "name": "authentication",
-            "description": "Các API liên quan đến xác thực người dùng",
-        },
-        {
-            "name": "users",
-            "description": "Các API liên quan đến quản lý người dùng",
-        },
-        {
-            "name": "courses",
-            "description": "Các API liên quan đến quản lý khóa học",
-        },
-        {
-            "name": "agent-tracing",
-            "description": "Các API liên quan đến theo dõi và phân tích agent",
-        },
-    ],
-    docs_url=None,
-    redoc_url=None,
     lifespan=lifespan
 )
 
@@ -85,10 +67,6 @@ async def custom_swagger_ui_html():
     return get_swagger_ui_html(
         openapi_url=app.openapi_url,
         title=f"{settings.PROJECT_NAME} - Swagger UI",
-        oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
-        swagger_js_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-bundle.js",
-        swagger_css_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui.css",
-        swagger_favicon_url="https://fastapi.tiangolo.com/img/favicon.png",
     )
 
 
@@ -97,8 +75,6 @@ async def redoc_html():
     return get_redoc_html(
         openapi_url=app.openapi_url,
         title=f"{settings.PROJECT_NAME} - ReDoc",
-        redoc_js_url="https://cdn.jsdelivr.net/npm/redoc@2.0.0/bundles/redoc.standalone.js",
-        redoc_favicon_url="https://fastapi.tiangolo.com/img/favicon.png",
     )
 
 
@@ -119,11 +95,16 @@ app.add_middleware(
 # Thêm middleware để chuyển đổi response sang camelCase
 app.add_middleware(CamelCaseMiddleware)
 
-# Thêm router
-app.include_router(auth.router)
-app.include_router(users.router)
-app.include_router(courses.router)
-app.include_router(tutor.router)
-app.include_router(exercise.router)
-app.include_router(agent_tracing.router)
-app.include_router(document.router)
+routers = [
+    auth.router,
+    users.router,
+    courses.router,
+    tutor.router,
+    exercise.router,
+    agent_tracing.router,
+    document.router,
+]
+for router in routers:
+    app.include_router(router)
+
+add_exception_handlers(app)
