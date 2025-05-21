@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr, Field
 class UserBase(BaseModel):
     """
     Schema cơ bản cho User
-    
+
     Attributes:
         email (EmailStr): Email của user
         first_name (Optional[str]): Tên của người dùng
@@ -18,13 +18,14 @@ class UserBase(BaseModel):
     last_name: Optional[str] = None
 
 
-class UserRegister(UserBase):
+class UserRegister(BaseModel):
     """
     Schema cho việc tạo User mới, kế thừa từ UserBase
     
     Attributes:
         password (str): Mật khẩu của user
     """
+    email: EmailStr
     password: str = Field(min_length=8)
     first_name: str = Field(..., min_length=1)
     last_name: str = Field(..., min_length=1)

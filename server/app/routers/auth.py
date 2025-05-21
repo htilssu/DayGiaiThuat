@@ -16,10 +16,17 @@ from app.utils.auth import (
     clear_auth_cookie,
 )
 
-router = APIRouter(prefix="/auth", tags=["authentication"])
+router = APIRouter(prefix="/auth", tags=["authentication"], responses={
+    404: {"description": "Not found"},
+    500: {"description": "Internal server error"},
+    400: {"description": "Bad request"},
+})
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
+@router.post("/register", status_code=status.HTTP_201_CREATED, responses={
+    201: {"description": "Created"},
+    400: {"description": "Dữ liệu không hợp lệ"},
+})
 async def register(
         response: Response,
         user: UserRegister,
@@ -27,19 +34,6 @@ async def register(
 ) -> Any:
     """
     Đăng ký tài khoản mới và trả về token đăng nhập
-    
-    Args:
-        response (Response): FastAPI response object để thiết lập cookie
-        user (UserRegister): Thông tin user cần đăng ký (email, password, fullname)
-        db (Session): Database session
-        
-    Returns:
-        Token: JWT token
-        
-    Raises:
-        HTTPException: 
-            - 400: Email đã tồn tại
-            - 422: Dữ liệu không hợp lệ
     """
 
     # Kiểm tra email đã tồn tại
