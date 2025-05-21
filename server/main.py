@@ -95,16 +95,12 @@ app.add_middleware(
 # Thêm middleware để chuyển đổi response sang camelCase
 app.add_middleware(CamelCaseMiddleware)
 
-routers = [
-    auth.router,
-    users.router,
-    courses.router,
-    tutor.router,
-    exercise.router,
-    agent_tracing.router,
-    document.router,
-]
-for router in routers:
-    app.include_router(router)
+app.include_router(auth.router)
+app.include_router(users.router)
+app.include_router(courses.router)
+app.include_router(tutor.router)
+app.include_router(exercise.router)
+app.include_router(agent_tracing.router)
+app.include_router(document.router)
 
 add_exception_handlers(app)

@@ -7,8 +7,7 @@ def add_exception_handlers(app: FastAPI):
     """
     Thêm các exception handler cho ứng dụng FastAPI.
 
-    Args:
-        app (ASGIApp): Instance của ứng dụng FastAPI
+    :param app: Instance của ứng dụng FastAPI
     """
 
     # Xử lý lỗi xác thực dữ liệu từ Pydantic
