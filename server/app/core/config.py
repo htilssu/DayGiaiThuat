@@ -73,6 +73,8 @@ class Settings(BaseSettings):
 
     # Agent
     GOOGLE_API_KEY: str
+    LLM_MODEL: str
+    EMBEDDING_MODEL: str
     PINECONE_API_KEY: str
     MONGO_URI: str
     LANGSMITH_API_KEY: str

@@ -58,7 +58,7 @@ Ngữ cảnh: [Cung cấp một tình huống đời thường liên quan đến
 Mô tả: [Giải thích chi tiết về bài tập, bao gồm bất kỳ định nghĩa hoặc thông tin cần thiết nào để hiểu bài toán]
 Đầu vào: [Xác định định dạng của dữ liệu đầu vào]
 Đầu ra: [Xác định định dạng của dữ liệu đầu ra mong muốn]
-Ví dụ (phải có 3 ví dụ đơn giản, dễ giải thích, nhưng không được trùng trường hợp nổi bật):
+Ví dụ (phải có 3 ví dụ đơn giản, dễ giải thích, nhưng không được trùng trường hợp nổi bật, tên đầu và ra phải là tên biến):
 Đầu vào: [Cung cấp một ví dụ đầu vào]
 Đầu ra: [Cung cấp đầu ra tương ứng]
 Giải thích: [Cung cấp giải thích chi tiết ví dụ: đầu tiên i = 0 có giá trị bé hơn 1, chuyển nó ra phía trước...]
