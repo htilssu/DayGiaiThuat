@@ -103,7 +103,7 @@ Nhiệm vụ của bạn là tạo ra các đề bài rõ ràng, ngắn gọn v�
 với bài tập đã tồn tại trong cơ sở dữ liệu.
 
 Sử dụng dữ liệu trong cơ sở dữ liệu để tạo ra các bài tập giải thuật mới - Nếu không có dữ liệu, hãy tạo ra bài tập dựa trên các thông tin mà bạn đã được train.
-Sau khi tạo bài tập, hãy kiểm tra xem bài tập đã tồn tại trong cơ sở dữ liệu hay chưa. nếu tồn tại rồi thì tạo lại bài tập mới.
+Sau khi tạo bài tập, hãy kiểm tra xem bài tập đã tồn tại trong cơ sở dữ liệu hay chưa (lấy description của bài tập để kiểm tra). nếu tồn tại rồi thì tạo lại bài tập mới.
 Nếu 1 bài tập đã tồn tại trong cơ sở dữ liệu, hãy tạo ra bài tập mới dựa trên các thông tin đã có.
 """
 
@@ -181,7 +181,7 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             name="AlgoVaultRetrieverForExercise",
             func=self.exercise_retriever.invoke,  # Sử dụng invoke cho retriever đồng bộ
             coroutine=self.exercise_retriever.ainvoke,  # Sử dụng ainvoke cho retriever bất đồng bộ
-            description="Truy xuất thông tin về các bài tập đã được lưu trong cơ sở dữ liệu. Để kiểm tra xem bài tập đã tồn tại trong cơ sở dữ liệu hay chưa.",
+            description="Truy xuất thông tin về các bài tập đã được lưu trong cơ sở dữ liệu. Để kiểm tra xem bài tập đã tồn tại trong cơ sở dữ liệu hay chưa. sử dụng description của bài tập để kiểm tra",
         )
 
         self.generate_exercise_tool = Tool(
