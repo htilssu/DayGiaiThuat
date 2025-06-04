@@ -46,4 +46,5 @@ class LearningProgress(Base):
     
     # Relationship với các bảng khác
     user = relationship("User", back_populates="learning_progresses")
-    course = relationship("Course", back_populates="learning_progresses") 
+    course = relationship("Course", back_populates="learning_progresses")
+    learning_path = relationship("LearningPath", back_populates="learning_paths")

@@ -1,11 +1,14 @@
+from datetime import datetime
 from typing import List
 
 from sqlalchemy import Boolean, Column, Integer, String, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column  
 from sqlalchemy.sql import func
 
 from app.database.database import Base
-from app.models.badge import user_badges
+from app.models.badge import Badge, user_badges
+from app.models.learning_progress import LearningProgress
+from app.models.user_state import UserState
 
 
 class User(Base):
@@ -33,31 +36,31 @@ class User(Base):
     """
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    username = Column(String, unique=True, index=True, nullable=True)
-    hashed_password = Column(String)
-    is_active = Column(Boolean, default=True)
+    id : Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    email : Mapped[str] = mapped_column(String, unique=True, index=True)
+    username : Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
+    hashed_password : Mapped[str] = mapped_column(String)
+    is_active : Mapped[bool] = mapped_column(Boolean, default=True)
     
     # Các trường thời gian
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Các trường thông tin cá nhân
-    first_name = Column(String, nullable=True)
-    last_name = Column(String, nullable=True)
-    bio = Column(String, nullable=True)
-    avatar_url = Column(String, nullable=True)
+    first_name : Mapped[str] = mapped_column(String, nullable=True)
+    last_name : Mapped[str] = mapped_column(String, nullable=True)
+    bio : Mapped[str] = mapped_column(String, nullable=True)
+    avatar_url : Mapped[str] = mapped_column(String, nullable=True)
     
     # Relationship với các bảng khác
     # Quan hệ one-to-one với UserState - sử dụng string để tránh circular import
-    state = relationship("UserState", uselist=False, back_populates="user", cascade="all, delete-orphan")
+    state : Mapped[UserState] = relationship("UserState", uselist=False, back_populates="user", cascade="all, delete-orphan")
     
     # Quan hệ one-to-many với LearningProgress - sử dụng string để tránh circular import
-    learning_progresses = relationship("LearningProgress", back_populates="user", cascade="all, delete-orphan")
+    learning_progresses : Mapped[List[LearningProgress]] = relationship("LearningProgress", back_populates="user", cascade="all, delete-orphan")
     
     # Quan hệ many-to-many với Badge
-    badge_collection = relationship("Badge", secondary=user_badges, back_populates="users")
+    badge_collection : Mapped[List[Badge]] = relationship("Badge", secondary=user_badges, back_populates="users")
     
     @property
     def full_name(self):

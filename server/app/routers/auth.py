@@ -16,21 +16,27 @@ from app.utils.auth import (
     clear_auth_cookie,
 )
 
-router = APIRouter(prefix="/auth", tags=["authentication"], responses={
-    404: {"description": "Not found"},
-    500: {"description": "Internal server error"},
-    400: {"description": "Bad request"},
-})
+router = APIRouter(
+    prefix="/auth",
+    tags=["authentication"],
+    responses={
+        404: {"description": "Not found"},
+        500: {"description": "Internal server error"},
+        400: {"description": "Bad request"},
+    },
+)
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED, responses={
-    201: {"description": "Created"},
-    400: {"description": "Dữ liệu không hợp lệ"},
-})
+@router.post(
+    "/register",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        201: {"description": "Created"},
+        400: {"description": "Dữ liệu không hợp lệ"},
+    },
+)
 async def register(
-        response: Response,
-        user: UserRegister,
-        db: Session = Depends(get_db)
+    response: Response, user: UserRegister, db: Session = Depends(get_db)
 ) -> Any:
     """
     Đăng ký tài khoản mới và trả về token đăng nhập
@@ -40,8 +46,7 @@ async def register(
     db_user = db.query(UserModel).filter(UserModel.email == user.email).first()
     if db_user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email đã được đăng ký"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email đã được đăng ký"
         )
 
     try:
@@ -52,7 +57,7 @@ async def register(
             username=user.username,
             hashed_password=hashed_password,
             first_name=user.first_name,
-            last_name=user.last_name
+            last_name=user.last_name,
         )
         db.add(db_user)
         db.commit()
@@ -72,15 +77,13 @@ async def register(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Có lỗi xảy ra khi tạo tài khoản"
+            detail="Có lỗi xảy ra khi tạo tài khoản",
         )
 
 
 @router.post("/login", response_model=Token)
 async def login(
-        response: Response,
-        data: UserLogin,
-        db: Session = Depends(get_db)
+    response: Response, data: UserLogin, db: Session = Depends(get_db)
 ) -> Any:
     """
     Đăng nhập và lấy token
@@ -88,15 +91,20 @@ async def login(
     :param db: Database session
     :param response: FastAPI response object để thiết lập cookie
     :param data: Thông tin đăng nhập (username/email, password)
-        
+
     :returns: Token
-        
+
     :raises HTTPException: - 401: Thông tin đăng nhập không chính xác
                            - 400: Tài khoản đã bị vô hiệu hóa
     """
     # Tìm user theo username hoặc email
-    user = db.query(UserModel).filter(
-        or_(UserModel.username == data.username, UserModel.email == data.username)).first()
+    user = (
+        db.query(UserModel)
+        .filter(
+            or_(UserModel.username == data.username, UserModel.email == data.username)
+        )
+        .first()
+    )
 
     if not user:
         raise HTTPException(
@@ -114,13 +122,14 @@ async def login(
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tài khoản đã bị vô hiệu hóa"
+            detail="Tài khoản đã bị vô hiệu hóa",
         )
 
     # Tạo access token - Sử dụng email nếu username là null
     token_data = {"sub": str(user.id)}
     access_token = create_access_token(
-        data=token_data, expires_delta=timedelta(minutes=60 * 24 * 30) if data.remember_me else None
+        data=token_data,
+        expires_delta=timedelta(minutes=60 * 24 * 30) if data.remember_me else None,
     )
 
     # Thiết lập cookie sử dụng hàm tiện ích
@@ -133,10 +142,10 @@ async def login(
 async def logout(response: Response):
     """
     Đăng xuất người dùng bằng cách xóa cookie
-    
+
     Args:
         response (Response): FastAPI response object để xóa cookie
-        
+
     Returns:
         dict: Thông báo đăng xuất thành công
     """

@@ -3,8 +3,7 @@ import logging
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
 from app.core.config import settings
 
@@ -22,7 +21,9 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Tạo Base class để kế thừa cho các model
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
+
 
 def get_db():
     """
@@ -38,6 +39,7 @@ def get_db():
     finally:
         db.close()
 
+
 def run_migrations():
     """
     Chạy migration tự động khi ứng dụng khởi động sử dụng Alembic API
@@ -47,17 +49,16 @@ def run_migrations():
     """
     try:
         logger.info("Bắt đầu chạy migrations...")
-        
+
         alembic_cfg = Config("alembic.ini")
-        
+
         # Đặt URL kết nối database
         alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URI)
-        
+
         # Chạy migration để cập nhật schema lên phiên bản mới nhất
         with engine.connect():
             command.upgrade(alembic_cfg, "head")
-        
-        
+
         logger.info("Migration hoàn tất thành công!")
         return True
     except Exception as e:
