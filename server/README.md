@@ -10,7 +10,7 @@
 1. Tạo môi trường ảo Python (Virtual Environment)
 
 ```bash
-python -m venv venv
+python -m venv .venv
 ```
 
 2. Kích hoạt môi trường ảo
@@ -97,8 +97,6 @@ python scripts/setup.py --seed
 python -c "from app.database.seeder import run_seeder; run_seeder()"
 ```
 
-Xem thêm hướng dẫn chi tiết tại: `docs/setup_guide.md`
-
 ## Chạy server
 
 1. Kích hoạt môi trường ảo (nếu chưa kích hoạt)
@@ -106,7 +104,7 @@ Xem thêm hướng dẫn chi tiết tại: `docs/setup_guide.md`
 2. Chạy server bằng lệnh:
 
 ```bash
-python main.py
+fastapi run main.py
 ```
 
 Server sẽ chạy tại địa chỉ: http://localhost:8000
@@ -120,22 +118,30 @@ Server sẽ chạy tại địa chỉ: http://localhost:8000
 
 ```
 server/
-├── main.py              # File chính để chạy server
-├── requirements.txt     # Danh sách các thư viện cần thiết
-├── .env.example         # File mẫu cho cấu hình môi trường
-├── scripts/             # Các script tiện ích
-│   ├── run_seeder.py    # Script để chạy seeder
-│   └── setup.py         # Script cài đặt tự động
-├── routes/              # Chứa các route của API
-├── models/              # Chứa các model dữ liệu
-├── schemas/             # Chứa các schema Pydantic
-├── database/            # Chứa các module liên quan đến database
-│   ├── database.py      # Cấu hình kết nối database
-│   ├── seeder.py        # File chính để seed dữ liệu
-│   └── seeders/         # Các module seed dữ liệu cho từng model
-├── docs/                # Tài liệu hướng dẫn
-│   └── setup_guide.md   # Hướng dẫn cài đặt chi tiết
-└── utils/               # Chứa các utility function
+├── main.py                # File chính để chạy server
+├── requirements.txt       # Danh sách các thư viện cần thiết
+├── .env.example           # File mẫu cho cấu hình môi trường
+├── alembic/               # Thư mục chứa cấu hình và các version migration
+│   └── versions/          # Chứa các file migration đã tạo
+├── app/                   # Thư mục chính của ứng dụng
+│   ├── core/              # Chứa các module core của ứng dụng
+│   │   └── agents/        # Chứa các agent và thành phần liên quan
+│   │       └── components/# Thành phần của các agent
+│   ├── crud/              # Chứa các hàm CRUD (Create, Read, Update, Delete)
+│   ├── database/          # Chứa các module liên quan đến database
+│   │   └── seeders/       # Các module seed dữ liệu cho từng model
+│   ├── db/                # Cấu hình và kết nối database
+│   ├── exceptions/        # Định nghĩa các exception tùy chỉnh
+│   ├── middleware/        # Middleware của ứng dụng
+│   ├── models/            # Chứa các model dữ liệu (SQLAlchemy)
+│   ├── routers/           # Chứa các route của API
+│   ├── schemas/           # Chứa các schema Pydantic
+│   ├── services/          # Chứa các service xử lý logic nghiệp vụ
+│   └── utils/             # Chứa các utility function
+│       └── oauth2/        # Các hàm tiện ích liên quan đến OAuth2
+├── docs/                  # Tài liệu hướng dẫn
+├── static/                # Tài nguyên tĩnh
+└── volumes/               # Thư mục chứa dữ liệu
 ```
 
 ## Lưu ý
