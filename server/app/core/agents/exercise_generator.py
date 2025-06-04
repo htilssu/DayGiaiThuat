@@ -13,9 +13,7 @@ from langchain_core.prompts import (
 from langchain_core.runnables import RunnableConfig, RunnableWithMessageHistory
 from langchain_core.tools import Tool
 from langchain_mongodb import MongoDBChatMessageHistory
-from numpy import mat, tri
-from pydantic impocsc, rt BaseModel, Field
-from sympy import ring, sech
+from pydantic import BaseModel, Field
 
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
@@ -66,6 +64,7 @@ class ExerciseDetail(BaseModel):
         min_length=3,
         description="Danh sách các trường hợp thử nghiệm, yêu cầu tối thiểu 3 trường hợp.",
     )
+
 
 SYSTEM_PROMPT_TEMPLATE_FOR_EXERCISE_GENERATOR = """
 Bạn là chuyên tạo các bài tập giải thuật để người dùng luyện tập lập trình.
@@ -213,9 +212,7 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
         # 6. Tạo Prompt Template
         self.prompt = ChatPromptTemplate.from_messages(
             [
-                SystemMessage(
-                    content=SYSTEM_PROMPT_TEMPLATE
-                ),
+                SystemMessage(content=SYSTEM_PROMPT_TEMPLATE),
                 MessagesPlaceholder(variable_name="history", optional=True),
                 HumanMessagePromptTemplate.from_template("{input}"),
                 MessagesPlaceholder(variable_name="agent_scratchpad"),
