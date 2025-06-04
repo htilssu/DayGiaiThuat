@@ -102,7 +102,8 @@ Bạn là 1 AI Agent chuyên tạo các bài tập giải thuật để người
 Nhiệm vụ của bạn là tạo ra các đề bài rõ ràng, ngắn gọn và có ngữ cảnh đời thường, giúp người dùng dễ dàng liên hệ với các tình huống thực tế. Bài tập được tạo ra phải không trùng 
 với bài tập đã tồn tại trong cơ sở dữ liệu.
 
-Sử dụng dữ liệu trong cơ sở dữ liệu để tạo ra các bài tập giải thuật mới.
+Sử dụng dữ liệu trong cơ sở dữ liệu để tạo ra các bài tập giải thuật mới - Nếu không có dữ liệu, hãy tạo ra bài tập dựa trên các thông tin mà bạn đã được train.
+Sau khi tạo bài tập, hãy kiểm tra xem bài tập đã tồn tại trong cơ sở dữ liệu hay chưa. nếu tồn tại rồi thì tạo lại bài tập mới.
 Nếu 1 bài tập đã tồn tại trong cơ sở dữ liệu, hãy tạo ra bài tập mới dựa trên các thông tin đã có.
 """
 
@@ -146,6 +147,7 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
         self.exercise_retriever = get_vector_store("exercise").as_retriever(
             search_kwargs={"k": 1}
         )  # Lấy 1 kết quả
+        self.output_parser = PydanticOutputParser(pydantic_object=ExerciseDetail)
 
         self.generate_exercise_prompt = ChatPromptTemplate.from_messages(
             [
@@ -156,7 +158,6 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
                 ),
                 MessagesPlaceholder(variable_name="history", optional=True),
                 HumanMessagePromptTemplate.from_template("{input}"),
-                MessagesPlaceholder(variable_name="agent_scratchpad"),
             ]
         )
 
@@ -185,12 +186,14 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
 
         self.generate_exercise_tool = Tool(
             name="GenerateExercise",
-            func=self.generate_exercise.invoke,
-            coroutine=self.generate_exercise.ainvoke,
-            description="Tạo bài tập giải thuật mới dựa trên đầu vào được cung cấp.",
+            func=lambda x: self.generate_exercise.invoke(
+                {"input": x} if isinstance(x, str) else x
+            ),
+            coroutine=lambda x: self.generate_exercise.ainvoke(
+                {"input": x} if isinstance(x, str) else x
+            ),
+            description="Tạo bài tập giải thuật mới dựa trên input là topic và difficulty được cung cấp., đầu vào là biến input",
         )
-
-        self.output_parser = PydanticOutputParser(pydantic_object=ExerciseDetail)
 
         output_fixing_parser = OutputFixingParser.from_llm(
             self.llm_model, self.output_parser
@@ -206,6 +209,7 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
         self.tools = [
             self.retriever_tool,
             self.retriever_exercise_tool,
+            self.generate_exercise_tool,
             self.output_fixing_parser_tool,
         ]
 
