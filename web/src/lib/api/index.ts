@@ -6,12 +6,14 @@
 import authApi from "./auth";
 import userApi from "./user";
 import coursesApi from "./courses";
+import chatApi from "./chat";
 
 // Export các module API
 const api = {
   auth: authApi,
   user: userApi,
   courses: coursesApi,
+  chat: chatApi,
   // Thêm các module API khác tại đây, ví dụ:
   // product: productApi,
   // ...
@@ -24,5 +26,6 @@ export * from "./client";
 export * from "./auth";
 export * from "./user";
 export * from "./courses";
+export * from "./chat";
 
 export default api;
