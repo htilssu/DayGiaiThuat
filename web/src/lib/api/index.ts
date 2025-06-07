@@ -7,6 +7,7 @@ import authApi from "./auth";
 import userApi from "./user";
 import coursesApi from "./courses";
 import chatApi from "./chat";
+import documentsApi from "./documents";
 
 // Export các module API
 const api = {
@@ -14,6 +15,7 @@ const api = {
   user: userApi,
   courses: coursesApi,
   chat: chatApi,
+  documents: documentsApi,
   // Thêm các module API khác tại đây, ví dụ:
   // product: productApi,
   // ...
@@ -27,5 +29,6 @@ export * from "./auth";
 export * from "./user";
 export * from "./courses";
 export * from "./chat";
+export * from "./documents";
 
 export default api;

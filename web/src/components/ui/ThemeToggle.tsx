@@ -23,7 +23,7 @@ export default function ThemeToggle() {
   // Biểu tượng cho light mode (mặt trời)
   const SunIcon = () => (
     <svg
-      className="w-5 h-5 text-yellow-400"
+      className="w-5 h-5 text-[rgb(var(--color-primary))]"
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor">
@@ -39,7 +39,7 @@ export default function ThemeToggle() {
   // Biểu tượng cho dark mode (mặt trăng)
   const MoonIcon = () => (
     <svg
-      className="w-5 h-5 text-orange-400"
+      className="w-5 h-5 text-[rgb(var(--color-secondary))]"
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor">
@@ -65,7 +65,7 @@ export default function ThemeToggle() {
     <button
       key={currentTheme}
       onClick={handleToggle}
-      className={`p-2 rounded-full bg-primary transition-colors`}
+      className={`p-2 rounded-full hover:bg-primary/10 transition-colors`}
       aria-label="Chuyển đổi theme">
       <SunIcon />
     </button>

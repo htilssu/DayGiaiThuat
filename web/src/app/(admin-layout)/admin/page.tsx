@@ -2,68 +2,84 @@
 
 import { useState } from "react";
 import { Chat } from "@/components/Chat";
-import { Container, Title } from "@mantine/core";
+import { Container, Paper, Tabs, Title } from "@mantine/core";
 import Overview from "@/components/admin/Overview";
+import { DocumentUpload } from "@/components/DocumentUpload";
+import {
+  IconChartBar,
+  IconMessage,
+  IconUpload,
+  IconUsers,
+} from "@tabler/icons-react";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-4 text-gray-800">
-          Admin Dashboard
-        </h1>
-        <div className="flex space-x-4">
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-              activeTab === "overview"
-                ? "bg-primary text-white"
-                : "bg-white text-gray-600 hover:bg-gray-100"
-            }`}>
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab("users")}
-            className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-              activeTab === "users"
-                ? "bg-primary text-white"
-                : "bg-white text-gray-600 hover:bg-gray-100"
-            }`}>
-            Users
-          </button>
-          <button
-            onClick={() => setActiveTab("chat")}
-            className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-              activeTab === "chat"
-                ? "bg-primary text-white"
-                : "bg-white text-gray-600 hover:bg-gray-100"
-            }`}>
-            Chat
-          </button>
-          <button
-            onClick={() => setActiveTab("add-documents")}
-            className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-              activeTab === "add-documents"
-                ? "bg-primary text-white"
-                : "bg-white text-gray-600 hover:bg-gray-100"
-            }`}>
-            Add documents
-          </button>
-        </div>
-      </div>
+    <div className="space-y-8">
+      <Paper className="p-6 bg-primary/5 rounded-lg border border-primary/10">
+        <Tabs
+          value={activeTab}
+          onChange={(value) => setActiveTab(value || "overview")}
+          variant="outline"
+          classNames={{
+            tab: "data-[active]:bg-primary data-[active]:text-white hover:bg-primary/10 transition-colors duration-200",
+            panel: "mt-6",
+          }}>
+          <Tabs.List>
+            <Tabs.Tab
+              value="overview"
+              leftSection={<IconChartBar size={16} />}
+              className="font-medium">
+              Overview
+            </Tabs.Tab>
+            <Tabs.Tab
+              value="users"
+              leftSection={<IconUsers size={16} />}
+              className="font-medium">
+              Users
+            </Tabs.Tab>
+            <Tabs.Tab
+              value="chat"
+              leftSection={<IconMessage size={16} />}
+              className="font-medium">
+              Chat
+            </Tabs.Tab>
+            <Tabs.Tab
+              value="add-documents"
+              leftSection={<IconUpload size={16} />}
+              className="font-medium">
+              Add Documents
+            </Tabs.Tab>
+          </Tabs.List>
 
-      {activeTab === "overview" && <Overview />}
-      {activeTab === "chat" && (
-        <Container size="lg" py="xl">
-          <Title order={2} mb="xl">
-            AI Assistant
-          </Title>
-          <Chat />
-        </Container>
-      )}
+          <Tabs.Panel value="overview">
+            <Overview />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="chat">
+            <Container size="lg" className="px-0">
+              <Title order={2} className="mb-6 text-gradient-theme">
+                AI Assistant
+              </Title>
+              <Paper className="p-4 bg-white/50 border border-primary/10">
+                <Chat />
+              </Paper>
+            </Container>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="add-documents">
+            <Container size="lg" className="px-0">
+              <Title order={2} className="mb-6 text-gradient-theme">
+                Upload Documents
+              </Title>
+              <Paper className="p-4 bg-white/50 border border-primary/10">
+                <DocumentUpload />
+              </Paper>
+            </Container>
+          </Tabs.Panel>
+        </Tabs>
+      </Paper>
     </div>
   );
 }

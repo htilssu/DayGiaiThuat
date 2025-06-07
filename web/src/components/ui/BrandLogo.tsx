@@ -39,8 +39,7 @@ export default function BrandLogo({
         viewBox="0 0 100 100"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="mr-3"
-      >
+        className="mr-3">
         {/* Hình nền tròn với gradient */}
         <circle cx="50" cy="50" r="50" fill="url(#brandGradient)" />
 
@@ -59,10 +58,9 @@ export default function BrandLogo({
             y1="0"
             x2="100"
             y2="100"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop offset="0%" stopColor="#10b981" />
-            <stop offset="100%" stopColor="#f59e0b" />
+            gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#62B69F" />
+            <stop offset="100%" stopColor="#ADD8E6" />
           </linearGradient>
         </defs>
       </svg>
@@ -75,8 +73,7 @@ export default function BrandLogo({
               : variant === "white"
               ? "text-white"
               : ""
-          }`}
-        >
+          }`}>
           {appName}
         </span>
       )}

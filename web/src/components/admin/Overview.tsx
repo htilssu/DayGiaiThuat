@@ -1,5 +1,7 @@
 "use client";
 
+import { Paper, Title } from "@mantine/core";
+
 interface StatsCard {
   title: string;
   value: string;
@@ -111,130 +113,126 @@ export default function Overview() {
   const getStatusColor = (status: TableData["status"]) => {
     switch (status) {
       case "Active":
-        return "bg-green-100 text-green-700";
+        return "bg-primary/20 text-primary";
       case "Inactive":
-        return "bg-gray-100 text-gray-700";
+        return "bg-secondary/20 text-secondary";
       case "Pending":
-        return "bg-yellow-100 text-yellow-700";
+        return "bg-accent/20 text-accent";
       default:
-        return "bg-gray-100 text-gray-700";
+        return "bg-secondary/20 text-secondary";
     }
   };
 
   return (
-    <div>
+    <div className="space-y-8">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
-          <div
+          <Paper
             key={index}
-            className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
+            className="p-6 bg-white/50 border border-primary/10 hover:shadow-md transition-all duration-200">
             <div className="flex items-center mb-4">
               <span className="text-2xl mr-2">{stat.icon}</span>
-              <h3 className="text-sm text-gray-500">{stat.title}</h3>
+              <h3 className="text-sm text-primary/70">{stat.title}</h3>
             </div>
             <div className="flex items-center justify-between">
-              <p className="text-2xl font-semibold text-gray-800">
+              <p className="text-2xl font-semibold text-primary">
                 {stat.value}
               </p>
               <span
                 className={`text-sm px-2 py-1 rounded-full ${
                   stat.isIncrease
-                    ? "bg-green-100 text-green-700"
+                    ? "bg-primary/20 text-primary"
                     : "bg-red-100 text-red-700"
                 }`}>
                 {stat.change}
               </span>
             </div>
-          </div>
+          </Paper>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Activity */}
-        <div className="lg:col-span-1">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h2 className="text-xl font-semibold mb-6 text-gray-800">
-              Recent Activity
-            </h2>
-            <div className="space-y-6">
-              {recentActivity.map((activity, index) => (
-                <div
-                  key={index}
-                  className="flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-                  <span className="text-xl mt-1">
-                    {getActivityIcon(activity.type)}
+        <Paper className="lg:col-span-1 p-6 bg-white/50 border border-primary/10">
+          <Title order={3} className="mb-6 text-gradient-theme">
+            Recent Activity
+          </Title>
+          <div className="space-y-6">
+            {recentActivity.map((activity, index) => (
+              <div
+                key={index}
+                className="flex items-start space-x-3 pb-4 border-b border-primary/10 last:border-0 last:pb-0">
+                <span className="text-xl mt-1">
+                  {getActivityIcon(activity.type)}
+                </span>
+                <div className="flex-1">
+                  <p className="text-sm text-primary/80">{activity.text}</p>
+                  <span className="text-xs text-primary/60 mt-1">
+                    {activity.time}
                   </span>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-700">{activity.text}</p>
-                    <span className="text-xs text-gray-400 mt-1">
-                      {activity.time}
-                    </span>
-                  </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        </div>
+        </Paper>
 
         {/* Data Table */}
-        <div className="lg:col-span-2">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-800">
-                Recent Users
-              </h2>
-              <button className="text-primary hover:text-primary-dark text-sm font-medium">
-                View All
-              </button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">
-                      Name
-                    </th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">
-                      Email
-                    </th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">
-                      Status
-                    </th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">
-                      Date
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableData.map((user) => (
-                    <tr
-                      key={user.id}
-                      className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-gray-800">
-                        {user.name}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-600">
-                        {user.email}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full ${getStatusColor(
-                            user.status
-                          )}`}>
-                          {user.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-600">
-                        {user.date}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        <Paper className="lg:col-span-2 p-6 bg-white/50 border border-primary/10">
+          <div className="flex justify-between items-center mb-6">
+            <Title order={3} className="text-gradient-theme">
+              Recent Users
+            </Title>
+            <button className="text-primary hover:text-primary/80 text-sm font-medium transition-colors">
+              View All
+            </button>
           </div>
-        </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-primary/10">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-primary/70">
+                    Name
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-primary/70">
+                    Email
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-primary/70">
+                    Status
+                  </th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-primary/70">
+                    Date
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {tableData.map((user) => (
+                  <tr
+                    key={user.id}
+                    className="border-b border-primary/10 hover:bg-primary/5 transition-colors">
+                    <td className="py-3 px-4 text-sm text-primary/90">
+                      {user.name}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-primary/80">
+                      {user.email}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={`px-2 py-1 text-xs rounded-full ${getStatusColor(
+                          user.status
+                        )}`}>
+                        {user.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-sm text-primary/80">
+                      {user.date}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Paper>
       </div>
     </div>
   );

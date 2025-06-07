@@ -28,8 +28,7 @@ export default function MainLayout({
 }>) {
   return (
     <div
-      className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-background text-foreground transition-theme`}
-    >
+      className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-background text-foreground transition-theme`}>
       <Navbar />
       <main className="flex-grow container mx-auto px-4 sm:px-6 py-8 md:py-12">
         {children}

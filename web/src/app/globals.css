@@ -2,9 +2,9 @@
 @import "tw-animate-css";
 
 :root {
-  --color-primary: 16 185 129;
-  --color-secondary: 245 158 11;
-  --color-accent: 244 63 94;
+  --color-primary: 98 182 159; /* Seafoam green */
+  --color-secondary: 173 216 230; /* Light blue */
+  --color-accent: 135 206 235; /* Sky blue - complementary */
   --color-background: 255 255 255;
   --color-foreground: 15 23 42;
   --radius: 0.625rem;
@@ -42,11 +42,18 @@
 }
 
 [data-theme="dark"] {
-  --color-primary: 5 150 105;
-  --color-secondary: 217 119 6;
-  --color-accent: 225 29 72;
+  --color-primary: 120 200 175; /* Brighter seafoam green for dark mode */
+  --color-secondary: 135 206 235; /* Brighter light blue for dark mode */
+  --color-accent: 176 224 230; /* Powder blue for dark mode */
   --color-background: 15 23 42;
   --color-foreground: 248 250 252;
+
+  /* Dark mode specific overrides for admin theme */
+  &.admin-theme {
+    --color-primary: 120 200 175; /* Brighter seafoam green */
+    --color-secondary: 135 206 235; /* Brighter light blue */
+    --color-accent: 176 224 230; /* Brighter sky blue */
+  }
 }
 
 @theme inline {
