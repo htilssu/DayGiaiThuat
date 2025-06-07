@@ -9,13 +9,16 @@ import {
 import { IconSend } from "@tabler/icons-react";
 import { ChatMessage as ChatMessageComponent } from "./ChatMessage";
 import { ChatMessage } from "@/lib/api/chat";
-import api from "@/lib/api";
+import { GoogleGenAI } from "@google/genai";
 
 export function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const ai = new GoogleGenAI({
+    apiKey: "AIzaSyAoWvIFmtiL1MwP1y8ariEm61Zaq4-uNZo",
+  });
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,8 +42,23 @@ export function Chat() {
     setIsLoading(true);
 
     try {
-      const response = await api.chat.sendMessage(input);
-      setMessages((prev) => [...prev, response.message]);
+      // const response = await api.chat.sendMessage(input);
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-preview-05-20",
+        contents: input,
+        config: {
+          systemInstruction:
+            "You are a professional algorithm expert. You professionally create algorithm exercises. Your mission is to think of clear, concise and life related topic for the student to practice algorithm.",
+        },
+      });
+      if (response.text) {
+        const assistantMessage: ChatMessage = {
+          role: "assistant",
+          content: response.text,
+          timestamp: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
     } catch (error) {
       console.error("Error sending message:", error);
     } finally {
@@ -81,7 +99,7 @@ export function Chat() {
         <TextInput
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyPress}
           placeholder="Type your message..."
           rightSection={
             <ActionIcon

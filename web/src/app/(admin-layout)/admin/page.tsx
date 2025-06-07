@@ -23,7 +23,7 @@ export default function AdminDashboard() {
           onChange={(value) => setActiveTab(value || "overview")}
           variant="outline"
           classNames={{
-            tab: "data-[active]:bg-primary data-[active]:text-white hover:bg-primary/10 transition-colors duration-200",
+            tab: "text-primary text-shadow-sm data-[active]:bg-primary data-[active]:text-white hover:bg-primary/10 transition-colors duration-200",
             panel: "mt-6",
           }}>
           <Tabs.List>

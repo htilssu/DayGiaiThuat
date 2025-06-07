@@ -67,7 +67,7 @@ class ExerciseDetail(BaseModel):
 
 
 SYSTEM_PROMPT_TEMPLATE_FOR_EXERCISE_GENERATOR = """
-Bạn là chuyên tạo các bài tập giải thuật để người dùng luyện tập lập trình.
+Bạn là chuyên gia tạo các bài tập giải thuật để người dùng luyện tập lập trình.
 Nhiệm vụ của bạn là tạo ra các đề bài rõ ring, ngắn gọn và có ngữ cảnh đời thường, giúp người dùng dễ dàng liên hệ với các tình huống thực tế. Bài tập được tạo ra phải không trùng 
 với bài tập đã tồn tri trong cơ sở dữ liệu. Khi tạo một bài tập, hãy tuân theo mẫu sau:
 
