@@ -12,7 +12,7 @@ from fastapi.openapi.docs import (
 from app.core.config import settings
 from app.exceptions.exception_handler import add_exception_handlers
 from app.middleware.camel_case_middleware import CamelCaseMiddleware
-from app.routers import auth, users, courses, tutor, exercise, agent_tracing, document
+from app.routers.router import register_router
 
 # Khởi tạo logger
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
     Lifespan context manager để quản lý vòng đời của ứng dụng.
     Mã trong phần 'yield' trước sẽ chạy khi khởi động,
     và mã sau 'yield' sẽ chạy khi kết thúc.
-    
+
     Args:
         app (FastAPI): Instance của ứng dụng FastAPI
     """
@@ -57,7 +57,7 @@ app = FastAPI(
         "name": "MIT License",
         "url": "https://opensource.org/licenses/MIT",
     },
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 
@@ -95,12 +95,6 @@ app.add_middleware(
 # Thêm middleware để chuyển đổi response sang camelCase
 app.add_middleware(CamelCaseMiddleware)
 
-app.include_router(auth.router)
-app.include_router(users.router)
-app.include_router(courses.router)
-app.include_router(tutor.router)
-app.include_router(exercise.router)
-app.include_router(agent_tracing.router)
-app.include_router(document.router)
+register_router(app)
 
 add_exception_handlers(app)
