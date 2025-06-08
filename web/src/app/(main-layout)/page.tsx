@@ -164,24 +164,24 @@ export default function HomePage() {
                         <div className="bg-foreground/5 rounded-lg p-4">
                           <pre className="text-xs text-foreground/80">
                             <code>{`function quickSort(arr) {
-  if (arr.length <= 1) {
-    return arr;
-  }
-  
-  const pivot = arr[0];
-  const left = [];
-  const right = [];
-  
-  for (let i = 1; i < arr.length; i++) {
-    if (arr[i] < pivot) {
-      left.push(arr[i]);
-    } else {
-      right.push(arr[i]);
-    }
-  }
-  
-  return [...quickSort(left), pivot, ...quickSort(right)];
-}`}</code>
+                            if (arr.length <= 1) {
+                              return arr;
+                            }
+                            
+                            const pivot = arr[0];
+                            const left = [];
+                            const right = [];
+                            
+                            for (let i = 1; i < arr.length; i++) {
+                              if (arr[i] < pivot) {
+                                left.push(arr[i]);
+                              } else {
+                                right.push(arr[i]);
+                              }
+                            }
+                            
+                            return [...quickSort(left), pivot, ...quickSort(right)];
+                          }`}</code>
                           </pre>
                         </div>
                         <div className="bg-primary/10 rounded-lg p-4">

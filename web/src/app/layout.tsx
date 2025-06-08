@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import "@mantine/core/styles.css";
 import { MantineThemeProvider } from "@/components/MantineThemeProvider";
+import ChatBot from "@/components/ChatBot/ChatBot";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,11 +52,13 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} antialiased transition-theme min-h-screen bg-background text-foreground`}
-      >
+        className={`${geistSans.variable} ${geistMono.variable} antialiased transition-theme min-h-screen bg-background text-foreground`}>
         <AuthProvider>
           <ThemeInitializer />
-          <MantineThemeProvider>{children}</MantineThemeProvider>
+          <MantineThemeProvider>
+            {children}
+            <ChatBot />
+          </MantineThemeProvider>
         </AuthProvider>
       </body>
     </html>
