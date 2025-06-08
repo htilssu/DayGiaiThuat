@@ -20,8 +20,8 @@ class CamelCaseMiddleware:
     """
 
     def __init__(
-            self,
-            app,
+        self,
+        app,
     ) -> None:
         self.app = app
         self.initial_message = {}
@@ -31,11 +31,10 @@ class CamelCaseMiddleware:
         if scope["type"] == "lifespan":
             await self.app(scope, receive, send)
             return
-            
+
         # Xử lý request body từ camelCase sang snake_case
         request = Request(scope, receive)
         request = await self._process_request(request)
-
 
         async def send_wrapper(message: Message):
             if message["type"] == "http.response.start":
@@ -70,7 +69,7 @@ class CamelCaseMiddleware:
                     except (json.JSONDecodeError, UnicodeDecodeError):
                         # Nếu không phải JSON hợp lệ thì gửi nguyên body
                         pass
-                    
+
             await send(self.initial_message)
             await send(message)
 
@@ -102,23 +101,3 @@ class CamelCaseMiddleware:
                     pass
 
         return request
-
-    async def _process_response(self, response: Response) -> Response:
-        """
-        Chuyển đổi response body từ snake_case (backend) sang camelCase (frontend)
-        """
-        # Chỉ xử lý JSON responses
-        if isinstance(response, JSONResponse):
-            response_body = json.loads(response.body)
-            # Chuyển đổi tất cả key trong response sang camelCase
-            camel_case_body = convert_dict_to_camel_case(response_body)
-            # Tạo response mới với body đã được chuyển đổi
-            return JSONResponse(
-                status_code=response.status_code,
-                content=camel_case_body,
-                headers=dict(response.headers),
-                media_type=response.media_type,
-                background=response.background,
-            )
-
-        return response

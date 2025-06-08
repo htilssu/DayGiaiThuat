@@ -1,16 +1,16 @@
+from typing import List
+
+from sqlalchemy import Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database.database import Base
 
 
 class Topic(Base):
-    id: int
-    name: str
-    description: str
-    category: str
-    difficulty: str
-    constraint: str
-    duration: int  # in minutes
-    repetitions: int = 0  # number of times the topic should be repeated
-    sets: int = 0  # number of sets for the topic
+    __tablename__ = "topics"
 
-    class Config:
-        orm_mode = True
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, index=True)
+    description: Mapped[str] = mapped_column(String, index=True)
+
+    exercises: Mapped[List["Exercise"]] = relationship(back_populates="topic")
+    tests: Mapped[List["Test"]] = relationship(back_populates="topic")

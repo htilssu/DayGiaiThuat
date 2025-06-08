@@ -10,7 +10,7 @@ from app.database.database import Base
 class UserState(Base):
     """
     Model đại diện cho bảng user_states trong database để lưu trữ trạng thái hiện tại của người dùng
-    
+
     Attributes:
         id (int): ID của trạng thái, là primary key
         user_id (int): ID của người dùng, là foreign key tới bảng users
@@ -30,35 +30,48 @@ class UserState(Base):
         created_at (DateTime): Thời điểm tạo trạng thái
         updated_at (DateTime): Thời điểm cập nhật gần nhất
     """
+
     __tablename__ = "user_states"
 
-    id : Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id : Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, nullable=False)
-    last_active : Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    current_course_id : Mapped[int] = mapped_column(Integer, ForeignKey("courses.id"), nullable=True)
-    current_lesson_id : Mapped[int] = mapped_column(Integer, nullable=True)  # Sẽ thêm foreign key khi tạo bảng Lesson
-    streak_last_date : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), unique=True, nullable=False
+    )
+    last_active: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    current_course_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("courses.id"), nullable=True
+    )
+    current_lesson_id: Mapped[int] = mapped_column(
+        Integer, nullable=True
+    )  # Sẽ thêm foreign key khi tạo bảng Lesson
+    streak_last_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Các trường thống kê được chuyển từ stats của User
-    streak_count : Mapped[int] = mapped_column(Integer, default=0)
-    total_points : Mapped[int] = mapped_column(Integer, default=0)
-    level : Mapped[int] = mapped_column(Integer, default=1)
-    xp_to_next_level : Mapped[int] = mapped_column(Integer, default=100)
-    daily_goal : Mapped[int] = mapped_column(Integer, default=30)  # 30 phút học mỗi ngày
-    daily_progress : Mapped[int] = mapped_column(Integer, default=0)
-    completed_exercises : Mapped[int] = mapped_column(Integer, default=0)
-    completed_courses : Mapped[int] = mapped_column(Integer, default=0)
-    problems_solved : Mapped[int] = mapped_column(Integer, default=0)
+    streak_count: Mapped[int] = mapped_column(Integer, default=0)
+    total_points: Mapped[int] = mapped_column(Integer, default=0)
+    level: Mapped[int] = mapped_column(Integer, default=1)
+    xp_to_next_level: Mapped[int] = mapped_column(Integer, default=100)
+    daily_goal: Mapped[int] = mapped_column(Integer, default=30)  # 30 phút học mỗi ngày
+    daily_progress: Mapped[int] = mapped_column(Integer, default=0)
+    completed_exercises: Mapped[int] = mapped_column(Integer, default=0)
+    completed_courses: Mapped[int] = mapped_column(Integer, default=0)
+    problems_solved: Mapped[int] = mapped_column(Integer, default=0)
 
     # Các trường tiến độ học tập chuyển từ learning_progress của User
-    algorithms_progress : Mapped[int] = mapped_column(Integer, default=0)  # Tiến độ học thuật toán (0-100%)
-    data_structures_progress : Mapped[int] = mapped_column(Integer, default=0)  # Tiến độ học cấu trúc dữ liệu (0-100%)
-    dynamic_programming_progress : Mapped[int] = mapped_column(Integer, default=0)  # Tiến độ học quy hoạch động (0-100%)
+    algorithms_progress: Mapped[int] = mapped_column(
+        Integer, default=0
+    )  # Tiến độ học thuật toán (0-100%)
+    data_structures_progress: Mapped[int] = mapped_column(
+        Integer, default=0
+    )  # Tiến độ học cấu trúc dữ liệu (0-100%)
+    dynamic_programming_progress: Mapped[int] = mapped_column(
+        Integer, default=0
+    )  # Tiến độ học quy hoạch động (0-100%)
 
-    # Các trường thời gian
-    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
     # Relationship với các bảng khác
-    user : Mapped["User"] = relationship(back_populates="state")
-    current_course : Mapped["Course"] = relationship(back_populates="user_states")
+    user: Mapped["User"] = relationship(back_populates="state")
+    current_course: Mapped["Course"] = relationship(back_populates="user_states")
