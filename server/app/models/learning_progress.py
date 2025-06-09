@@ -1,7 +1,6 @@
 from datetime import datetime
-from sqlalchemy import Boolean, Column, Integer, DateTime, Float, ForeignKey, JSON, Text
+from sqlalchemy import Boolean, Integer, DateTime, Float, ForeignKey, JSON, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
 
 from app.database.database import Base
 
@@ -53,6 +52,3 @@ class LearningProgress(Base):
     # Relationship với các bảng khác
     user: Mapped["User"] = relationship(back_populates="learning_progresses")
     course: Mapped["Course"] = relationship(back_populates="learning_progresses")
-    learning_path: Mapped["LearningPath"] = relationship(
-        back_populates="learning_paths"
-    )
