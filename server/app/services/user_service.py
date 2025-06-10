@@ -135,7 +135,9 @@ class UserService:
             )
 
         # random username
-        username = await self.random_username(user_data.first_name, user_data.last_name)
+        username = await self._random_username(
+            user_data.first_name, user_data.last_name
+        )
 
         # Mã hóa mật khẩu
         hashed_password = self.get_password_hash(user_data.password)
@@ -697,9 +699,9 @@ class UserService:
                 badge_info = {k: v for k, v in badge_data.items() if k != "threshold"}
                 await self.add_badge(user.id, badge_info)
 
-    async def random_username(self, first_name: str, last_name: str) -> str:
+    async def _random_username(self, first_name: str, last_name: str) -> str:
         fullname = f"{first_name.lower()}{last_name.lower()}"
         username = f"{remove_vi_accents(fullname)}{random.randint(999, 99999)}"
         while await self.get_user_by_username(username):
             username = f"{remove_vi_accents(fullname)}{random.randint(999, 99999)}"
-        return username
+        return username.replace(" ", "")
