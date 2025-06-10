@@ -1,4 +1,13 @@
-from sqlalchemy import Boolean, Column, Integer, String, DateTime, ForeignKey, Table, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Integer,
+    String,
+    DateTime,
+    ForeignKey,
+    Table,
+    Text,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -11,13 +20,14 @@ user_badges = Table(
     Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
     Column("badge_id", Integer, ForeignKey("badges.id"), primary_key=True),
     Column("earned_at", DateTime(timezone=True), server_default=func.now()),
-    Column("is_featured", Boolean, default=False)
+    Column("is_featured", Boolean, default=False),
 )
+
 
 class Badge(Base):
     """
     Model đại diện cho bảng badges trong database
-    
+
     Attributes:
         id (int): ID của huy hiệu, là primary key
         name (str): Tên của huy hiệu
@@ -33,6 +43,7 @@ class Badge(Base):
         created_at (DateTime): Thời điểm tạo huy hiệu
         updated_at (DateTime): Thời điểm cập nhật gần nhất
     """
+
     __tablename__ = "badges"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -46,10 +57,8 @@ class Badge(Base):
     rarity = Column(String(50), default="Common")
     is_hidden = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
-    
-    # Các trường thời gian
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
+
     # Relationship với các bảng khác
-    users = relationship("User", secondary=user_badges, back_populates="badge_collection") 
+    users = relationship(
+        "User", secondary=user_badges, back_populates="badge_collection"
+    )

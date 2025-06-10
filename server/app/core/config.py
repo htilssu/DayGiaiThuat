@@ -1,5 +1,5 @@
 import json
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from pydantic import validator, field_validator
 from pydantic_settings import BaseSettings
@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """
     Cấu hình ứng dụng, đọc từ biến môi trường
-    
+
     Attributes:
         PROJECT_NAME (str): Tên dự án
         BACKEND_CORS_ORIGINS (List[AnyHttpUrl]): Danh sách origins được phép CORS
@@ -23,7 +23,12 @@ class Settings(BaseSettings):
         COOKIE_SECURE (bool): Secure flag cho cookie
         COOKIE_SAMESITE (str): SameSite setting cho cookie
         COOKIE_NAME (str): Tên cookie lưu JWT token
+        RUN_MIGRATIONS_ON_STARTUP (bool): Chạy migration khi khởi động
+        RUN_SEEDERS_ON_STARTUP (bool): Chạy seeder khi khởi động
+        SEEDERS_TO_RUN (List[str]): Danh sách các seeder cần chạy
+        FORCE_SEEDERS (bool): Xóa dữ liệu cũ trước khi tạo mới
     """
+
     PROJECT_NAME: str
 
     # CORS
@@ -33,13 +38,13 @@ class Settings(BaseSettings):
     def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
         """
         Xử lý giá trị BACKEND_CORS_ORIGINS từ biến môi trường
-        
+
         Args:
             v (Union[str, List[str]]): Giá trị từ biến môi trường
-            
+
         Returns:
             List[str]: Danh sách các origin được phép
-            
+
         Raises:
             ValueError: Nếu giá trị không hợp lệ
         """
@@ -81,11 +86,42 @@ class Settings(BaseSettings):
     LANGSMITH_TRACING: bool = False
     LANGSMITH_PROJECT: str = "default"
 
+    # Migration và Seeder
+    RUN_MIGRATIONS_ON_STARTUP: bool = False
+    RUN_SEEDERS_ON_STARTUP: bool = False
+    SEEDERS_TO_RUN: Optional[List[str]] = None
+    FORCE_SEEDERS: bool = False
+
+    @field_validator("SEEDERS_TO_RUN", mode="before")
+    def assemble_seeders_to_run(
+        cls, v: Optional[Union[str, List[str]]]
+    ) -> Optional[List[str]]:
+        """
+        Xử lý giá trị SEEDERS_TO_RUN từ biến môi trường
+
+        Args:
+            v (Optional[Union[str, List[str]]]): Giá trị từ biến môi trường
+
+        Returns:
+            Optional[List[str]]: Danh sách các seeder cần chạy
+        """
+        if v is None:
+            return None
+
+        if isinstance(v, str):
+            try:
+                # Thử parse JSON string
+                return json.loads(v)
+            except json.JSONDecodeError:
+                # Nếu không phải JSON, split theo dấu phẩy
+                return [i.strip() for i in v.split(",")]
+        return v
+
     @property
     def DATABASE_URI(self) -> str:
         """
         Tạo connection string cho database
-        
+
         Returns:
             str: Connection string
         """

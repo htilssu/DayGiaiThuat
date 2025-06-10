@@ -8,6 +8,7 @@ class BaseAgent(object):
 
     def __init__(self):
         self.available_args = []
+        self.tools = []
 
     def act(self, *args, **kwargs):
         self.check_available_args(*args, **kwargs)

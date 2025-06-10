@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import Dict, List
+from typing import List
 
-from sqlalchemy import Boolean, Column, Integer, String, DateTime, Float, Text
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy import Boolean, Integer, String, DateTime, Float, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.database.database import Base
@@ -11,7 +11,7 @@ from app.database.database import Base
 class Course(Base):
     """
     Model đại diện cho bảng courses trong database
-    
+
     Attributes:
         id (int): ID của khóa học, là primary key
         title (str): Tiêu đề của khóa học
@@ -29,27 +29,38 @@ class Course(Base):
         created_at (DateTime): Thời điểm tạo khóa học
         updated_at (DateTime): Thời điểm cập nhật gần nhất
     """
+
     __tablename__ = "courses"
 
-    id : Mapped[int] = mapped_column(primary_key=True, index=True)
-    title : Mapped[str] = mapped_column(String(255), nullable=False)
-    description : Mapped[str] = mapped_column(Text, nullable=True)
-    thumbnail_url : Mapped[str] = mapped_column(String(500), nullable=True)
-    level : Mapped[str] = mapped_column(String(50), default="Beginner")
-    duration : Mapped[int] = mapped_column(Integer, default=0)  # Thời lượng tính bằng phút
-    price : Mapped[float] = mapped_column(Float, default=0.0)
-    is_published : Mapped[bool] = mapped_column(Boolean, default=False)
-
-    # Các trường thời gian
-    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    thumbnail_url: Mapped[str] = mapped_column(String(500), nullable=True)
+    level: Mapped[str] = mapped_column(String(50), default="Beginner")
+    duration: Mapped[int] = mapped_column(
+        Integer, default=0
+    )  # Thời lượng tính bằng phút
+    price: Mapped[float] = mapped_column(Float, default=0.0)
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Các trường JSON
-    tags : Mapped[str] = mapped_column(String(255), default="")  # Lưu dưới dạng chuỗi các tag cách nhau bởi dấu phẩy
-    requirements : Mapped[str] = mapped_column(Text, nullable=True)  # Lưu dưới dạng JSON string
-    what_you_will_learn : Mapped[str] = mapped_column(Text, nullable=True)  # Lưu dưới dạng JSON string
-    learning_path : Mapped[str] = mapped_column(Text, nullable=True)  # Lưu dưới dạng JSON string lộ trình học tập
+    tags: Mapped[str] = mapped_column(
+        String(255), default=""
+    )  # Lưu dưới dạng chuỗi các tag cách nhau bởi dấu phẩy
+    requirements: Mapped[str] = mapped_column(
+        Text, nullable=True
+    )  # Lưu dưới dạng JSON string
+    what_you_will_learn: Mapped[str] = mapped_column(
+        Text, nullable=True
+    )  # Lưu dưới dạng JSON string
+    learning_path: Mapped[str] = mapped_column(
+        Text, nullable=True
+    )  # Lưu dưới dạng JSON string lộ trình học tập
 
     # Relationship với các bảng khác
-    learning_progresses : Mapped[List["LearningProgress"]] = relationship(back_populates="course")
-    user_states : Mapped[List["UserState"]] = relationship(back_populates="current_course")
+    learning_progresses: Mapped[List["LearningProgress"]] = relationship(
+        back_populates="course"
+    )
+    user_states: Mapped[List["UserState"]] = relationship(
+        back_populates="current_course"
+    )
