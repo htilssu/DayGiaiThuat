@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { IconSend, IconRobot } from "@tabler/icons-react";
 import { TextInput, Text, ScrollArea } from "@mantine/core";
 import { GoogleGenAI } from "@google/genai";
+import LoadingDots from "./LoadingDots";
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<
@@ -16,7 +17,18 @@ export default function ChatInterface() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  // const messagesEndRef = useRef<HTMLDivElement>(null);
+  const viewport = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Scroll to bottom whenever messages change or loading state changes
+    if (viewport.current) {
+      viewport.current.scrollTo({
+        top: viewport.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  }, [messages, isLoading]);
+
   const ai = new GoogleGenAI({
     apiKey: "AIzaSyAoWvIFmtiL1MwP1y8ariEm61Zaq4-uNZo",
   });
@@ -35,7 +47,7 @@ export default function ChatInterface() {
         contents: input,
         config: {
           systemInstruction:
-            "Bạn là một giảng viên dạy thuật toán chuyên nghiệp và thân thiện. Nhiệm vụ của bạn là giao tiếp và hỗ trợ giải đáp thắc mắc của học viên",
+            "Bạn là một giảng viên dạy thuật toán chuyên nghiệp và thân thiện. Nhiệm vụ của bạn là giao tiếp và hỗ trợ giải đáp thắc mắc của học viên. Hãy trả lời 1 cách ngắn gọn và súc tích.",
         },
       });
 
@@ -86,7 +98,9 @@ export default function ChatInterface() {
       </div>
 
       {/* Messages Area */}
-      <ScrollArea className="flex-1 p-4 custom-scrollbar">
+      <ScrollArea
+        viewportRef={viewport}
+        className="flex-1 p-4 custom-scrollbar">
         <div className="flex flex-col gap-4">
           {messages.map((message, index) => (
             <div
@@ -112,6 +126,16 @@ export default function ChatInterface() {
               </div>
             </div>
           ))}
+          {isLoading && (
+            <div className="flex items-end gap-2">
+              <div className="w-6 h-6 rounded-full bg-[rgb(var(--color-primary))] flex items-center justify-center">
+                <IconRobot size={14} className="text-white" />
+              </div>
+              <div className="p-3 rounded-2xl bg-[rgb(var(--color-primary))]/10 rounded-bl-sm">
+                <LoadingDots />
+              </div>
+            </div>
+          )}
         </div>
       </ScrollArea>
 
