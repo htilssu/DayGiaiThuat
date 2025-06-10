@@ -27,10 +27,10 @@ class UserService:
     async def get_user_by_id(self, user_id: int) -> Optional[User]:
         """
         Lấy thông tin người dùng theo ID
-        
+
         Args:
             user_id (int): ID của người dùng
-            
+
         Returns:
             Optional[User]: Thông tin người dùng hoặc None nếu không tìm thấy
         """
@@ -41,21 +41,21 @@ class UserService:
             return None
 
         # Kiểm tra xem user có dữ liệu stats và learning_progress chưa, nếu chưa thì thêm vào
-        if not hasattr(user, 'stats') or user.stats is None:
+        if not hasattr(user, "stats") or user.stats is None:
             user.stats = {
                 "completed_exercises": 0,
                 "completed_courses": 0,
                 "total_points": 0,
                 "streak_days": 0,
                 "level": 1,
-                "problems_solved": 0
+                "problems_solved": 0,
             }
 
-        if not hasattr(user, 'learning_progress') or user.learning_progress is None:
+        if not hasattr(user, "learning_progress") or user.learning_progress is None:
             user.learning_progress = {
                 "algorithms": 0,
                 "data_structures": 0,
-                "dynamic_programming": 0
+                "dynamic_programming": 0,
             }
 
         # Lưu lại vào database nếu có thay đổi
@@ -66,10 +66,10 @@ class UserService:
     async def get_user_by_email(self, email: str) -> Optional[User]:
         """
         Lấy thông tin người dùng theo email
-        
+
         Args:
             email (str): Email của người dùng
-            
+
         Returns:
             Optional[User]: Thông tin người dùng hoặc None nếu không tìm thấy
         """
@@ -78,10 +78,10 @@ class UserService:
     async def get_user_by_username(self, username: str) -> Optional[User]:
         """
         Lấy thông tin người dùng theo username
-        
+
         Args:
             username (str): Username của người dùng
-            
+
         Returns:
             Optional[User]: Thông tin người dùng hoặc None nếu không tìm thấy
         """
@@ -90,11 +90,11 @@ class UserService:
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """
         Kiểm tra mật khẩu
-        
+
         Args:
             plain_password (str): Mật khẩu gốc
             hashed_password (str): Mật khẩu đã mã hóa
-            
+
         Returns:
             bool: True nếu mật khẩu đúng, ngược lại là False
         """
@@ -103,10 +103,10 @@ class UserService:
     def get_password_hash(self, password: str) -> str:
         """
         Mã hóa mật khẩu
-        
+
         Args:
             password (str): Mật khẩu gốc
-            
+
         Returns:
             str: Mật khẩu đã mã hóa
         """
@@ -115,13 +115,13 @@ class UserService:
     async def create_user(self, user_data: UserRegister) -> User:
         """
         Tạo người dùng mới
-        
+
         Args:
             user_data (UserRegister): Thông tin người dùng mới
-            
+
         Returns:
             User: Người dùng đã được tạo
-            
+
         Raises:
             HTTPException: Nếu email hoặc username đã tồn tại
         """
@@ -129,56 +129,24 @@ class UserService:
         db_user = await self.get_user_by_email(user_data.email)
         if db_user:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email đã được sử dụng"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Email đã được sử dụng"
             )
 
-        # Kiểm tra username đã tồn tại chưa
-        db_user = await self.get_user_by_username(user_data.username)
-        if db_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username đã được sử dụng"
-            )
+        # random username
+        username = f"{user_data.first_name.lower()}{user_data.last_name.lower()}{random.randint(999, 99999)}"
+        while await self.get_user_by_username(username):
+            username = f"{user_data.first_name.lower()}{user_data.last_name.lower()}{random.randint(999, 99999)}"
 
         # Mã hóa mật khẩu
         hashed_password = self.get_password_hash(user_data.password)
 
-        # Tạo người dùng mới
-        now = datetime.utcnow()
         new_user = User(
             email=user_data.email,
-            username=user_data.username,
+            username=username,
             hashed_password=hashed_password,
             first_name=user_data.first_name,
             last_name=user_data.last_name,
-            avatar_url=f"/avatars/default-{random.randint(1, 5)}.png",
-            created_at=now,
-            updated_at=now,
-            stats={
-                "completed_exercises": 0,
-                "completed_courses": 0,
-                "total_points": 0,
-                "streak_days": 0,
-                "level": 1,
-                "problems_solved": 0
-            },
-            badges=[
-                {
-                    "id": 1,
-                    "name": "Người mới",
-                    "icon": "🔰",
-                    "description": "Hoàn thành đăng ký tài khoản",
-                    "unlocked": True
-                }
-            ],
-            activities=[],
-            learning_progress={
-                "algorithms": 0,
-                "data_structures": 0,
-                "dynamic_programming": 0
-            },
-            courses=[]
+            avatar_url=f"/avatars/default.png",
         )
 
         # Lưu vào database
@@ -191,11 +159,11 @@ class UserService:
     async def update_password(self, user_id: int, new_password: str) -> bool:
         """
         Cập nhật mật khẩu cho người dùng
-        
+
         Args:
             user_id (int): ID của người dùng
             new_password (str): Mật khẩu mới
-            
+
         Returns:
             bool: True nếu cập nhật thành công, ngược lại là False
         """
@@ -215,14 +183,16 @@ class UserService:
 
         return True
 
-    async def update_user_profile(self, user_id: int, profile_data: UserUpdate) -> Optional[User]:
+    async def update_user_profile(
+        self, user_id: int, profile_data: UserUpdate
+    ) -> Optional[User]:
         """
         Cập nhật thông tin profile của người dùng
-        
+
         Args:
             user_id (int): ID của người dùng
             profile_data (UserUpdate): Thông tin profile mới
-            
+
         Returns:
             Optional[User]: Thông tin người dùng đã cập nhật hoặc None nếu không tìm thấy
         """
@@ -242,14 +212,16 @@ class UserService:
 
         return user
 
-    async def add_activity(self, user_id: int, activity_data: Dict[str, Any]) -> Optional[User]:
+    async def add_activity(
+        self, user_id: int, activity_data: Dict[str, Any]
+    ) -> Optional[User]:
         """
         Thêm hoạt động mới vào profile của người dùng
-        
+
         Args:
             user_id (int): ID của người dùng
             activity_data (Dict[str, Any]): Thông tin hoạt động mới
-            
+
         Returns:
             Optional[User]: Thông tin người dùng đã cập nhật hoặc None nếu không tìm thấy
         """
@@ -269,7 +241,7 @@ class UserService:
             "id": activity_id,
             "type": activity_data.get("type"),
             "name": activity_data.get("name"),
-            "date": activity_date
+            "date": activity_date,
         }
 
         # Thêm thông tin tùy chọn
@@ -292,14 +264,16 @@ class UserService:
 
         return user
 
-    async def add_badge(self, user_id: int, badge_data: Dict[str, Any]) -> Optional[User]:
+    async def add_badge(
+        self, user_id: int, badge_data: Dict[str, Any]
+    ) -> Optional[User]:
         """
         Thêm huy hiệu mới vào profile của người dùng
-        
+
         Args:
             user_id (int): ID của người dùng
             badge_data (Dict[str, Any]): Thông tin huy hiệu mới
-            
+
         Returns:
             Optional[User]: Thông tin người dùng đã cập nhật hoặc None nếu không tìm thấy
         """
@@ -327,7 +301,7 @@ class UserService:
             "name": badge_data.get("name"),
             "icon": badge_data.get("icon"),
             "description": badge_data.get("description"),
-            "unlocked": badge_data.get("unlocked", True)
+            "unlocked": badge_data.get("unlocked", True),
         }
 
         badges.append(badge)
@@ -340,14 +314,16 @@ class UserService:
 
         return user
 
-    async def update_learning_progress(self, user_id: int, progress_data: Dict[str, int]) -> Optional[User]:
+    async def update_learning_progress(
+        self, user_id: int, progress_data: Dict[str, int]
+    ) -> Optional[User]:
         """
         Cập nhật tiến độ học tập của người dùng
-        
+
         Args:
             user_id (int): ID của người dùng
             progress_data (Dict[str, int]): Thông tin tiến độ học tập mới
-            
+
         Returns:
             Optional[User]: Thông tin người dùng đã cập nhật hoặc None nếu không tìm thấy
         """
@@ -369,15 +345,17 @@ class UserService:
 
         return user
 
-    async def update_course_progress(self, user_id: int, course_id: str, progress: int) -> Optional[User]:
+    async def update_course_progress(
+        self, user_id: int, course_id: str, progress: int
+    ) -> Optional[User]:
         """
         Cập nhật tiến độ khóa học
-        
+
         Args:
             user_id (int): ID của người dùng
             course_id (str): ID của khóa học
             progress (int): Tiến độ mới (0-100%)
-            
+
         Returns:
             Optional[User]: Thông tin người dùng đã cập nhật hoặc None nếu không tìm thấy
         """
@@ -410,10 +388,12 @@ class UserService:
         # Không tìm thấy khóa học, trả về None
         return None
 
-    async def _update_stats_after_activity(self, user: User, activity_data: Dict[str, Any]) -> None:
+    async def _update_stats_after_activity(
+        self, user: User, activity_data: Dict[str, Any]
+    ) -> None:
         """
         Cập nhật thống kê sau khi có hoạt động mới
-        
+
         Args:
             user (User): Thông tin người dùng
             activity_data (Dict[str, Any]): Thông tin hoạt động mới
@@ -445,7 +425,7 @@ class UserService:
     async def _update_level(self, user: User, stats: Dict[str, Any]) -> None:
         """
         Cập nhật level của người dùng dựa trên điểm số
-        
+
         Args:
             user (User): Thông tin người dùng
             stats (Dict[str, Any]): Thống kê người dùng
@@ -460,11 +440,10 @@ class UserService:
             stats["level"] = new_level
 
             # Tạo hoạt động lên cấp
-            await self.add_activity(user.id, {
-                "type": "level_up",
-                "name": f"Lên cấp {new_level}",
-                "completed": True
-            })
+            await self.add_activity(
+                user.id,
+                {"type": "level_up", "name": f"Lên cấp {new_level}", "completed": True},
+            )
 
             # Kiểm tra và cấp huy hiệu (nếu cần)
             await self._check_level_badge(user)
@@ -472,10 +451,10 @@ class UserService:
     async def update_streak(self, user_id: int) -> Optional[User]:
         """
         Cập nhật chuỗi ngày hoạt động liên tiếp (streak)
-        
+
         Args:
             user_id (int): ID của người dùng
-            
+
         Returns:
             Optional[User]: Thông tin người dùng đã cập nhật hoặc None nếu không tìm thấy
         """
@@ -493,7 +472,9 @@ class UserService:
         if last_active_date:
             # Chuyển định dạng ngày
             if isinstance(last_active_date, str):
-                last_active_date = datetime.strptime(last_active_date, "%Y-%m-%d").date()
+                last_active_date = datetime.strptime(
+                    last_active_date, "%Y-%m-%d"
+                ).date()
 
             # Tính số ngày giữa lần hoạt động cuối và hiện tại
             days_diff = (today - last_active_date).days
@@ -526,7 +507,7 @@ class UserService:
     async def _check_streak_badge(self, user: User) -> None:
         """
         Kiểm tra và cấp huy hiệu liên quan đến streak
-        
+
         Args:
             user (User): Thông tin người dùng
         """
@@ -540,22 +521,22 @@ class UserService:
                 "name": "Chăm chỉ",
                 "icon": "🔥",
                 "description": "Hoạt động liên tục 7 ngày",
-                "threshold": 7
+                "threshold": 7,
             },
             {
                 "id": 11,
                 "name": "Kiên trì",
                 "icon": "⚡",
                 "description": "Hoạt động liên tục 30 ngày",
-                "threshold": 30
+                "threshold": 30,
             },
             {
                 "id": 12,
                 "name": "Siêu nhân",
                 "icon": "🚀",
                 "description": "Hoạt động liên tục 100 ngày",
-                "threshold": 100
-            }
+                "threshold": 100,
+            },
         ]
 
         # Kiểm tra từng huy hiệu
@@ -568,7 +549,7 @@ class UserService:
     async def _check_level_badge(self, user: User) -> None:
         """
         Kiểm tra và cấp huy hiệu liên quan đến level
-        
+
         Args:
             user (User): Thông tin người dùng
         """
@@ -582,22 +563,22 @@ class UserService:
                 "name": "Tân binh",
                 "icon": "🌱",
                 "description": "Đạt cấp độ 5",
-                "threshold": 5
+                "threshold": 5,
             },
             {
                 "id": 21,
                 "name": "Chiến binh",
                 "icon": "⚔️",
                 "description": "Đạt cấp độ 10",
-                "threshold": 10
+                "threshold": 10,
             },
             {
                 "id": 22,
                 "name": "Bậc thầy",
                 "icon": "🏆",
                 "description": "Đạt cấp độ 20",
-                "threshold": 20
-            }
+                "threshold": 20,
+            },
         ]
 
         # Kiểm tra từng huy hiệu
@@ -610,10 +591,10 @@ class UserService:
     async def update_badges(self, user_id: int) -> Optional[User]:
         """
         Cập nhật và kiểm tra các huy hiệu cho người dùng
-        
+
         Args:
             user_id (int): ID của người dùng
-            
+
         Returns:
             Optional[User]: Thông tin người dùng đã cập nhật hoặc None nếu không tìm thấy
         """
@@ -632,7 +613,7 @@ class UserService:
     async def _check_problem_solved_badge(self, user: User) -> None:
         """
         Kiểm tra và cấp huy hiệu liên quan đến số bài giải được
-        
+
         Args:
             user (User): Thông tin người dùng
         """
@@ -646,22 +627,22 @@ class UserService:
                 "name": "Coder tập sự",
                 "icon": "💻",
                 "description": "Giải được 10 bài tập",
-                "threshold": 10
+                "threshold": 10,
             },
             {
                 "id": 31,
                 "name": "Coder chuyên nghiệp",
                 "icon": "👨‍💻",
                 "description": "Giải được 50 bài tập",
-                "threshold": 50
+                "threshold": 50,
             },
             {
                 "id": 32,
                 "name": "Coder huyền thoại",
                 "icon": "🧙‍♂️",
                 "description": "Giải được 100 bài tập",
-                "threshold": 100
-            }
+                "threshold": 100,
+            },
         ]
 
         # Kiểm tra từng huy hiệu
@@ -674,7 +655,7 @@ class UserService:
     async def _check_account_age_badge(self, user: User) -> None:
         """
         Kiểm tra và cấp huy hiệu liên quan đến tuổi tài khoản
-        
+
         Args:
             user (User): Thông tin người dùng
         """
@@ -691,22 +672,22 @@ class UserService:
                 "name": "Thành viên mới",
                 "icon": "👶",
                 "description": "Tài khoản đã tồn tại 30 ngày",
-                "threshold": 30
+                "threshold": 30,
             },
             {
                 "id": 41,
                 "name": "Thành viên trung thành",
                 "icon": "👨",
                 "description": "Tài khoản đã tồn tại 180 ngày",
-                "threshold": 180
+                "threshold": 180,
             },
             {
                 "id": 42,
                 "name": "Thành viên lâu năm",
                 "icon": "👴",
                 "description": "Tài khoản đã tồn tại 365 ngày",
-                "threshold": 365
-            }
+                "threshold": 365,
+            },
         ]
 
         # Kiểm tra từng huy hiệu

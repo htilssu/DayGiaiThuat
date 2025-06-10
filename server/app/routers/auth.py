@@ -15,6 +15,7 @@ from app.utils.auth import (
     set_auth_cookie,
     clear_auth_cookie,
 )
+from app.services.user_service import UserService
 
 router = APIRouter(
     prefix="/auth",
@@ -36,49 +37,15 @@ router = APIRouter(
     },
 )
 async def register(
-    response: Response, user: UserRegister, db: Session = Depends(get_db)
+    response: Response, user: UserRegister, user_service: UserService = Depends()
 ) -> Any:
     """
     Đăng ký tài khoản mới và trả về token đăng nhập
     """
 
-    # Kiểm tra email đã tồn tại
-    db_user = db.query(UserModel).filter(UserModel.email == user.email).first()
-    if db_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Email đã được đăng ký"
-        )
+    await user_service.create_user(user)
 
-    try:
-        # Tạo user mới với username là None
-        hashed_password = get_password_hash(user.password)
-        db_user = UserModel(
-            email=user.email,
-            username=user.username,
-            hashed_password=hashed_password,
-            first_name=user.first_name,
-            last_name=user.last_name,
-        )
-        db.add(db_user)
-        db.commit()
-        db.refresh(db_user)
-
-        # Tạo access token - Luôn sử dụng email vì username là None
-        access_token = create_access_token(
-            data={"sub": db_user.email}, expires_delta=timedelta(minutes=60 * 24 * 30)
-        )
-
-        # Thiết lập cookie sử dụng hàm tiện ích
-        set_auth_cookie(response, access_token)
-
-        return {"access_token": access_token, "token_type": "bearer"}
-
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Có lỗi xảy ra khi tạo tài khoản",
-        )
+    return {"message": "Đăng ký thành công"}
 
 
 @router.post("/login", response_model=Token)
