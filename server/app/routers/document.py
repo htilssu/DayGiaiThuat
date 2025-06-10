@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, UploadFile
 from langchain_docling import DoclingLoader
 
@@ -10,6 +12,7 @@ async def store_document(file: UploadFile):
        :param file: Tệp tài liệu được upload để store vào vectorstore
        :return:
     """
+
 
     url = "https://arxiv.org/pdf/2308.10379"
     doc = DoclingLoader(url)
