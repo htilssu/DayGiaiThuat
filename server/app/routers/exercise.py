@@ -1,10 +1,7 @@
 from fastapi import APIRouter, Depends
+from starlette.responses import JSONResponse
 
-from app.core.agents.exercise_generator import (
-    GenerateExerciseQuestionAgent,
-    get_exercise_agent,
-)
-from app.schemas.exercise import GetExerciseSchema
+from app.schemas.exercise import CreateExerciseSchema
 from app.services.exercise_service import ExerciseService
 
 router = APIRouter(prefix="/exercise", tags=["exercise"])
@@ -12,9 +9,11 @@ router = APIRouter(prefix="/exercise", tags=["exercise"])
 
 @router.get("")
 async def get_exercise(
-    data: GetExerciseSchema = None,
-    exercise_service: ExerciseService = Depends(ExerciseService),
+        data: CreateExerciseSchema = None,
+        exercise_service: ExerciseService = Depends(ExerciseService),
 ):
+    if data is None:
+        return JSONResponse("Invalid request data", status_code=400)
     exercise = await exercise_service.create_exercise(data)
 
     return exercise

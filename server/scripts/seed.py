@@ -104,8 +104,6 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
             "category": "Implementation",
             "difficulty": "Easy",
             "constraint": "Thời gian thực thi O(1) cho các thao tác cơ bản",
-            "duration": 60,
-            "sets": 2,
             "topic_id": 1,
         },
         {
@@ -114,8 +112,6 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
             "category": "Implementation",
             "difficulty": "Medium",
             "constraint": "Thời gian thực thi O(log n) cho các thao tác cơ bản",
-            "duration": 90,
-            "sets": 3,
             "topic_id": 1,
         },
         {
@@ -124,8 +120,6 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
             "category": "Algorithm",
             "difficulty": "Medium",
             "constraint": "Thời gian thực thi trung bình O(n log n)",
-            "duration": 75,
-            "sets": 2,
             "topic_id": 2,
         },
         {
@@ -134,8 +128,6 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
             "category": "Algorithm",
             "difficulty": "Easy",
             "constraint": "Thời gian thực thi O(log n)",
-            "duration": 45,
-            "sets": 4,
             "topic_id": 3,
         },
         {
@@ -144,8 +136,6 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
             "category": "Dynamic Programming",
             "difficulty": "Hard",
             "constraint": "Giới hạn bộ nhớ và tối ưu hóa không gian",
-            "duration": 120,
-            "sets": 2,
             "topic_id": 4,
         },
         {
@@ -154,8 +144,6 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
             "category": "Graph",
             "difficulty": "Medium",
             "constraint": "Thời gian thực thi O((V+E)logV)",
-            "duration": 90,
-            "sets": 3,
             "topic_id": 5,
         },
     ]

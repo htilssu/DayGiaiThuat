@@ -14,8 +14,6 @@ class Exercise(Base):
         category (str): Phân loại bài tập
         difficulty (str): Độ khó của bài tập
         constraint (str): Các ràng buộc hoặc yêu cầu của bài tập
-        duration (int): Thời gian làm bài (tính bằng phút)
-        sets (int): Số lượng bộ bài tập
         topic_id (int): ID của chủ đề liên quan, foreign key đến bảng topics
 
     Relationships:
@@ -30,8 +28,6 @@ class Exercise(Base):
     category: Mapped[str] = mapped_column(String)
     difficulty: Mapped[str] = mapped_column(String)
     constraint: Mapped[str] = mapped_column(String)
-    duration: Mapped[int] = mapped_column(Integer)  # in minutes
-    sets: Mapped[int] = mapped_column(Integer)  # number of sets for the exercise
     topic_id: Mapped[int] = mapped_column(ForeignKey("topics.id"))
 
     topic: Mapped["Topic"] = relationship(back_populates="exercises")
