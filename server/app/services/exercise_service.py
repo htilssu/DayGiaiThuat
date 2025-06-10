@@ -1,7 +1,8 @@
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.schemas.exercise import CreateExerciseSchema, Exercise as ExerciseSchema
+from app.schemas.exercise import CreateExerciseSchema
+from app.core.agents.exercise_generator import ExerciseDetail as ExerciseSchema
 from app.models.exercise import Exercise as ExerciseModel
 from app.core.agents.exercise_generator import (
     GenerateExerciseQuestionAgent,
