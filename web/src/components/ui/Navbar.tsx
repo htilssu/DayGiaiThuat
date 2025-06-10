@@ -90,19 +90,16 @@ export default function Navbar() {
       }}
       className={`w-full py-4 sticky top-0 z-50 transition-all duration-500 bg-background/95 border-b theme-transition ${
         scrollY > 10
-      }`}
-    >
+      }`}>
       <div className="container mx-auto flex items-center justify-between px-4">
         {/* Logo */}
         <Link
           href="/"
-          className="flex items-center gap-3 transition-all duration-300 hover:scale-105 transform hover:-rotate-1"
-        >
+          className="flex items-center gap-3 transition-all duration-300 hover:scale-105 transform hover:-rotate-1">
           <div className="relative h-10 w-10 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center font-bold shadow-md hover:shadow-lg theme-transition">
             <span className="text-lg font-bold">A</span>
             <span
-              className={`absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full border-2  animate-pulse-slow theme-transition`}
-            ></span>
+              className={`absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full border-2  animate-pulse-slow theme-transition`}></span>
           </div>
           <span className="font-bold text-xl text-gradient-theme theme-transition">
             {appName}
@@ -154,8 +151,7 @@ export default function Navbar() {
                 <button
                   className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary text-white font-medium shadow-sm hover:shadow transition-all transform hover:-translate-y-0.5"
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  aria-label="Menu người dùng"
-                >
+                  aria-label="Menu người dùng">
                   {getInitials()}
                 </button>
 
@@ -173,24 +169,21 @@ export default function Navbar() {
                     <Link
                       href="/profile"
                       className="block px-4 py-2 text-sm text-foreground hover:bg-foreground/10 transition-colors"
-                      onClick={() => setIsUserMenuOpen(false)}
-                    >
+                      onClick={() => setIsUserMenuOpen(false)}>
                       Hồ sơ
                     </Link>
                     <Link
                       href="/settings"
                       className="block px-4 py-2 text-sm text-foreground hover:bg-foreground/10 transition-colors"
-                      onClick={() => setIsUserMenuOpen(false)}
-                    >
+                      onClick={() => setIsUserMenuOpen(false)}>
                       Cài đặt
                     </Link>
                     <div
-                      onClick={() => { 
+                      onClick={() => {
                         setIsUserMenuOpen(false);
                         handleLogout();
                       }}
-                      className="w-full flex text-left px-4 py-2 text-sm text-red-500 hover:bg-foreground/10 transition-colors"
-                    >
+                      className="w-full flex text-left px-4 py-2 text-sm text-red-500 hover:bg-foreground/10 transition-colors">
                       Đăng xuất
                     </div>
                   </div>
@@ -200,14 +193,12 @@ export default function Navbar() {
               <>
                 <Link
                   href="/auth/login"
-                  className="px-4 py-2 text-sm font-medium rounded-lg hover:bg-foreground/10 transition-colors text-foreground theme-transition"
-                >
+                  className="px-4 py-2 text-sm font-medium rounded-lg hover:bg-foreground/10 transition-colors text-foreground theme-transition">
                   Đăng nhập
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="px-5 py-2 text-sm font-medium btn-gradient-primary rounded-lg transition-all shadow-sm hover:shadow transform hover:-translate-y-0.5 theme-transition"
-                >
+                  className="px-5 py-2 text-sm font-medium btn-gradient-primary rounded-lg transition-all shadow-sm hover:shadow transform hover:-translate-y-0.5 theme-transition">
                   Đăng ký
                 </Link>
               </>
@@ -218,8 +209,7 @@ export default function Navbar() {
           <button
             className="md:hidden flex items-center justify-center w-10 h-10 rounded-full hover:bg-foreground/10 transition-colors"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label={isMenuOpen ? "Đóng menu" : "Mở menu"}
-          >
+            aria-label={isMenuOpen ? "Đóng menu" : "Mở menu"}>
             {isMenuOpen ? (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -231,8 +221,7 @@ export default function Navbar() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-foreground"
-              >
+                className="text-foreground">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
@@ -247,8 +236,7 @@ export default function Navbar() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-foreground"
-              >
+                className="text-foreground">
                 <line x1="3" y1="12" x2="21" y2="12" />
                 <line x1="3" y1="6" x2="21" y2="6" />
                 <line x1="3" y1="18" x2="21" y2="18" />
@@ -261,8 +249,7 @@ export default function Navbar() {
       {/* Menu Mobile */}
       {isMenuOpen && (
         <div
-          className={`md:hidden bg-background py-4 px-4 border-t border-primary/10 animate-fade-in theme-transition`}
-        >
+          className={`md:hidden bg-background py-4 px-4 border-t border-primary/10 animate-fade-in theme-transition`}>
           <nav className="flex flex-col gap-2">
             <MobileNavItem
               href="/"
@@ -328,15 +315,13 @@ export default function Navbar() {
                 <Link
                   href="/profile"
                   className={`w-full py-2.5 px-3 text-left text-sm font-medium border rounded-lg hover:bg-foreground/10 transition-colors theme-transition`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
+                  onClick={() => setIsMenuOpen(false)}>
                   Hồ sơ của tôi
                 </Link>
                 <Link
                   href="/settings"
                   className={`w-full py-2.5 px-3 text-left text-sm font-medium border rounded-lg hover:bg-foreground/10 transition-colors theme-transition`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
+                  onClick={() => setIsMenuOpen(false)}>
                   Cài đặt
                 </Link>
                 <button
@@ -344,8 +329,7 @@ export default function Navbar() {
                     setIsMenuOpen(false);
                     handleLogout();
                   }}
-                  className="w-full py-2.5 text-left px-3 text-sm font-medium border border-red-200 text-red-500 hover:bg-red-50/30 rounded-lg transition-colors"
-                >
+                  className="w-full py-2.5 text-left px-3 text-sm font-medium border border-red-200 text-red-500 hover:bg-red-50/30 rounded-lg transition-colors">
                   Đăng xuất
                 </button>
               </>
@@ -354,15 +338,13 @@ export default function Navbar() {
                 <Link
                   href="/auth/login"
                   className={`w-full py-2.5 text-center text-sm font-medium border rounded-lg hover:bg-foreground/10 transition-colors theme-transition`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
+                  onClick={() => setIsMenuOpen(false)}>
                   Đăng nhập
                 </Link>
                 <Link
                   href="/auth/register"
                   className="w-full py-2.5 text-center text-sm font-medium bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 rounded-lg transition-colors shadow-sm hover:shadow text-white"
-                  onClick={() => setIsMenuOpen(false)}
-                >
+                  onClick={() => setIsMenuOpen(false)}>
                   Đăng ký
                 </Link>
               </>
@@ -397,8 +379,7 @@ function NavItem({
         aria-current={isActive ? "page" : undefined}
         className={`relative px-1 py-2 font-medium theme-transition flex items-center ${
           isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
-        } transition-colors`}
-      >
+        } transition-colors`}>
         {label}
 
         {/* Indicator thanh dưới chân - active */}
@@ -446,8 +427,7 @@ function MobileNavItem({
           ? "text-primary font-medium"
           : "text-foreground/80 hover:bg-foreground/10 hover:text-primary"
       } transition-all duration-300 hover:pl-6`}
-      onClick={onClick}
-    >
+      onClick={onClick}>
       {/* Thanh indicator bên trái */}
       <span className="absolute left-0 top-0 bottom-0 w-0 bg-primary/20 transition-all duration-300 group-hover:w-1"></span>
 

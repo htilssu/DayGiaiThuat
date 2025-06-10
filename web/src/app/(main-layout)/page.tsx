@@ -26,8 +26,7 @@ export default function HomePage() {
           className="h-8 w-8"
           fill="none"
           viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
+          stroke="currentColor">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -46,8 +45,7 @@ export default function HomePage() {
           className="h-8 w-8"
           fill="none"
           viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
+          stroke="currentColor">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -66,8 +64,7 @@ export default function HomePage() {
           className="h-8 w-8"
           fill="none"
           viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
+          stroke="currentColor">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -92,8 +89,7 @@ export default function HomePage() {
           className="h-8 w-8"
           fill="none"
           viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
+          stroke="currentColor">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -129,12 +125,11 @@ export default function HomePage() {
         <section
           className={`pt-16 pb-24 transition-all duration-700 ${
             heroVisible ? "opacity-100" : "opacity-0 translate-y-10"
-          }`}
-        >
+          }`}>
           <div className="container mx-auto px-4">
             <div className="flex flex-col md:flex-row items-center">
               <div className="md:w-1/2 mb-12 md:mb-0 md:pr-8">
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-gradient-theme">
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gradient-theme py-5">
                   Học thuật toán hiệu quả cùng AI
                 </h1>
                 <p className="text-lg md:text-xl mb-8 text-foreground/80 max-w-xl">
@@ -145,14 +140,12 @@ export default function HomePage() {
                 <div className="flex flex-wrap gap-4">
                   <Link
                     href="/algorithms"
-                    className="px-6 py-3 btn-gradient-primary text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all"
-                  >
+                    className="px-6 py-3 btn-gradient-primary text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all">
                     Khám phá ngay
                   </Link>
                   <Link
                     href="/about"
-                    className="px-6 py-3 bg-background border-2 border-primary text-primary font-semibold rounded-lg hover:bg-primary/5 transition-all"
-                  >
+                    className="px-6 py-3 bg-background border-2 border-primary text-primary font-semibold rounded-lg hover:bg-primary/5 transition-all">
                     Tìm hiểu thêm
                   </Link>
                 </div>
@@ -171,24 +164,24 @@ export default function HomePage() {
                         <div className="bg-foreground/5 rounded-lg p-4">
                           <pre className="text-xs text-foreground/80">
                             <code>{`function quickSort(arr) {
-  if (arr.length <= 1) {
-    return arr;
-  }
-  
-  const pivot = arr[0];
-  const left = [];
-  const right = [];
-  
-  for (let i = 1; i < arr.length; i++) {
-    if (arr[i] < pivot) {
-      left.push(arr[i]);
-    } else {
-      right.push(arr[i]);
-    }
-  }
-  
-  return [...quickSort(left), pivot, ...quickSort(right)];
-}`}</code>
+                            if (arr.length <= 1) {
+                              return arr;
+                            }
+                            
+                            const pivot = arr[0];
+                            const left = [];
+                            const right = [];
+                            
+                            for (let i = 1; i < arr.length; i++) {
+                              if (arr[i] < pivot) {
+                                left.push(arr[i]);
+                              } else {
+                                right.push(arr[i]);
+                              }
+                            }
+                            
+                            return [...quickSort(left), pivot, ...quickSort(right)];
+                          }`}</code>
                           </pre>
                         </div>
                         <div className="bg-primary/10 rounded-lg p-4">
@@ -213,8 +206,7 @@ export default function HomePage() {
         <section
           className={`py-20 bg-foreground/5 rounded-t-[3rem] transition-all duration-700 ${
             featuresVisible ? "opacity-100" : "opacity-0 translate-y-10"
-          }`}
-        >
+          }`}>
           <div className="container mx-auto px-4">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -230,8 +222,7 @@ export default function HomePage() {
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className="bg-background rounded-xl p-6 shadow-lg border border-foreground/10 hover:shadow-xl transition-all hover:border-primary/20"
-                >
+                  className="bg-background rounded-xl p-6 shadow-lg border border-foreground/10 hover:shadow-xl transition-all hover:border-primary/20">
                   <div className="p-3 mb-4 rounded-lg bg-primary/10 w-max text-primary">
                     {feature.icon}
                   </div>
@@ -249,8 +240,7 @@ export default function HomePage() {
         <section
           className={`py-20 bg-gradient-to-br from-primary/90 to-secondary/90 text-white transition-all duration-700 ${
             statVisible ? "opacity-100" : "opacity-0 translate-y-10"
-          }`}
-        >
+          }`}>
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               {stats.map((stat, index) => (
@@ -281,8 +271,7 @@ export default function HomePage() {
               {[1, 2, 3].map((_, index) => (
                 <div
                   key={index}
-                  className="bg-foreground/5 rounded-xl p-6 border border-foreground/10"
-                >
+                  className="bg-foreground/5 rounded-xl p-6 border border-foreground/10">
                   <div className="flex items-center mb-4">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mr-4">
                       <span className="text-xl font-bold text-primary">
@@ -319,8 +308,7 @@ export default function HomePage() {
             </p>
             <Link
               href="/auth/register"
-              className="px-8 py-4 btn-gradient-primary text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all inline-block"
-            >
+              className="px-8 py-4 btn-gradient-primary text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all inline-block">
               Đăng ký miễn phí
             </Link>
           </div>

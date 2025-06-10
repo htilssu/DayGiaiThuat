@@ -1,8 +1,8 @@
 "use client";
 
-import { setTheme } from "@/lib/utils";
+import { setTheme } from "@/lib/utils/theme";
 
-import { getTheme } from "@/lib/utils";
+import { getTheme } from "@/lib/utils/theme";
 import { useState } from "react";
 
 /**
@@ -23,11 +23,10 @@ export default function ThemeToggle() {
   // Biểu tượng cho light mode (mặt trời)
   const SunIcon = () => (
     <svg
-      className="w-5 h-5 text-yellow-400"
+      className="w-5 h-5 text-[rgb(var(--color-primary))]"
       fill="none"
       viewBox="0 0 24 24"
-      stroke="currentColor"
-    >
+      stroke="currentColor">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -40,11 +39,10 @@ export default function ThemeToggle() {
   // Biểu tượng cho dark mode (mặt trăng)
   const MoonIcon = () => (
     <svg
-      className="w-5 h-5 text-orange-400"
+      className="w-5 h-5 text-[rgb(var(--color-secondary))]"
       fill="none"
       viewBox="0 0 24 24"
-      stroke="currentColor"
-    >
+      stroke="currentColor">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -58,8 +56,7 @@ export default function ThemeToggle() {
       <button
         onClick={handleToggle}
         className={`p-2 rounded-full hover:bg-primary/10 transition-colors`}
-        aria-label="Chuyển đổi theme"
-      >
+        aria-label="Chuyển đổi theme">
         <MoonIcon />
       </button>
     );
@@ -68,9 +65,8 @@ export default function ThemeToggle() {
     <button
       key={currentTheme}
       onClick={handleToggle}
-      className={`p-2 rounded-full bg-primary transition-colors`}
-      aria-label="Chuyển đổi theme"
-    >
+      className={`p-2 rounded-full hover:bg-primary/10 transition-colors`}
+      aria-label="Chuyển đổi theme">
       <SunIcon />
     </button>
   );
