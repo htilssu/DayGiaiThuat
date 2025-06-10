@@ -5,7 +5,9 @@ from typing import Optional, Dict, Any
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
 
-from ..database.database import SessionLocal
+from app.utils.string import remove_vi_accents
+
+from ..database.database import get_db
 from ..models.user import User
 from ..schemas.auth import UserRegister
 from ..schemas.user_profile import UserUpdate
@@ -19,7 +21,7 @@ class UserService:
     """
 
     def __init__(self):
-        self.db = SessionLocal()
+        self.db = get_db()
 
     def __del__(self):
         self.db.close()
@@ -133,9 +135,7 @@ class UserService:
             )
 
         # random username
-        username = f"{user_data.first_name.lower()}{user_data.last_name.lower()}{random.randint(999, 99999)}"
-        while await self.get_user_by_username(username):
-            username = f"{user_data.first_name.lower()}{user_data.last_name.lower()}{random.randint(999, 99999)}"
+        username = await self.random_username(user_data.first_name, user_data.last_name)
 
         # Mã hóa mật khẩu
         hashed_password = self.get_password_hash(user_data.password)
@@ -663,7 +663,7 @@ class UserService:
             return
 
         # Tính số ngày kể từ khi tạo tài khoản
-        account_age_days = (datetime.utcnow() - user.created_at).days
+        account_age_days = (datetime.now() - user.created_at).days
 
         # Danh sách huy hiệu account_age
         age_badges = [
@@ -696,3 +696,10 @@ class UserService:
                 # Xóa trường threshold trước khi thêm huy hiệu
                 badge_info = {k: v for k, v in badge_data.items() if k != "threshold"}
                 await self.add_badge(user.id, badge_info)
+
+    async def random_username(self, first_name: str, last_name: str) -> str:
+        fullname = f"{first_name.lower()}{last_name.lower()}"
+        username = f"{remove_vi_accents(fullname)}{random.randint(999, 99999)}"
+        while await self.get_user_by_username(username):
+            username = f"{remove_vi_accents(fullname)}{random.randint(999, 99999)}"
+        return username
