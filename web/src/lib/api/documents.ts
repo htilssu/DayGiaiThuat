@@ -1,4 +1,4 @@
-import { client } from "./client";
+import { apiClient } from "./client";
 
 export interface Document {
   id: string;
@@ -19,8 +19,8 @@ const documentsApi = {
       formData.append("files", file);
     });
 
-    const response = await client.post<UploadResponse>(
-      "/api/documents/upload",
+    const response = await apiClient.post<UploadResponse>(
+      "/document/store",
       formData,
       {
         headers: {
@@ -32,8 +32,8 @@ const documentsApi = {
   },
 
   getStatus: async (documentIds: string[]): Promise<Document[]> => {
-    const response = await client.get<{ documents: Document[] }>(
-      "/api/documents/status",
+    const response = await apiClient.get<{ documents: Document[] }>(
+      "/document/status",
       {
         params: { ids: documentIds.join(",") },
       }

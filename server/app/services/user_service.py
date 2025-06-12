@@ -133,9 +133,9 @@ class UserService:
             )
 
         # random username
-        username = f"{user_data.first_name.lower()}{user_data.last_name.lower()}{random.randint(999, 99999)}"
+        username = f"{user_data.first_name.lower()} {user_data.last_name.lower()} {random.randint(99, 9999)}"
         while await self.get_user_by_username(username):
-            username = f"{user_data.first_name.lower()}{user_data.last_name.lower()}{random.randint(999, 99999)}"
+            username = f"{user_data.first_name.lower()} {user_data.last_name.lower()}{random.randint(99, 9999)}"
 
         # Mã hóa mật khẩu
         hashed_password = self.get_password_hash(user_data.password)

@@ -10,7 +10,7 @@ import { useState } from "react";
  * @property {string} title - Tiêu đề bài tập
  * @property {string} description - Mô tả ngắn gọn về bài tập
  * @property {string} category - Danh mục của bài tập
- * @property {string} difficulty - Độ khó (Dễ, Trung bình, Khó)
+ * @property {string} difficulty - Độ Advanced (Beginner, Intermediate, Advanced)
  * @property {string} estimatedTime - Thời gian ước tính để hoàn thành
  * @property {number} completionRate - Tỷ lệ hoàn thành bài tập (0-100)
  * @property {boolean} completed - Trạng thái hoàn thành của người dùng hiện tại
@@ -20,7 +20,7 @@ interface ExerciseItem {
   title: string;
   description: string;
   category: string;
-  difficulty: "Dễ" | "Trung bình" | "Khó";
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
   estimatedTime: string;
   completionRate: number;
   completed: boolean;
@@ -36,7 +36,7 @@ const exercisesData: ExerciseItem[] = [
     description:
       "Cài đặt thuật toán tìm kiếm nhị phân và phân tích độ phức tạp",
     category: "Tìm kiếm",
-    difficulty: "Dễ",
+    difficulty: "Beginner",
     estimatedTime: "30 phút",
     completionRate: 78,
     completed: true,
@@ -46,7 +46,7 @@ const exercisesData: ExerciseItem[] = [
     title: "Sắp xếp nhanh (Quick Sort)",
     description: "Cài đặt thuật toán sắp xếp nhanh với phân hoạch Lomuto",
     category: "Sắp xếp",
-    difficulty: "Trung bình",
+    difficulty: "Intermediate",
     estimatedTime: "45 phút",
     completionRate: 65,
     completed: false,
@@ -57,7 +57,7 @@ const exercisesData: ExerciseItem[] = [
     description:
       "Cài đặt cấu trúc dữ liệu cây nhị phân tìm kiếm với các thao tác cơ bản",
     category: "Cấu trúc dữ liệu",
-    difficulty: "Trung bình",
+    difficulty: "Intermediate",
     estimatedTime: "60 phút",
     completionRate: 52,
     completed: false,
@@ -67,7 +67,7 @@ const exercisesData: ExerciseItem[] = [
     title: "Thuật toán Dijkstra",
     description: "Tìm đường đi ngắn nhất trên đồ thị có trọng số không âm",
     category: "Đồ thị",
-    difficulty: "Khó",
+    difficulty: "Advanced",
     estimatedTime: "90 phút",
     completionRate: 42,
     completed: false,
@@ -78,7 +78,7 @@ const exercisesData: ExerciseItem[] = [
     description:
       "Giải quyết bài toán tìm dãy con tăng dài nhất bằng quy hoạch động",
     category: "Quy hoạch động",
-    difficulty: "Khó",
+    difficulty: "Advanced",
     estimatedTime: "75 phút",
     completionRate: 38,
     completed: false,
@@ -89,7 +89,7 @@ const exercisesData: ExerciseItem[] = [
     description:
       "Cài đặt các phương pháp tính số Fibonacci và so sánh hiệu suất",
     category: "Đệ quy",
-    difficulty: "Dễ",
+    difficulty: "Beginner",
     estimatedTime: "30 phút",
     completionRate: 85,
     completed: true,
@@ -110,30 +110,30 @@ const categories = [
 ];
 
 /**
- * Danh sách các mức độ khó để lọc
+ * Danh sách các mức độ Advanced để lọc
  */
-const difficulties = ["Tất cả", "Dễ", "Trung bình", "Khó"];
+const difficulties = ["Tất cả", "Beginner", "Intermediate", "Advanced"];
 
 /**
- * Component hiển thị màu tương ứng với độ khó
+ * Component hiển thị màu tương ứng với độ Advanced
  *
  * @param {Object} props - Props của component
- * @param {string} props.difficulty - Độ khó của bài tập
- * @returns {JSX.Element} Badge hiển thị độ khó
+ * @param {string} props.difficulty - Độ Advanced của bài tập
+ * @returns {JSX.Element} Badge hiển thị độ Advanced
  */
 const DifficultyBadge = ({ difficulty }: { difficulty: string }) => {
   let colorClass = "";
 
   switch (difficulty) {
-    case "Dễ":
+    case "Beginner":
       colorClass =
         "bg-green-100 light:text-foreground dark:bg-green-900/30 dark:text-green-300";
       break;
-    case "Trung bình":
+    case "Intermediate":
       colorClass =
         "light:bg-yellow-600 light:text-white dark:bg-yellow-900/30 dark:text-yellow-300";
       break;
-    case "Khó":
+    case "Advanced":
       colorClass =
         "light:bg-red-500 light:text-white dark:bg-red-900/30 dark:text-red-300";
       break;
@@ -180,7 +180,7 @@ export default function ExercisesPage() {
         <h1 className="text-3xl font-bold text-foreground mb-2">Bài tập</h1>
         <p className="text-foreground/70">
           Thực hành và làm chủ giải thuật với các bài tập đa dạng theo mức độ
-          khó tăng dần.
+          Advanced tăng dần.
         </p>
       </div>
 
@@ -191,8 +191,7 @@ export default function ExercisesPage() {
           <div className="col-span-1 md:col-span-2">
             <label
               htmlFor="search"
-              className="block text-sm font-medium text-foreground/70 mb-1"
-            >
+              className="block text-sm font-medium text-foreground/70 mb-1">
               Tìm kiếm bài tập
             </label>
             <div className="relative">
@@ -201,8 +200,7 @@ export default function ExercisesPage() {
                   className="h-5 w-5 text-foreground/40"
                   fill="none"
                   stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                  viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -226,16 +224,14 @@ export default function ExercisesPage() {
           <div>
             <label
               htmlFor="category"
-              className="block text-sm font-medium text-foreground/70 mb-1"
-            >
+              className="block text-sm font-medium text-foreground/70 mb-1">
               Danh mục
             </label>
             <select
               id="category"
               className="block w-full py-2 px-3 border border-foreground/10 rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-colors theme-transition"
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-            >
+              onChange={(e) => setCategoryFilter(e.target.value)}>
               {categories.map((category) => (
                 <option key={category} value={category}>
                   {category}
@@ -244,20 +240,18 @@ export default function ExercisesPage() {
             </select>
           </div>
 
-          {/* Lọc theo độ khó */}
+          {/* Lọc theo Trình độ */}
           <div>
             <label
               htmlFor="difficulty"
-              className="block text-sm font-medium text-foreground/70 mb-1"
-            >
-              Độ khó
+              className="block text-sm font-medium text-foreground/70 mb-1">
+              Trình độ
             </label>
             <select
               id="difficulty"
               className="block w-full py-2 px-3 border border-foreground/10 rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-colors theme-transition"
               value={difficultyFilter}
-              onChange={(e) => setDifficultyFilter(e.target.value)}
-            >
+              onChange={(e) => setDifficultyFilter(e.target.value)}>
               {difficulties.map((difficulty) => (
                 <option key={difficulty} value={difficulty}>
                   {difficulty}
@@ -277,15 +271,13 @@ export default function ExercisesPage() {
                   ? "bg-primary/10 border-primary/30 text-primary"
                   : "bg-background border-foreground/10 text-foreground/70 hover:bg-foreground/5"
               }`}
-              onClick={() => setViewMode("grid")}
-            >
+              onClick={() => setViewMode("grid")}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-5 w-5"
                 fill="none"
                 viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
+                stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -301,15 +293,13 @@ export default function ExercisesPage() {
                   ? "bg-primary/10 border-primary/30 text-primary"
                   : "bg-background border-foreground/10 text-foreground/70 hover:bg-foreground/5"
               }`}
-              onClick={() => setViewMode("list")}
-            >
+              onClick={() => setViewMode("list")}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-5 w-5"
                 fill="none"
                 viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
+                stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -327,8 +317,9 @@ export default function ExercisesPage() {
         <p className="text-foreground/60">
           Hiển thị {filteredExercises.length} bài tập
           {categoryFilter !== "Tất cả" && ` trong danh mục "${categoryFilter}"`}
-          {difficultyFilter !== "Tất cả" && ` với độ khó "${difficultyFilter}"`}
-          {searchTerm && ` khớp với từ khóa "${searchTerm}"`}
+          {difficultyFilter !== "Tất cả" &&
+            ` với độ Advanced "${difficultyFilter}"`}
+          {searchTerm && ` khớp với từ Advanceda "${searchTerm}"`}
         </p>
       </div>
 
@@ -338,8 +329,7 @@ export default function ExercisesPage() {
           {filteredExercises.map((exercise) => (
             <div
               key={exercise.id}
-              className="border border-foreground/10 rounded-lg overflow-hidden bg-background hover:shadow-md transition-all theme-transition"
-            >
+              className="border border-foreground/10 rounded-lg overflow-hidden bg-background hover:shadow-md transition-all theme-transition">
               <div className="p-5">
                 {/* Header với badge hoàn thành */}
                 <div className="flex justify-between items-start mb-3">
@@ -366,8 +356,7 @@ export default function ExercisesPage() {
                       className="h-4 w-4 mr-1"
                       fill="none"
                       stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
+                      viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -382,8 +371,7 @@ export default function ExercisesPage() {
                       className="h-4 w-4 mr-1"
                       fill="none"
                       stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
+                      viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -406,16 +394,14 @@ export default function ExercisesPage() {
                   <div className="w-full bg-foreground/10 rounded-full h-1.5">
                     <div
                       className="bg-primary h-1.5 rounded-full"
-                      style={{ width: `${exercise.completionRate}%` }}
-                    ></div>
+                      style={{ width: `${exercise.completionRate}%` }}></div>
                   </div>
                 </div>
 
                 {/* Nút làm bài */}
                 <Link
-                  href={`/bai-tap/${exercise.id}`}
-                  className="block w-full py-2 px-4 bg-primary text-white rounded-md text-center font-medium hover:bg-primary/90 transition-colors"
-                >
+                  href={`/exercises/${exercise.id}`}
+                  className="block w-full py-2 px-4 bg-primary text-white rounded-md text-center font-medium hover:bg-primary/90 transition-colors">
                   {exercise.completed ? "Làm lại" : "Bắt đầu làm"}
                 </Link>
               </div>
@@ -432,44 +418,37 @@ export default function ExercisesPage() {
               <tr>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-foreground/70 uppercase tracking-wider"
-                >
+                  className="px-6 py-3 text-left text-xs font-medium text-foreground/70 uppercase tracking-wider">
                   Bài tập
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-foreground/70 uppercase tracking-wider"
-                >
+                  className="px-6 py-3 text-left text-xs font-medium text-foreground/70 uppercase tracking-wider">
                   Danh mục
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-foreground/70 uppercase tracking-wider"
-                >
-                  Độ khó
+                  className="px-6 py-3 text-left text-xs font-medium text-foreground/70 uppercase tracking-wider">
+                  Trình độ
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-foreground/70 uppercase tracking-wider"
-                >
+                  className="px-6 py-3 text-left text-xs font-medium text-foreground/70 uppercase tracking-wider">
                   Thời gian
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-foreground/70 uppercase tracking-wider"
-                >
+                  className="px-6 py-3 text-left text-xs font-medium text-foreground/70 uppercase tracking-wider">
                   Tỷ lệ hoàn thành
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-foreground/70 uppercase tracking-wider"
-                >
+                  className="px-6 py-3 text-left text-xs font-medium text-foreground/70 uppercase tracking-wider">
                   Trạng thái
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-right text-xs font-medium text-foreground/70 uppercase tracking-wider"
-                >
+                  className="px-6 py-3 text-right text-xs font-medium text-foreground/70 uppercase tracking-wider">
                   Hành động
                 </th>
               </tr>
@@ -478,8 +457,7 @@ export default function ExercisesPage() {
               {filteredExercises.map((exercise) => (
                 <tr
                   key={exercise.id}
-                  className="hover:bg-foreground/5 transition-colors"
-                >
+                  className="hover:bg-foreground/5 transition-colors">
                   <td className="px-6 py-4">
                     <div>
                       <div className="text-sm font-medium text-foreground">
@@ -504,8 +482,9 @@ export default function ExercisesPage() {
                       <div className="w-full bg-foreground/10 rounded-full h-1.5 mr-2">
                         <div
                           className="bg-primary h-1.5 rounded-full"
-                          style={{ width: `${exercise.completionRate}%` }}
-                        ></div>
+                          style={{
+                            width: `${exercise.completionRate}%`,
+                          }}></div>
                       </div>
                       <span className="text-xs text-foreground/70">
                         {exercise.completionRate}%
@@ -525,9 +504,8 @@ export default function ExercisesPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <Link
-                      href={`/bai-tap/${exercise.id}`}
-                      className="text-primary hover:text-primary/80 transition-colors"
-                    >
+                      href={`/exercises/${exercise.id}`}
+                      className="text-primary hover:text-primary/80 transition-colors">
                       {exercise.completed ? "Làm lại" : "Bắt đầu làm"}
                     </Link>
                   </td>
@@ -545,8 +523,7 @@ export default function ExercisesPage() {
             className="mx-auto h-12 w-12 text-foreground/30"
             fill="none"
             stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
+            viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -567,8 +544,7 @@ export default function ExercisesPage() {
               setCategoryFilter("Tất cả");
               setDifficultyFilter("Tất cả");
             }}
-            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50"
-          >
+            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50">
             Xóa bộ lọc
           </button>
         </div>

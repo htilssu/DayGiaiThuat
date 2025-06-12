@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { Course } from "@/lib/api/courses";
+import { dsaCourseContent } from "@/data/courseContent";
 
 /**
  * Component hiển thị chi tiết khóa học
@@ -87,8 +88,7 @@ export default function CourseDetailPage() {
           </p>
           <button
             onClick={() => router.push("/courses")}
-            className="px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition"
-          >
+            className="px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition">
             Quay lại danh sách khóa học
           </button>
         </div>
@@ -133,8 +133,7 @@ export default function CourseDetailPage() {
                     className="h-5 w-5 text-primary mr-2"
                     fill="none"
                     viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
+                    stroke="currentColor">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -150,8 +149,7 @@ export default function CourseDetailPage() {
                     className="h-5 w-5 text-primary mr-2"
                     fill="none"
                     viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
+                    stroke="currentColor">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -208,8 +206,7 @@ export default function CourseDetailPage() {
                 activeTab === "overview"
                   ? "border-primary text-primary"
                   : "border-transparent hover:text-primary/80 hover:border-foreground/20"
-              }`}
-            >
+              }`}>
               Tổng quan
             </button>
             <button
@@ -218,8 +215,7 @@ export default function CourseDetailPage() {
                 activeTab === "content"
                   ? "border-primary text-primary"
                   : "border-transparent hover:text-primary/80 hover:border-foreground/20"
-              }`}
-            >
+              }`}>
               Nội dung khóa học
             </button>
             <button
@@ -228,8 +224,7 @@ export default function CourseDetailPage() {
                 activeTab === "reviews"
                   ? "border-primary text-primary"
                   : "border-transparent hover:text-primary/80 hover:border-foreground/20"
-              }`}
-            >
+              }`}>
               Đánh giá
             </button>
           </div>
@@ -263,8 +258,7 @@ export default function CourseDetailPage() {
                             className="h-5 w-5 text-primary mr-2 flex-shrink-0 mt-0.5"
                             fill="none"
                             viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
+                            stroke="currentColor">
                             <path
                               strokeLinecap="round"
                               strokeLinejoin="round"
@@ -294,8 +288,7 @@ export default function CourseDetailPage() {
                             className="h-5 w-5 text-primary mr-2 flex-shrink-0"
                             fill="none"
                             viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
+                            stroke="currentColor">
                             <path
                               strokeLinecap="round"
                               strokeLinejoin="round"
@@ -352,8 +345,137 @@ export default function CourseDetailPage() {
           {activeTab === "content" && (
             <div>
               <h2 className="text-2xl font-bold mb-6">Nội dung khóa học</h2>
-              <div className="p-4 bg-foreground/5 text-center rounded-xl">
-                <p className="text-lg">Chưa có nội dung cho khóa học này</p>
+              <div className="space-y-4">
+                {dsaCourseContent.map((chapter) => (
+                  <details
+                    key={chapter.id}
+                    className="group bg-foreground/5 rounded-xl overflow-hidden"
+                    open={chapter.id === 1}>
+                    <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-foreground/10">
+                      <div>
+                        <h3 className="font-medium">
+                          Chương {chapter.id}: {chapter.title}
+                        </h3>
+                        <p className="text-sm text-foreground/70 mt-1">
+                          {chapter.description}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-sm text-foreground/70">
+                          {chapter.lessons.length} bài học
+                        </div>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5 transform transition-transform group-open:rotate-180"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </div>
+                    </summary>
+                    <div className="border-t border-foreground/10">
+                      {chapter.lessons.map((lesson) => (
+                        <div
+                          key={lesson.id}
+                          className="flex items-center gap-4 p-4 hover:bg-foreground/5">
+                          <div
+                            className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
+                              lesson.type === "video"
+                                ? "bg-blue-500/10 text-blue-500"
+                                : lesson.type === "quiz"
+                                ? "bg-purple-500/10 text-purple-500"
+                                : "bg-green-500/10 text-green-500"
+                            }`}>
+                            {lesson.type === "video" ? (
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                            ) : lesson.type === "quiz" ? (
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                                />
+                              </svg>
+                            ) : (
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="flex-grow">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium">{lesson.title}</h4>
+                              {lesson.isPreview && (
+                                <span className="px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full">
+                                  Xem trước
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-foreground/70 mt-1">
+                              {lesson.description}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            <span className="text-sm text-foreground/70">
+                              {lesson.duration} phút
+                            </span>
+                            {lesson.isPreview ? (
+                              <button className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
+                                Xem ngay
+                              </button>
+                            ) : (
+                              <button
+                                disabled
+                                className="px-3 py-1 text-sm border border-foreground/20 text-foreground/40 rounded cursor-not-allowed">
+                                Khóa
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                ))}
               </div>
             </div>
           )}

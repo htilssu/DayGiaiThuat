@@ -8,6 +8,7 @@ import {
   IconCircle,
 } from "@tabler/icons-react";
 import { ExerciseDetail, TestResult } from "./types";
+import AIChat from "./AIChat";
 
 /**
  * Component cho phần nộp bài tập và chạy test
@@ -82,24 +83,51 @@ export default function ExerciseSubmission({
 
   return (
     <div className="space-y-6">
-      {/* Editor và kết quả test */}
+      {/* Editor and Chat */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Code editor */}
-        <div className="border border-foreground/10 rounded-lg overflow-hidden theme-transition">
-          <div className="bg-foreground/5 p-3 border-b border-foreground/10 flex justify-between items-center">
-            <h3 className="font-medium text-foreground">Mã nguồn</h3>
-            <div className="text-xs text-foreground/60">Python</div>
+        {/* Code editor with Run Test button */}
+        <div className="space-y-4">
+          <div className="border border-foreground/10 rounded-lg overflow-hidden theme-transition">
+            <div className="bg-foreground/5 p-3 border-b border-foreground/10 flex justify-between items-center">
+              <h3 className="font-medium text-foreground">Code</h3>
+              <div className="text-xs text-foreground/60">Python</div>
+            </div>
+
+            <textarea
+              value={userCode}
+              onChange={(e) => setUserCode(e.target.value)}
+              className="w-full h-96 p-4 bg-background text-foreground/90 font-mono text-sm resize-none focus:outline-none theme-transition"
+              placeholder="Viết code của bạn ở đây..."></textarea>
           </div>
 
-          <textarea
-            value={userCode}
-            onChange={(e) => setUserCode(e.target.value)}
-            className="w-full h-96 p-4 bg-background text-foreground/90 font-mono text-sm resize-none focus:outline-none theme-transition"
-            placeholder="Viết code của bạn ở đây..."
-          ></textarea>
+          <button
+            onClick={runTests}
+            disabled={isRunningTests}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-lg transition-colors ${
+              isRunningTests ? "opacity-60 cursor-not-allowed" : ""
+            }`}>
+            {isRunningTests ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                <span>Đang chạy...</span>
+              </>
+            ) : (
+              <>
+                <IconPlayerPlay className="h-5 w-5" />
+                <span>Chạy Test</span>
+              </>
+            )}
+          </button>
         </div>
 
-        {/* Test results */}
+        {/* AI Chat */}
+        <div className="h-96">
+          <AIChat />
+        </div>
+      </div>
+
+      {/* Test results with Submit button */}
+      <div className="space-y-4">
         <div className="border border-foreground/10 rounded-lg overflow-hidden theme-transition">
           <div className="bg-foreground/5 p-3 border-b border-foreground/10 flex justify-between items-center">
             <h3 className="font-medium text-foreground">Kết quả test</h3>
@@ -110,8 +138,7 @@ export default function ExerciseSubmission({
                   : testResults.length > 0
                   ? "text-red-500"
                   : "text-foreground/60"
-              }`}
-            >
+              }`}>
               {testResults.length === 0
                 ? "Chưa chạy test"
                 : allTestsPassed
@@ -122,16 +149,16 @@ export default function ExerciseSubmission({
             </div>
           </div>
 
-          <div className="p-4 h-96 overflow-y-auto">
+          <div className="p-4 max-h-96 overflow-y-auto">
             {isRunningTests ? (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex items-center justify-center h-32">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 <span className="ml-3 text-foreground/60">
                   Đang chạy test...
                 </span>
               </div>
             ) : testResults.length === 0 ? (
-              <div className="text-center text-foreground/60 h-full flex items-center justify-center">
+              <div className="text-center text-foreground/60 h-32 flex items-center justify-center">
                 <div>
                   <IconPlayerPlay className="mx-auto h-12 w-12 text-foreground/30" />
                   <p className="mt-2">
@@ -148,8 +175,7 @@ export default function ExerciseSubmission({
                       result.passed
                         ? "border-green-200 bg-green-50 dark:bg-green-900/10 dark:border-green-900/30"
                         : "border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900/30"
-                    } theme-transition`}
-                  >
+                    } theme-transition`}>
                     <div className="flex justify-between items-center mb-2">
                       <div className="font-medium text-sm">
                         Test Case #{index + 1}
@@ -159,8 +185,7 @@ export default function ExerciseSubmission({
                           result.passed
                             ? "text-green-600 dark:text-green-400"
                             : "text-red-600 dark:text-red-400"
-                        }`}
-                      >
+                        }`}>
                         {result.passed ? (
                           <span className="flex items-center">
                             <IconCircleCheck className="h-4 w-4 mr-1" />
@@ -203,8 +228,7 @@ export default function ExerciseSubmission({
                             result.passed
                               ? "text-foreground/80"
                               : "text-red-600 dark:text-red-400"
-                          }`}
-                        >
+                          }`}>
                           {result.actualOutput}
                         </span>
                       </div>
@@ -221,48 +245,25 @@ export default function ExerciseSubmission({
             )}
           </div>
         </div>
-      </div>
 
-      {/* Buttons */}
-      <div className="flex justify-between">
-        <button
-          onClick={runTests}
-          disabled={isRunningTests}
-          className={`px-4 py-2 bg-foreground/10 hover:bg-foreground/20 text-foreground rounded-md transition-colors ${
-            isRunningTests ? "opacity-60 cursor-not-allowed" : ""
-          }`}
-        >
-          {isRunningTests ? "Đang chạy..." : "Chạy Test"}
-        </button>
-
-        <button
-          onClick={handleSubmit}
-          disabled={isRunningTests || !allTestsPassed}
-          className={`px-4 py-2 bg-primary text-white rounded-md transition-colors ${
-            isRunningTests || !allTestsPassed
-              ? "opacity-60 cursor-not-allowed"
-              : "hover:bg-primary/90"
-          }`}
-        >
-          Nộp bài
-        </button>
-      </div>
-
-      {/* Thông báo */}
-      {allTestsPassed && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg dark:bg-green-900/20 dark:border-green-900/30 dark:text-green-400 theme-transition">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <IconCircleCheck className="h-5 w-5 text-green-500" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium">
-                Tất cả test case đã pass! Bạn có thể nộp bài ngay bây giờ.
-              </p>
-            </div>
+        {/* Submit button */}
+        {testResults.length > 0 && (
+          <div className="flex justify-end">
+            <button
+              onClick={handleSubmit}
+              disabled={isRunningTests || !allTestsPassed}
+              className={`px-6 py-3 bg-primary text-white font-medium rounded-lg transition-colors ${
+                isRunningTests || !allTestsPassed
+                  ? "opacity-60 cursor-not-allowed"
+                  : "hover:bg-primary/90"
+              }`}>
+              {allTestsPassed
+                ? "Nộp bài"
+                : "Vui lòng pass tất cả test để nộp bài"}
+            </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

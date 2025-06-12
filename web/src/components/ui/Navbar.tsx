@@ -207,7 +207,7 @@ export default function Navbar() {
 
           {/* Menu Toggle - Mobile */}
           <button
-            className="md:hidden flex items-center justify-center w-10 h-10 rounded-full hover:bg-foreground/10 transition-colors"
+            className="md:hidden items-center justify-center w-10 h-10 rounded-full hover:bg-foreground/10 transition-colors"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label={isMenuOpen ? "Đóng menu" : "Mở menu"}>
             {isMenuOpen ? (

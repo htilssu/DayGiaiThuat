@@ -62,8 +62,7 @@ export default function CourseListPage() {
           </h1>
           <p
             className="text-lg md:text-xl max-w-3xl animate-fade-in"
-            style={{ animationDelay: "0.2s" }}
-          >
+            style={{ animationDelay: "0.2s" }}>
             Nâng cao kỹ năng lập trình và tư duy giải quyết vấn đề với các khóa
             học chất lượng cao
           </p>
@@ -88,8 +87,7 @@ export default function CourseListPage() {
           {[...Array(6)].map((_, i) => (
             <div
               key={i}
-              className="bg-foreground/5 rounded-xl p-4 h-96 animate-pulse"
-            ></div>
+              className="bg-foreground/5 rounded-xl p-4 h-96 animate-pulse"></div>
           ))}
         </div>
       ) : error ? (
@@ -97,8 +95,7 @@ export default function CourseListPage() {
           <p className="text-lg text-accent">{error}</p>
           <button
             onClick={() => setCurrentPage(1)}
-            className="mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition"
-          >
+            className="mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition">
             Thử lại
           </button>
         </div>
@@ -151,8 +148,7 @@ export default function CourseListPage() {
                           className="h-4 w-4 mr-1"
                           fill="none"
                           viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
+                          stroke="currentColor">
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -169,8 +165,7 @@ export default function CourseListPage() {
                           className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform"
                           fill="none"
                           viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
+                          stroke="currentColor">
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -193,8 +188,7 @@ export default function CourseListPage() {
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="px-4 py-2 rounded-md border border-foreground/20 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-foreground/5"
-                >
+                  className="px-4 py-2 rounded-md border border-foreground/20 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-foreground/5">
                   Trước
                 </button>
                 {[...Array(totalPages)].map((_, i) => (
@@ -205,16 +199,14 @@ export default function CourseListPage() {
                       currentPage === i + 1
                         ? "bg-primary text-white border-primary"
                         : "border-foreground/20 hover:bg-foreground/5"
-                    }`}
-                  >
+                    }`}>
                     {i + 1}
                   </button>
                 ))}
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="px-4 py-2 rounded-md border border-foreground/20 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-foreground/5"
-                >
+                  className="px-4 py-2 rounded-md border border-foreground/20 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-foreground/5">
                   Sau
                 </button>
               </div>
