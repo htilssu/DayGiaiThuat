@@ -123,9 +123,8 @@ export default function HomePage() {
       <div className="relative z-10">
         {/* Phần Hero */}
         <section
-          className={`pt-16 pb-24 transition-all duration-700 ${
-            heroVisible ? "opacity-100" : "opacity-0 translate-y-10"
-          }`}>
+          className={`pt-16 pb-24 transition-all duration-700 ${heroVisible ? "opacity-100" : "opacity-0 translate-y-10"
+            }`}>
           <div className="container mx-auto px-4">
             <div className="flex flex-col md:flex-row items-center">
               <div className="md:w-1/2 mb-12 md:mb-0 md:pr-8">
@@ -164,24 +163,24 @@ export default function HomePage() {
                         <div className="bg-foreground/5 rounded-lg p-4">
                           <pre className="text-xs text-foreground/80">
                             <code>{`function quickSort(arr) {
-                            if (arr.length <= 1) {
-                              return arr;
-                            }
-                            
-                            const pivot = arr[0];
-                            const left = [];
-                            const right = [];
-                            
-                            for (let i = 1; i < arr.length; i++) {
-                              if (arr[i] < pivot) {
-                                left.push(arr[i]);
-                              } else {
-                                right.push(arr[i]);
-                              }
-                            }
-                            
-                            return [...quickSort(left), pivot, ...quickSort(right)];
-                          }`}</code>
+  if (arr.length <= 1) {
+    return arr;
+  }
+  
+  const pivot = arr[0];
+  const left = [];
+  const right = [];
+  
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i] < pivot) {
+      left.push(arr[i]);
+    } else {
+      right.push(arr[i]);
+    }
+  }
+  
+  return [...quickSort(left), pivot, ...quickSort(right)];
+}`}</code>
                           </pre>
                         </div>
                         <div className="bg-primary/10 rounded-lg p-4">
@@ -204,9 +203,8 @@ export default function HomePage() {
 
         {/* Phần tính năng */}
         <section
-          className={`py-20 bg-foreground/5 rounded-t-[3rem] transition-all duration-700 ${
-            featuresVisible ? "opacity-100" : "opacity-0 translate-y-10"
-          }`}>
+          className={`py-20 bg-foreground/5 rounded-t-[3rem] transition-all duration-700 ${featuresVisible ? "opacity-100" : "opacity-0 translate-y-10"
+            }`}>
           <div className="container mx-auto px-4">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -238,9 +236,8 @@ export default function HomePage() {
 
         {/* Phần thống kê */}
         <section
-          className={`py-20 bg-gradient-to-br from-primary/90 to-secondary/90 text-white transition-all duration-700 ${
-            statVisible ? "opacity-100" : "opacity-0 translate-y-10"
-          }`}>
+          className={`py-20 bg-gradient-to-br from-primary/90 to-secondary/90 text-white transition-all duration-700 ${statVisible ? "opacity-100" : "opacity-0 translate-y-10"
+            }`}>
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               {stats.map((stat, index) => (

@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     Attributes:
         PROJECT_NAME (str): Tên dự án
+        DEV_MODE (bool): Mode phát triển
         BACKEND_CORS_ORIGINS (List[AnyHttpUrl]): Danh sách origins được phép CORS
         DB_USER (str): Username database
         DB_PASSWORD (str): Password database
@@ -30,7 +31,7 @@ class Settings(BaseSettings):
     """
 
     PROJECT_NAME: str
-
+    DEV_MODE: Optional[bool] = True
     # CORS
     BACKEND_CORS_ORIGINS: List[str]
 

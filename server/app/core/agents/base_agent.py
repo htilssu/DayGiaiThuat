@@ -19,4 +19,6 @@ class BaseAgent(object):
         """
         for key in kwargs.keys():
             if key not in self.available_args:
-                raise TypeError(f"Unknown argument: {key}")
+                raise TypeError(
+                    f"Trong danh sách các tham số cho phép của agent, không tồn tại tham số: {key}"
+                )

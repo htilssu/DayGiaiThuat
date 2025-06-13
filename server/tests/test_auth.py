@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models.user import User
+from app.models.user_model import User
 
 
 def test_login_success(client: TestClient, test_user: User):
