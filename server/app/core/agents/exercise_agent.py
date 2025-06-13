@@ -1,5 +1,4 @@
-from cgitb import strong
-from typing import List, Optional, override
+from typing import override
 
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain.output_parsers import OutputFixingParser
@@ -13,70 +12,24 @@ from langchain_core.prompts import (
 from langchain_core.runnables import RunnableConfig, RunnableWithMessageHistory
 from langchain_core.tools import Tool
 from langchain_mongodb import MongoDBChatMessageHistory
-from pydantic import BaseModel, Field
 
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
 from app.core.agents.components.llm_model import create_new_gemini_llm_model
 from app.core.config import settings
 from app.core.tracing import get_callback_manager, trace_agent
-
-
-class TestCase(BaseModel):
-    """
-    Mô tả một trường hợp thử nghiệm cho bài toán giải thuật.
-
-    Attributes:
-        input_data (str): Dữ liệu đầu vào cho trường hợp thử nghiệm. Alias là "input".
-        output_data (str): Kết quả đầu ra mong đợi. Alias là "output".
-        explain (str): Giải thích cho trường hợp thử nghiệm.
-    """
-
-    input_data: str = Field(
-        ..., alias="input", description="Dữ liệu đầu vào cho trường hợp thử nghiệm."
-    )
-    output_data: str = Field(
-        ..., alias="output", description="Kết quả đầu ra mong đợi."
-    )
-    explain: str = Field(..., description="Giải thích cho trường hợp thử nghiệm.")
-
-
-class ExerciseDetail(BaseModel):
-    """
-    Mô tả chi tiết một bài tập giải thuật được tạo ra.
-
-    Attributes:
-        name (str): Tên của bài toán.
-        description (str): Mô tả chi tiết về bài toán.
-        constraints (Optional[str]): Các ràng buộc của bài toán (ví dụ: giới hạn đầu vào).
-        suggest (Optional[str]): Gợi ý để giải bài toán.
-        case (List[TestCase]): Danh sách các trường hợp thử nghiệm, yêu cầu tối thiểu 3 trường hợp.
-    """
-
-    name: str = Field(..., description="Tên của bài toán.")
-    description: str = Field(..., description="Mô tả chi tiết về bài toán.")
-    difficulty: str = Field(..., description="Độ khó của bài toán.")
-    constraints: Optional[str] = Field(
-        None, description="Các ràng buộc của bài toán (ví dụ: giới hạn đầu vào)."
-    )
-    suggest: Optional[str] = Field(None, description="Gợi ý để giải bài toán.")
-    case: List[TestCase] = Field(
-        min_length=3,
-        description="Danh sách các trường hợp thử nghiệm, yêu cầu tối thiểu 3 trường hợp.",
-    )
-
+from app.schemas.exercise_schema import ExerciseDetail
 
 SYSTEM_PROMPT_TEMPLATE_FOR_EXERCISE_GENERATOR = """
 Bạn là chuyên gia tạo các bài tập giải thuật để người dùng luyện tập lập trình.
-Nhiệm vụ của bạn là tạo ra các đề bài rõ ring, ngắn gọn và có ngữ cảnh đời thường, giúp người dùng dễ dàng liên hệ với các tình huống thực tế. Bài tập được tạo ra phải không trùng 
-với bài tập đã tồn tri trong cơ sở dữ liệu. Khi tạo một bài tập, hãy tuân theo mẫu sau:
+Nhiệm vụ của bạn là tạo ra các đề bài rõ ràng, ngắn gọn và có ngữ cảnh đời thường, giúp người dùng dễ dàng liên hệ với các tình huống thực tế. Bài tập được tạo ra phải không trùng 
+với bài tập đã tồn tại trong cơ sở dữ liệu.Bài tập giống như leetcode Khi tạo một bài tập, hãy tuân theo mẫu sau:
 
 Tên bài tập: [Tạo một tiêu đề mô tả cho bài tập, bao gồm ngữ cảnh đời thường nếu có thể]
-Ngữ cảnh: [Cung cấp một tình huống đời thường liên quan đến bài tập, ví dụ: "Thư đang cần sắp xếp các cuốn sách trên kệ theo thứ tự từ nhỏ đến lớn."]
 Mô tả: [Giải thích chi tiết về bài tập, bao gồm bất kỳ định nghĩa hoặc thông tin cần thiết nào để hiểu bài toán]
 Đầu vào: [Xác định định dạng của dữ liệu đầu vào]
 Đầu ra: [Xác định định dạng của dữ liệu đầu ra mong muốn]
-Ví dụ (phải có 3 ví dụ đơn giản, dễ giải thích, nhưng không được trùng trường hợp nổi bật, tên đầu và ra phải là tên biến):
+Ví dụ (phải có 3 ví dụ đơn giản, dễ giải thích, nhưng không được trùng trường hợp nổi bật, tên đầu và ra phải là tên biến bằng tiếng anh):
 Đầu vào: [Cung cấp một ví dụ đầu vào]
 Đầu ra: [Cung cấp đầu ra tương ứng]
 Giải thích: [Cung cấp giải thích chi tiết ví dụ: đầu tiên i = 0 có giá trị bé hơn 1, chuyển nó ra phía trước...]
@@ -98,7 +51,7 @@ Parser đầu ra của bạn phải là một JSON object với các trường s
 
 # System prompt được lấy từ n8n workflow
 SYSTEM_PROMPT_TEMPLATE = """
-Bạn là 1 AI Agent chuyên tạo các bài tập giải thuật để người dùng luyện tập lập trình.
+Bạn là 1 chuyên gia hàng đầu trong việc tạo các bài tập giải thuật để người dùng luyện tập lập trình.
 Nhiệm vụ của bạn là tạo ra các đề bài rõ ràng, ngắn gọn và có ngữ cảnh đời thường, giúp người dùng dễ dàng liên hệ với các tình huống thực tế. Bài tập được tạo ra phải không trùng 
 với bài tập đã tồn tại trong cơ sở dữ liệu.
 
@@ -164,28 +117,28 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
         self.generate_exercise = (
             self.generate_exercise_prompt
             | create_new_gemini_llm_model(
-                thinking_budget=500,
-            )
+                thinking_budget=100,
+            ).with_structured_output(ExerciseDetail)
         )
 
         self.llm_model = create_new_gemini_llm_model()
         # 4. Tạo Retriever Tool
         self.retriever_tool = Tool(
-            name="AlgoVaultRetriever",
+            name="retriever_algo_vault",
             func=self.retriever.invoke,  # Sử dụng invoke cho retriever đồng bộ
             coroutine=self.retriever.ainvoke,  # Sử dụng ainvoke cho retriever bất đồng bộ
             description="Truy xuất thông tin và kiến thức về giải thuật từ cơ sở dữ liệu vector AlgoVault để hỗ trợ việc tạo bài tập.",
         )
 
         self.retriever_exercise_tool = Tool(
-            name="AlgoVaultRetrieverForExercise",
+            name="retriever_exercise",
             func=self.exercise_retriever.invoke,  # Sử dụng invoke cho retriever đồng bộ
             coroutine=self.exercise_retriever.ainvoke,  # Sử dụng ainvoke cho retriever bất đồng bộ
             description="Truy xuất thông tin về các bài tập đã được lưu trong cơ sở dữ liệu. Để kiểm tra xem bài tập đã tồn tại trong cơ sở dữ liệu hay chưa. sử dụng description của bài tập để kiểm tra",
         )
 
         self.generate_exercise_tool = Tool(
-            name="GenerateExercise",
+            name="generate_exercise",
             func=lambda x: self.generate_exercise.invoke(
                 {"input": x} if isinstance(x, str) else x
             ),
@@ -195,14 +148,14 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             description="Tạo bài tập giải thuật mới dựa trên input là topic và difficulty được cung cấp., đầu vào là biến input",
         )
 
-        output_fixing_parser = OutputFixingParser.from_llm(
+        self.output_fixing_parser = OutputFixingParser.from_llm(
             self.llm_model, self.output_parser
         )
 
         self.output_fixing_parser_tool = Tool(
             "OutputFixingParser",
-            func=output_fixing_parser.invoke,
-            coroutine=output_fixing_parser.ainvoke,
+            func=self.output_fixing_parser.invoke,
+            coroutine=self.output_fixing_parser.ainvoke,
             description="Sửa lỗi đầu ra từ mô hình ngôn ngữ để đảm bảo định dạng chính xác và đầy đủ cho bài tập giải thuật.",
         )
 
@@ -240,6 +193,20 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
     @override
     @trace_agent(project_name="default", tags=["exercise", "generator"])
     async def act(self, *args, **kwargs):
+        """
+        Tạo bài tập giải thuật và lưu vào cơ sở dữ liệu.
+
+        Args:
+            topic (str): Chủ đề của bài tập
+            session_id (str): ID phiên làm việc
+            difficulty (str): Độ khó của bài tập
+            topic_id (int): ID của chủ đề trong database
+            db (AsyncSession, optional): Phiên làm việc với database
+
+        Returns:
+            ExerciseDetail: Chi tiết bài tập được tạo ra
+            Exercise: Đối tượng Exercise đã được lưu vào database
+        """
         super().act(*args, **kwargs)
 
         topic = kwargs.get("topic", "")
@@ -284,7 +251,13 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             if isinstance(response_from_agent, dict):
                 if response_from_agent["output"] is None:
                     raise ValueError("Không thể tạo bài tập, đầu ra không hợp lệ.")
-                return self.output_parser.parse(response_from_agent["output"])
+
+                # Phân tích kết quả từ agent
+                exercise_detail = self.output_fixing_parser.parse(
+                    response_from_agent["output"]
+                )
+
+                return exercise_detail
             else:
                 raise ValueError(
                     f"Định dạng không hỗ trợ từ agent: {type(response_from_agent)}"

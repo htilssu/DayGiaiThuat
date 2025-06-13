@@ -4,14 +4,18 @@ from langchain_core.agents import create_tool_calling_agent
 from langchain_core.runnables import RunnableWithMessageHistory
 
 from app.core.agents.components.llm_model import create_new_gemini_llm_model
-from server.app.core.config import settings
+from app.core.config import settings
 
 
 class TutorAgent(BaseAgent):
+    """
+    context: context ngữ cảnh hiện tại để llm có thể hiểu được
+    """
+
     def __init__(self):
         super().__init__()
         self.llm_model = create_new_gemini_llm_model()
-        self.available_args = ["session_id"]
+        self.available_args = ["session_id", "context"]
 
         self.agent = create_tool_calling_agent(
             tools=self.tools,
@@ -21,6 +25,7 @@ class TutorAgent(BaseAgent):
         )
 
     def act(self, *args, **kwargs):
+        
         super().act(*args, **kwargs)
 
         session_id = kwargs.session_id

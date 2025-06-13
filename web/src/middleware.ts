@@ -27,29 +27,7 @@ const isPublicPath = (path: string): boolean => {
  * @returns {NextResponse} - Phản hồi Next.js
  */
 export function middleware(request: NextRequest) {
-  // Lấy đường dẫn hiện tại từ yêu cầu
-  const path = request.nextUrl.pathname;
 
-  // Kiểm tra nếu là đường dẫn công khai, cho phép truy cập
-  if (isPublicPath(path)) {
-    return NextResponse.next();
-  }
-
-  // Kiểm tra token xác thực từ cookie
-  const token = request.cookies.get("authToken")?.value;
-
-  // Nếu không có token và đường dẫn không công khai, chuyển hướng về trang đăng nhập
-  if (!token) {
-    // Tạo URL chuyển hướng đến trang đăng nhập
-    const loginUrl = new URL("/auth/login", request.url);
-
-    // Thêm URL hiện tại vào tham số callbackUrl để sau khi đăng nhập xong có thể chuyển hướng lại
-    loginUrl.searchParams.set("returnUrl", request.nextUrl.pathname);
-
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // Nếu có token, cho phép truy cập
   return NextResponse.next();
 }
 

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.database.database import get_db
 from app.models import User
-from app.schemas.user_profile import UserExcludeSecret
+from app.schemas.user_profile_schema import UserExcludeSecret
 from app.utils.oauth2 import OAuth2PasswordCookie
 
 # Cấu hình bảo mật
@@ -23,27 +23,28 @@ oauth2_cookie_scheme = OAuth2PasswordCookie(tokenUrl="auth/token")
 
 logger = logging.getLogger(__name__)
 
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Xác thực mật khẩu
-    
+
     Args:
         plain_password (str): Mật khẩu gốc
         hashed_password (str): Mật khẩu đã được hash
-        
+
     Returns:
         bool: True nếu mật khẩu đúng, False nếu sai
     """
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def get_password_hash(password: str) -> str:
+def password_hash(password: str) -> str:
     """
     Hash mật khẩu
-    
+
     Args:
         password (str): Mật khẩu cần hash
-        
+
     Returns:
         str: Mật khẩu đã được hash
     """
@@ -53,11 +54,11 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """
     Tạo JWT token
-    
+
     Args:
         data (dict): Dữ liệu cần mã hóa trong token
         expires_delta (Optional[timedelta]): Thời gian hết hạn của token
-        
+
     Returns:
         str: JWT token
     """
@@ -74,20 +75,21 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-async def get_current_user(token: str = Depends(oauth2_cookie_scheme), db: Session = Depends(get_db)) -> \
-        UserExcludeSecret:
+async def get_current_user(
+    token: str = Depends(oauth2_cookie_scheme), db: Session = Depends(get_db)
+) -> UserExcludeSecret:
     """
     Lấy thông tin user hiện tại từ token trong cookie
-    
+
     Args:
         token (str): JWT token từ cookie
         db (Session): Database session
-        
+
     Returns:
         User: Thông tin user
-        
+
     Raises:
-        HTTPException: 
+        HTTPException:
             - 401: Token không hợp lệ hoặc hết hạn
             - 404: Không tìm thấy user
     """
@@ -116,7 +118,7 @@ async def get_current_user(token: str = Depends(oauth2_cookie_scheme), db: Sessi
 def set_auth_cookie(response: Response, token: str) -> None:
     """
     Thiết lập cookie chứa JWT token
-    
+
     Args:
         response (Response): Đối tượng Response của FastAPI
         token (str): JWT token cần lưu vào cookie
@@ -127,7 +129,7 @@ def set_auth_cookie(response: Response, token: str) -> None:
         "httponly": settings.COOKIE_HTTPONLY,
         "max_age": settings.COOKIE_MAX_AGE,
         "samesite": settings.COOKIE_SAMESITE,
-        "secure": settings.COOKIE_SECURE
+        "secure": settings.COOKIE_SECURE,
     }
 
     # Chỉ thêm domain nếu có cấu hình
@@ -140,7 +142,7 @@ def set_auth_cookie(response: Response, token: str) -> None:
 def clear_auth_cookie(response: Response) -> None:
     """
     Xóa cookie xác thực khi đăng xuất
-    
+
     Args:
         response (Response): Đối tượng Response của FastAPI
     """

@@ -1,0 +1,64 @@
+from typing import List, Optional
+from pydantic import BaseModel, Field
+
+
+class GetExerciseSchema(BaseModel):
+    topic: str
+    session_id: str
+    difficulty: Optional[str] = None
+
+
+class TestCase(BaseModel):
+    """
+    Mô tả một trường hợp thử nghiệm cho bài toán giải thuật.
+
+    Attributes:
+        input_data (str): Dữ liệu đầu vào cho trường hợp thử nghiệm. Alias là "input".
+        output_data (str): Kết quả đầu ra mong đợi. Alias là "output".
+        explain (str): Giải thích cho trường hợp thử nghiệm.
+    """
+
+    input_data: str = Field(
+        ..., alias="input", description="Dữ liệu đầu vào cho trường hợp thử nghiệm."
+    )
+    output_data: str = Field(
+        ..., alias="output", description="Kết quả đầu ra mong đợi."
+    )
+    explain: str = Field(..., description="Giải thích cho trường hợp thử nghiệm.")
+
+
+class ExerciseDetail(BaseModel):
+    """
+    Mô tả chi tiết một bài tập giải thuật được tạo ra.
+
+    Attributes:
+        name (str): Tên của bài toán.
+        description (str): Mô tả chi tiết về bài toán.
+        constraints (Optional[str]): Các ràng buộc của bài toán (ví dụ: giới hạn đầu vào).
+        suggest (Optional[str]): Gợi ý để giải bài toán.
+        case (List[TestCase]): Danh sách các trường hợp thử nghiệm, yêu cầu tối thiểu 3 trường hợp.
+    """
+
+    name: str = Field(..., description="Tên của bài toán.")
+    description: str = Field(..., description="Mô tả chi tiết về bài toán.")
+    difficulty: str = Field(..., description="Độ khó của bài toán. bằng tiếng anh")
+    constraint: Optional[str] = Field(
+        None, description="Các ràng buộc của bài toán (ví dụ: giới hạn đầu vào)."
+    )
+    suggest: Optional[str] = Field(None, description="Gợi ý để giải bài toán.")
+    case: List[TestCase] = Field(
+        min_length=3,
+        description="Danh sách các trường hợp thử nghiệm, yêu cầu tối thiểu 3 trường hợp.",
+    )
+
+
+class UpdateExerciseSchema(BaseModel):
+    topic_id: Optional[int] = None
+    session_id: Optional[str] = None
+    difficulty: Optional[str] = None
+
+
+class CreateExerciseSchema(BaseModel):
+    topic_id: int
+    session_id: str
+    difficulty: str

@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from starlette.responses import JSONResponse
 
+from app.core.config import settings
+
 
 def add_exception_handlers(app: FastAPI):
     """
@@ -16,16 +18,12 @@ def add_exception_handlers(app: FastAPI):
         """
         Xử lý lỗi xác thực dữ liệu từ Pydantic
         """
-        return JSONResponse(
-            status_code=400,
-            content={
-                "detail": [
-                    {
-                        "field": error["loc"][1],
-                        "msg": error["msg"],
-                        "type": error["type"],
-                    }
-                    for error in exc.errors()
-                ]
-            },
-        )
+        if settings.DEV_MODE:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": exc.errors()},
+            )
+        else:
+            return JSONResponse(
+                status_code=400, content={"detail": "Invalid request data"}
+            )

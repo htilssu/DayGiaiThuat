@@ -1,14 +1,14 @@
 from datetime import datetime
 from typing import List
 
-from sqlalchemy import Boolean, Column, Integer, String, DateTime
+from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from sqlalchemy.sql import func
 
 from app.database.database import Base
-from app.models.badge import Badge, user_badges
-from app.models.learning_progress import LearningProgress
-from app.models.user_state import UserState
+from app.models.badge_model import Badge, user_badges
+from app.models.learning_progress_model import LearningProgress
+from app.models.user_state_model import UserState
+from app.models.course_model import Course
 
 
 class User(Base):
@@ -108,8 +108,6 @@ class User(Base):
         # Truy vấn các khóa học từ database
         db = SessionLocal()
         try:
-            from app.models.course import Course
-
             courses = db.query(Course).filter(Course.id.in_(course_ids)).all()
             return courses
         finally:

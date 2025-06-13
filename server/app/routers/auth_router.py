@@ -2,15 +2,13 @@ from datetime import timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.models.user import User as UserModel
-from app.schemas.auth import UserRegister, UserLogin, Token
-from app.utils.auth import (
+from app.models.user_model import User as UserModel
+from app.schemas.auth_schema import UserRegister, UserLogin, Token
+from app.utils.password import (
     get_db,
     verify_password,
-    get_password_hash,
     create_access_token,
     set_auth_cookie,
     clear_auth_cookie,
@@ -36,9 +34,7 @@ router = APIRouter(
         400: {"description": "Dữ liệu không hợp lệ"},
     },
 )
-async def register(
-    response: Response, user: UserRegister, user_service: UserService = Depends()
-) -> Any:
+async def register(user: UserRegister, user_service: UserService = Depends()) -> Any:
     """
     Đăng ký tài khoản mới và trả về token đăng nhập
     """
@@ -65,13 +61,11 @@ async def login(
                            - 400: Tài khoản đã bị vô hiệu hóa
     """
     # Tìm user theo username hoặc email
-    user = (
-        db.query(UserModel)
-        .filter(
-            or_(UserModel.username == data.username, UserModel.email == data.username)
-        )
-        .first()
-    )
+    is_email = "@" in data.username
+    if is_email:
+        user = db.query(UserModel).filter(UserModel.email == data.username).first()
+    else:
+        user = db.query(UserModel).filter(UserModel.username == data.username).first()
 
     if not user:
         raise HTTPException(
