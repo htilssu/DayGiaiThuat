@@ -92,6 +92,6 @@ export const userApi = {
     return del<{ message: string }>("/users/me");
   },
   getUserByToken: () => {
-    return get<UserData>("/user");
+    return get<UserData>("/users");
   }
 };

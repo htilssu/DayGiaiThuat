@@ -17,13 +17,16 @@ export const userSlice = createSlice({
     name: "user",
     reducers: {
         setUser: (state, action: PayloadAction<UserData>) => {
-            state = { ...state, isLoading: false, isInitial: false }
+            state.user = action.payload;
+            state.isLoading = false;
+            state.isInitial = false;
         },
         removeUser: (state) => {
-            state = { ...state, user: null }
+            state.user = null;
         },
         loadingUser: (state) => {
-            state = { ...state, isInitial: false, isLoading: true }
+            state.isInitial = false;
+            state.isLoading = true;
         }
     }
 })

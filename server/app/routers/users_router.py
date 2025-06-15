@@ -5,29 +5,25 @@ from ..services.password_service import PasswordService
 from ..schemas.password_schema import ChangePasswordSchema
 
 from ..models.user_model import User
-from ..schemas.user_profile_schema import UserUpdate, User as UserResponse
+from ..schemas.user_profile_schema import UserUpdate, UserResponse
 from ..services.user_service import UserService
-from ..utils.password import get_current_user, verify_password
+from ..utils.utils import get_current_user, verify_password
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/", response_model=UserResponse)
 async def get_current_user_info(
     current_user: User = Depends(get_current_user),
-    user_service: UserService = Depends(),
 ):
     """
     Lấy thông tin người dùng hiện tại
     """
-    # Lấy thông tin đầy đủ từ database
-    user = await user_service.get_user_by_id(current_user.id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Người dùng không tồn tại"
-        )
-
-    return user
+    return UserResponse(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+    )
 
 
 @router.get("/{user_id}", response_model=UserResponse)

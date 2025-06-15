@@ -1,11 +1,9 @@
 "use client";
 
 import { useAppDispatch, useAppSelector } from '@/lib/store';
-import { useDispatch } from 'react-redux';
+import { loadingUser, setUser } from '@/lib/store/userStore';
 import { ReactNode, useEffect } from 'react';
 import { userApi } from '../lib/api';
-import { loadingUser, setUser } from '@/lib/store/userStore'
-import { authApi } from '../lib/api/auth';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -16,11 +14,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const userState = useAppSelector((state) => state.user)
 
   useEffect(() => {
-    dispatch(loadingUser())
-    userApi.getUserByToken().then((data) => {
-      dispatch(setUser(data))
-    });
-  }, [userState.isInitial])
+    // Chỉ gọi API khi ứng dụng được khởi tạo lần đầu
+    if (userState.isInitial) {
+      dispatch(loadingUser())
+      userApi.getUserByToken()
+        .then((data) => {
+          dispatch(setUser(data))
+        })
+        .catch((error) => {
+          console.error("Lỗi khi lấy thông tin người dùng:", error);
+        });
+    }
+  }, [dispatch, userState.isInitial]);
 
   return <>{children}</>;
 }

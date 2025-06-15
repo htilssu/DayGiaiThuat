@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from app.database.database import get_db
 from app.models.user_model import User
-from app.utils.password import password_hash
+from app.utils.utils import password_hash
 
 
 class PasswordService:

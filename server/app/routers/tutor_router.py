@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 import httpx
 
 from app.schemas.tutor_schema import AskTutorSchema
-from app.utils.password import get_current_user
+from app.utils.utils import get_current_user
 
 router = APIRouter(prefix="/tutor", tags=["tutor"])
 

@@ -54,13 +54,11 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased transition-theme min-h-screen bg-background text-foreground`}>
         <StoreWrapper>
-          <AuthProvider>
-            <ThemeInitializer />
-            <MantineThemeProvider>
-              {children}
-              <ChatBot />
-            </MantineThemeProvider>
-          </AuthProvider>
+          <ThemeInitializer />
+          <MantineThemeProvider>
+            {children}
+            <ChatBot />
+          </MantineThemeProvider>
         </StoreWrapper>
       </body>
     </html>

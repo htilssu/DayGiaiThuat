@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.user_model import User as UserModel
 from app.schemas.auth_schema import UserRegister, UserLogin, LoginResponse
-from app.utils.password import (
+from app.utils.utils import (
     get_db,
     verify_password,
     create_access_token,
@@ -34,23 +34,39 @@ router = APIRouter(
         400: {"description": "Dữ liệu không hợp lệ"},
     },
 )
-async def register(user: UserRegister, user_service: UserService = Depends()) -> Any:
+async def register(
+    response: Response, user: UserRegister, user_service: UserService = Depends()
+) -> Any:
     """
     Đăng ký tài khoản mới và trả về token đăng nhập
     """
 
-    await user_service.create_user(user)
+    new_user = await user_service.create_user(user)
+    # Tạo access token - Sử dụng email nếu username là null
+    token_data = {"sub": str(new_user.id)}
+    access_token = create_access_token(
+        data=token_data,
+        expires_delta=timedelta(minutes=60 * 24 * 30),
+    )
 
-    return {"message": "Đăng ký thành công"}
+    set_auth_cookie(response, access_token)
+
+    return {"message": "Đăng ký thành công", "access_token": access_token}
 
 
-@router.post("/login", response_model=LoginResponse, responses={
-    200: {"description": "OK"},
-    400: {"description": "Mật khẩu không chính xác hoặc tài khoản đã bị vô hiệu hóa"},
-    401: {"description": "Thông tin đăng nhập không chính xác"},
-    404: {"description": "Tài khoản không tồn tại"},
-    500: {"description": "Internal server error"},
-})
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    responses={
+        200: {"description": "OK"},
+        400: {
+            "description": "Mật khẩu không chính xác hoặc tài khoản đã bị vô hiệu hóa"
+        },
+        401: {"description": "Thông tin đăng nhập không chính xác"},
+        404: {"description": "Tài khoản không tồn tại"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def login(
     response: Response, data: UserLogin, db: Session = Depends(get_db)
 ) -> Any:

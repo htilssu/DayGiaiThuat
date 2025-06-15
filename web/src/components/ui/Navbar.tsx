@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useAppDispatch, useAppSelector } from "@/lib/store";
 import { removeUser } from "@/lib/store/userStore";
+import { authApi } from "@/lib/api";
 /**
  * Component Navbar chứa menu điều hướng và các tùy chọn người dùng
  * @returns {React.ReactNode} Navbar component
@@ -21,8 +22,6 @@ export default function Navbar() {
   const appName = process.env.NEXT_PUBLIC_APP_NAME || "AIGiảiThuật";
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.user);
-
-
   // Theo dõi scroll và lưu giá trị chính xác thay vì boolean
   useEffect(() => {
     const handleScroll = () => {
@@ -66,6 +65,9 @@ export default function Navbar() {
    */
   const handleLogout = async () => {
     try {
+      // Gọi API đăng xuất trước
+      await authApi.logout();
+      // Sau đó xóa thông tin người dùng khỏi store
       dispatch(removeUser());
     } catch (error) {
       console.error("Lỗi khi đăng xuất:", error);
