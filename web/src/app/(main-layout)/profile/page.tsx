@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, use } from "react";
 import { Tabs } from "@mantine/core";
 import Image from "next/image";
-import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@mantine/core";
-import { Activity, Badge, CourseProgress } from "@/services/profile.service";
+import { Activity, Badge } from "@/services/profile.service";
+import { useAppSelector } from "@/lib/store";
 
 /**
  * Trang hồ sơ người dùng
@@ -19,12 +19,10 @@ const ProfilePage = () => {
   // Lấy thông tin người dùng từ AuthContext
   const {
     user,
-    isAuthenticated,
-    isLoading: authLoading,
-    error: authError,
-    clearError,
-  } = useAuth();
+  } = useAppSelector((state) => state.user);
   const [isLoading, setIsLoading] = useState(true);
+  useQuery
+
 
   useEffect(() => {
     if (!authLoading) {
@@ -341,11 +339,10 @@ const ProfilePage = () => {
                 {user.badges.map((badge: Badge) => (
                   <div
                     key={badge.id}
-                    className={`border ${
-                      badge.unlocked
-                        ? "border-amber-200 bg-amber-50/50"
-                        : "border-foreground/10 bg-background/50 opacity-50"
-                    } rounded-lg p-4 text-center transition-all hover:shadow-md flex flex-col items-center justify-center gap-2`}
+                    className={`border ${badge.unlocked
+                      ? "border-amber-200 bg-amber-50/50"
+                      : "border-foreground/10 bg-background/50 opacity-50"
+                      } rounded-lg p-4 text-center transition-all hover:shadow-md flex flex-col items-center justify-center gap-2`}
                   >
                     <div className="text-4xl mb-2">{badge.icon}</div>
                     <h3 className="font-semibold">{badge.name}</h3>
@@ -392,8 +389,8 @@ const ProfilePage = () => {
                           {activity.type === "exercise"
                             ? "Bài tập"
                             : activity.type === "course"
-                            ? "Khóa học"
-                            : "Thảo luận"}
+                              ? "Khóa học"
+                              : "Thảo luận"}
                         </p>
                       </div>
                       <div className="text-right">

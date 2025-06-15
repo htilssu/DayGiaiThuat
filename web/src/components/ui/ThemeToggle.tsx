@@ -37,7 +37,7 @@ export default function ThemeToggle() {
   );
 
   // Biểu tượng cho dark mode (mặt trăng)
-  const MoonIcon = () => (
+  const ChangeThemeButton = () => (
     <svg
       className="w-5 h-5 text-[rgb(var(--color-secondary))]"
       fill="none"
@@ -51,13 +51,12 @@ export default function ThemeToggle() {
       />
     </svg>
   );
-  if (currentTheme === "dark") {
+  if (currentTheme !== "dark") {
     return (
       <button
         onClick={handleToggle}
         className={`p-2 rounded-full hover:bg-primary/10 transition-colors`}
         aria-label="Chuyển đổi theme">
-        <MoonIcon />
       </button>
     );
   }

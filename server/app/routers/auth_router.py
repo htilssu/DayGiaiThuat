@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 
 from app.models.user_model import User as UserModel
-from app.schemas.auth_schema import UserRegister, UserLogin, Token
+from app.schemas.auth_schema import UserRegister, UserLogin, LoginResponse
 from app.utils.password import (
     get_db,
     verify_password,
@@ -44,7 +44,13 @@ async def register(user: UserRegister, user_service: UserService = Depends()) ->
     return {"message": "Đăng ký thành công"}
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=LoginResponse, responses={
+    200: {"description": "OK"},
+    400: {"description": "Mật khẩu không chính xác hoặc tài khoản đã bị vô hiệu hóa"},
+    401: {"description": "Thông tin đăng nhập không chính xác"},
+    404: {"description": "Tài khoản không tồn tại"},
+    500: {"description": "Internal server error"},
+})
 async def login(
     response: Response, data: UserLogin, db: Session = Depends(get_db)
 ) -> Any:
@@ -56,9 +62,6 @@ async def login(
     :param data: Thông tin đăng nhập (username/email, password)
 
     :returns: Token
-
-    :raises HTTPException: - 401: Thông tin đăng nhập không chính xác
-                           - 400: Tài khoản đã bị vô hiệu hóa
     """
     # Tìm user theo username hoặc email
     is_email = "@" in data.username
@@ -82,7 +85,7 @@ async def login(
 
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Tài khoản đã bị vô hiệu hóa",
         )
 
@@ -96,7 +99,15 @@ async def login(
     # Thiết lập cookie sử dụng hàm tiện ích
     set_auth_cookie(response, access_token)
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "username": user.username,
+        },
+    }
 
 
 @router.post("/logout")

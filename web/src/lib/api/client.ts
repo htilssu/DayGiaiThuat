@@ -77,7 +77,7 @@ export const handleApiError = (error: AxiosError) => {
 /**
  * Client API để thực hiện các yêu cầu HTTP
  */
-export const apiClient = axios.create({
+export const client = axios.create({
   baseURL: BASE_URL,
   headers: {
     "Content-Type": "application/json",
@@ -97,7 +97,7 @@ export const get = async <T>(
   config?: AxiosRequestConfig
 ): Promise<T> => {
   try {
-    const response: AxiosResponse<T> = await apiClient.get(endpoint, config);
+    const response: AxiosResponse<T> = await client.get(endpoint, config);
     return response.data;
   } catch (error) {
     throw handleApiError(error as AxiosError);
@@ -117,7 +117,7 @@ export const post = async <T>(
   config?: AxiosRequestConfig
 ): Promise<T> => {
   try {
-    const response: AxiosResponse<T> = await apiClient.post(
+    const response: AxiosResponse<T> = await client.post(
       endpoint,
       data,
       config
@@ -141,7 +141,7 @@ export const put = async <T>(
   config?: AxiosRequestConfig
 ): Promise<T> => {
   try {
-    const response: AxiosResponse<T> = await apiClient.put(
+    const response: AxiosResponse<T> = await client.put(
       endpoint,
       data,
       config
@@ -165,7 +165,7 @@ export const patch = async <T>(
   config?: AxiosRequestConfig
 ): Promise<T> => {
   try {
-    const response: AxiosResponse<T> = await apiClient.patch(
+    const response: AxiosResponse<T> = await client.patch(
       endpoint,
       data,
       config
@@ -187,7 +187,7 @@ export const del = async <T>(
   config?: AxiosRequestConfig
 ): Promise<T> => {
   try {
-    const response: AxiosResponse<T> = await apiClient.delete(endpoint, config);
+    const response: AxiosResponse<T> = await client.delete(endpoint, config);
     return response.data;
   } catch (error) {
     throw handleApiError(error as AxiosError);

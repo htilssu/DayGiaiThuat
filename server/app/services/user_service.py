@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 
 from app.utils.string import remove_vi_accents
 
-from ..database.database import get_db
+from ..database.database import SessionLocal
 from ..models.user_model import User
 from ..schemas.auth_schema import UserRegister
 from ..schemas.user_profile_schema import UserUpdate
@@ -21,7 +21,7 @@ class UserService:
     """
 
     def __init__(self):
-        self.db = get_db()
+        self.db = SessionLocal()
 
     def __del__(self):
         self.db.close()

@@ -1,4 +1,3 @@
-import api from "@/lib/api";
 import { get, post, put } from "@/lib/api/client";
 
 /**
@@ -174,7 +173,7 @@ export interface TransformedCourseData extends Omit<CourseItem, "imageUrl"> {
  */
 export interface TransformedUserData
   extends Omit<BasicUserInfo, "avatarUrl">,
-    Omit<AccountInfo, "preferences"> {
+  Omit<AccountInfo, "preferences"> {
   bio: string; // Đảm bảo là required thay vì optional
   preferences: any; // Đảm bảo là required thay vì optional
 
