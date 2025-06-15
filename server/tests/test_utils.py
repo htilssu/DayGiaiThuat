@@ -2,11 +2,10 @@
 Tests cho các utility functions trong ứng dụng.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from jose import jwt
 
-from app.utils.password import (
+from app.utils.utils import (
     verify_password,
     password_hash,
     create_access_token,

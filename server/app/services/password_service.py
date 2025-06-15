@@ -1,12 +1,17 @@
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
+from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.models.user_model import User
-from app.utils.password import password_hash
+from app.utils.utils import password_hash
+
+
+def get_password_service(db: Session = Depends(get_db)):
+    return PasswordService(db)
 
 
 class PasswordService:
-    def __init__(self):
-        self.db = get_db()
+    def __init__(self, db: Session):
+        self.db = db
 
     def __del__(self):
         self.db.close()

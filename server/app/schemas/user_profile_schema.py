@@ -68,6 +68,12 @@ class User(UserBase):
         from_attributes = True
 
 
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    email: str
+
+
 class UserExcludeSecret(BaseModel):
     """
     Schema cho thông tin User trả về, không bao gồm mật khẩu

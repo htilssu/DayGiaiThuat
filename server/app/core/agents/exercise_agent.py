@@ -22,29 +22,43 @@ from app.schemas.exercise_schema import ExerciseDetail
 
 SYSTEM_PROMPT_TEMPLATE_FOR_EXERCISE_GENERATOR = """
 Bạn là chuyên gia tạo các bài tập giải thuật để người dùng luyện tập lập trình.
-Nhiệm vụ của bạn là tạo ra các đề bài rõ ràng, ngắn gọn và có ngữ cảnh đời thường, giúp người dùng dễ dàng liên hệ với các tình huống thực tế. Bài tập được tạo ra phải không trùng 
-với bài tập đã tồn tại trong cơ sở dữ liệu.Bài tập giống như leetcode Khi tạo một bài tập, hãy tuân theo mẫu sau:
+Nhiệm vụ của bạn là tạo ra các đề bài rõ ràng, ngắn gọn và có ngữ cảnh đời thường,
+giúp người dùng dễ dàng liên hệ với các tình huống thực tế.
+Bài tập được tạo ra phải không trùng
+với bài tập đã tồn tại trong cơ sở dữ liệu.
+Bài tập giống như leetcode Khi tạo một bài tập, hãy tuân theo mẫu sau:
 
 Tên bài tập: [Tạo một tiêu đề mô tả cho bài tập, bao gồm ngữ cảnh đời thường nếu có thể]
 Mô tả: [Giải thích chi tiết về bài tập, bao gồm bất kỳ định nghĩa hoặc thông tin cần thiết nào để hiểu bài toán]
 Đầu vào: [Xác định định dạng của dữ liệu đầu vào]
 Đầu ra: [Xác định định dạng của dữ liệu đầu ra mong muốn]
-Ví dụ (phải có 3 ví dụ đơn giản, dễ giải thích, nhưng không được trùng trường hợp nổi bật, tên đầu và ra phải là tên biến bằng tiếng anh):
+Ví dụ (phải có 3 ví dụ đơn giản, dễ giải thích, nhưng không được trùng trường hợp nổi bật,
+tên đầu và ra phải là tên biến bằng tiếng anh):
 Đầu vào: [Cung cấp một ví dụ đầu vào]
 Đầu ra: [Cung cấp đầu ra tương ứng]
 Giải thích: [Cung cấp giải thích chi tiết ví dụ: đầu tiên i = 0 có giá trị bé hơn 1, chuyển nó ra phía trước...]
 
-Ràng buộc: [Tùy chọn: xác định bất kỳ ràng buộc nào về dữ liệu đầu vào, chẳng hạn như phạm vi giá trị, giới hạn kích thước, v.v.]
+Ràng buộc: [Tùy chọn: xác định bất kỳ ràng buộc nào về dữ liệu đầu vào,
+chẳng hạn như phạm vi giá trị, giới hạn kích thước, v.v.]
 Hãy đảm bảo rằng các bài tập bạn tạo ra đều logic, có thể giải được và phù hợp để luyện tập lập trình.
-Các bài tập nên bao quát nhiều chủ đề giải thuật khác nhau như mảng, chuỗi, tìm kiếm, sắp xếp, lập trình động, đồ thị và cây. Bạn cần tạo bài tập ở các mức độ khó khác nhau (dễ, trung bình, khó) theo yêu cầu của người dùng.
+Các bài tập nên bao quát nhiều chủ đề giải thuật khác nhau như mảng,
+chuỗi, tìm kiếm, sắp xếp, lập trình động, đồ thị và cây
+Bạn cần tạo bài tập ở các mức độ khó khác nhau (dễ, trung bình, khó) theo yêu cầu của người dùng.
 
-Khi tạo ngữ cảnh đời thường, hãy chọn các tình huống quen thuộc, chẳng hạn như quản lý danh sech công việc, sắp xếp hàng đợi, tính toán chi phí mua sắm, hoặc tổ chức dữ liệu trong các hoạt động hàng ngày. Ví dụ cụ thể như "Thư đang cần sắp xếp các cuốn sách trên kệ theo thứ tự từ nhỏ đến lớn" sẽ giúp người dùng dễ hình dung bài toán.
+Khi tạo ngữ cảnh đời thường, hãy chọn các tình huống quen thuộc,
+chẳng hạn như quản lý danh sech công việc, sắp xếp hàng đợi, tính toán chi phí mua sắm,
+hoặc tổ chức dữ liệu trong các hoạt động hàng ngày.
+Ví dụ cụ thể như "Thư đang cần sắp xếp các cuốn sách trên kệ theo thứ tự từ nhỏ đến lớn"
+sẽ giúp người dùng dễ hình dung bài toán.
 
-Nếu bài tập liên quan đến đồ thị hoặc cây, hãy mô tả rõ ràng cấu trúc bằng văn bản, bao gồm các nút, cạnh và thuộc tính liên quan.
-strong
-Mục tiêu là tạo ra các bài tập hấp dẫn, mang tính giáo dục và thực tế, giúp người dùng cải thiện kỹ năng tư duy giải thuật và lập trình.
+Nếu bài tập liên quan đến đồ thị hoặc cây,
+hãy mô tả rõ ràng cấu trúc bằng văn bản, bao gồm các nút, cạnh và thuộc tính liên quan.
+
+Mục tiêu là tạo ra các bài tập hấp dẫn, mang tính giáo dục và thực tế,
+giúp người dùng cải thiện kỹ năng tư duy giải thuật và lập trình.
 
 Parser đầu ra của bạn phải là một JSON object với các trường sau:
+
 {parse_instruction}
 """
 
@@ -52,11 +66,16 @@ Parser đầu ra của bạn phải là một JSON object với các trường s
 # System prompt được lấy từ n8n workflow
 SYSTEM_PROMPT_TEMPLATE = """
 Bạn là 1 chuyên gia hàng đầu trong việc tạo các bài tập giải thuật để người dùng luyện tập lập trình.
-Nhiệm vụ của bạn là tạo ra các đề bài rõ ràng, ngắn gọn và có ngữ cảnh đời thường, giúp người dùng dễ dàng liên hệ với các tình huống thực tế. Bài tập được tạo ra phải không trùng 
+Nhiệm vụ của bạn là tạo ra các đề bài rõ ràng, ngắn gọn và có ngữ cảnh đời thường,
+giúp người dùng dễ dàng liên hệ với các tình huống thực tế. Bài tập được tạo ra phải không trùng
 với bài tập đã tồn tại trong cơ sở dữ liệu.
 
-Sử dụng dữ liệu trong cơ sở dữ liệu để tạo ra các bài tập giải thuật mới - Nếu không có dữ liệu, hãy tạo ra bài tập dựa trên các thông tin mà bạn đã được train.
-Sau khi tạo bài tập, hãy kiểm tra xem bài tập đã tồn tại trong cơ sở dữ liệu hay chưa (lấy description của bài tập để kiểm tra). nếu tồn tại rồi thì tạo lại bài tập mới.
+Sử dụng dữ liệu trong cơ sở dữ liệu để tạo ra các bài tập giải thuật mới - Nếu không có dữ liệu,
+hãy tạo ra bài tập dựa trên các thông tin mà bạn đã được train.
+Sau khi tạo bài tập, hãy kiểm tra xem bài tập đã tồn tại trong cơ sở dữ liệu
+hay chưa
+(lấy description của bài tập để kiểm tra).
+Nếu tồn tại rồi thì tạo lại bài tập mới.
 Nếu 1 bài tập đã tồn tại trong cơ sở dữ liệu, hãy tạo ra bài tập mới dựa trên các thông tin đã có.
 """
 
@@ -127,14 +146,17 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             name="retriever_algo_vault",
             func=self.retriever.invoke,  # Sử dụng invoke cho retriever đồng bộ
             coroutine=self.retriever.ainvoke,  # Sử dụng ainvoke cho retriever bất đồng bộ
-            description="Truy xuất thông tin và kiến thức về giải thuật từ cơ sở dữ liệu vector AlgoVault để hỗ trợ việc tạo bài tập.",
+            description="""Truy xuất thông tin và kiến thức về giải thuật từ cơ sở dữ liệu
+            vector AlgoVault để hỗ trợ việc tạo bài tập.""",
         )
 
         self.retriever_exercise_tool = Tool(
             name="retriever_exercise",
             func=self.exercise_retriever.invoke,  # Sử dụng invoke cho retriever đồng bộ
             coroutine=self.exercise_retriever.ainvoke,  # Sử dụng ainvoke cho retriever bất đồng bộ
-            description="Truy xuất thông tin về các bài tập đã được lưu trong cơ sở dữ liệu. Để kiểm tra xem bài tập đã tồn tại trong cơ sở dữ liệu hay chưa. sử dụng description của bài tập để kiểm tra",
+            description="""Truy xuất thông tin về các bài tập đã được lưu trong cơ sở dữ liệu.
+            Để kiểm tra xem bài tập đã tồn tại trong cơ sở dữ liệu hay chưa.
+            sử dụng description của bài tập để kiểm tra""",
         )
 
         self.generate_exercise_tool = Tool(
@@ -145,7 +167,8 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             coroutine=lambda x: self.generate_exercise.ainvoke(
                 {"input": x} if isinstance(x, str) else x
             ),
-            description="Tạo bài tập giải thuật mới dựa trên input là topic và difficulty được cung cấp., đầu vào là biến input",
+            description="""Tạo bài tập giải thuật mới dựa trên input là topic và difficulty được cung cấp.,
+            đầu vào là biến input""",
         )
 
         self.output_fixing_parser = OutputFixingParser.from_llm(
@@ -156,7 +179,8 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             "OutputFixingParser",
             func=self.output_fixing_parser.invoke,
             coroutine=self.output_fixing_parser.ainvoke,
-            description="Sửa lỗi đầu ra từ mô hình ngôn ngữ để đảm bảo định dạng chính xác và đầy đủ cho bài tập giải thuật.",
+            description="""Sửa lỗi đầu ra từ mô hình ngôn ngữ để đảm bảo định dạng chính
+            xác và đầy đủ cho bài tập giải thuật.""",
         )
 
         self.tools = [

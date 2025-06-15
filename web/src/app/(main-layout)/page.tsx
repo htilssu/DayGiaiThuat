@@ -139,7 +139,7 @@ export default function HomePage() {
                 <div className="flex flex-wrap gap-4">
                   <Link
                     href="/algorithms"
-                    className="px-6 py-3 btn-gradient-primary text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all">
+                    className="px-6 py-3 bg-primary text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all">
                     Khám phá ngay
                   </Link>
                   <Link
@@ -305,7 +305,7 @@ export default function HomePage() {
             </p>
             <Link
               href="/auth/register"
-              className="px-8 py-4 btn-gradient-primary text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all inline-block">
+              className="px-8 py-4 bg-primary text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all inline-block">
               Đăng ký miễn phí
             </Link>
           </div>

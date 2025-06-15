@@ -1,7 +1,7 @@
 import json
 from typing import List, Optional, Union
 
-from pydantic import validator, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "lax"  # 'lax', 'strict', or 'none'
     COOKIE_NAME: str = "access_token"
     COOKIE_HTTPONLY: bool = True
-    COOKIE_MAX_AGE: int = 3600  # phút, tương đương với ACCESS_TOKEN_EXPIRE_MINUTES
+    COOKIE_MAX_AGE: int = 60 * 60 * 30 * 24  # 30 ngày
 
     # Agent
     GOOGLE_API_KEY: str

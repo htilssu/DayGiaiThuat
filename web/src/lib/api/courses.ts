@@ -49,12 +49,8 @@ async function getCourseById(id: number) {
   return get<Course>(`/courses/${id}`);
 }
 
-/**
- * API client cho khóa học
- */
-const coursesApi = {
+export const coursesApi = {
   getCourses,
   getCourseById,
 };
 
-export default coursesApi;
