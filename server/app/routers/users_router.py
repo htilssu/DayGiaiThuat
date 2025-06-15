@@ -32,7 +32,8 @@ async def get_user_by_id(user_id: int, current_user: User = Depends(get_current_
     Lấy thông tin của một người dùng cụ thể
     """
     # Kiểm tra người dùng tồn tại
-    user = await current_user.get_user_by_id(user_id)
+    # TODO: Lấy thông tin người dùng từ cơ sở dữ liệu
+    user = None
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Người dùng không tồn tại"

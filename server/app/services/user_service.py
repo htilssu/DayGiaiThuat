@@ -1,13 +1,14 @@
 import random
 from datetime import datetime
 from typing import Optional, Dict, Any
+from sqlalchemy.orm import Session
 
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 from passlib.context import CryptContext
 
 from app.utils.string import remove_vi_accents
+from app.database.database import get_db
 
-from ..database.database import SessionLocal
 from ..models.user_model import User
 from ..schemas.auth_schema import UserRegister
 from ..schemas.user_profile_schema import UserUpdate
@@ -15,13 +16,17 @@ from ..schemas.user_profile_schema import UserUpdate
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+def get_user_service(db: Session = Depends(get_db)):
+    return UserService(db)
+
+
 class UserService:
     """
     Service xử lý logic liên quan đến User
     """
 
-    def __init__(self):
-        self.db = SessionLocal()
+    def __init__(self, db: Session):
+        self.db = db
 
     def __del__(self):
         self.db.close()
@@ -148,7 +153,7 @@ class UserService:
             hashed_password=hashed_password,
             first_name=user_data.first_name,
             last_name=user_data.last_name,
-            avatar_url=f"/avatars/default.png",
+            avatar_url="/avatars/default.png",
         )
 
         # Lưu vào database
