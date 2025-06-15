@@ -13,7 +13,7 @@ from app.utils.utils import (
     set_auth_cookie,
     clear_auth_cookie,
 )
-from app.services.user_service import UserService
+from app.services.user_service import UserService, get_user_service
 
 router = APIRouter(
     prefix="/auth",
@@ -35,7 +35,9 @@ router = APIRouter(
     },
 )
 async def register(
-    response: Response, user: UserRegister, user_service: UserService = Depends()
+    response: Response,
+    user: UserRegister,
+    user_service: UserService = Depends(get_user_service),
 ) -> Any:
     """
     Đăng ký tài khoản mới và trả về token đăng nhập

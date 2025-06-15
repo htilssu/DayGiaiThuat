@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from ..services.password_service import PasswordService
+from ..services.password_service import PasswordService, get_password_service
 
 from ..schemas.password_schema import ChangePasswordSchema
 
 from ..models.user_model import User
 from ..schemas.user_profile_schema import UserUpdate, UserResponse
-from ..services.user_service import UserService
+from ..services.user_service import UserService, get_user_service
 from ..utils.utils import get_current_user, verify_password
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -46,7 +46,7 @@ async def get_user_by_id(user_id: int, current_user: User = Depends(get_current_
 async def update_current_user_profile(
     profile_data: UserUpdate,
     current_user: User = Depends(get_current_user),
-    user_service: UserService = Depends(),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     Cập nhật thông tin profile người dùng hiện tại
@@ -67,7 +67,7 @@ async def update_current_user_profile(
 async def change_user_password(
     data: ChangePasswordSchema,
     current_user: User = Depends(get_current_user),
-    password_service: PasswordService = Depends(),
+    password_service: PasswordService = Depends(get_password_service),
 ):
     """
     Đổi mật khẩu người dùng
@@ -102,7 +102,7 @@ async def change_user_password(
 async def add_user_activity(
     activity_data: dict,
     current_user: User = Depends(get_current_user),
-    user_service: UserService = Depends(),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     Thêm hoạt động mới cho người dùng hiện tại
@@ -123,7 +123,7 @@ async def add_user_activity(
 @router.post("/me/update-streak", response_model=UserResponse)
 async def update_user_streak(
     current_user: User = Depends(get_current_user),
-    user_service: UserService = Depends(),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     Cập nhật streak cho người dùng hiện tại
@@ -142,7 +142,7 @@ async def update_user_streak(
 async def update_learning_progress(
     progress_data: dict,
     current_user: User = Depends(get_current_user),
-    user_service: UserService = Depends(),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     Cập nhật tiến độ học tập của người dùng hiện tại
@@ -165,7 +165,7 @@ async def update_course_progress(
     course_id: str,
     progress_data: dict,
     current_user: User = Depends(get_current_user),
-    user_service: UserService = Depends(),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     Cập nhật tiến độ khóa học của người dùng hiện tại
@@ -188,7 +188,7 @@ async def update_course_progress(
 @router.post("/me/check-badges", response_model=UserResponse)
 async def check_user_badges(
     current_user: User = Depends(get_current_user),
-    user_service: UserService = Depends(),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     Kiểm tra và cập nhật huy hiệu cho người dùng hiện tại
