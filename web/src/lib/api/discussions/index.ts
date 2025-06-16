@@ -1,4 +1,4 @@
-import { api } from "..";
+import { del, get, patch, post } from "@/lib/api";
 import {
   CreateDiscussionDto,
   Discussion,
@@ -22,25 +22,25 @@ export const discussionsApi = {
     if (filters.limit) queryParams.append("limit", filters.limit.toString());
 
     const url = `${DISCUSSIONS_BASE_URL}?${queryParams.toString()}`;
-    return api.get<DiscussionResponse>(url);
+    return get<DiscussionResponse>(url);
   },
 
   getDiscussion: async (id: number): Promise<Discussion> => {
-    return api.get<Discussion>(`${DISCUSSIONS_BASE_URL}/${id}`);
+    return get<Discussion>(`${DISCUSSIONS_BASE_URL}/${id}`);
   },
 
   createDiscussion: async (data: CreateDiscussionDto): Promise<Discussion> => {
-    return api.post<Discussion>(DISCUSSIONS_BASE_URL, data);
+    return post<Discussion>(DISCUSSIONS_BASE_URL, data);
   },
 
   updateDiscussion: async (
     id: number,
     data: UpdateDiscussionDto
   ): Promise<Discussion> => {
-    return api.patch<Discussion>(`${DISCUSSIONS_BASE_URL}/${id}`, data);
+    return patch<Discussion>(`${DISCUSSIONS_BASE_URL}/${id}`, data);
   },
 
   deleteDiscussion: async (id: number): Promise<void> => {
-    return api.delete(`${DISCUSSIONS_BASE_URL}/${id}`);
+    return del(`${DISCUSSIONS_BASE_URL}/${id}`);
   },
 };
