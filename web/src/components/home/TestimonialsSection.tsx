@@ -8,26 +8,26 @@ interface TestimonialsSectionProps {
     testimonials?: Testimonial[];
 }
 
+const defaultTestimonials = [
+    {
+        name: "Học viên 1",
+        role: "Sinh viên CNTT",
+        content: "Nền tảng giúp tôi hiểu rõ các thuật toán phức tạp một cách dễ dàng. Trợ lý AI thực sự hữu ích khi giải thích từng bước của thuật toán."
+    },
+    {
+        name: "Học viên 2",
+        role: "Sinh viên CNTT",
+        content: "Nền tảng giúp tôi hiểu rõ các thuật toán phức tạp một cách dễ dàng. Trợ lý AI thực sự hữu ích khi giải thích từng bước của thuật toán."
+    },
+    {
+        name: "Học viên 3",
+        role: "Sinh viên CNTT",
+        content: "Nền tảng giúp tôi hiểu rõ các thuật toán phức tạp một cách dễ dàng. Trợ lý AI thực sự hữu ích khi giải thích từng bước của thuật toán."
+    }
+];
+
 export function TestimonialsSection({ testimonials }: TestimonialsSectionProps) {
     // Nếu không có dữ liệu, sử dụng dữ liệu mẫu
-    const defaultTestimonials = [
-        {
-            name: "Học viên 1",
-            role: "Sinh viên CNTT",
-            content: "Nền tảng giúp tôi hiểu rõ các thuật toán phức tạp một cách dễ dàng. Trợ lý AI thực sự hữu ích khi giải thích từng bước của thuật toán."
-        },
-        {
-            name: "Học viên 2",
-            role: "Sinh viên CNTT",
-            content: "Nền tảng giúp tôi hiểu rõ các thuật toán phức tạp một cách dễ dàng. Trợ lý AI thực sự hữu ích khi giải thích từng bước của thuật toán."
-        },
-        {
-            name: "Học viên 3",
-            role: "Sinh viên CNTT",
-            content: "Nền tảng giúp tôi hiểu rõ các thuật toán phức tạp một cách dễ dàng. Trợ lý AI thực sự hữu ích khi giải thích từng bước của thuật toán."
-        }
-    ];
-
     const displayTestimonials = testimonials || defaultTestimonials;
 
     return (
