@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import {
+  HeroSection,
+  FeaturesSection,
+  StatsSection,
+  TestimonialsSection,
+  CTASection
+} from "@/components/home";
 
 /**
  * Trang chủ của ứng dụng
@@ -121,195 +127,12 @@ export default function HomePage() {
     <div className="relative min-h-screen">
       {/* Nội dung trang */}
       <div className="relative z-10">
-        {/* Phần Hero */}
-        <section
-          className={`pt-16 pb-24 transition-all duration-700 ${heroVisible ? "opacity-100" : "opacity-0 translate-y-10"
-            }`}>
-          <div className="container mx-auto px-4">
-            <div className="flex flex-col md:flex-row items-center">
-              <div className="md:w-1/2 mb-12 md:mb-0 md:pr-8">
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gradient-theme py-5">
-                  Học thuật toán hiệu quả cùng AI
-                </h1>
-                <p className="text-lg md:text-xl mb-8 text-foreground/80 max-w-xl">
-                  Nền tảng học thuật toán thông minh giúp bạn nắm vững các giải
-                  thuật cơ bản và nâng cao thông qua thực hành tương tác và trợ
-                  lý AI cá nhân hóa.
-                </p>
-                <div className="flex flex-wrap gap-4">
-                  <Link
-                    href="/algorithms"
-                    className="px-6 py-3 bg-primary text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all">
-                    Khám phá ngay
-                  </Link>
-                  <Link
-                    href="/about"
-                    className="px-6 py-3 bg-background border-2 border-primary text-primary font-semibold rounded-lg hover:bg-primary/5 transition-all">
-                    Tìm hiểu thêm
-                  </Link>
-                </div>
-              </div>
-              <div className="md:w-1/2 flex justify-center">
-                <div className="relative w-full max-w-lg aspect-square">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-3xl transform rotate-6"></div>
-                  <div className="absolute inset-0 bg-background rounded-3xl shadow-xl transform -rotate-3 overflow-hidden border border-foreground/10">
-                    <div className="p-8 h-full flex flex-col">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <div className="w-3 h-3 rounded-full bg-accent"></div>
-                        <div className="w-3 h-3 rounded-full bg-secondary"></div>
-                        <div className="w-3 h-3 rounded-full bg-primary"></div>
-                      </div>
-                      <div className="flex-grow flex flex-col p-4 space-y-4">
-                        <div className="bg-foreground/5 rounded-lg p-4">
-                          <pre className="text-xs text-foreground/80">
-                            <code>{`function quickSort(arr) {
-  if (arr.length <= 1) {
-    return arr;
-  }
-  
-  const pivot = arr[0];
-  const left = [];
-  const right = [];
-  
-  for (let i = 1; i < arr.length; i++) {
-    if (arr[i] < pivot) {
-      left.push(arr[i]);
-    } else {
-      right.push(arr[i]);
-    }
-  }
-  
-  return [...quickSort(left), pivot, ...quickSort(right)];
-}`}</code>
-                          </pre>
-                        </div>
-                        <div className="bg-primary/10 rounded-lg p-4">
-                          <p className="text-sm text-foreground/80">
-                            <span className="text-primary font-bold">
-                              AI Assistant:
-                            </span>{" "}
-                            Thuật toán QuickSort hoạt động theo nguyên tắc chia
-                            để trị, có độ phức tạp trung bình là O(n log n)...
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Phần tính năng */}
-        <section
-          className={`py-20 bg-foreground/5 rounded-t-[3rem] transition-all duration-700 ${featuresVisible ? "opacity-100" : "opacity-0 translate-y-10"
-            }`}>
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Tính năng nổi bật
-              </h2>
-              <p className="text-lg text-foreground/70 max-w-2xl mx-auto">
-                Trải nghiệm học tập hiệu quả với các công cụ thông minh và tài
-                nguyên chất lượng cao
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {features.map((feature, index) => (
-                <div
-                  key={index}
-                  className="bg-background rounded-xl p-6 shadow-lg border border-foreground/10 hover:shadow-xl transition-all hover:border-primary/20">
-                  <div className="p-3 mb-4 rounded-lg bg-primary/10 w-max text-primary">
-                    {feature.icon}
-                  </div>
-                  <h3 className="text-xl font-semibold mb-3">
-                    {feature.title}
-                  </h3>
-                  <p className="text-foreground/70">{feature.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Phần thống kê */}
-        <section
-          className={`py-20 bg-gradient-to-br from-primary/90 to-secondary/90 text-white transition-all duration-700 ${statVisible ? "opacity-100" : "opacity-0 translate-y-10"
-            }`}>
-          <div className="container mx-auto px-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {stats.map((stat, index) => (
-                <div key={index} className="text-center">
-                  <div className="text-4xl md:text-5xl font-bold mb-2">
-                    {stat.value}
-                  </div>
-                  <div className="text-white/80">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Phần Lời chứng thực */}
-        <section className="py-20 bg-background">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Người học nói gì?
-              </h2>
-              <p className="text-lg text-foreground/70 max-w-2xl mx-auto">
-                Khám phá trải nghiệm học tập của cộng đồng
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[1, 2, 3].map((_, index) => (
-                <div
-                  key={index}
-                  className="bg-foreground/5 rounded-xl p-6 border border-foreground/10">
-                  <div className="flex items-center mb-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mr-4">
-                      <span className="text-xl font-bold text-primary">
-                        {String.fromCharCode(65 + index)}
-                      </span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold">Học viên {index + 1}</h4>
-                      <p className="text-sm text-foreground/60">
-                        Sinh viên CNTT
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-foreground/80">
-                    &ldquo;Nền tảng giúp tôi hiểu rõ các thuật toán phức tạp một
-                    cách dễ dàng. Trợ lý AI thực sự hữu ích khi giải thích từng
-                    bước của thuật toán.&rdquo;
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Phần CTA */}
-        <section className="py-20 bg-foreground/5">
-          <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              Sẵn sàng bắt đầu?
-            </h2>
-            <p className="text-lg text-foreground/70 max-w-2xl mx-auto mb-8">
-              Tham gia ngay hôm nay để nâng cao kỹ năng giải thuật và mở ra cơ
-              hội nghề nghiệp rộng mở
-            </p>
-            <Link
-              href="/auth/register"
-              className="px-8 py-4 bg-primary text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all inline-block">
-              Đăng ký miễn phí
-            </Link>
-          </div>
-        </section>
+        {/* Các section */}
+        <HeroSection visible={heroVisible} />
+        <FeaturesSection visible={featuresVisible} features={features} />
+        <StatsSection visible={statVisible} stats={stats} />
+        <TestimonialsSection />
+        <CTASection />
       </div>
     </div>
   );
