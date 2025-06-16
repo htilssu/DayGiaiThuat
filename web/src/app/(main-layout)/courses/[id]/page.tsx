@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import api from "@/lib/api";
+import { coursesApi } from "@/lib/api";
 import { Course } from "@/lib/api/courses";
 
 /**
@@ -25,7 +25,7 @@ export default function CourseDetailPage() {
     const fetchCourseDetails = async () => {
       try {
         setIsLoading(true);
-        const data = await api.courses.getCourseById(courseId);
+        const data = await coursesApi.getCourseById(courseId);
         setCourse(data);
       } catch (err) {
         console.error("Lỗi khi tải thông tin khóa học:", err);
@@ -44,9 +44,8 @@ export default function CourseDetailPage() {
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return `${hours > 0 ? `${hours} giờ ` : ""}${
-      mins > 0 ? `${mins} phút` : ""
-    }`;
+    return `${hours > 0 ? `${hours} giờ ` : ""}${mins > 0 ? `${mins} phút` : ""
+      }`;
   };
 
   // Tạo mảng từ chuỗi phân cách bằng dấu phẩy
@@ -204,31 +203,28 @@ export default function CourseDetailPage() {
           <div className="flex flex-wrap -mb-px">
             <button
               onClick={() => setActiveTab("overview")}
-              className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "overview"
-                  ? "border-primary text-primary"
-                  : "border-transparent hover:text-primary/80 hover:border-foreground/20"
-              }`}
+              className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "overview"
+                ? "border-primary text-primary"
+                : "border-transparent hover:text-primary/80 hover:border-foreground/20"
+                }`}
             >
               Tổng quan
             </button>
             <button
               onClick={() => setActiveTab("content")}
-              className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "content"
-                  ? "border-primary text-primary"
-                  : "border-transparent hover:text-primary/80 hover:border-foreground/20"
-              }`}
+              className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "content"
+                ? "border-primary text-primary"
+                : "border-transparent hover:text-primary/80 hover:border-foreground/20"
+                }`}
             >
               Nội dung khóa học
             </button>
             <button
               onClick={() => setActiveTab("reviews")}
-              className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "reviews"
-                  ? "border-primary text-primary"
-                  : "border-transparent hover:text-primary/80 hover:border-foreground/20"
-              }`}
+              className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "reviews"
+                ? "border-primary text-primary"
+                : "border-transparent hover:text-primary/80 hover:border-foreground/20"
+                }`}
             >
               Đánh giá
             </button>

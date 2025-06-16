@@ -21,3 +21,24 @@ alwaysApply: true
   keywords: ["giải thuật", "học tập", "lập trình", "AI", "bài tập"],
 };
  ```
+
+# Page
+- Mỗi page luôn tạo ra 1 component cho nó thay vì code luôn trong page ví dụ như:
+    ```tsx
+        export const metadata: Metadata = {
+    title: "Ứng dụng học giải thuật thông minh",
+    description: "Nền tảng học giải thuật thông minh với AI Assistant",
+    authors: [{ name: "AI Agent Giải Thuật Team" }],
+    keywords: ["giải thuật", "học tập", "lập trình", "AI", "bài tập"],
+    };
+    
+    export default function CourseListPage() {
+        return <ClientPage/>
+    }
+ ```
+ - Tạo client component trong thư mục src/components
+
+
+
+
+
