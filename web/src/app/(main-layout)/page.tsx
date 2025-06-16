@@ -8,6 +8,7 @@ import {
   TestimonialsSection,
   CTASection
 } from "@/components/home";
+import Modal from "@/components/Modal";
 
 /**
  * Trang chủ của ứng dụng
@@ -124,10 +125,8 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="relative min-h-screen">
-      {/* Nội dung trang */}
-      <div className="relative z-10">
-        {/* Các section */}
+    <div className="min-h-screen">
+      <div>
         <HeroSection visible={heroVisible} />
         <FeaturesSection visible={featuresVisible} features={features} />
         <StatsSection visible={statVisible} stats={stats} />

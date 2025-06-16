@@ -8,6 +8,7 @@ import "@mantine/core/styles.css";
 import { MantineThemeProvider } from "@/components/MantineThemeProvider";
 import ChatBot from "@/components/ChatBot/ChatBot";
 import StoreWrapper from "@/components/wrapper/StoreWrapper";
+import ModalWrapper from "@/components/wrapper/ModalWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -56,7 +57,9 @@ export default function RootLayout({
         <StoreWrapper>
           <ThemeInitializer />
           <MantineThemeProvider>
-            {children}
+            <ModalWrapper>
+              {children}
+            </ModalWrapper>
             <ChatBot />
           </MantineThemeProvider>
         </StoreWrapper>

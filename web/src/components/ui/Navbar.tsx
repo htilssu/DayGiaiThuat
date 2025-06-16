@@ -120,6 +120,13 @@ export default function Navbar() {
               }
             />
             <NavItem
+              href="/learn"
+              label="Học bài"
+              isActive={
+                pathname === "/learn" || pathname.startsWith("/learn/")
+              }
+            />
+            <NavItem
               href="/exercises"
               label="Bài tập"
               isActive={
