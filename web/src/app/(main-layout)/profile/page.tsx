@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Skeleton } from "@mantine/core";
 import { Activity, Badge } from "@/services/profile.service";
 import { useAppSelector } from "@/lib/store";
+import { useRouter } from "next/navigation";
 
 /**
  * Trang hồ sơ người dùng
@@ -19,9 +20,11 @@ const ProfilePage = () => {
   // Lấy thông tin người dùng từ AuthContext
   const {
     user,
+    isLoading: authLoading,
+    isInitial
   } = useAppSelector((state) => state.user);
   const [isLoading, setIsLoading] = useState(true);
-  useQuery
+  const router = useRouter();
 
 
   useEffect(() => {
@@ -54,81 +57,13 @@ const ProfilePage = () => {
     );
   }
 
-  if (authError && !user) {
-    return (
-      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="bg-background rounded-xl shadow-sm p-6 border border-foreground/10 flex flex-col items-center justify-center">
-          <div className="text-red-500 text-xl mb-4">⚠️ {authError}</div>
-          <div className="flex space-x-4">
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors"
-            >
-              Thử lại
-            </button>
-            <button
-              onClick={clearError}
-              className="bg-gray-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-600 transition-colors"
-            >
-              Bỏ qua
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+  if (!user && !authLoading && !isInitial) {
+    router.push("/");
   }
 
-  if (!user) {
-    return (
-      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="bg-background rounded-xl shadow-sm p-6 border border-foreground/10 flex flex-col items-center justify-center">
-          <div className="text-yellow-500 text-xl mb-4">
-            ⚠️ Vui lòng đăng nhập để xem trang hồ sơ
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Hiển thị thông báo lỗi nhẹ nếu cần
-  const renderErrorBanner = () => {
-    if (authError) {
-      return (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg
-                className="h-5 w-5 text-yellow-400"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div className="ml-3 flex justify-between w-full">
-              <p className="text-sm text-yellow-700">{authError}</p>
-              <button
-                onClick={clearError}
-                className="text-sm text-yellow-700 font-medium hover:text-yellow-800"
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      {/* Hiển thị banner thông báo lỗi nếu có */}
-      {renderErrorBanner()}
 
       {/* Header của profile */}
       <div className="bg-background rounded-xl shadow-sm p-6 mb-6 border border-foreground/10 flex flex-col md:flex-row gap-6 items-center md:items-start theme-transition">
@@ -196,14 +131,16 @@ const ProfilePage = () => {
           onClick={() =>
             alert("Tính năng chỉnh sửa hồ sơ đang được phát triển!")
           }
-          className="bg-background border border-foreground/10 hover:bg-foreground/5 text-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors theme-transition"
-        >
+          className="bg-background border border-foreground/10 hover:bg-foreground/5 text-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors theme-transition">
           Chỉnh sửa hồ sơ
         </button>
       </div>
 
       {/* Tabs cho các phần nội dung khác nhau */}
-      <Tabs defaultValue="overview" color="blue" radius="md">
+      <Tabs
+        defaultValue="overview"
+        color="rgb(var(--color-primary))"
+        radius="md">
         <Tabs.List className="mb-6">
           <Tabs.Tab value="overview">Tổng quan</Tabs.Tab>
           <Tabs.Tab value="achievements">Thành tích</Tabs.Tab>
@@ -233,8 +170,7 @@ const ProfilePage = () => {
                     className="bg-primary h-2.5 rounded-full"
                     style={{
                       width: `${user.learningProgress.algorithms}%`,
-                    }}
-                  ></div>
+                    }}></div>
                 </div>
               </div>
               <div>
@@ -251,8 +187,7 @@ const ProfilePage = () => {
                     className="bg-primary h-2.5 rounded-full"
                     style={{
                       width: `${user.learningProgress.dataStructures}%`,
-                    }}
-                  ></div>
+                    }}></div>
                 </div>
               </div>
               <div>
@@ -269,8 +204,7 @@ const ProfilePage = () => {
                     className="bg-primary h-2.5 rounded-full"
                     style={{
                       width: `${user.learningProgress.dynamicProgramming}%`,
-                    }}
-                  ></div>
+                    }}></div>
                 </div>
               </div>
             </div>
@@ -286,11 +220,9 @@ const ProfilePage = () => {
                 {user.courses.map((course: CourseProgress) => (
                   <div
                     key={course.id}
-                    className="border border-foreground/10 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-background/50 theme-transition"
-                  >
+                    className="border border-foreground/10 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-background/50 theme-transition">
                     <div
-                      className={`h-40 bg-gradient-to-r from-${course.color_from} to-${course.color_to} relative`}
-                    >
+                      className={`h-40 bg-gradient-to-r from-${course.color_from} to-${course.color_to} relative`}>
                       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent">
                         <h3 className="text-white font-medium">
                           {course.name}
@@ -309,8 +241,7 @@ const ProfilePage = () => {
                       <div className="w-full bg-foreground/10 rounded-full h-2.5">
                         <div
                           className="bg-primary h-2.5 rounded-full"
-                          style={{ width: `${course.progress}%` }}
-                        ></div>
+                          style={{ width: `${course.progress}%` }}></div>
                       </div>
                     </div>
                   </div>
@@ -342,8 +273,7 @@ const ProfilePage = () => {
                     className={`border ${badge.unlocked
                       ? "border-amber-200 bg-amber-50/50"
                       : "border-foreground/10 bg-background/50 opacity-50"
-                      } rounded-lg p-4 text-center transition-all hover:shadow-md flex flex-col items-center justify-center gap-2`}
-                  >
+                      } rounded-lg p-4 text-center transition-all hover:shadow-md flex flex-col items-center justify-center gap-2`}>
                     <div className="text-4xl mb-2">{badge.icon}</div>
                     <h3 className="font-semibold">{badge.name}</h3>
                     <p className="text-xs text-foreground/70">
@@ -380,8 +310,7 @@ const ProfilePage = () => {
                 {user.activities.map((activity: Activity) => (
                   <div
                     key={activity.id}
-                    className="border-l-4 border-primary pl-4 py-2"
-                  >
+                    className="border-l-4 border-primary pl-4 py-2">
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-medium">{activity.name}</h3>
@@ -449,8 +378,7 @@ const ProfilePage = () => {
                     <textarea
                       className="w-full p-2 border border-foreground/10 rounded-lg bg-background theme-transition"
                       rows={3}
-                      defaultValue={user.bio}
-                    ></textarea>
+                      defaultValue={user.bio}></textarea>
                   </div>
                 </div>
               </div>
