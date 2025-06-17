@@ -1,9 +1,7 @@
-from datetime import datetime
 from typing import List
 
-from sqlalchemy import Boolean, Integer, String, DateTime, Float, Text
+from sqlalchemy import Boolean, Integer, String, Float, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
 
 from app.database.database import Base
 
@@ -57,10 +55,6 @@ class Course(Base):
         Text, nullable=True
     )  # Lưu dưới dạng JSON string lộ trình học tập
 
-    # Relationship với các bảng khác
-    learning_progresses: Mapped[List["LearningProgress"]] = relationship(
-        back_populates="course"
-    )
     user_states: Mapped[List["UserState"]] = relationship(
         back_populates="current_course"
     )

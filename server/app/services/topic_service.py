@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException
 from app.models.topic_model import Topic
 from app.database.repository import Repository
 

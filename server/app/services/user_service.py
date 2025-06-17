@@ -47,27 +47,6 @@ class UserService:
         if not user:
             return None
 
-        # Kiểm tra xem user có dữ liệu stats và learning_progress chưa, nếu chưa thì thêm vào
-        if not hasattr(user, "stats") or user.stats is None:
-            user.stats = {
-                "completed_exercises": 0,
-                "completed_courses": 0,
-                "total_points": 0,
-                "streak_days": 0,
-                "level": 1,
-                "problems_solved": 0,
-            }
-
-        if not hasattr(user, "learning_progress") or user.learning_progress is None:
-            user.learning_progress = {
-                "algorithms": 0,
-                "data_structures": 0,
-                "dynamic_programming": 0,
-            }
-
-        # Lưu lại vào database nếu có thay đổi
-        self.db.commit()
-
         return user
 
     async def get_user_by_email(self, email: str) -> Optional[User]:

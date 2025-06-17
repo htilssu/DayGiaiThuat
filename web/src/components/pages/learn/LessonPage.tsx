@@ -238,8 +238,8 @@ export function LessonPage({ lesson }: LessonPageProps) {
                                 onClick={handlePrev}
                                 disabled={currentSectionIndex === 0}
                                 className={`px-4 py-2 rounded-lg ${currentSectionIndex === 0
-                                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                    : "bg-foreground/10 hover:bg-foreground/20"
+                                    ? "text-gray-400 cursor-not-allowed"
+                                    : "bg-foreground/15"
                                     }`}
                             >
                                 Quay lại
@@ -248,7 +248,7 @@ export function LessonPage({ lesson }: LessonPageProps) {
                                 onClick={handleNext}
                                 disabled={isQuiz && selectedAnswer === null}
                                 className={`px-6 py-2 rounded-lg ${isQuiz && selectedAnswer === null
-                                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                    ? "bg-primary text-white cursor-not-allowed"
                                     : "bg-primary text-white hover:bg-primary/90"
                                     }`}
                             >

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.database.database import get_db
-from app.models import User
+from app.models.user_model import User
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.utils.oauth2 import OAuth2PasswordCookie
 
@@ -51,7 +51,7 @@ def password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict) -> str:
     """
     Tạo JWT token
 
@@ -64,11 +64,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     """
     to_encode = data.copy()
     time_now = datetime.now()
-    if expires_delta:
-        expire = time_now + expires_delta
-    else:
-        expire = time_now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    expire = time_now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": int(expire.timestamp())})
     to_encode.update({"iat": time_now})
 
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)

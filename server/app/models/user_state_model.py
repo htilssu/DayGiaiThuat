@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, JSON
+from sqlalchemy import Integer, DateTime, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -61,17 +61,7 @@ class UserState(Base):
     completed_courses: Mapped[int] = mapped_column(Integer, default=0)
     problems_solved: Mapped[int] = mapped_column(Integer, default=0)
 
-    # Các trường tiến độ học tập chuyển từ learning_progress của User
-    algorithms_progress: Mapped[int] = mapped_column(
-        Integer, default=0
-    )  # Tiến độ học thuật toán (0-100%)
-    data_structures_progress: Mapped[int] = mapped_column(
-        Integer, default=0
-    )  # Tiến độ học cấu trúc dữ liệu (0-100%)
-    dynamic_programming_progress: Mapped[int] = mapped_column(
-        Integer, default=0
-    )  # Tiến độ học quy hoạch động (0-100%)
-
     # Relationship với các bảng khác
     user: Mapped["User"] = relationship(back_populates="state")
     current_course: Mapped["Course"] = relationship(back_populates="user_states")
+    current_lesson: Mapped["Lesson"] = relationship()
