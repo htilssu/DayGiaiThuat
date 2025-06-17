@@ -7,6 +7,7 @@ export default function AIChat({
   code,
   results,
   calling,
+  title,
 }: {
   code: string;
   results: TestResult[];
@@ -14,6 +15,7 @@ export default function AIChat({
     callAIChat: boolean;
     setCallAIChat: (value: boolean) => void;
   };
+  title: string;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<
@@ -37,7 +39,7 @@ export default function AIChat({
     try {
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-05-20",
-        contents: `Đây là code của học viên: ${code} và đây là kết quả test: ${results}`,
+        contents: `Đây là code của học viên: ${code} và đây là kết quả test: ${results}. Đây là tiêu đề bài tập: ${title}`,
         config: {
           systemInstruction: `Bạn là một chuyên gia giải thuật chuyên nghiệp, dễ thương và thân thiện. Nhiệm vụ của bạn là đưa ra gợi ý cho học viên nếu họ làm bài chưa đúng và khen họ nếu họ đã đúng. Hãy đưa ra gợi ý thật ngắn gọn, dễ hiểu và có chút chăm chọc. Hãy chỉ đưa ra gợi ý về cách giải, không đưa ra lời giải cụ thể.`,
         },

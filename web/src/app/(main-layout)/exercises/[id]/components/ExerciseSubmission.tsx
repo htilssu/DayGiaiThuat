@@ -94,6 +94,7 @@ export default function ExerciseSubmission({
       setIsRunningTests(false);
     }, 1500);
     console.log("callAIChat", results);
+    console.log("content", exercise);
     setCallAIChat(true);
   };
 
@@ -145,7 +146,7 @@ export default function ExerciseSubmission({
           <div className="border border-foreground/10 rounded-lg theme-transition">
             <div className="bg-foreground/5 p-3 border-b border-foreground/10 flex justify-between items-center">
               <h3 className="font-medium text-foreground">Code</h3>
-              <div className="text-xs text-foreground/60">Python</div>
+              <div className="text-xs text-foreground/60">JavaScript</div>
             </div>
 
             <div className="flex relative h-96">
@@ -189,7 +190,12 @@ export default function ExerciseSubmission({
 
         {/* AI Chat */}
         <div className="h-96">
-          <AIChat code={code} results={results} calling={calling} />
+          <AIChat
+            code={code}
+            results={results}
+            calling={calling}
+            title={exercise.title}
+          />
         </div>
       </div>
 
