@@ -1,10 +1,4 @@
-/**
- * Module chứa các API liên quan đến xác thực người dùng
- * @module api/auth
- */
-
 import { get, post } from "./client";
-import { ProfileData } from "@/services/profile.service";
 
 /**
  * Interface cho dữ liệu đăng ký
@@ -14,15 +8,15 @@ export interface RegisterData {
   password: string;
   firstName: string;
   lastName: string;
-  fullName?: string; // Giữ lại để đảm bảo khả năng tương thích ngược
 }
 
 /**
  * Interface cho phản hồi token
  */
-export interface TokenResponse {
+export interface LoginResponse {
   accessToken: string;
   tokenType: string;
+  user: UserData
 }
 
 /**
@@ -37,7 +31,7 @@ export interface UserData {
 /**
  * Module API cho authentication
  */
-const authApi = {
+export const authApi = {
   /**
    * Đăng nhập người dùng
    * @param email - Email người dùng
@@ -48,30 +42,18 @@ const authApi = {
     username: string,
     password: string,
     rememberMe: boolean
-  ): Promise<TokenResponse> => {
-    return post<TokenResponse>("/auth/login", {
+  ): Promise<LoginResponse> => {
+    return post<LoginResponse>("/auth/login", {
       username,
       password,
       rememberMe,
     });
   },
 
-  /**
-   * Đăng ký tài khoản mới
-   * @param userData - Thông tin người dùng đăng ký
-   * @returns Promise chứa thông tin token
-   */
-  register: (userData: RegisterData): Promise<TokenResponse> => {
-    return post<TokenResponse>("/auth/register", userData);
+  register: (userData: RegisterData): Promise<LoginResponse> => {
+    return post<LoginResponse>("/auth/register", userData);
   },
 
-  /**
-   * Lấy thông tin người dùng hiện tại
-   * @returns Promise chứa thông tin người dùng
-   */
-  getProfile: (): Promise<ProfileData> => {
-    return get<ProfileData>("/users/me");
-  },
 
   /**
    * Đăng xuất người dùng
@@ -82,4 +64,3 @@ const authApi = {
   },
 };
 
-export default authApi;

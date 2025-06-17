@@ -1,7 +1,7 @@
 import json
 from typing import List, Optional, Union
 
-from pydantic import validator, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     Attributes:
         PROJECT_NAME (str): Tên dự án
+        DEV_MODE (bool): Mode phát triển
         BACKEND_CORS_ORIGINS (List[AnyHttpUrl]): Danh sách origins được phép CORS
         DB_USER (str): Username database
         DB_PASSWORD (str): Password database
@@ -30,7 +31,7 @@ class Settings(BaseSettings):
     """
 
     PROJECT_NAME: str
-
+    DEV_MODE: Optional[bool] = True
     # CORS
     BACKEND_CORS_ORIGINS: List[str]
 
@@ -74,7 +75,7 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "lax"  # 'lax', 'strict', or 'none'
     COOKIE_NAME: str = "access_token"
     COOKIE_HTTPONLY: bool = True
-    COOKIE_MAX_AGE: int = 3600  # phút, tương đương với ACCESS_TOKEN_EXPIRE_MINUTES
+    COOKIE_MAX_AGE: int = 60 * 60 * 30 * 24  # 30 ngày
 
     # Agent
     GOOGLE_API_KEY: str

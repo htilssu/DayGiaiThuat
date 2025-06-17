@@ -5,12 +5,12 @@ Thứ tự import rất quan trọng để tránh circular dependency.
 """
 
 # Import các model theo thứ tự phù hợp
-from .badge import *
-from .topic import *
-from .exercise import *
-from .course import *
-from .user import *
-from .user_state import *
-from .learning_progress import *
-from .learning_path import *
-from .test import *
+from .badge_model import *
+from .topic_model import *
+from .exercise_model import *
+from .course_model import *
+from .user_model import *
+from .user_state_model import *
+from .learning_progress_model import *
+from .learning_path_model import *
+from .test_model import *

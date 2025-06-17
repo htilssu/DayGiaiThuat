@@ -5,9 +5,9 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import TextInput from "@/components/form/TextInput";
 import BrandLogo from "@/components/ui/BrandLogo";
-import api from "@/lib/api";
-import { useAuth } from "@/contexts/AuthContext";
-
+import { authApi } from "@/lib/api";
+import { setUser } from "@/lib/store/userStore";
+import { useAppDispatch } from "@/lib/store";
 /**
  * Interface cho dữ liệu form đăng ký
  */
@@ -40,8 +40,8 @@ interface RegisterFormErrors {
  */
 export default function RegisterPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formStep, setFormStep] = useState(0);
   const [formData, setFormData] = useState<RegisterFormData>({
@@ -161,7 +161,7 @@ export default function RegisterPage() {
     try {
       // Gọi API đăng ký sử dụng tiện ích
       try {
-        const tokenData = await api.auth.register({
+        const registerResponse = await authApi.register({
           email: formData.email,
           password: formData.password,
           firstName: formData.firstName,
@@ -169,7 +169,7 @@ export default function RegisterPage() {
         });
 
         // Đăng ký thành công, đăng nhập luôn
-        await login();
+        dispatch(setUser(registerResponse.user));
 
         // Hiển thị thông báo thành công
         setFormStep(1);
@@ -400,9 +400,8 @@ export default function RegisterPage() {
               <div className="ml-3 text-sm">
                 <label
                   htmlFor="agreeToTerms"
-                  className={`text-foreground/80 theme-transition ${
-                    formData.agreeToTerms ? "font-medium" : ""
-                  }`}
+                  className={`text-foreground/80 theme-transition ${formData.agreeToTerms ? "font-medium" : ""
+                    }`}
                 >
                   Tôi đồng ý với{" "}
                   <Link

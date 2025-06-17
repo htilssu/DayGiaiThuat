@@ -14,7 +14,7 @@ import { Dropzone, FileWithPath } from "@mantine/dropzone";
 import { IconCloudUpload, IconX, IconFile } from "@tabler/icons-react";
 import { Document } from "@/lib/api/documents";
 import { DocumentStatus } from "./DocumentStatus";
-import api from "@/lib/api";
+import { documentsApi } from "@/lib/api";
 import { notifications } from "@mantine/notifications";
 
 export function DocumentUpload() {
@@ -30,7 +30,7 @@ export function DocumentUpload() {
       );
       if (processingDocs.length > 0) {
         try {
-          const updatedDocs = await api.documents.getStatus(
+          const updatedDocs = await documentsApi.getStatus(
             processingDocs.map((doc) => doc.id)
           );
           setDocuments((prev) =>
@@ -58,7 +58,7 @@ export function DocumentUpload() {
 
     setIsUploading(true);
     try {
-      const response = await api.documents.upload(files);
+      const response = await documentsApi.upload(files);
       setDocuments((prev) => [...prev, ...response.documents]);
       setFiles([]);
       notifications.show({

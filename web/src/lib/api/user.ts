@@ -3,8 +3,8 @@
  * @module api/user
  */
 
+import { UserData } from "./auth";
 import { get, post, put, del } from "./client";
-import { AuthUserData } from "@/services/profile.service";
 
 /**
  * Interface cho dữ liệu cập nhật hồ sơ người dùng
@@ -19,7 +19,7 @@ export interface UpdateProfileData {
  * Interface cho phản hồi danh sách người dùng
  */
 export interface UsersListResponse {
-  items: AuthUserData[];
+  items: UserData[];
   total: number;
   page: number;
   perPage: number;
@@ -29,7 +29,7 @@ export interface UsersListResponse {
 /**
  * Module API cho quản lý người dùng
  */
-const userApi = {
+export const userApi = {
   /**
    * Lấy danh sách người dùng
    * @param page - Số trang
@@ -48,8 +48,8 @@ const userApi = {
    * @param userId - ID của người dùng
    * @returns Promise chứa thông tin người dùng
    */
-  getUserById: (userId: string): Promise<AuthUserData> => {
-    return get<AuthUserData>(`/users/${userId}`);
+  getUserById: (userId: string): Promise<UserData> => {
+    return get<UserData>(`/users/${userId}`);
   },
 
   /**
@@ -57,15 +57,15 @@ const userApi = {
    * @param profileData - Dữ liệu cập nhật hồ sơ
    * @returns Promise chứa thông tin người dùng đã cập nhật
    */
-  updateProfile: (profileData: UpdateProfileData): Promise<AuthUserData> => {
+  updateProfile: (profileData: UpdateProfileData): Promise<UserData> => {
     // Chuyển đổi tên trường để phù hợp với API
     const apiData = {
-      full_name: profileData.fullName,
-      avatar_url: profileData.avatar,
+      fullName: profileData.fullName,
+      avatarUrl: profileData.avatar,
       bio: profileData.bio,
     };
 
-    return put<AuthUserData>("/users/me", apiData);
+    return put<UserData>("/users/me", apiData);
   },
 
   /**
@@ -79,8 +79,8 @@ const userApi = {
     newPassword: string
   ): Promise<{ message: string }> => {
     return post<{ message: string }>("/users/me/change-password", {
-      current_password: currentPassword,
-      new_password: newPassword,
+      currentPassword,
+      newPassword,
     });
   },
 
@@ -91,6 +91,7 @@ const userApi = {
   deleteAccount: (): Promise<{ message: string }> => {
     return del<{ message: string }>("/users/me");
   },
+  getUserByToken: () => {
+    return get<UserData>("/users");
+  }
 };
-
-export default userApi;

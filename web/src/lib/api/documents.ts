@@ -12,7 +12,7 @@ export interface UploadResponse {
   documents: Document[];
 }
 
-const documentsApi = {
+export const documentsApi = {
   upload: async (files: File[]): Promise<UploadResponse> => {
     const formData = new FormData();
     files.forEach((file) => {
@@ -41,5 +41,3 @@ const documentsApi = {
     return response.data.documents;
   },
 };
-
-export default documentsApi;

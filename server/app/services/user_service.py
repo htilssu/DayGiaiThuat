@@ -1,16 +1,23 @@
 import random
 from datetime import datetime
 from typing import Optional, Dict, Any
+from sqlalchemy.orm import Session
 
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 from passlib.context import CryptContext
 
-from ..database.database import SessionLocal
-from ..models.user import User
-from ..schemas.auth import UserRegister
-from ..schemas.user_profile import UserUpdate
+from app.utils.string import remove_vi_accents
+from app.database.database import get_db
+
+from ..models.user_model import User
+from ..schemas.auth_schema import UserRegister
+from ..schemas.user_profile_schema import UserUpdate
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def get_user_service(db: Session = Depends(get_db)):
+    return UserService(db)
 
 
 class UserService:
@@ -18,8 +25,8 @@ class UserService:
     Service xử lý logic liên quan đến User
     """
 
-    def __init__(self):
-        self.db = SessionLocal()
+    def __init__(self, db: Session):
+        self.db = db
 
     def __del__(self):
         self.db.close()
@@ -133,9 +140,9 @@ class UserService:
             )
 
         # random username
-        username = f"{user_data.first_name.lower()} {user_data.last_name.lower()} {random.randint(99, 9999)}"
-        while await self.get_user_by_username(username):
-            username = f"{user_data.first_name.lower()} {user_data.last_name.lower()}{random.randint(99, 9999)}"
+        username = await self._random_username(
+            user_data.first_name, user_data.last_name
+        )
 
         # Mã hóa mật khẩu
         hashed_password = self.get_password_hash(user_data.password)
@@ -146,7 +153,7 @@ class UserService:
             hashed_password=hashed_password,
             first_name=user_data.first_name,
             last_name=user_data.last_name,
-            avatar_url=f"/avatars/default.png",
+            avatar_url="/avatars/default.png",
         )
 
         # Lưu vào database
@@ -663,7 +670,7 @@ class UserService:
             return
 
         # Tính số ngày kể từ khi tạo tài khoản
-        account_age_days = (datetime.utcnow() - user.created_at).days
+        account_age_days = (datetime.now() - user.created_at).days
 
         # Danh sách huy hiệu account_age
         age_badges = [
@@ -696,3 +703,10 @@ class UserService:
                 # Xóa trường threshold trước khi thêm huy hiệu
                 badge_info = {k: v for k, v in badge_data.items() if k != "threshold"}
                 await self.add_badge(user.id, badge_info)
+
+    async def _random_username(self, first_name: str, last_name: str) -> str:
+        fullname = f"{first_name.lower()}{last_name.lower()}"
+        username = f"{remove_vi_accents(fullname)}{random.randint(999, 99999)}"
+        while await self.get_user_by_username(username):
+            username = f"{remove_vi_accents(fullname)}{random.randint(999, 99999)}"
+        return username.replace(" ", "")

@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import api from "@/lib/api";
-import { Course } from "@/lib/api/courses";
+import { coursesApi, Course } from "@/lib/api";
 
 /**
  * Component hiển thị danh sách khóa học
@@ -20,7 +19,7 @@ export default function CourseListPage() {
     const fetchCourses = async () => {
       try {
         setIsLoading(true);
-        const response = await api.courses.getCourses(currentPage, 6);
+        const response = await coursesApi.getCourses(currentPage, 6);
         setCourses(response.items);
         setTotalPages(response.totalPages);
         setError(null);
@@ -45,9 +44,8 @@ export default function CourseListPage() {
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return `${hours > 0 ? `${hours} giờ ` : ""}${
-      mins > 0 ? `${mins} phút` : ""
-    }`;
+    return `${hours > 0 ? `${hours} giờ ` : ""}${mins > 0 ? `${mins} phút` : ""
+      }`;
   };
 
   return (
@@ -195,11 +193,10 @@ export default function CourseListPage() {
                   <button
                     key={i}
                     onClick={() => handlePageChange(i + 1)}
-                    className={`px-4 py-2 rounded-md border ${
-                      currentPage === i + 1
-                        ? "bg-primary text-white border-primary"
-                        : "border-foreground/20 hover:bg-foreground/5"
-                    }`}>
+                    className={`px-4 py-2 rounded-md border ${currentPage === i + 1
+                      ? "bg-primary text-white border-primary"
+                      : "border-foreground/20 hover:bg-foreground/5"
+                      }`}>
                     {i + 1}
                   </button>
                 ))}

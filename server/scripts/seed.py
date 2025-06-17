@@ -15,15 +15,15 @@ from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
 
 from app.database.database import SessionLocal, engine, Base
-from app.models.badge import Badge, user_badges
+from app.models.badge_model import Badge, user_badges
 from app.models.course import Course
 from app.models.exercise import Exercise
-from app.models.learning_path import LearningPath
-from app.models.learning_progress import LearningProgress
-from app.models.topic import Topic
-from app.models.test import Test
-from app.models.user import User
-from app.models.user_state import UserState
+from app.models.learning_path_model import LearningPath
+from app.models.learning_progress_model import LearningProgress
+from app.models.topic_model import Topic
+from app.models.test_model import Test
+from app.models.user_model import User
+from app.models.user_state_model import UserState
 
 # Thiết lập logging
 logging.basicConfig(level=logging.INFO)

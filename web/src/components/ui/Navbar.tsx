@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
 import ThemeToggle from "@/components/ui/ThemeToggle";
-import { Button } from "@mantine/core";
-
+import { useAppDispatch, useAppSelector } from "@/lib/store";
+import { removeUser } from "@/lib/store/userStore";
+import { authApi } from "@/lib/api";
 /**
  * Component Navbar chứa menu điều hướng và các tùy chọn người dùng
  * @returns {React.ReactNode} Navbar component
@@ -16,12 +16,12 @@ export default function Navbar() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const pathname = usePathname();
-  const { user, isAuthenticated, logout } = useAuth();
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // App name from environment variable
   const appName = process.env.NEXT_PUBLIC_APP_NAME || "AIGiảiThuật";
-
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.user);
   // Theo dõi scroll và lưu giá trị chính xác thay vì boolean
   useEffect(() => {
     const handleScroll = () => {
@@ -65,7 +65,10 @@ export default function Navbar() {
    */
   const handleLogout = async () => {
     try {
-      await logout();
+      // Gọi API đăng xuất trước
+      await authApi.logout();
+      // Sau đó xóa thông tin người dùng khỏi store
+      dispatch(removeUser());
     } catch (error) {
       console.error("Lỗi khi đăng xuất:", error);
     }
@@ -88,9 +91,8 @@ export default function Navbar() {
           ? `0 4px 10px -2px rgba(0, 0, 0, ${shadowOpacity})`
           : "none",
       }}
-      className={`w-full py-4 sticky top-0 z-50 transition-all duration-500 bg-background/95 border-b theme-transition ${
-        scrollY > 10
-      }`}>
+      className={`w-full py-4 sticky top-0 z-50 transition-all duration-500 bg-background/95 border-b theme-transition ${scrollY > 10
+        }`}>
       <div className="container mx-auto flex items-center justify-between px-4">
         {/* Logo */}
         <Link
@@ -115,6 +117,13 @@ export default function Navbar() {
               label="Khóa học"
               isActive={
                 pathname === "/courses" || pathname.startsWith("/courses/")
+              }
+            />
+            <NavItem
+              href="/learn"
+              label="Học bài"
+              isActive={
+                pathname === "/learn" || pathname.startsWith("/learn/")
               }
             />
             <NavItem
@@ -146,7 +155,7 @@ export default function Navbar() {
             {/* Theme Toggle */}
             <ThemeToggle />
 
-            {isAuthenticated ? (
+            {user ? (
               <div className="relative" ref={userMenuRef}>
                 <button
                   className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary text-white font-medium shadow-sm hover:shadow transition-all transform hover:-translate-y-0.5"
@@ -198,7 +207,7 @@ export default function Navbar() {
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="px-5 py-2 text-sm font-medium btn-gradient-primary rounded-lg transition-all shadow-sm hover:shadow transform hover:-translate-y-0.5 theme-transition">
+                  className="px-5 py-2 text-sm font-medium bg-primary text-white rounded-lg transition-all shadow-sm hover:shadow transform hover:-translate-y-0.5 theme-transition">
                   Đăng ký
                 </Link>
               </>
@@ -296,7 +305,7 @@ export default function Navbar() {
               <ThemeToggle />
             </div>
 
-            {isAuthenticated ? (
+            {user ? (
               <>
                 {/* User info - Mobile */}
                 <div className="flex items-center gap-3 p-3 bg-foreground/5 rounded-lg mb-2">
@@ -377,9 +386,8 @@ function NavItem({
       <Link
         href={href}
         aria-current={isActive ? "page" : undefined}
-        className={`relative px-1 py-2 font-medium theme-transition flex items-center ${
-          isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
-        } transition-colors`}>
+        className={`relative px-1 py-2 font-medium theme-transition flex items-center ${isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
+          } transition-colors`}>
         {label}
 
         {/* Indicator thanh dưới chân - active */}
@@ -422,11 +430,10 @@ function MobileNavItem({
     <Link
       href={href}
       aria-current={isActive ? "page" : undefined}
-      className={`relative px-4 py-2.5 rounded-lg theme-transition overflow-hidden group ${
-        isActive
-          ? "text-primary font-medium"
-          : "text-foreground/80 hover:bg-foreground/10 hover:text-primary"
-      } transition-all duration-300 hover:pl-6`}
+      className={`relative px-4 py-2.5 rounded-lg theme-transition overflow-hidden group ${isActive
+        ? "text-primary font-medium"
+        : "text-foreground/80 hover:bg-foreground/10 hover:text-primary"
+        } transition-all duration-300 hover:pl-6`}
       onClick={onClick}>
       {/* Thanh indicator bên trái */}
       <span className="absolute left-0 top-0 bottom-0 w-0 bg-primary/20 transition-all duration-300 group-hover:w-1"></span>
