@@ -44,8 +44,8 @@ class UserState(Base):
         Integer, ForeignKey("courses.id"), nullable=True
     )
     current_lesson_id: Mapped[int] = mapped_column(
-        Integer, nullable=True
-    )  # Sẽ thêm foreign key khi tạo bảng Lesson
+        Integer, ForeignKey("lessons.id"), nullable=True
+    )
     streak_last_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

@@ -16,7 +16,6 @@ from passlib.context import CryptContext
 from app.models.badge_model import Badge, user_badges
 from app.models.course_model import Course
 from app.models.exercise_model import Exercise
-from app.models.learning_path_model import LearningPath
 from app.models.topic_model import Topic
 from app.models.test_model import Test
 from app.models.user_model import User
@@ -592,21 +591,6 @@ def create_users(badges: List[Badge], courses: List[Course]) -> List[User]:
                         is_featured=random.choice([True, False]),
                     )
                 )
-
-            # Tạo learning_path cho mỗi user
-            learning_path = LearningPath(
-                name=f"Lộ trình học của {user.username}",
-                user_id=user.id,
-                path={
-                    "goals": ["Học DSA", "Chuẩn bị phỏng vấn"],
-                    "courses": [
-                        course.id
-                        for course in random.sample(courses, min(2, len(courses)))
-                    ],
-                    "estimated_completion": "3 tháng",
-                },
-            )
-            db.add(learning_path)
 
             users.append(user)
 

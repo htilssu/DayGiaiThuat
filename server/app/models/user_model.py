@@ -26,3 +26,4 @@ class User(Base):
     user_lessons: Mapped[List["UserLesson"]] = relationship(
         "UserLesson", back_populates="user"
     )
+    state: Mapped["UserState"] = relationship(back_populates="user")

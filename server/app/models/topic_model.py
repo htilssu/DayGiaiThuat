@@ -25,3 +25,4 @@ class Topic(Base):
     exercises: Mapped[List["Exercise"]] = relationship(
         "Exercise", back_populates="topic"
     )
+    tests: Mapped[List["Test"]] = relationship("Test", back_populates="topic")

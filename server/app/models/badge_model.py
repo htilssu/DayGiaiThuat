@@ -3,25 +3,10 @@ from sqlalchemy import (
     Column,
     Integer,
     String,
-    DateTime,
-    ForeignKey,
-    Table,
     Text,
 )
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
 
 from app.database.database import Base
-
-# Bảng liên kết nhiều-nhiều giữa User và Badge
-user_badges = Table(
-    "user_badges",
-    Base.metadata,
-    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
-    Column("badge_id", Integer, ForeignKey("badges.id"), primary_key=True),
-    Column("earned_at", DateTime(timezone=True), server_default=func.now()),
-    Column("is_featured", Boolean, default=False),
-)
 
 
 class Badge(Base):
@@ -57,8 +42,3 @@ class Badge(Base):
     rarity = Column(String(50), default="Common")
     is_hidden = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
-
-    # Relationship với các bảng khác
-    users = relationship(
-        "User", secondary=user_badges, back_populates="badge_collection"
-    )

@@ -23,7 +23,6 @@ class Course(Base):
         sections (List): Các phần học trong khóa học
         requirements (List): Các yêu cầu cần có trước khi học
         what_you_will_learn (List): Những gì người học sẽ đạt được sau khóa học
-        learning_path (Dict): Lộ trình học tập theo mô hình Duolingo, bao gồm các đơn vị học tập, bài học và thành tựu
         created_at (DateTime): Thời điểm tạo khóa học
         updated_at (DateTime): Thời điểm cập nhật gần nhất
     """

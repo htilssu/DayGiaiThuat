@@ -1,8 +1,8 @@
 """create lesson table and link topic to user
 
-Revision ID: d2df543150a8
+Revision ID: cae90bec1823
 Revises: a70a2faa176f
-Create Date: 2025-06-17 19:39:01.992015
+Create Date: 2025-06-17 21:00:48.457792
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'd2df543150a8'
+revision: str = 'cae90bec1823'
 down_revision: Union[str, None] = 'a70a2faa176f'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -38,6 +38,21 @@ def upgrade() -> None:
     op.create_index(op.f('ix_lessons_external_id'), 'lessons', ['external_id'], unique=True)
     op.create_index(op.f('ix_lessons_id'), 'lessons', ['id'], unique=False)
     op.create_index(op.f('ix_lessons_title'), 'lessons', ['title'], unique=False)
+    op.create_table('user_topics',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('topic_id', sa.Integer(), nullable=False),
+    sa.Column('progress', sa.Integer(), nullable=False),
+    sa.Column('completed_lessons', sa.Integer(), nullable=False),
+    sa.Column('total_lessons', sa.Integer(), nullable=False),
+    sa.Column('is_completed', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.ForeignKeyConstraint(['topic_id'], ['topics.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_user_topics_id'), 'user_topics', ['id'], unique=False)
     op.create_table('lesson_sections',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('lesson_id', sa.Integer(), nullable=False),
@@ -69,14 +84,29 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_user_lessons_id'), 'user_lessons', ['id'], unique=False)
+    op.drop_index('ix_learning_paths_id', table_name='learning_paths')
+    op.drop_index('ix_learning_paths_name', table_name='learning_paths')
+    op.drop_table('learning_paths')
     op.drop_index('ix_learning_progresses_id', table_name='learning_progresses')
     op.drop_table('learning_progresses')
     op.add_column('topics', sa.Column('external_id', sa.String(), nullable=True))
     op.add_column('topics', sa.Column('prerequisites', sa.ARRAY(sa.String()), nullable=True))
     op.drop_index('ix_topics_description', table_name='topics')
     op.create_index(op.f('ix_topics_external_id'), 'topics', ['external_id'], unique=True)
-    op.drop_column('user_states', 'data_structures_progress')
+    op.add_column('user_badges', sa.Column('id', sa.Integer(), nullable=False))
+    op.add_column('user_badges', sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False))
+    op.add_column('user_badges', sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False))
+    op.alter_column('user_badges', 'earned_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               nullable=False,
+               existing_server_default=sa.text('now()'))
+    op.alter_column('user_badges', 'is_featured',
+               existing_type=sa.BOOLEAN(),
+               nullable=False)
+    op.create_index(op.f('ix_user_badges_id'), 'user_badges', ['id'], unique=False)
+    op.create_foreign_key(None, 'user_states', 'lessons', ['current_lesson_id'], ['id'])
     op.drop_column('user_states', 'algorithms_progress')
+    op.drop_column('user_states', 'data_structures_progress')
     op.drop_column('user_states', 'dynamic_programming_progress')
     op.add_column('users', sa.Column('full_name', sa.String(), nullable=True))
     op.add_column('users', sa.Column('avatar', sa.String(), nullable=True))
@@ -96,8 +126,20 @@ def downgrade() -> None:
     op.drop_column('users', 'avatar')
     op.drop_column('users', 'full_name')
     op.add_column('user_states', sa.Column('dynamic_programming_progress', sa.INTEGER(), autoincrement=False, nullable=False))
-    op.add_column('user_states', sa.Column('algorithms_progress', sa.INTEGER(), autoincrement=False, nullable=False))
     op.add_column('user_states', sa.Column('data_structures_progress', sa.INTEGER(), autoincrement=False, nullable=False))
+    op.add_column('user_states', sa.Column('algorithms_progress', sa.INTEGER(), autoincrement=False, nullable=False))
+    op.drop_constraint(None, 'user_states', type_='foreignkey')
+    op.drop_index(op.f('ix_user_badges_id'), table_name='user_badges')
+    op.alter_column('user_badges', 'is_featured',
+               existing_type=sa.BOOLEAN(),
+               nullable=True)
+    op.alter_column('user_badges', 'earned_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               nullable=True,
+               existing_server_default=sa.text('now()'))
+    op.drop_column('user_badges', 'updated_at')
+    op.drop_column('user_badges', 'created_at')
+    op.drop_column('user_badges', 'id')
     op.drop_index(op.f('ix_topics_external_id'), table_name='topics')
     op.create_index('ix_topics_description', 'topics', ['description'], unique=False)
     op.drop_column('topics', 'prerequisites')
@@ -121,11 +163,25 @@ def downgrade() -> None:
     sa.PrimaryKeyConstraint('id', name='learning_progresses_pkey')
     )
     op.create_index('ix_learning_progresses_id', 'learning_progresses', ['id'], unique=False)
+    op.create_table('learning_paths',
+    sa.Column('id', sa.INTEGER(), autoincrement=True, nullable=False),
+    sa.Column('name', sa.VARCHAR(), autoincrement=False, nullable=False),
+    sa.Column('user_id', sa.INTEGER(), autoincrement=False, nullable=False),
+    sa.Column('path', postgresql.JSON(astext_type=sa.Text()), autoincrement=False, nullable=True),
+    sa.Column('created_at', postgresql.TIMESTAMP(), server_default=sa.text('now()'), autoincrement=False, nullable=False),
+    sa.Column('updated_at', postgresql.TIMESTAMP(), server_default=sa.text('now()'), autoincrement=False, nullable=False),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name='learning_paths_user_id_fkey'),
+    sa.PrimaryKeyConstraint('id', name='learning_paths_pkey')
+    )
+    op.create_index('ix_learning_paths_name', 'learning_paths', ['name'], unique=False)
+    op.create_index('ix_learning_paths_id', 'learning_paths', ['id'], unique=False)
     op.drop_index(op.f('ix_user_lessons_id'), table_name='user_lessons')
     op.drop_table('user_lessons')
     op.drop_index(op.f('ix_lesson_sections_type'), table_name='lesson_sections')
     op.drop_index(op.f('ix_lesson_sections_id'), table_name='lesson_sections')
     op.drop_table('lesson_sections')
+    op.drop_index(op.f('ix_user_topics_id'), table_name='user_topics')
+    op.drop_table('user_topics')
     op.drop_index(op.f('ix_lessons_title'), table_name='lessons')
     op.drop_index(op.f('ix_lessons_id'), table_name='lessons')
     op.drop_index(op.f('ix_lessons_external_id'), table_name='lessons')
