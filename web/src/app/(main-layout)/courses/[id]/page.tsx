@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { Course } from "@/lib/api/courses";
 import { dsaCourseContent } from "@/data/courseContent";
+import Link from "next/link";
 
 /**
  * Component hiển thị chi tiết khóa học
@@ -170,7 +171,9 @@ export default function CourseDetailPage() {
                     ? `Đăng ký - ${course.price.toLocaleString("vi-VN")}₫`
                     : "Đăng ký miễn phí"}
                 </button>
-                <button className="px-8 py-3 border border-foreground/20 rounded-lg hover:bg-foreground/5 transition font-medium">
+                <button
+                  onClick={() => setActiveTab("content")}
+                  className="px-8 py-3 border border-foreground/20 rounded-lg hover:bg-foreground/5 transition font-medium">
                   Xem trước
                 </button>
               </div>
@@ -460,9 +463,11 @@ export default function CourseDetailPage() {
                               {lesson.duration} phút
                             </span>
                             {lesson.isPreview ? (
-                              <button className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
+                              <Link
+                                href={`/lessons/${lesson.id}`}
+                                className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
                                 Xem ngay
-                              </button>
+                              </Link>
                             ) : (
                               <button
                                 disabled

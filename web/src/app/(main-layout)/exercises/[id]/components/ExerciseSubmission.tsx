@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   IconCircleCheck,
   IconCircleX,
@@ -9,6 +9,7 @@ import {
 } from "@tabler/icons-react";
 import { ExerciseDetail, TestResult } from "./types";
 import AIChat from "./AIChat";
+import { runTests, testCases } from "@/services/codeRunner";
 
 /**
  * Component cho phần nộp bài tập và chạy test
@@ -34,39 +35,66 @@ export default function ExerciseSubmission({
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [isRunningTests, setIsRunningTests] = useState(false);
   const [allTestsPassed, setAllTestsPassed] = useState(false);
+  const [callAIChat, setCallAIChat] = useState(false);
+  const calling = {
+    callAIChat,
+    setCallAIChat,
+  };
+
+  const [code, setCode] = useState(`function sumArray(arr) {
+    // Write your code here
+    return arr.reduce((sum, num) => sum + num, 0);
+  }`);
+  const [results, setResults] = useState<
+    Array<{
+      input: string;
+      expectedOutput: string;
+      actualOutput: string;
+      passed: boolean;
+      error: string;
+    }>
+  >([]);
 
   // Giả lập chạy test
-  const runTests = () => {
+  const handleRunTests = () => {
     setIsRunningTests(true);
-    setTestResults([]);
+    // setTestResults([]);
 
     // Mô phỏng việc chạy test bằng cách tạo kết quả ngẫu nhiên
-    setTimeout(() => {
-      const results: TestResult[] = exercise.testCases.map(
-        (testCase, index) => {
-          // Giả lập kết quả test, trong thực tế sẽ chạy code thật với test case
-          // 70% khả năng test pass cho mô phỏng
-          const passed = Math.random() > 0.3;
-          return {
-            passed,
-            input: testCase.input,
-            expectedOutput: testCase.expectedOutput,
-            actualOutput: passed
-              ? testCase.expectedOutput
-              : `Kết quả sai: ${index + Math.floor(Math.random() * 100)}`,
-            error: passed
-              ? undefined
-              : Math.random() > 0.5
-              ? "Runtime error: Lỗi chia cho 0"
-              : undefined,
-          };
-        }
-      );
+    // setTimeout(() => {
+    //   const results: TestResult[] = exercise.testCases.map(
+    //     (testCase, index) => {
+    //       // Giả lập kết quả test, trong thực tế sẽ chạy code thật với test case
+    //       // 70% khả năng test pass cho mô phỏng
+    //       const passed = Math.random() > 0.3;
+    //       return {
+    //         passed,
+    //         input: testCase.input,
+    //         expectedOutput: testCase.expectedOutput,
+    //         actualOutput: passed
+    //           ? testCase.expectedOutput
+    //           : `Kết quả sai: ${index + Math.floor(Math.random() * 100)}`,
+    //         error: passed
+    //           ? undefined
+    //           : Math.random() > 0.5
+    //           ? "Runtime error: Lỗi chia cho 0"
+    //           : undefined,
+    //       };
+    //     }
+    //   );
 
-      setTestResults(results);
-      setAllTestsPassed(results.every((result) => result.passed));
+    //   setTestResults(results);
+    //   setAllTestsPassed(results.every((result) => result.passed));
+    //   setIsRunningTests(false);
+    // }, 1500);
+    setTimeout(() => {
+      const testResults = runTests(code, testCases);
+      setResults(testResults);
+
       setIsRunningTests(false);
     }, 1500);
+    console.log("callAIChat", results);
+    setCallAIChat(true);
   };
 
   // Xử lý nộp bài
@@ -81,27 +109,66 @@ export default function ExerciseSubmission({
     }
   };
 
+  const editorRef = useRef<HTMLTextAreaElement | null>(null);
+  const lineNumbersRef = useRef<HTMLDivElement | null>(null);
+
+  const displayLineNumbers = () => {
+    const editor = editorRef.current;
+
+    const lineNumbersEle = document.getElementById("line-numbers");
+    if (!editor || !lineNumbersEle) return;
+    const lines = editor.value.split("\n");
+    lineNumbersEle.innerHTML = Array.from(
+      {
+        length: lines.length,
+      },
+      (_, i) => `<div>${i + 1}</div>`
+    ).join("");
+  };
+
+  useEffect(() => {
+    displayLineNumbers();
+  }, [code]);
+
+  const handleScroll = () => {
+    if (editorRef.current && lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = editorRef.current.scrollTop;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Editor and Chat */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Code editor with Run Test button */}
         <div className="space-y-4">
-          <div className="border border-foreground/10 rounded-lg overflow-hidden theme-transition">
+          <div className="border border-foreground/10 rounded-lg theme-transition">
             <div className="bg-foreground/5 p-3 border-b border-foreground/10 flex justify-between items-center">
               <h3 className="font-medium text-foreground">Code</h3>
               <div className="text-xs text-foreground/60">Python</div>
             </div>
 
-            <textarea
-              value={userCode}
-              onChange={(e) => setUserCode(e.target.value)}
-              className="w-full h-96 p-4 bg-background text-foreground/90 font-mono text-sm resize-none focus:outline-none theme-transition"
-              placeholder="Viết code của bạn ở đây..."></textarea>
+            <div className="flex relative h-96">
+              <div
+                id="line-numbers"
+                ref={lineNumbersRef}
+                className="font-mono h-96 p-4 border-r-2 text-right select-none bg-background text-foreground/60 theme-transition overflow-y-auto"
+                style={{ minWidth: 32, scrollbarWidth: "none" }}
+              />
+              <textarea
+                ref={editorRef}
+                id="code-editor"
+                value={code}
+                onScroll={handleScroll}
+                onChange={(e) => setCode(e.target.value)}
+                className="w-full h-96 p-4 bg-background text-foreground/90 font-mono resize-none focus:outline-none theme-transition overflow-y-auto"
+                placeholder="Viết code của bạn ở đây..."
+              />
+            </div>
           </div>
 
           <button
-            onClick={runTests}
+            onClick={handleRunTests}
             disabled={isRunningTests}
             className={`w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-lg transition-colors ${
               isRunningTests ? "opacity-60 cursor-not-allowed" : ""
@@ -122,7 +189,7 @@ export default function ExerciseSubmission({
 
         {/* AI Chat */}
         <div className="h-96">
-          <AIChat />
+          <AIChat code={code} results={results} calling={calling} />
         </div>
       </div>
 
@@ -139,12 +206,12 @@ export default function ExerciseSubmission({
                   ? "text-red-500"
                   : "text-foreground/60"
               }`}>
-              {testResults.length === 0
+              {results.length === 0
                 ? "Chưa chạy test"
                 : allTestsPassed
                 ? "Tất cả test đã pass!"
-                : `${testResults.filter((r) => r.passed).length}/${
-                    testResults.length
+                : `${results.filter((r) => r.passed).length}/${
+                    results.length
                   } test passed`}
             </div>
           </div>
@@ -157,7 +224,7 @@ export default function ExerciseSubmission({
                   Đang chạy test...
                 </span>
               </div>
-            ) : testResults.length === 0 ? (
+            ) : results.length === 0 ? (
               <div className="text-center text-foreground/60 h-32 flex items-center justify-center">
                 <div>
                   <IconPlayerPlay className="mx-auto h-12 w-12 text-foreground/30" />
@@ -168,7 +235,7 @@ export default function ExerciseSubmission({
               </div>
             ) : (
               <div className="space-y-4">
-                {testResults.map((result, index) => (
+                {results.map((result, index) => (
                   <div
                     key={index}
                     className={`border rounded-lg p-3 ${

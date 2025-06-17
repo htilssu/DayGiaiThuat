@@ -1,8 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { IconSend } from "@tabler/icons-react";
 import { GoogleGenAI } from "@google/genai";
+import { TestResult } from "./types";
 
-export default function AIChat() {
+export default function AIChat({
+  code,
+  results,
+  calling,
+}: {
+  code: string;
+  results: TestResult[];
+  calling: {
+    callAIChat: boolean;
+    setCallAIChat: (value: boolean) => void;
+  };
+}) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<
     Array<{ role: "user" | "assistant"; content: string }>
   >([
@@ -19,6 +32,39 @@ export default function AIChat() {
     apiKey: "AIzaSyAoWvIFmtiL1MwP1y8ariEm61Zaq4-uNZo",
   });
 
+  const handleTest = async () => {
+    setIsLoading(true);
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-preview-05-20",
+        contents: `Đây là code của học viên: ${code} và đây là kết quả test: ${results}`,
+        config: {
+          systemInstruction: `Bạn là một chuyên gia giải thuật chuyên nghiệp, dễ thương và thân thiện. Nhiệm vụ của bạn là đưa ra gợi ý cho học viên nếu họ làm bài chưa đúng và khen họ nếu họ đã đúng. Hãy đưa ra gợi ý thật ngắn gọn, dễ hiểu và có chút chăm chọc. Hãy chỉ đưa ra gợi ý về cách giải, không đưa ra lời giải cụ thể.`,
+        },
+      });
+
+      if (response.text) {
+        const aiMessage: { role: "assistant"; content: string } = {
+          role: "assistant",
+          content: response.text,
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+      }
+      calling.setCallAIChat(false);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant" as const,
+          content: "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau.",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -27,20 +73,6 @@ export default function AIChat() {
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
-
-    // TODO: Implement actual AI chat API call here
-    // For now, we'll simulate a response
-    // setTimeout(() => {
-    //   setMessages((prev) => [
-    //     ...prev,
-    //     {
-    //       role: "assistant",
-    //       content:
-    //         "Đây là phản hồi mẫu. Trong thực tế, phản hồi sẽ được tạo bởi AI dựa trên câu hỏi của bạn.",
-    //     },
-    //   ]);
-    //   setIsLoading(false);
-    // }, 1000);
 
     try {
       const response = await ai.models.generateContent({
@@ -72,6 +104,20 @@ export default function AIChat() {
       setIsLoading(false);
     }
   };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    if (calling.callAIChat) {
+      handleTest();
+    }
+  }, [calling.callAIChat]);
 
   return (
     <div className="flex flex-col h-full border border-foreground/10 rounded-lg overflow-hidden theme-transition">
@@ -109,11 +155,12 @@ export default function AIChat() {
             </div>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
-      <form
-        onSubmit={handleSubmit}
+      <div
+        // onSubmit={handleSubmit}
         className="p-4 border-t border-foreground/10">
         <div className="flex gap-2">
           <input
@@ -124,14 +171,14 @@ export default function AIChat() {
             className="flex-1 px-3 py-2 rounded-md border border-foreground/10 bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
           <button
-            type="submit"
+            onClick={handleTest}
             disabled={!input.trim() || isLoading}
             className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Gửi tin nhắn">
             <IconSend size={20} />
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

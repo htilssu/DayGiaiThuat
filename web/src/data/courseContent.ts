@@ -27,7 +27,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 15,
         description:
           "Giới thiệu tổng quan về CTDL&GT và vai trò của chúng trong lập trình",
-        type: "video",
+        type: "exercise",
         isPreview: true,
       },
       {
@@ -45,6 +45,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 15,
         description: "Kiểm tra kiến thức về các khái niệm cơ bản",
         type: "quiz",
+        isPreview: true,
       },
     ],
   },
@@ -60,6 +61,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 25,
         description: "Học về cách tổ chức và thao tác với mảng",
         type: "video",
+        isPreview: true,
       },
       {
         id: 5,
@@ -68,6 +70,7 @@ export const dsaCourseContent: Chapter[] = [
         description:
           "Tìm hiểu về cấu trúc và các thao tác cơ bản với danh sách liên kết đơn",
         type: "video",
+        isPreview: true,
       },
       {
         id: 6,
@@ -75,6 +78,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 45,
         description: "Thực hành các thao tác cơ bản với mảng",
         type: "exercise",
+        isPreview: true,
       },
     ],
   },
@@ -89,6 +93,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 25,
         description: "Hiểu về cấu trúc LIFO và các thao tác với Stack",
         type: "video",
+        isPreview: true,
       },
       {
         id: 8,
@@ -96,6 +101,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 25,
         description: "Tìm hiểu về cấu trúc FIFO và các thao tác với Queue",
         type: "video",
+        isPreview: true,
       },
       {
         id: 9,
@@ -103,6 +109,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 40,
         description: "Thực hành giải quyết các bài toán sử dụng Stack và Queue",
         type: "exercise",
+        isPreview: true,
       },
     ],
   },
@@ -117,6 +124,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 30,
         description: "Học về cấu trúc và các khái niệm cơ bản của cây nhị phân",
         type: "video",
+        isPreview: true,
       },
       {
         id: 11,
@@ -124,6 +132,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 35,
         description: "Tìm hiểu về BST và các thao tác cơ bản",
         type: "video",
+        isPreview: true,
       },
       {
         id: 12,
@@ -131,6 +140,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 20,
         description: "Kiểm tra kiến thức về cây nhị phân và BST",
         type: "quiz",
+        isPreview: true,
       },
     ],
   },
@@ -146,6 +156,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 30,
         description: "Tìm hiểu về hai thuật toán sắp xếp đơn giản",
         type: "video",
+        isPreview: true,
       },
       {
         id: 14,
@@ -153,6 +164,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 35,
         description: "Học về hai thuật toán sắp xếp hiệu quả hơn",
         type: "video",
+        isPreview: true,
       },
       {
         id: 15,
@@ -160,6 +172,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 50,
         description: "Thực hành cài đặt các thuật toán sắp xếp đã học",
         type: "exercise",
+        isPreview: true,
       },
     ],
   },
