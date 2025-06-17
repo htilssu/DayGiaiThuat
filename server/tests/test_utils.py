@@ -2,13 +2,12 @@
 Tests cho các utility functions trong ứng dụng.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from jose import jwt
 
-from app.utils.auth import (
+from app.utils.utils import (
     verify_password,
-    get_password_hash,
+    password_hash,
     create_access_token,
     ALGORITHM,
 )
@@ -27,7 +26,7 @@ class TestAuthUtils:
     def test_password_hash(self):
         """Test hash và verify password."""
         password = "password123"
-        hashed_password = get_password_hash(password)
+        hashed_password = password_hash(password)
 
         # Kiểm tra hashed_password khác với password gốc
         assert hashed_password != password

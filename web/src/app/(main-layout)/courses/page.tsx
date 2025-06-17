@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import api from "@/lib/api";
-import { Course } from "@/lib/api/courses";
+import { coursesApi, Course } from "@/lib/api";
 
 /**
  * Component hiển thị danh sách khóa học
@@ -20,7 +19,7 @@ export default function CourseListPage() {
     const fetchCourses = async () => {
       try {
         setIsLoading(true);
-        const response = await api.courses.getCourses(currentPage, 6);
+        const response = await coursesApi.getCourses(currentPage, 6);
         setCourses(response.items);
         setTotalPages(response.totalPages);
         setError(null);

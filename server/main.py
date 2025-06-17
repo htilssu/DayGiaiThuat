@@ -1,7 +1,5 @@
 import logging
-from contextlib import asynccontextmanager
 
-import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import (
@@ -11,48 +9,12 @@ from fastapi.openapi.docs import (
 )
 
 from app.core.config import settings
-from app.database.database import run_migrations
-from app.database.seeder import run_seeder_async
 from app.exceptions.exception_handler import add_exception_handlers
 from app.middleware.camel_case_middleware import CamelCaseMiddleware
-from app.routers.router import register_router
+from app.routers.router_router import register_router
 
 # Khởi tạo logger
 logger = logging.getLogger(__name__)
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    Lifespan context manager để quản lý vòng đời của ứng dụng.
-    Mã trong phần 'yield' trước sẽ chạy khi khởi động,
-    và mã sau 'yield' sẽ chạy khi kết thúc.
-
-    Args:
-        app (FastAPI): Instance của ứng dụng FastAPI
-    """
-    # Startup: chạy khi ứng dụng khởi động
-    logger.info("Ứng dụng đang khởi động...")
-
-    # Chạy migration nếu được cấu hình
-    if getattr(settings, "RUN_MIGRATIONS_ON_STARTUP", False):
-        logger.info("Chạy migrations tự động...")
-        run_migrations()
-
-    # Chạy seeder nếu được cấu hình
-    if getattr(settings, "RUN_SEEDERS_ON_STARTUP", False):
-        logger.info("Chạy seeders tự động...")
-        seeders_to_run = getattr(settings, "SEEDERS_TO_RUN", None)
-        force_seeders = getattr(settings, "FORCE_SEEDERS", False)
-        try:
-            await run_seeder_async(seeders=seeders_to_run, force=force_seeders)
-        except Exception as e:
-            logger.error(f"Lỗi khi chạy seeders: {str(e)}")
-
-    yield
-
-    # Shutdown: chạy khi ứng dụng kết thúc
-    logger.info("Đóng kết nối và dọn dẹp tài nguyên...")
 
 
 # Khởi tạo FastAPI app với lifespan manager
@@ -76,7 +38,7 @@ app = FastAPI(
         "name": "MIT License",
         "url": "https://opensource.org/licenses/MIT",
     },
-    lifespan=lifespan,
+    # lifespan=lifespan,
 )
 
 

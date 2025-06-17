@@ -1,10 +1,10 @@
 "use client";
 
-import { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "../globals.css";
 import { AdminHeader } from "@/components/admin/Header";
+import Footer from "@/components/ui/Footer";
+import { Geist, Geist_Mono } from "next/font/google";
 import { useEffect } from "react";
+import "../globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,11 +47,7 @@ export default function AdminLayout({
       <main className="flex-grow container mx-auto px-4 sm:px-6 py-8 md:py-12">
         {children}
       </main>
-      <footer className="border-t border-primary/10 py-6 bg-primary/5">
-        <div className="container mx-auto px-4 sm:px-6 text-center text-sm text-primary">
-          © {new Date().getFullYear()} AI Agent Giải Thuật. All rights reserved.
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

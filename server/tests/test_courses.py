@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models.course import Course
+from app.models.course_model import Course
 
 
 @pytest.fixture(scope="function")

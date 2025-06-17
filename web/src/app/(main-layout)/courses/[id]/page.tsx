@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import api from "@/lib/api";
+import { coursesApi } from "@/lib/api";
 import { Course } from "@/lib/api/courses";
 import { dsaCourseContent } from "@/data/courseContent";
 import Link from "next/link";
@@ -27,7 +27,7 @@ export default function CourseDetailPage() {
     const fetchCourseDetails = async () => {
       try {
         setIsLoading(true);
-        const data = await api.courses.getCourseById(courseId);
+        const data = await coursesApi.getCourseById(courseId);
         setCourse(data);
       } catch (err) {
         console.error("Lỗi khi tải thông tin khóa học:", err);

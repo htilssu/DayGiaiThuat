@@ -7,5 +7,38 @@ alwaysApply: true
 # Your rule content
 
 - Khi style text hoặc background color mà sử dụng primary color hoặc background color thì không cần set, nếu sử dụng màu khác thì cần định nghĩa cho từng variant đã định nghĩa trong [globals.css](mdc:web/src/app/globals.css) sao cho màu sắc hài hòa, thân thiện với người dùng, đặc biệt là màu phải có độ tương phản
-- Luôn sử dụng [api.ts](mdc:web/src/lib/api.ts) để gọi api, nếu chưa có thì tạo nó và export [index.ts](mdc:web/src/lib/api/index.ts) rồi sử dụng từ [api.ts](mdc:web/src/lib/api.ts)
+- Luôn sử dụng [index.ts](mdc:web/src/lib/api/index.ts) để gọi api, nếu chưa có thì tạo nó và export từ [index.ts](mdc:web/src/lib/api/index.ts) rồi sử dụng
 - alway use camelCase for front end base dir is /web
+- store được export từ [index.ts](mdc:web/src/lib/store/index.ts)
+
+# SEO
+- mỗi page tạo ra hãy tạo metadata sao cho tối ưu seo nhất có thể theo mẫu sau
+ ```tsx
+    export const metadata: Metadata = {
+  title: "Ứng dụng học giải thuật thông minh",
+  description: "Nền tảng học giải thuật thông minh với AI Assistant",
+  authors: [{ name: "AI Agent Giải Thuật Team" }],
+  keywords: ["giải thuật", "học tập", "lập trình", "AI", "bài tập"],
+};
+ ```
+
+# Page
+- Mỗi page luôn tạo ra 1 component cho nó thay vì code luôn trong page ví dụ như:
+    ```tsx
+        export const metadata: Metadata = {
+    title: "Ứng dụng học giải thuật thông minh",
+    description: "Nền tảng học giải thuật thông minh với AI Assistant",
+    authors: [{ name: "AI Agent Giải Thuật Team" }],
+    keywords: ["giải thuật", "học tập", "lập trình", "AI", "bài tập"],
+    };
+    
+    export default function CourseListPage() {
+        return <ClientPage/>
+    }
+ ```
+ - Tạo client component trong thư mục src/components
+
+
+
+
+

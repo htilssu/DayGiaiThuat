@@ -3,14 +3,10 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 
 from ..database.database import get_database
-from ..models.profile import (
-    ProfileResponse,
-    ProfileUpdate,
-    ProfileInDB,
+from ..models import (
     Badge,
-    Activity
 )
-from ..models.user import User
+from ..models.user_model import User
 
 
 class ProfileService:
@@ -32,12 +28,14 @@ class ProfileService:
             return None
 
         # Kết hợp dữ liệu từ cả hai collection
-        profile_data.update({
-            "id": user_data["_id"],
-            "username": user_data["username"],
-            "email": user_data["email"],
-            "created_at": user_data["created_at"]
-        })
+        profile_data.update(
+            {
+                "id": user_data["_id"],
+                "username": user_data["username"],
+                "email": user_data["email"],
+                "created_at": user_data["created_at"],
+            }
+        )
 
         return ProfileInDB(**profile_data)
 
@@ -60,7 +58,7 @@ class ProfileService:
                 "total_points": 0,
                 "streak_days": 0,
                 "level": 1,
-                "problems_solved": 0
+                "problems_solved": 0,
             },
             "badges": [
                 {
@@ -68,32 +66,36 @@ class ProfileService:
                     "name": "Người mới",
                     "icon": "🔰",
                     "description": "Hoàn thành đăng ký tài khoản",
-                    "unlocked": True
+                    "unlocked": True,
                 }
             ],
             "activities": [],
             "learning_progress": {
                 "algorithms": 0,
                 "data_structures": 0,
-                "dynamic_programming": 0
+                "dynamic_programming": 0,
             },
-            "courses": []
+            "courses": [],
         }
 
         # Lưu vào database
         await self.collection.insert_one(default_profile)
 
         # Kết hợp với thông tin người dùng
-        default_profile.update({
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "created_at": user.created_at
-        })
+        default_profile.update(
+            {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "created_at": user.created_at,
+            }
+        )
 
         return ProfileInDB(**default_profile)
 
-    async def update_profile(self, user_id: str, profile_data: ProfileUpdate) -> Optional[ProfileResponse]:
+    async def update_profile(
+        self, user_id: str, profile_data: ProfileUpdate
+    ) -> Optional[ProfileResponse]:
         """
         Cập nhật thông tin profile của người dùng
         """
@@ -109,15 +111,14 @@ class ProfileService:
         update_data["updated_at"] = datetime.now()
 
         # Cập nhật trong database
-        await self.collection.update_one(
-            {"user_id": user_id},
-            {"$set": update_data}
-        )
+        await self.collection.update_one({"user_id": user_id}, {"$set": update_data})
 
         # Lấy profile đã cập nhật
         return await self.get_profile(user_id)
 
-    async def add_activity(self, user_id: str, activity_data: Dict[str, Any]) -> Optional[ProfileResponse]:
+    async def add_activity(
+        self, user_id: str, activity_data: Dict[str, Any]
+    ) -> Optional[ProfileResponse]:
         """
         Thêm hoạt động mới vào profile của người dùng
         """
@@ -132,7 +133,7 @@ class ProfileService:
             "id": activity_id,
             "type": activity_data.get("type"),
             "name": activity_data.get("name"),
-            "date": activity_date
+            "date": activity_date,
         }
 
         # Thêm thông tin tùy chọn
@@ -143,8 +144,7 @@ class ProfileService:
 
         # Cập nhật trong database
         await self.collection.update_one(
-            {"user_id": user_id},
-            {"$push": {"activities": activity}}
+            {"user_id": user_id}, {"$push": {"activities": activity}}
         )
 
         # Cập nhật thống kê
@@ -165,12 +165,14 @@ class ProfileService:
         activities = sorted(
             profile.activities,
             key=lambda x: datetime.strptime(x.date, "%d/%m/%Y"),
-            reverse=True
+            reverse=True,
         )
 
         return activities[:limit]
 
-    async def add_badge(self, user_id: str, badge_data: Dict[str, Any]) -> Optional[ProfileResponse]:
+    async def add_badge(
+        self, user_id: str, badge_data: Dict[str, Any]
+    ) -> Optional[ProfileResponse]:
         """
         Thêm huy hiệu mới vào profile của người dùng
         """
@@ -182,7 +184,7 @@ class ProfileService:
             # Cập nhật trạng thái huy hiệu đã có
             await self.collection.update_one(
                 {"user_id": user_id, "badges.id": badge_id},
-                {"$set": {"badges.$.unlocked": badge_data.get("unlocked", True)}}
+                {"$set": {"badges.$.unlocked": badge_data.get("unlocked", True)}},
             )
         else:
             # Thêm huy hiệu mới
@@ -191,12 +193,11 @@ class ProfileService:
                 "name": badge_data.get("name"),
                 "icon": badge_data.get("icon"),
                 "description": badge_data.get("description"),
-                "unlocked": badge_data.get("unlocked", True)
+                "unlocked": badge_data.get("unlocked", True),
             }
 
             await self.collection.update_one(
-                {"user_id": user_id},
-                {"$push": {"badges": badge}}
+                {"user_id": user_id}, {"$push": {"badges": badge}}
             )
 
         # Trả về profile đã cập nhật
@@ -212,7 +213,9 @@ class ProfileService:
 
         return profile.badges
 
-    async def update_learning_progress(self, user_id: str, progress_data: Dict[str, int]) -> Optional[ProfileResponse]:
+    async def update_learning_progress(
+        self, user_id: str, progress_data: Dict[str, int]
+    ) -> Optional[ProfileResponse]:
         """
         Cập nhật tiến độ học tập của người dùng
         """
@@ -227,15 +230,14 @@ class ProfileService:
             update_data[f"learning_progress.{key}"] = value
 
         # Cập nhật trong database
-        await self.collection.update_one(
-            {"user_id": user_id},
-            {"$set": update_data}
-        )
+        await self.collection.update_one({"user_id": user_id}, {"$set": update_data})
 
         # Trả về profile đã cập nhật
         return await self.get_profile(user_id)
 
-    async def update_course_progress(self, user_id: str, course_id: str, progress: int) -> Optional[ProfileResponse]:
+    async def update_course_progress(
+        self, user_id: str, course_id: str, progress: int
+    ) -> Optional[ProfileResponse]:
         """
         Cập nhật tiến độ khóa học
         """
@@ -250,7 +252,7 @@ class ProfileService:
             # Cập nhật tiến độ khóa học đã có
             await self.collection.update_one(
                 {"user_id": user_id, "courses.id": course_id},
-                {"$set": {"courses.$.progress": progress}}
+                {"$set": {"courses.$.progress": progress}},
             )
         else:
             # Lấy thông tin khóa học từ database
@@ -265,21 +267,22 @@ class ProfileService:
                 "progress": progress,
                 "color_from": course.get("color_from", "blue-500"),
                 "color_to": course.get("color_to", "blue-700"),
-                "image_url": course.get("image_url")
+                "image_url": course.get("image_url"),
             }
 
             await self.collection.update_one(
-                {"user_id": user_id},
-                {"$push": {"courses": new_course}}
+                {"user_id": user_id}, {"$push": {"courses": new_course}}
             )
 
         # Trả về profile đã cập nhật
         return await self.get_profile(user_id)
 
-    async def _update_stats_after_activity(self, user_id: str, activity_data: Dict[str, Any]) -> None:
+    async def _update_stats_after_activity(
+        self, user_id: str, activity_data: Dict[str, Any]
+    ) -> None:
         """
         Cập nhật thống kê người dùng sau khi có hoạt động mới
-        
+
         Args:
             user_id (str): ID của người dùng
             activity_data (Dict[str, Any]): Dữ liệu hoạt động
@@ -294,7 +297,9 @@ class ProfileService:
             # Tăng số bài thuật toán đã giải
             update_data["stats.problems_solved"] = 1
             # Tăng điểm tổng
-            update_data["stats.total_points"] = int(activity_data.get("score", "0").split("/")[0])
+            update_data["stats.total_points"] = int(
+                activity_data.get("score", "0").split("/")[0]
+            )
 
         elif activity_type == "course" and activity_data.get("progress") == "100%":
             # Tăng số khóa học đã hoàn thành
@@ -305,8 +310,7 @@ class ProfileService:
         if update_data:
             # Cập nhật trong database
             await self.collection.update_one(
-                {"user_id": user_id},
-                {"$inc": update_data}
+                {"user_id": user_id}, {"$inc": update_data}
             )
 
             # Kiểm tra và cập nhật level
@@ -331,8 +335,7 @@ class ProfileService:
 
         if new_level > profile.stats.level:
             await self.collection.update_one(
-                {"user_id": user_id},
-                {"$set": {"stats.level": new_level}}
+                {"user_id": user_id}, {"$set": {"stats.level": new_level}}
             )
 
     async def update_streak(self, user_id: str) -> None:
@@ -345,15 +348,13 @@ class ProfileService:
 
         # Lấy thời gian hoạt động gần nhất
         last_activity = await self.db["user_activity_logs"].find_one(
-            {"user_id": user_id},
-            sort=[("timestamp", -1)]
+            {"user_id": user_id}, sort=[("timestamp", -1)]
         )
 
         if not last_activity:
             # Đây là lần đầu hoạt động
             await self.collection.update_one(
-                {"user_id": user_id},
-                {"$set": {"stats.streak_days": 1}}
+                {"user_id": user_id}, {"$set": {"stats.streak_days": 1}}
             )
             return
 
@@ -366,14 +367,12 @@ class ProfileService:
         elif today == last_activity_date + timedelta(days=1):
             # Hoạt động liên tiếp, tăng streak
             await self.collection.update_one(
-                {"user_id": user_id},
-                {"$inc": {"stats.streak_days": 1}}
+                {"user_id": user_id}, {"$inc": {"stats.streak_days": 1}}
             )
         else:
             # Đã bỏ lỡ ít nhất một ngày, reset streak
             await self.collection.update_one(
-                {"user_id": user_id},
-                {"$set": {"stats.streak_days": 1}}
+                {"user_id": user_id}, {"$set": {"stats.streak_days": 1}}
             )
 
         # Kiểm tra và trao huy hiệu
@@ -382,7 +381,7 @@ class ProfileService:
     async def _check_streak_badge(self, user_id: str) -> None:
         """
         Kiểm tra và trao huy hiệu dựa trên chuỗi ngày giải bài liên tiếp
-        
+
         Args:
             user_id (str): ID của người dùng
         """
@@ -400,7 +399,7 @@ class ProfileService:
                 "icon": "🔥",
                 "description": "Giải bài 3 ngày liên tiếp",
                 "unlocked": True,
-                "threshold": 3
+                "threshold": 3,
             },
             {
                 "id": 402,
@@ -408,7 +407,7 @@ class ProfileService:
                 "icon": "🔥🔥",
                 "description": "Giải bài 7 ngày liên tiếp",
                 "unlocked": True,
-                "threshold": 7
+                "threshold": 7,
             },
             {
                 "id": 403,
@@ -416,7 +415,7 @@ class ProfileService:
                 "icon": "🔥🔥🔥",
                 "description": "Giải bài 14 ngày liên tiếp",
                 "unlocked": True,
-                "threshold": 14
+                "threshold": 14,
             },
             {
                 "id": 404,
@@ -424,16 +423,21 @@ class ProfileService:
                 "icon": "⚡🔥⚡",
                 "description": "Giải bài 30 ngày liên tiếp",
                 "unlocked": True,
-                "threshold": 30
-            }
+                "threshold": 30,
+            },
         ]
 
         # Lấy danh sách ID của các huy hiệu hiện có
-        existing_badge_ids = [badge.id for badge in profile.badges] if profile.badges else []
+        existing_badge_ids = (
+            [badge.id for badge in profile.badges] if profile.badges else []
+        )
 
         # Kiểm tra và trao huy hiệu mới
         for badge in streak_badges:
-            if current_streak >= badge["threshold"] and badge["id"] not in existing_badge_ids:
+            if (
+                current_streak >= badge["threshold"]
+                and badge["id"] not in existing_badge_ids
+            ):
                 # Loại bỏ field threshold trước khi thêm vào database
                 badge_data = {k: v for k, v in badge.items() if k != "threshold"}
 
@@ -443,7 +447,7 @@ class ProfileService:
                 # Thêm hoạt động mới về việc đạt được huy hiệu
                 activity_data = {
                     "type": "badge",
-                    "name": f"Đạt được huy hiệu {badge['name']}"
+                    "name": f"Đạt được huy hiệu {badge['name']}",
                 }
 
                 await self.add_activity(user_id, activity_data)
@@ -451,7 +455,7 @@ class ProfileService:
     async def _check_level_badge(self, user_id: str) -> None:
         """
         Kiểm tra và trao huy hiệu dựa trên cấp độ người dùng
-        
+
         Args:
             user_id (str): ID của người dùng
         """
@@ -469,7 +473,7 @@ class ProfileService:
                 "icon": "🥉",
                 "description": "Đạt cấp độ 5",
                 "unlocked": True,
-                "threshold": 5
+                "threshold": 5,
             },
             {
                 "id": 202,
@@ -477,7 +481,7 @@ class ProfileService:
                 "icon": "🥈",
                 "description": "Đạt cấp độ 10",
                 "unlocked": True,
-                "threshold": 10
+                "threshold": 10,
             },
             {
                 "id": 203,
@@ -485,7 +489,7 @@ class ProfileService:
                 "icon": "🥇",
                 "description": "Đạt cấp độ 20",
                 "unlocked": True,
-                "threshold": 20
+                "threshold": 20,
             },
             {
                 "id": 204,
@@ -493,16 +497,21 @@ class ProfileService:
                 "icon": "👑",
                 "description": "Đạt cấp độ 30",
                 "unlocked": True,
-                "threshold": 30
-            }
+                "threshold": 30,
+            },
         ]
 
         # Lấy danh sách ID của các huy hiệu hiện có
-        existing_badge_ids = [badge.id for badge in profile.badges] if profile.badges else []
+        existing_badge_ids = (
+            [badge.id for badge in profile.badges] if profile.badges else []
+        )
 
         # Kiểm tra và trao huy hiệu mới
         for badge in level_badges:
-            if current_level >= badge["threshold"] and badge["id"] not in existing_badge_ids:
+            if (
+                current_level >= badge["threshold"]
+                and badge["id"] not in existing_badge_ids
+            ):
                 # Loại bỏ field threshold trước khi thêm vào database
                 badge_data = {k: v for k, v in badge.items() if k != "threshold"}
 
@@ -512,7 +521,7 @@ class ProfileService:
                 # Thêm hoạt động mới về việc đạt được huy hiệu
                 activity_data = {
                     "type": "badge",
-                    "name": f"Đạt được huy hiệu {badge['name']}"
+                    "name": f"Đạt được huy hiệu {badge['name']}",
                 }
 
                 await self.add_activity(user_id, activity_data)
@@ -520,7 +529,7 @@ class ProfileService:
     async def _check_problem_solved_badge(self, user_id: str) -> None:
         """
         Kiểm tra và trao huy hiệu dựa trên số bài tập đã giải
-        
+
         Args:
             user_id (str): ID của người dùng
         """
@@ -538,7 +547,7 @@ class ProfileService:
                 "icon": "🔰",
                 "description": "Giải được 10 bài tập",
                 "unlocked": True,
-                "threshold": 10
+                "threshold": 10,
             },
             {
                 "id": 302,
@@ -546,7 +555,7 @@ class ProfileService:
                 "icon": "⭐",
                 "description": "Giải được 50 bài tập",
                 "unlocked": True,
-                "threshold": 50
+                "threshold": 50,
             },
             {
                 "id": 303,
@@ -554,7 +563,7 @@ class ProfileService:
                 "icon": "🌟",
                 "description": "Giải được 100 bài tập",
                 "unlocked": True,
-                "threshold": 100
+                "threshold": 100,
             },
             {
                 "id": 304,
@@ -562,16 +571,21 @@ class ProfileService:
                 "icon": "💫",
                 "description": "Giải được 200 bài tập",
                 "unlocked": True,
-                "threshold": 200
-            }
+                "threshold": 200,
+            },
         ]
 
         # Lấy danh sách ID của các huy hiệu hiện có
-        existing_badge_ids = [badge.id for badge in profile.badges] if profile.badges else []
+        existing_badge_ids = (
+            [badge.id for badge in profile.badges] if profile.badges else []
+        )
 
         # Kiểm tra và trao huy hiệu mới
         for badge in problem_badges:
-            if problems_solved >= badge["threshold"] and badge["id"] not in existing_badge_ids:
+            if (
+                problems_solved >= badge["threshold"]
+                and badge["id"] not in existing_badge_ids
+            ):
                 # Loại bỏ field threshold trước khi thêm vào database
                 badge_data = {k: v for k, v in badge.items() if k != "threshold"}
 
@@ -581,7 +595,7 @@ class ProfileService:
                 # Thêm hoạt động mới về việc đạt được huy hiệu
                 activity_data = {
                     "type": "badge",
-                    "name": f"Đạt được huy hiệu {badge['name']}"
+                    "name": f"Đạt được huy hiệu {badge['name']}",
                 }
 
                 await self.add_activity(user_id, activity_data)
@@ -589,7 +603,7 @@ class ProfileService:
     async def _check_account_age_badge(self, user_id: str) -> None:
         """
         Kiểm tra và trao huy hiệu dựa trên thời gian hoạt động của tài khoản
-        
+
         Args:
             user_id (str): ID của người dùng
         """
@@ -610,7 +624,7 @@ class ProfileService:
                 "icon": "🌱",
                 "description": "Đã tham gia được 7 ngày",
                 "unlocked": True,
-                "threshold": 7
+                "threshold": 7,
             },
             {
                 "id": 502,
@@ -618,7 +632,7 @@ class ProfileService:
                 "icon": "🌿",
                 "description": "Đã tham gia được 30 ngày",
                 "unlocked": True,
-                "threshold": 30
+                "threshold": 30,
             },
             {
                 "id": 503,
@@ -626,7 +640,7 @@ class ProfileService:
                 "icon": "🌲",
                 "description": "Đã tham gia được 90 ngày",
                 "unlocked": True,
-                "threshold": 90
+                "threshold": 90,
             },
             {
                 "id": 504,
@@ -634,16 +648,21 @@ class ProfileService:
                 "icon": "🏆🌳",
                 "description": "Đã tham gia được 365 ngày",
                 "unlocked": True,
-                "threshold": 365
-            }
+                "threshold": 365,
+            },
         ]
 
         # Lấy danh sách ID của các huy hiệu hiện có
-        existing_badge_ids = [badge.id for badge in profile.badges] if profile.badges else []
+        existing_badge_ids = (
+            [badge.id for badge in profile.badges] if profile.badges else []
+        )
 
         # Kiểm tra và trao huy hiệu mới
         for badge in account_age_badges:
-            if account_age_days >= badge["threshold"] and badge["id"] not in existing_badge_ids:
+            if (
+                account_age_days >= badge["threshold"]
+                and badge["id"] not in existing_badge_ids
+            ):
                 # Loại bỏ field threshold trước khi thêm vào database
                 badge_data = {k: v for k, v in badge.items() if k != "threshold"}
 
@@ -653,7 +672,7 @@ class ProfileService:
                 # Thêm hoạt động mới về việc đạt được huy hiệu
                 activity_data = {
                     "type": "badge",
-                    "name": f"Đạt được huy hiệu {badge['name']}"
+                    "name": f"Đạt được huy hiệu {badge['name']}",
                 }
 
                 await self.add_activity(user_id, activity_data)
@@ -661,7 +680,7 @@ class ProfileService:
     async def update_badges(self, user_id: str) -> None:
         """
         Cập nhật huy hiệu của người dùng
-        
+
         Args:
             user_id (str): ID của người dùng
         """

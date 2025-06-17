@@ -41,22 +41,19 @@ const TextInput: React.FC<TextInputProps> = ({
         onChange={onChange}
         required={required}
         autoComplete={autoComplete}
-        className={`peer appearance-none block w-full px-3 pt-5 pb-2 border ${
-          error
-            ? "border-red-500 dark:border-red-400"
-            : "border-gray-300 dark:border-gray-600"
-        } rounded-md focus:outline-none focus:ring-2 ${
-          error ? "focus:ring-red-500" : "focus:ring-indigo-500"
-        } focus:border-transparent text-gray-900 dark:text-gray-100 bg-transparent after:transition-all after:duration-200`}
+        className={`peer appearance-none block w-full px-3 pt-5 pb-2 border ${error
+          ? "border-red-500 dark:border-red-400"
+          : "border-gray-300 dark:border-gray-600"
+          } rounded-md focus:outline-none focus:ring-2 ${error ? "focus:ring-red-500" : "focus:ring-indigo-500"
+          } focus:border-transparent bg-transparent after:transition-all after:duration-200`}
         placeholder={placeholder}
       />
       <label
         htmlFor={id}
-        className={`absolute top-2 left-3 text-gray-500 dark:text-gray-400 text-xs transition-all duration-200 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:dark:text-gray-400 peer-placeholder-shown:top-3.5 peer-focus:top-2 peer-focus:text-xs ${
-          error
-            ? "text-red-500 dark:text-red-400 peer-focus:text-red-500 peer-focus:dark:text-red-400"
-            : "peer-focus:text-indigo-600 peer-focus:dark:text-indigo-400"
-        }`}
+        className={`absolute top-2 left-3 text-gray-500 dark:text-gray-400 text-xs transition-all duration-200 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:dark:text-gray-400 peer-placeholder-shown:top-3.5 peer-focus:top-2 peer-focus:text-xs ${error
+          ? "text-red-500 dark:text-red-400 peer-focus:text-red-500 peer-focus:dark:text-red-400"
+          : "peer-focus:text-indigo-600 peer-focus:dark:text-indigo-400"
+          }`}
       >
         {label}
       </label>

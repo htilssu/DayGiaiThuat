@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import BrandLogo from "@/components/ui/BrandLogo";
-import { useAuth } from "@/contexts/AuthContext";
-import api from "@/lib/api";
+import { authApi } from "@/lib/api";
+import { setUser } from "@/lib/store/userStore";
+import { useAppDispatch } from "@/lib/store";
 
 /**
  * Trang đăng nhập người dùng
@@ -17,7 +18,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") || "/";
-  const { login } = useAuth();
+  const dispatch = useAppDispatch();
   const [isLoading, setIsLoading] = useState(false);
   const [rememberVisible, setRememberVisible] = useState(false);
   const [formData, setFormData] = useState({
@@ -89,14 +90,13 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await api.auth.login(
+      const loginResponse = await authApi.login(
         formData.email,
         formData.password,
         formData.rememberMe
       );
 
-      // Login với hàm từ context
-      await login();
+      dispatch(setUser(loginResponse.user));
 
       // Chuyển hướng đến returnUrl nếu có, hoặc về trang chủ
       router.push(returnUrl);
@@ -104,6 +104,7 @@ export default function LoginPage() {
       console.error("Lỗi đăng nhập:", error);
 
       // Hiển thị thông báo lỗi chi tiết từ server nếu có
+      console.log(error);
       const errorMessage =
         error.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.";
 
@@ -288,9 +289,8 @@ export default function LoginPage() {
 
             {/* Remember me và Quên mật khẩu */}
             <div
-              className={`flex items-center justify-between transition-opacity duration-300 ${
-                rememberVisible ? "opacity-100" : "opacity-0"
-              }`}
+              className={`flex items-center justify-between transition-opacity duration-300 ${rememberVisible ? "opacity-100" : "opacity-0"
+                }`}
             >
               <div className="flex items-center">
                 <input
@@ -303,9 +303,8 @@ export default function LoginPage() {
                 />
                 <label
                   htmlFor="rememberMe"
-                  className={`ml-2 block text-sm text-foreground/80 theme-transition ${
-                    formData.rememberMe ? "font-medium" : ""
-                  }`}
+                  className={`ml-2 block text-sm text-foreground/80 theme-transition ${formData.rememberMe ? "font-medium" : ""
+                    }`}
                 >
                   Ghi nhớ đăng nhập
                 </label>
