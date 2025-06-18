@@ -19,6 +19,14 @@ class Settings(BaseSettings):
         DB_PORT (str): Port database
         DB_NAME (str): Tên database
         SECRET_KEY (str): Key để mã hóa JWT token
+        AGENT_LLM_MODEL (str): Model LLM cho agent
+        CREATIVE_LLM_MODEL (str): Model LLM cho creative
+        EMBEDDING_MODEL (str): Model embedding
+        PINECONE_API_KEY (str): API key cho Pinecone
+        MONGO_URI (str): URI cho MongoDB
+        LANGSMITH_API_KEY (str): API key cho LangSmith
+        LANGSMITH_TRACING (bool): Tracing cho LangSmith
+        LANGSMITH_PROJECT (str): Project cho LangSmith
         ACCESS_TOKEN_EXPIRE_MINUTES (int): Thời gian hết hạn của token (phút)
         COOKIE_DOMAIN (str): Domain cho cookie
         COOKIE_SECURE (bool): Secure flag cho cookie
@@ -79,7 +87,8 @@ class Settings(BaseSettings):
 
     # Agent
     GOOGLE_API_KEY: str
-    LLM_MODEL: str
+    AGENT_LLM_MODEL: str
+    CREATIVE_LLM_MODEL: str
     EMBEDDING_MODEL: str
     PINECONE_API_KEY: str
     MONGO_URI: str
