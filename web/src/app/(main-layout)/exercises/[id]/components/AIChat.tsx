@@ -31,7 +31,7 @@ export default function AIChat({
   const [isLoading, setIsLoading] = useState(false);
 
   const ai = new GoogleGenAI({
-    apiKey: "AIzaSyAoWvIFmtiL1MwP1y8ariEm61Zaq4-uNZo",
+    apiKey: process.env.NEXT_PUBLIC_LLM_API_KEY,
   });
 
   const handleTest = async () => {
@@ -133,15 +133,13 @@ export default function AIChat({
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`flex ${
-              message.role === "user" ? "justify-end" : "justify-start"
-            }`}>
+            className={`flex ${message.role === "user" ? "justify-end" : "justify-start"
+              }`}>
             <div
-              className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                message.role === "user"
+              className={`max-w-[80%] rounded-lg px-4 py-2 ${message.role === "user"
                   ? "bg-primary text-white"
                   : "bg-foreground/5 text-foreground"
-              }`}>
+                }`}>
               {message.content}
             </div>
           </div>

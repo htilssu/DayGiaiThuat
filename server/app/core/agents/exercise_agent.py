@@ -15,7 +15,10 @@ from langchain_mongodb import MongoDBChatMessageHistory
 
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
-from app.core.agents.components.llm_model import create_new_gemini_llm_model
+from app.core.agents.components.llm_model import (
+    create_new_creative_llm_model,
+    create_new_gemini_llm_model,
+)
 from app.core.config import settings
 from app.core.tracing import get_callback_manager, trace_agent
 from app.schemas.exercise_schema import ExerciseDetail
@@ -135,9 +138,7 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
 
         self.generate_exercise = (
             self.generate_exercise_prompt
-            | create_new_gemini_llm_model(
-                thinking_budget=100,
-            ).with_structured_output(ExerciseDetail)
+            | create_new_creative_llm_model().with_structured_output(ExerciseDetail)
         )
 
         self.llm_model = create_new_gemini_llm_model()

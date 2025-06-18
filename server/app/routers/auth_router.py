@@ -1,4 +1,3 @@
-from datetime import timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
@@ -48,7 +47,6 @@ async def register(
     token_data = {"sub": str(new_user.id)}
     access_token = create_access_token(
         data=token_data,
-        expires_delta=timedelta(minutes=60 * 24 * 30),
     )
 
     set_auth_cookie(response, access_token)
@@ -111,7 +109,6 @@ async def login(
     token_data = {"sub": str(user.id)}
     access_token = create_access_token(
         data=token_data,
-        expires_delta=timedelta(minutes=60 * 24 * 30) if data.remember_me else None,
     )
 
     # Thiết lập cookie sử dụng hàm tiện ích

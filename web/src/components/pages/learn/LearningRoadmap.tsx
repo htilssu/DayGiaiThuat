@@ -19,11 +19,6 @@ export function LearningRoadmap() {
 
     return (
         <div className="max-w-3xl mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold mb-2">Lộ trình học tập</h1>
-            <p className="text-foreground/70 mb-8">
-                Theo dõi tiến trình và hoàn thành các chủ đề để mở khóa nội dung mới
-            </p>
-
             <div className="relative">
                 {/* Đường kẻ dọc kết nối các chủ đề */}
                 <div className="absolute left-5 top-8 bottom-8 w-0.5 bg-foreground/10"></div>
