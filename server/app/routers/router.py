@@ -5,7 +5,9 @@ from app.routers import (
     courses_router,
     document_router,
     exercise_router,
+    test_router,
     tutor_router,
+    topic_router,
     users_router,
 )
 
@@ -17,3 +19,5 @@ def register_router(app: FastAPI):
     app.include_router(tutor_router.router)
     app.include_router(exercise_router.router)
     app.include_router(document_router.router)
+    app.include_router(test_router.router)
+    app.include_router(topic_router.router)

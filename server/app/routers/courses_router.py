@@ -10,6 +10,7 @@ from app.schemas.course_schema import (
     CourseUpdate,
     CourseListResponse,
 )
+from app.core.agents.input_test_agent import InputTestAgent, get_input_test_agent
 
 router = APIRouter(
     prefix="/courses",
@@ -60,7 +61,14 @@ async def get_courses(
     }
 
 
-@router.get("/{course_id}", response_model=CourseResponse)
+@router.get(
+    "/{course_id}",
+    response_model=CourseResponse,
+    responses={
+        200: {"description": "OK"},
+        404: {"description": "Không tìm thấy khóa học"},
+    },
+)
 async def get_course_by_id(course_id: int, db: Session = Depends(get_db)):
     """
     Lấy thông tin chi tiết của một khóa học
@@ -84,7 +92,37 @@ async def get_course_by_id(course_id: int, db: Session = Depends(get_db)):
     return course
 
 
-@router.post("", response_model=CourseResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{course_id}/test",
+    summary="Tạo bài kiểm tra đầu vào cho khóa học",
+    status_code=status.HTTP_201_CREATED,
+    name="create_test",
+    description="Tạo bài kiểm tra đầu vào cho khóa học",
+    responses={
+        201: {"description": "Created"},
+        400: {"description": "Dữ liệu không hợp lệ"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def create_test(
+    course_id: int, input_test_agent: InputTestAgent = Depends(get_input_test_agent)
+):
+    """
+    Tạo một bài test cho một khóa học
+    """
+    return await input_test_agent.act(course_id=course_id)
+
+
+@router.post(
+    "",
+    response_model=CourseResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        201: {"description": "Created"},
+        400: {"description": "Dữ liệu không hợp lệ"},
+        500: {"description": "Internal server error"},
+    },
+)
 async def create_course(course_data: CourseCreate, db: Session = Depends(get_db)):
     """
     Tạo một khóa học mới

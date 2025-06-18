@@ -1,5 +1,4 @@
 from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.exercise_schema import (
     CreateExerciseSchema,
@@ -10,9 +9,10 @@ from app.core.agents.exercise_agent import (
     GenerateExerciseQuestionAgent,
     get_exercise_agent,
 )
-from app.services.topic_service import TopicService
-from app.database.repository import Repository
-from app.database.session import get_db
+from app.services.topic_service import TopicService, get_topic_service
+from app.database.repository import GetRepository, Repository
+from app.database.database import get_db
+from sqlalchemy.orm import Session
 
 
 class ExerciseService:
@@ -28,10 +28,12 @@ class ExerciseService:
     def __init__(
         self,
         exercise_agent: GenerateExerciseQuestionAgent = Depends(get_exercise_agent),
+        topic_service: TopicService = Depends(get_topic_service),
+        repository: Repository[ExerciseModel] = Depends(GetRepository(ExerciseModel)),
     ):
         self.exercise_agent = exercise_agent
-        self.topic_service = TopicService()
-        self.repository = Repository(ExerciseModel)
+        self.topic_service = topic_service
+        self.repository = repository
 
     async def get_exercise(self, exercise_id: int) -> ExerciseModel:
         """
@@ -78,3 +80,12 @@ class ExerciseService:
         await self.repository.create_async(exercise_model)
 
         return exercise_model
+
+
+def get_exercise_service(
+    db: Session = Depends(get_db),
+    topic_service: TopicService = Depends(get_topic_service),
+    exercise_agent: GenerateExerciseQuestionAgent = Depends(get_exercise_agent),
+):
+    repository = Repository(ExerciseModel, db)
+    return ExerciseService(exercise_agent, topic_service, repository)

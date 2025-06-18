@@ -1,4 +1,4 @@
-from typing import overload
+from ..agents.components.llm_model import create_new_gemini_llm_model
 
 
 class BaseAgent(object):
@@ -9,6 +9,7 @@ class BaseAgent(object):
     def __init__(self):
         self.available_args = []
         self.tools = []
+        self.base_llm = create_new_gemini_llm_model()
 
     def act(self, *args, **kwargs):
         self.check_available_args(*args, **kwargs)

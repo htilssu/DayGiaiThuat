@@ -15,10 +15,7 @@ from langchain_mongodb import MongoDBChatMessageHistory
 
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
-from app.core.agents.components.llm_model import (
-    create_new_creative_llm_model,
-    create_new_gemini_llm_model,
-)
+from app.core.agents.components.llm_model import create_new_creative_llm_model
 from app.core.config import settings
 from app.core.tracing import get_callback_manager, trace_agent
 from app.schemas.exercise_schema import ExerciseDetail
@@ -33,12 +30,26 @@ Bài tập giống như leetcode Khi tạo một bài tập, hãy tuân theo m�
 
 Tên bài tập: [Tạo một tiêu đề mô tả cho bài tập, bao gồm ngữ cảnh đời thường nếu có thể]
 Mô tả: [Giải thích chi tiết về bài tập, bao gồm bất kỳ định nghĩa hoặc thông tin cần thiết nào để hiểu bài toán]
-Đầu vào: [Xác định định dạng của dữ liệu đầu vào]
-Đầu ra: [Xác định định dạng của dữ liệu đầu ra mong muốn]
+Đầu vào: [dữ liệu đầu vào]
+Đầu ra: [dữ liệu đầu ra mong muốn]
 Ví dụ (phải có 3 ví dụ đơn giản, dễ giải thích, nhưng không được trùng trường hợp nổi bật,
-tên đầu và ra phải là tên biến bằng tiếng anh):
+đầu vào và ra phải là string và theo format để người dùng có thể dùng code để đọc đầu vào và xử lý):
 Đầu vào: [Cung cấp một ví dụ đầu vào]
 Đầu ra: [Cung cấp đầu ra tương ứng]
+ví dụ:
+dòng đầu là t định nghĩa số tập dữ liệu
+t dòng tiếp theo chứa m,n,k
+đầu vào: "3
+2 3 4
+5 6 7
+8 9 10
+"
+đầu ra là kết quả của từng tập dữ liệu được tách ra bởi dấu xuống dòng
+đầu ra: "
+2
+5
+6
+"
 Giải thích: [Cung cấp giải thích chi tiết ví dụ: đầu tiên i = 0 có giá trị bé hơn 1, chuyển nó ra phía trước...]
 
 Ràng buộc: [Tùy chọn: xác định bất kỳ ràng buộc nào về dữ liệu đầu vào,
@@ -141,7 +152,6 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             | create_new_creative_llm_model().with_structured_output(ExerciseDetail)
         )
 
-        self.llm_model = create_new_gemini_llm_model()
         # 4. Tạo Retriever Tool
         self.retriever_tool = Tool(
             name="retriever_algo_vault",
@@ -173,7 +183,7 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
         )
 
         self.output_fixing_parser = OutputFixingParser.from_llm(
-            self.llm_model, self.output_parser
+            self.base_llm, self.output_parser
         )
 
         self.output_fixing_parser_tool = Tool(
@@ -206,7 +216,7 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
 
         # Cấu hình agent với tracing
         self.agent = create_tool_calling_agent(
-            self.llm_model,
+            self.base_llm,
             self.tools,
             prompt=self.prompt,
         )

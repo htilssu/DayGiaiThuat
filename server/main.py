@@ -11,7 +11,7 @@ from fastapi.openapi.docs import (
 from app.core.config import settings
 from app.exceptions.exception_handler import add_exception_handlers
 from app.middleware.camel_case_middleware import CamelCaseMiddleware
-from app.routers.router_router import register_router
+from app.routers.router import register_router
 
 # Khởi tạo logger
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ app = FastAPI(
     * **/redoc** - ReDoc UI
     """,
     version="1.0.0",
-    openapi_url=f"/openapi.json",
+    openapi_url="/openapi.json",
     contact={
         "name": "AI Agent Giải Thuật Team",
         "url": "https://github.com/yourusername/your-repo",

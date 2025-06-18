@@ -1,0 +1,1186 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+TITLE: Simplify SQLAlchemy ORM Mapping with Mapped (Typed and Concise) - Python
+DESCRIPTION: This snippet demonstrates a further simplified version of the SQLAlchemy ORM declarative models, leveraging Python type annotations with `Mapped` to imply column types and nullability. It shows how `mapped_column` can be omitted or simplified when type annotations provide sufficient information.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/changelog/whatsnew_20.rst#_snippet_16
+
+LANGUAGE: Python
+CODE:
+```
+from typing import List
+from typing import Optional
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(Base):
+    __tablename__ = "user_account"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(30))
+    fullname: Mapped[Optional[str]]
+    addresses: Mapped[List["Address"]] = relationship(back_populates="user")
+
+
+class Address(Base):
+    __tablename__ = "address"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email_address: Mapped[str]
+    user_id: Mapped[int] = mapped_column(ForeignKey("user_account.id"))
+    user: Mapped["User"] = relationship(back_populates="addresses")
+```
+
+----------------------------------------
+
+TITLE: Configuring Relationship Collection as Set with Mapped in SQLAlchemy ORM
+DESCRIPTION: This snippet shows how to configure a one-to-many relationship to use a Python set as its collection type in a Declarative mapping using the `Mapped` annotation. The `Parent` class's `children` relationship will store `Child` objects in a set, suitable for collections where order doesn't matter and uniqueness is desired.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/collection_api.rst#_snippet_1
+
+LANGUAGE: python
+CODE:
+```
+from sqlalchemy import ForeignKey
+
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Parent(Base):
+    __tablename__ = "parent"
+
+    parent_id: Mapped[int] = mapped_column(primary_key=True)
+
+    # use a set
+    children: Mapped[set["Child"]] = relationship()
+
+
+class Child(Base):
+    __tablename__ = "child"
+
+    child_id: Mapped[int] = mapped_column(primary_key=True)
+    parent_id: Mapped[int] = mapped_column(ForeignKey("parent.id"))
+```
+
+----------------------------------------
+
+TITLE: Defining Declarative Mapping with DeclarativeBase and Mapped - SQLAlchemy Python
+DESCRIPTION: This snippet illustrates the standard Declarative mapping approach in SQLAlchemy 2.0+. It defines a base class `Base` inheriting from `DeclarativeBase`, and a `User` class inheriting from `Base`. The `User` class defines database columns using type annotations with `Mapped` and the `mapped_column` function, along with the `__tablename__` class attribute.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/mapping_styles.rst#_snippet_0
+
+LANGUAGE: Python
+CODE:
+```
+from sqlalchemy import Integer, String, ForeignKey
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+
+
+# declarative base class
+class Base(DeclarativeBase):
+    pass
+
+
+# an example mapping using the base
+class User(Base):
+    __tablename__ = "user"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str]
+    fullname: Mapped[str] = mapped_column(String(30))
+    nickname: Mapped[Optional[str]]
+```
+
+----------------------------------------
+
+TITLE: Defining Many-to-Many Relationship with Set using Mapped
+DESCRIPTION: This snippet demonstrates how to define a many-to-many relationship using SQLAlchemy ORM's declarative style with type annotations (`Mapped`) and the `relationship.secondary` parameter. It specifically shows using a `Set` for the collection type. The `Parent` class is linked to a `Child` class via an `association_table` (not shown).
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/basic_relationships.rst#_snippet_16
+
+LANGUAGE: Python
+CODE:
+```
+class Parent(Base):
+    __tablename__ = "left_table"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    children: Mapped[Set["Child"]] = relationship(secondary=association_table)
+```
+
+----------------------------------------
+
+TITLE: Configuring Relationship Collection as List with Mapped in SQLAlchemy ORM
+DESCRIPTION: This snippet demonstrates how to configure a one-to-many relationship to use a Python list as its collection type in a Declarative mapping using the `Mapped` annotation. The `Parent` class has a relationship named `children` that will hold `Child` objects in a list.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/collection_api.rst#_snippet_0
+
+LANGUAGE: python
+CODE:
+```
+from sqlalchemy import ForeignKey
+
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Parent(Base):
+    __tablename__ = "parent"
+
+    parent_id: Mapped[int] = mapped_column(primary_key=True)
+
+    # use a list
+    children: Mapped[list["Child"]] = relationship()
+
+
+class Child(Base):
+    __tablename__ = "child"
+
+    child_id: Mapped[int] = mapped_column(primary_key=True)
+    parent_id: Mapped[int] = mapped_column(ForeignKey("parent.id"))
+```
+
+----------------------------------------
+
+TITLE: Define SQLAlchemy ORM Mapping with Mapped and mapped_column (Typed) - Python
+DESCRIPTION: This snippet shows the same SQLAlchemy ORM declarative models as the previous one, but with explicit Python type annotations applied using `Mapped`. It demonstrates how to type columns (including optional ones) and relationships for improved static analysis and type checking.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/changelog/whatsnew_20.rst#_snippet_15
+
+LANGUAGE: Python
+CODE:
+```
+from typing import List
+from typing import Optional
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(Base):
+    __tablename__ = "user_account"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(30), nullable=False)
+    fullname: Mapped[Optional[str]] = mapped_column(String)
+    addresses: Mapped[List["Address"]] = relationship("Address", back_populates="user")
+
+
+class Address(Base):
+    __tablename__ = "address"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email_address: Mapped[str] = mapped_column(String, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user_account.id"), nullable=False)
+    user: Mapped["User"] = relationship("User", back_populates="addresses")
+```
+
+----------------------------------------
+
+TITLE: Defining Declarative Mapped Class in SQLAlchemy
+DESCRIPTION: Defines a basic mapped class `User` using SQLAlchemy's Declarative style. It inherits from `DeclarativeBase` and defines mapped columns using type annotations with `Mapped` and `mapped_column`. This setup allows SQLAlchemy to automatically map the class to a database table named "user". This requires the SQLAlchemy ORM components.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/mapping_styles.rst#_snippet_3
+
+LANGUAGE: Python
+CODE:
+```
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(Base):
+    __tablename__ = "user"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str]
+    fullname: Mapped[str]
+```
+
+----------------------------------------
+
+TITLE: Mapping Python Enum to SQLAlchemy Column Type
+DESCRIPTION: This snippet demonstrates how to map a Python `enum.Enum` class (`Status`) directly to a SQLAlchemy column type using `Mapped`. SQLAlchemy automatically links the `Status` enum to its `Enum` datatype, allowing database columns to store and validate values based on the enum members.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/declarative_tables.rst#_snippet_43
+
+LANGUAGE: Python
+CODE:
+```
+import enum
+
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Status(enum.Enum):
+    PENDING = "pending"
+    RECEIVED = "received"
+    COMPLETED = "completed"
+
+
+class SomeClass(Base):
+    __tablename__ = "some_table"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    status: Mapped[Status]
+```
+
+----------------------------------------
+
+TITLE: ORM Annotated Declarative Class Definition with `Mapped` and `mapped_column`
+DESCRIPTION: Presents a complete example of a Declarative class using `Mapped` type annotations and `mapped_column` to define columns, demonstrating how column configuration can be derived from type hints.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/declarative_tables.rst#_snippet_18
+
+LANGUAGE: Python
+CODE:
+```
+from sqlalchemy import String
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(Base):
+    __tablename__ = "user"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(50))
+    fullname: Mapped[str | None]
+    nickname: Mapped[str | None] = mapped_column(String(30))
+```
+
+----------------------------------------
+
+TITLE: Mapping Imperative Table Columns with Type Hints using column_property
+DESCRIPTION: This example refines the mapping of imperative table columns to alternate attribute names by using sqlalchemy.orm.column_property and sqlalchemy.orm.Mapped. This approach ensures that typing tools (like MyPy) can correctly infer the types of the mapped attributes ('id' as 'int', 'name' as 'str'), resolving a caveat of direct column assignment for type checking.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/declarative_tables.rst#_snippet_60
+
+LANGUAGE: Python
+CODE:
+```
+from sqlalchemy.orm import column_property
+    from sqlalchemy.orm import Mapped
+
+
+    class User(Base):
+        __table__ = user_table
+
+        id: Mapped[int] = column_property(user_table.c.user_id)
+        name: Mapped[str] = column_property(user_table.c.user_name)
+```
+
+----------------------------------------
+
+TITLE: Adding Calculated Property to SQLAlchemy Mapped Class
+DESCRIPTION: Defines a SQLAlchemy Declarative mapped class `Point` and adds an attribute `x_plus_y` implemented as a Python `@property`. This property dynamically calculates its value (`self.x + self.y`) whenever it's accessed, providing a simple way to expose derived or computed state on a mapped object without needing to store it in the database or initialize it upon loading.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/mapping_styles.rst#_snippet_7
+
+LANGUAGE: Python
+CODE:
+```
+class Point(Base):
+    __tablename__ = "point"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    x: Mapped[int]
+    y: Mapped[int]
+
+    @property
+    def x_plus_y(self):
+        return self.x + self.y
+```
+
+----------------------------------------
+
+TITLE: Defining One-to-Many with Nullability using Mapped | None - Python
+DESCRIPTION: This snippet demonstrates defining a One-to-Many relationship where the 'many' side (Child) can be nullable using Python 3.10+ `| None` syntax with `Mapped`. It shows how the ORM handles nullable foreign keys for relationships.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/basic_relationships.rst#_snippet_8
+
+LANGUAGE: python
+CODE:
+```
+from __future__ import annotations
+
+
+class Parent(Base):
+    __tablename__ = "parent_table"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    child_id: Mapped[int | None] = mapped_column(ForeignKey("child_table.id"))
+    child: Mapped[Child | None] = relationship(back_populates="parents")
+
+
+class Child(Base):
+    __tablename__ = "child_table"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    parents: Mapped[List[Parent]] = relationship(back_populates="child")
+```
+
+----------------------------------------
+
+TITLE: Mapping Dataclasses with SQLAlchemy ORM 2.0
+DESCRIPTION: This snippet demonstrates defining SQLAlchemy ORM models as Python dataclasses using the MappedAsDataclass mixin. It utilizes 2.0 declarative features like Mapped, mapped_column, and Annotated type aliases for columns and relationships, showing how to configure dataclass-specific arguments like init, default, and default_factory.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/changelog/whatsnew_20.rst#_snippet_20
+
+LANGUAGE: Python
+CODE:
+```
+    from typing_extensions import Annotated
+    from typing import List
+    from typing import Optional
+    from sqlalchemy import ForeignKey
+    from sqlalchemy import String
+    from sqlalchemy.orm import DeclarativeBase
+    from sqlalchemy.orm import Mapped
+    from sqlalchemy.orm import MappedAsDataclass
+    from sqlalchemy.orm import mapped_column
+    from sqlalchemy.orm import relationship
+
+
+    class Base(MappedAsDataclass, DeclarativeBase):
+        """subclasses will be converted to dataclasses"""
+
+
+    intpk = Annotated[int, mapped_column(primary_key=True)]
+    str30 = Annotated[str, mapped_column(String(30))]
+    user_fk = Annotated[int, mapped_column(ForeignKey("user_account.id"))]
+
+
+    class User(Base):
+        __tablename__ = "user_account"
+
+        id: Mapped[intpk] = mapped_column(init=False)
+        name: Mapped[str30]
+        fullname: Mapped[Optional[str]] = mapped_column(default=None)
+        addresses: Mapped[List["Address"]] = relationship(
+            back_populates="user", default_factory=list
+        )
+
+
+    class Address(Base):
+        __tablename__ = "address"
+
+        id: Mapped[intpk] = mapped_column(init=False)
+        email_address: Mapped[str]
+        user_id: Mapped[user_fk] = mapped_column(init=False)
+        user: Mapped["User"] = relationship(back_populates="addresses", default=None)
+```
+
+----------------------------------------
+
+TITLE: Declarative Mixin with mapped_column (Python)
+DESCRIPTION: This snippet illustrates defining columns in a Declarative mixin using `mapped_column`, demonstrating flexibility in type annotation. `created_at` is defined without `Mapped` but with a default, while `updated_at` uses both `Mapped` and `mapped_column` without an explicit default. These definitions are copied to inheriting classes.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/declarative_mixins.rst#_snippet_7
+
+LANGUAGE: Python
+CODE:
+```
+class TimestampMixin:
+    created_at = mapped_column(default=func.now())
+    updated_at: Mapped[datetime] = mapped_column()
+```
+
+----------------------------------------
+
+TITLE: Defining Relationships with String Class Names in SQLAlchemy ORM Python
+DESCRIPTION: This Python code demonstrates defining SQLAlchemy ORM relationships using string names for the target classes instead of direct class references. This pattern, used with `Mapped` types or non-annotated forms with `registry.map_imperatively`, allows for forward references and helps resolve dependencies during the mapper resolution stage after all classes are defined.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/basic_relationships.rst#_snippet_25
+
+LANGUAGE: Python
+CODE:
+```
+class Parent(Base):
+    # ...
+
+    children: Mapped[List["Child"]] = relationship(back_populates="parent")
+
+
+class Child(Base):
+    # ...
+
+    parent: Mapped["Parent"] = relationship(back_populates="children")
+```
+
+LANGUAGE: Python
+CODE:
+```
+registry.map_imperatively(
+    Parent,
+    parent_table,
+    properties={"children": relationship("Child", back_populates="parent")},
+)
+
+registry.map_imperatively(
+    Child,
+    child_table,
+    properties={"parent": relationship("Parent", back_populates="children")},
+```
+
+----------------------------------------
+
+TITLE: Configuring Relationships in Dataclass Mappings Python
+DESCRIPTION: Explains how to define ORM relationships within dataclass-mapped classes using `Mapped` and `relationship`. It specifically shows the use of `default_factory` for collection-based relationships (like lists) and `default` for scalar relationships to control parameter optionality during dataclass initialization.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/dataclasses.rst#_snippet_12
+
+LANGUAGE: Python
+CODE:
+```
+from typing import List
+
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import registry
+from sqlalchemy.orm import relationship
+
+reg = registry()
+
+
+@reg.mapped_as_dataclass
+class Parent:
+    __tablename__ = "parent"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    children: Mapped[List["Child"]] = relationship(
+        default_factory=list, back_populates="parent"
+    )
+
+
+@reg.mapped_as_dataclass
+class Child:
+    __tablename__ = "child"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    parent_id: Mapped[int] = mapped_column(ForeignKey("parent.id"))
+    parent: Mapped["Parent"] = relationship(default=None)
+```
+
+----------------------------------------
+
+TITLE: Define Annotated Type for String Length in SQLAlchemy
+DESCRIPTION: Defines a custom `Annotated` type `str50` to represent a string with a maximum length of 50. It also shows how to register this custom type in the `type_annotation_map` of a `DeclarativeBase` class, allowing `Mapped[str50]` to automatically map to `String(50)`.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/changelog/whatsnew_20.rst#_snippet_17
+
+LANGUAGE: python
+CODE:
+```
+from typing_extensions import Annotated
+from sqlalchemy.orm import DeclarativeBase
+
+str50 = Annotated[str, 50]
+
+
+# declarative base with a type-level override, using a type that is
+# expected to be used in multiple places
+class Base(DeclarativeBase):
+    type_annotation_map = {
+        str50: String(50),
+    }
+```
+
+----------------------------------------
+
+TITLE: Including Non-Mapped Fields in Dataclasses Python
+DESCRIPTION: Demonstrates how to include fields in a `MappedAsDataclass` that are part of the dataclass structure but are not mapped to database columns. Fields without the `Mapped` annotation are ignored by the ORM mapping process but remain part of the Python object's state.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/dataclasses.rst#_snippet_13
+
+LANGUAGE: Python
+CODE:
+```
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import registry
+
+reg = registry()
+
+
+@reg.mapped_as_dataclass
+class Data:
+    __tablename__ = "data"
+
+    id: Mapped[int] = mapped_column(init=False, primary_key=True)
+    status: Mapped[str]
+
+    ctrl_one: Optional[str] = None
+    ctrl_two: Optional[str] = None
+```
+
+----------------------------------------
+
+TITLE: ORM Annotated Declarative Mapping with Type Annotations
+DESCRIPTION: This example showcases the modern SQLAlchemy 2.0 approach using `Mapped` type annotations with `mapped_column()`. SQLAlchemy can infer column types and nullability from the annotations, allowing for more concise and type-safe model definitions while still enabling explicit `mapped_column` arguments for overrides.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/declarative_tables.rst#_snippet_3
+
+LANGUAGE: Python
+CODE:
+```
+from sqlalchemy import String
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(Base):
+    __tablename__ = "user"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(50))
+    fullname: Mapped[str | None]
+    nickname: Mapped[str | None] = mapped_column(String(30))
+```
+
+----------------------------------------
+
+TITLE: Declarative Mixin with Annotated Attributes (Python)
+DESCRIPTION: This example shows a `TimestampMixin` using annotated attributes with `Mapped` and `mapped_column` to define `created_at` (with a default timestamp) and `updated_at` columns. This form allows type hints and explicit column mapping within the mixin, which are then copied to inheriting Declarative classes.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/declarative_mixins.rst#_snippet_6
+
+LANGUAGE: Python
+CODE:
+```
+class TimestampMixin:
+    created_at: Mapped[datetime] = mapped_column(default=func.now())
+    updated_at: Mapped[datetime]
+```
+
+----------------------------------------
+
+TITLE: Applying Reusable Annotated Column Types to a SQLAlchemy Model
+DESCRIPTION: This snippet demonstrates how the previously defined `Annotated` types (`intpk`, `required_name`, `timestamp`) are directly used within `Mapped` annotations in a SQLAlchemy Declarative model. Declarative unpacks these `Annotated` objects, applying their pre-configured `mapped_column` settings to the respective attributes.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/declarative_tables.rst#_snippet_38
+
+LANGUAGE: Python
+CODE:
+```
+class Base(DeclarativeBase):
+    pass
+
+
+class SomeClass(Base):
+    __tablename__ = "some_table"
+
+    id: Mapped[intpk]
+    name: Mapped[required_name]
+    created_at: Mapped[timestamp]
+```
+
+----------------------------------------
+
+TITLE: Defining SQLAlchemy Declarative Model with Custom Types
+DESCRIPTION: This snippet defines a SQLAlchemy Declarative model `SomeClass` with a table named "some_table". It demonstrates the use of custom `Mapped` types (`str_30`, `str_50`, `num_12_4`, `num_6_2`) for defining column types and sizes, with `short_name` designated as the primary key.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/declarative_tables.rst#_snippet_34
+
+LANGUAGE: Python
+CODE:
+```
+__tablename__ = "some_table"
+
+short_name: Mapped[str_30] = mapped_column(primary_key=True)
+long_name: Mapped[str_50]
+num_value: Mapped[num_12_4]
+short_num_value: Mapped[num_6_2]
+```
+
+----------------------------------------
+
+TITLE: Instantiating SQLAlchemy Mapped Class with Default Constructor
+DESCRIPTION: Demonstrates how to create an instance of a SQLAlchemy mapped class (`User`) using the default keyword constructor provided by the ORM registry. This constructor automatically accepts keyword arguments corresponding to the mapped attributes (`name`, `fullname`). This method is typically used when constructing objects directly in Python code, not when loading data from the database.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/mapping_styles.rst#_snippet_4
+
+LANGUAGE: Python
+CODE:
+```
+u1 = User(name="some name", fullname="some fullname")
+```
+
+----------------------------------------
+
+TITLE: Declaring Address Mapped Class with Declarative (Python)
+DESCRIPTION: Defines the `Address` class, inheriting from the `Base` Declarative class, to represent the 'address' table. It uses `__tablename__` for the table name and `Mapped`/`mapped_column` for column definitions, including a primary key, a string column, and a foreign key referencing 'user_account.id'. A relationship to the 'User' parent is also defined. Requires standard SQLAlchemy imports for types like `ForeignKey` and ORM constructs.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/tutorial/metadata.rst#_snippet_11
+
+LANGUAGE: python
+CODE:
+```
+from sqlalchemy import ForeignKey # Requires import from sqlalchemy
+
+class Address(Base):
+    __tablename__ = "address"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email_address: Mapped[str]
+    user_id = mapped_column(ForeignKey("user_account.id"))
+
+    user: Mapped[User] = relationship(back_populates="addresses")
+
+    def __repr__(self) -> str:
+        return f"Address(id={self.id!r}, email_address={self.email_address!r})"
+```
+
+----------------------------------------
+
+TITLE: Defining ORM Relationships - SQLAlchemy Python
+DESCRIPTION: This snippet shows the Python definition of the `User` and `Address` classes, illustrating the use of `relationship` and `Mapped` to define a bidirectional one-to-many/many-to-one link between them using `back_populates`.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/tutorial/orm_related_objects.rst#_snippet_0
+
+LANGUAGE: Python
+CODE:
+```
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import relationship
+
+
+class User(Base):
+    __tablename__ = "user_account"
+
+    # ... mapped_column() mappings
+
+    addresses: Mapped[List["Address"]] = relationship(back_populates="user")
+
+
+class Address(Base):
+    __tablename__ = "address"
+
+    # ... mapped_column() mappings
+
+    user: Mapped["User"] = relationship(back_populates="addresses")
+```
+
+----------------------------------------
+
+TITLE: Defining Bidirectional Many-to-Many using Association Table - Python
+DESCRIPTION: This example shows how to configure a bidirectional Many-to-Many relationship. Both sides of the relationship define a collection type (Mapped[List[...]]) and reference the same association table via the `secondary` parameter, using `back_populates` to link the two sides.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/basic_relationships.rst#_snippet_15
+
+LANGUAGE: python
+CODE:
+```
+from __future__ import annotations
+
+    from sqlalchemy import Column
+    from sqlalchemy import Table
+    from sqlalchemy import ForeignKey
+    from sqlalchemy import Integer
+    from sqlalchemy.orm import Mapped
+    from sqlalchemy.orm import mapped_column
+    from sqlalchemy.orm import DeclarativeBase
+    from sqlalchemy.orm import relationship
+
+
+    class Base(DeclarativeBase):
+        pass
+
+
+    association_table = Table(
+        "association_table",
+        Base.metadata,
+        Column("left_id", ForeignKey("left_table.id"), primary_key=True),
+        Column("right_id", ForeignKey("right_table.id"), primary_key=True),
+    )
+
+
+    class Parent(Base):
+        __tablename__ = "left_table"
+
+        id: Mapped[int] = mapped_column(primary_key=True)
+        children: Mapped[List[Child]] = relationship(
+            secondary=association_table, back_populates="parents"
+        )
+
+
+    class Child(Base):
+        __tablename__ = "right_table"
+
+        id: Mapped[int] = mapped_column(primary_key=True)
+        parents: Mapped[List[Parent]] = relationship(
+            secondary=association_table, back_populates="children"
+        )
+```
+
+----------------------------------------
+
+TITLE: Declaring User Mapped Class with Declarative (Python)
+DESCRIPTION: Defines the `User` class, inheriting from the `Base` Declarative class, to represent the 'user_account' table. It uses `__tablename__` to name the table and `Mapped`/`mapped_column` for column definitions, including a primary key, string columns using `String(30)`, and a relationship to 'Address' objects. Requires standard SQLAlchemy imports for types like `String` and ORM constructs.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/tutorial/metadata.rst#_snippet_10
+
+LANGUAGE: python
+CODE:
+```
+from typing import List
+from typing import Optional
+from sqlalchemy import String # Requires import from sqlalchemy
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+
+class User(Base):
+    __tablename__ = "user_account"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(30))
+    fullname: Mapped[Optional[str]]
+
+    addresses: Mapped[List["Address"]] = relationship(back_populates="user")
+
+    def __repr__(self) -> str:
+        return f"User(id={self.id!r}, name={self.name!r}, fullname={self.fullname!r})"
+```
+
+----------------------------------------
+
+TITLE: Selecting Specific Columns from Mapped Class
+DESCRIPTION: Shows how to select specific columns (attributes) from an ORM mapped class using the select construct. The result is typed as a tuple of the selected column types.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/changelog/whatsnew_20.rst#_snippet_5
+
+LANGUAGE: Python
+CODE:
+```
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+with Session(engine) as session:
+    # (variable) stmt: Select[Tuple[int, str]]
+    stmt_1 = select(User.id, User.name)
+
+    # (variable) result_1: Result[Tuple[int, str]]
+    result_1 = session.execute(stmt_1)
+
+    # (variable) intval: int
+    # (variable) strval: str
+    intval, strval = result_1.one().t
+```
+
+----------------------------------------
+
+TITLE: Use Annotated for Mapped Column Definitions in SQLAlchemy ORM
+DESCRIPTION: Extends the use of `Annotated` to package full `mapped_column` definitions. This example defines `intpk` for primary key integers and `user_fk` for foreign key integers, demonstrating how `Annotated` can include column arguments directly. It then shows how these `Annotated` types are used within ORM mapped classes (`User`, `Address`) alongside the `type_annotation_map` approach.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/changelog/whatsnew_20.rst#_snippet_18
+
+LANGUAGE: python
+CODE:
+```
+from typing_extensions import Annotated
+from typing import List
+from typing import Optional
+from sqlalchemy import ForeignKey
+from sqlalchemy import String
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+
+# declarative base from previous example
+str50 = Annotated[str, 50]
+
+
+class Base(DeclarativeBase):
+    type_annotation_map = {
+        str50: String(50),
+    }
+
+
+# set up mapped_column() overrides, using whole column styles that are
+# expected to be used in multiple places
+intpk = Annotated[int, mapped_column(primary_key=True)]
+user_fk = Annotated[int, mapped_column(ForeignKey("user_account.id"))]
+
+
+class User(Base):
+    __tablename__ = "user_account"
+
+    id: Mapped[intpk]
+    name: Mapped[str50]
+    fullname: Mapped[Optional[str]]
+    addresses: Mapped[List["Address"]] = relationship(back_populates="user")
+
+
+class Address(Base):
+    __tablename__ = "address"
+
+    id: Mapped[intpk]
+    email_address: Mapped[str50]
+    user_id: Mapped[user_fk]
+    user: Mapped["User"] = relationship(back_populates="addresses")
+```
+
+----------------------------------------
+
+TITLE: Defining Type-Aware ORM Mapped Classes
+DESCRIPTION: Defines SQLAlchemy ORM mapped classes using the new type-aware syntax introduced in 2.0. Includes relationships and foreign keys, providing type hints for attributes.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/changelog/whatsnew_20.rst#_snippet_4
+
+LANGUAGE: Python
+CODE:
+```
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+from sqlalchemy import ForeignKey
+from typing import List
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(Base):
+    __tablename__ = "user_account"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str]
+    addresses: Mapped[List["Address"]] = relationship()
+
+
+class Address(Base):
+    __tablename__ = "address"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email_address: Mapped[str]
+    user_id = mapped_column(ForeignKey("user_account.id"))
+```
+
+----------------------------------------
+
+TITLE: Loading Object from SQLAlchemy Session
+DESCRIPTION: Illustrates how to retrieve an object (`User`) from the database using a SQLAlchemy `Session`. The example uses the `select` construct to build a query filtering by the `User.name` attribute and fetches the first result using `scalars()` and `first()`. It's important to note that this process of loading data from the database does not invoke the class's `__init__` method.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/mapping_styles.rst#_snippet_6
+
+LANGUAGE: Python
+CODE:
+```
+u1 = session.scalars(select(User).where(User.name == "some name")).first()
+```
+
+----------------------------------------
+
+TITLE: Inferring Nullability with SQLAlchemy mapped_column() (Python)
+DESCRIPTION: This example demonstrates how SQLAlchemy's mapped_column() infers column nullability based on Mapped annotations and primary_key parameter. Columns with primary_key=True or non-Optional Mapped types are NOT NULL, while Optional Mapped types result in NULL columns. This shows the default nullability behavior when nullable is not explicitly set.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/declarative_tables.rst#_snippet_20
+
+LANGUAGE: Python
+CODE:
+```
+from typing import Optional
+
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class SomeClass(Base):
+    __tablename__ = "some_table"
+
+    # primary_key=True, therefore will be NOT NULL
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    # not Optional[], therefore will be NOT NULL
+    data: Mapped[str]
+
+    # Optional[], therefore will be NULL
+    additional_info: Mapped[Optional[str]]
+```
+
+----------------------------------------
+
+TITLE: Configuring Annotated One-to-One Relationship - Python
+DESCRIPTION: This example shows how to configure a One-to-One relationship using annotated Mapped types in SQLAlchemy. By applying a non-collection type (e.g., `Mapped["Child"]`) to the relationship annotation on both sides, the ORM implies a one-to-one convention.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/basic_relationships.rst#_snippet_9
+
+LANGUAGE: python
+CODE:
+```
+class Parent(Base):
+    __tablename__ = "parent_table"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    child: Mapped["Child"] = relationship(back_populates="parent")
+
+
+class Child(Base):
+    __tablename__ = "child_table"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    parent_id: Mapped[int] = mapped_column(ForeignKey("parent_table.id"))
+    parent: Mapped["Parent"] = relationship(back_populates="child")
+```
+
+----------------------------------------
+
+TITLE: Defining Declarative Mapped Properties - Declarative Table
+DESCRIPTION: This snippet shows how to define ORM mapped properties directly within a declarative class that also defines its `__tablename__`. It demonstrates mapping columns using `mapped_column`, creating relationships with `relationship`, and defining SQL expressions using `column_property`, including type annotations for Mapped attributes.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/declarative_config.rst#_snippet_0
+
+LANGUAGE: Python
+CODE:
+```
+from typing import List
+from typing import Optional
+
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import String
+from sqlalchemy import Text
+from sqlalchemy.orm import column_property
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(Base):
+    __tablename__ = "user"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str]
+    firstname: Mapped[str] = mapped_column(String(50))
+    lastname: Mapped[str] = mapped_column(String(50))
+    fullname: Mapped[str] = column_property(firstname + " " + lastname)
+
+    addresses: Mapped[List["Address"]] = relationship(back_populates="user")
+
+
+class Address(Base):
+    __tablename__ = "address"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    email_address: Mapped[str]
+    address_statistics: Mapped[Optional[str]] = mapped_column(Text, deferred=True)
+
+    user: Mapped["User"] = relationship(back_populates="addresses")
+```
+
+----------------------------------------
+
+TITLE: Defining SQLAlchemy ORM Mapped Class with DeclarativeBase
+DESCRIPTION: This snippet defines a basic ORM mapped class `MyTable` using the modern DeclarativeBase. It maps to a table named "my_table" with an integer primary key `id` and a string column `name`. This class is used in subsequent examples demonstrating `schema_translate_map` and `identity_token`.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/queryguide/api.rst#_snippet_6
+
+LANGUAGE: Python
+CODE:
+```
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class MyTable(Base):
+    __tablename__ = "my_table"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str]
+```
+
+----------------------------------------
+
+TITLE: Defining ORM Models with DeclarativeBase Subclasses (SQLAlchemy, Python)
+DESCRIPTION: Provides a comprehensive example of defining SQLAlchemy ORM models (`User`, `Address`) by subclassing a `DeclarativeBase`. It illustrates how to specify table names (`__tablename__`), columns (`mapped_column`, `Mapped` annotation), and relationships (`relationship`).
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/declarative_styles.rst#_snippet_2
+
+LANGUAGE: Python
+CODE:
+```
+from datetime import datetime
+from typing import List
+from typing import Optional
+
+from sqlalchemy import ForeignKey
+from sqlalchemy import func
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(Base):
+    __tablename__ = "user"
+
+    id = mapped_column(Integer, primary_key=True)
+    name: Mapped[str]
+    fullname: Mapped[Optional[str]]
+    nickname: Mapped[Optional[str]] = mapped_column(String(64))
+    create_date: Mapped[datetime] = mapped_column(insert_default=func.now())
+
+    addresses: Mapped[List["Address"]] = relationship(back_populates="user")
+
+
+class Address(Base):
+    __tablename__ = "address"
+
+    id = mapped_column(Integer, primary_key=True)
+    user_id = mapped_column(ForeignKey("user.id"))
+    email_address: Mapped[str]
+
+    user: Mapped["User"] = relationship(back_populates="addresses")
+```
+
+----------------------------------------
+
+TITLE: Demonstrate Typing with SQLAlchemy Select and Session
+DESCRIPTION: Illustrates how the typing information provided by Mapped attributes, including those defined using `Annotated`, is propagated to `select` statements, `Session` execution results (`Row`), and ORM query results (`Sequence`). It shows examples of selecting specific columns and fetching full objects.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/changelog/whatsnew_20.rst#_snippet_19
+
+LANGUAGE: python
+CODE:
+```
+# (variable) stmt: Select[Tuple[int, str]]
+stmt = select(User.id, User.name)
+
+with Session(e) as sess:
+    for row in sess.execute(stmt):
+        # (variable) row: Row[Tuple[int, str]]
+        print(row)
+
+    # (variable) users: Sequence[User]
+    users = sess.scalars(select(User)).all()
+
+    # (variable) users_legacy: List[User]
+    users_legacy = sess.query(User).all()
+```
+
+----------------------------------------
+
+TITLE: Building a Basic SELECT Statement with WHERE
+DESCRIPTION: Demonstrates how to create a basic SELECT statement using the `select` function, targeting a mapped ORM class (`User`) and applying a filtering condition using the `where` method based on a mapped attribute (`User.name`). This statement object can then be executed.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/queryguide/select.rst#_snippet_0
+
+LANGUAGE: python
+CODE:
+```
+from sqlalchemy import select
+stmt = select(User).where(User.name == "spongebob")
+```
+
+----------------------------------------
+
+TITLE: Applying MappedAsDataclass Mixin to Specific ORM Class - Python/SQLAlchemy
+DESCRIPTION: Illustrates how to apply the `MappedAsDataclass` mixin directly to a specific ORM-mapped class (`User`) rather than the Declarative base. Only the class explicitly including the mixin will be converted into a Python dataclass.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/dataclasses.rst#_snippet_1
+
+LANGUAGE: Python
+CODE:
+```
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import MappedAsDataclass
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(MappedAsDataclass, Base):
+    """User class will be converted to a dataclass"""
+
+    __tablename__ = "user_account"
+
+    id: Mapped[int] = mapped_column(init=False, primary_key=True)
+    name: Mapped[str]
+```
+
+----------------------------------------
+
+TITLE: Defining ORM Models with registry.mapped Decorator (SQLAlchemy, Python)
+DESCRIPTION: Presents an alternative declarative mapping style using the `@mapper_registry.mapped` decorator. This approach maps standard Python classes directly without requiring them to inherit from a common `DeclarativeBase`.
+SOURCE: https://github.com/sqlalchemy/sqlalchemy/blob/main/doc/build/orm/declarative_styles.rst#_snippet_3
+
+LANGUAGE: Python
+CODE:
+```
+from datetime import datetime
+from typing import List
+from typing import Optional
+
+from sqlalchemy import ForeignKey
+from sqlalchemy import func
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import registry
+from sqlalchemy.orm import relationship
+
+mapper_registry = registry()
+
+
+@mapper_registry.mapped
+class User:
+    __tablename__ = "user"
+
+    id = mapped_column(Integer, primary_key=True)
+    name: Mapped[str]
+    fullname: Mapped[Optional[str]]
+    nickname: Mapped[Optional[str]] = mapped_column(String(64))
+    create_date: Mapped[datetime] = mapped_column(insert_default=func.now())
+
+    addresses: Mapped[List["Address"]] = relationship(back_populates="user")
+
+
+@mapper_registry.mapped
+class Address:
+    __tablename__ = "address"
+
+    id = mapped_column(Integer, primary_key=True)
+    user_id = mapped_column(ForeignKey("user.id"))
+    email_address: Mapped[str]
+
+    user: Mapped["User"] = relationship(back_populates="addresses")
+
+```

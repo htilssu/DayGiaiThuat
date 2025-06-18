@@ -15,6 +15,7 @@ def create_new_creative_llm_model():
     return ChatGoogleGenerativeAI(
         model=settings.CREATIVE_LLM_MODEL,
         google_api_key=settings.GOOGLE_API_KEY,
+        thinking_budget=1000,
     )
 
 

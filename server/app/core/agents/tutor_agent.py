@@ -9,7 +9,6 @@ from langchain_core.prompts import (
 )
 from langchain_core.messages import SystemMessage
 
-from app.core.agents.components.llm_model import create_new_gemini_llm_model
 from app.core.config import settings
 
 
@@ -20,7 +19,6 @@ class TutorAgent(BaseAgent):
 
     def __init__(self):
         super().__init__()
-        self.llm_model = create_new_gemini_llm_model()
         self.available_args = ["session_id", "context"]
 
         self.prompt = ChatPromptTemplate.from_messages(
@@ -33,7 +31,7 @@ class TutorAgent(BaseAgent):
 
         self.agent = create_tool_calling_agent(
             tools=self.tools,
-            llm=self.llm_model,
+            llm=self.base_llm,
             verbose=True,
             max_retries=3,
             prompt=self.prompt,
