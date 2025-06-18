@@ -2,7 +2,6 @@
 from app.models.user_topic_model import *
 from app.models.lesson_model import *
 from app.models.exercise_model import *
-from app.models.user_topic_model import *
 from app.models.user_state_model import *
 from app.models.test_model import *
 from app.models.user_model import *
