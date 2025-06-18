@@ -8,12 +8,13 @@ Cách sử dụng:
 import json
 import logging
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List
 from app.database.database import SessionLocal
 
 from passlib.context import CryptContext
-from app.models.badge_model import Badge, user_badges
+from app.models.badge_model import Badge
+from app.models.user_badge_model import UserBadge
 from app.models.course_model import Course
 from app.models.exercise_model import Exercise
 from app.models.topic_model import Topic
@@ -530,7 +531,7 @@ def create_users(badges: List[Badge], courses: List[Course]) -> List[User]:
             "first_name": "Admin",
             "last_name": "User",
             "bio": "Quản trị viên hệ thống",
-            "avatar_url": "https://example.com/avatars/admin.jpg",
+            "avatar": "https://example.com/avatars/admin.jpg",
         },
         {
             "email": "user1@example.com",
@@ -539,7 +540,7 @@ def create_users(badges: List[Badge], courses: List[Course]) -> List[User]:
             "first_name": "Nguyễn",
             "last_name": "Văn A",
             "bio": "Sinh viên năm nhất ngành Khoa học máy tính",
-            "avatar_url": "https://example.com/avatars/user1.jpg",
+            "avatar": "https://example.com/avatars/user1.jpg",
         },
         {
             "email": "user2@example.com",
@@ -548,7 +549,7 @@ def create_users(badges: List[Badge], courses: List[Course]) -> List[User]:
             "first_name": "Trần",
             "last_name": "Thị B",
             "bio": "Kỹ sư phần mềm với 2 năm kinh nghiệm",
-            "avatar_url": "https://example.com/avatars/user2.jpg",
+            "avatar": "https://example.com/avatars/user2.jpg",
         },
     ]
 
@@ -579,18 +580,6 @@ def create_users(badges: List[Badge], courses: List[Course]) -> List[User]:
                 dynamic_programming_progress=random.randint(0, 100),
             )
             db.add(user_state)
-
-            # Gán ngẫu nhiên badges cho user
-            for badge in random.sample(badges, random.randint(1, min(3, len(badges)))):
-                db.execute(
-                    user_badges.insert().values(
-                        user_id=user.id,
-                        badge_id=badge.id,
-                        earned_at=datetime.now()
-                        - timedelta(days=random.randint(1, 30)),
-                        is_featured=random.choice([True, False]),
-                    )
-                )
 
             users.append(user)
 
