@@ -31,3 +31,4 @@ openai~=1.78.0
 pinecone~=6.0.2
 langsmith~=0.3.42
 langchain-community~=0.3.23
+unidecode
