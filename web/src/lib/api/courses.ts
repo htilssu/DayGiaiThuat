@@ -3,7 +3,7 @@
  * @module api/courses
  */
 
-import { get } from "./client";
+import { get, post } from "./client";
 
 /**
  * Kiểu dữ liệu cho khóa học
@@ -49,8 +49,18 @@ async function getCourseById(id: number) {
   return get<Course>(`/courses/${id}`);
 }
 
+/**
+ * Đăng ký khóa học
+ * @param courseId - ID của khóa học
+ * @returns Thông tin đăng ký khóa học
+ */
+async function registerCourse(courseId: number) {
+  return post<{ success: boolean; message: string }>(`/courses/${courseId}/register`);
+}
+
 export const coursesApi = {
   getCourses,
   getCourseById,
+  registerCourse,
 };
 

@@ -5,4 +5,5 @@ export * from "./chat";
 export * from "./profile";
 export * from "./courses";
 export * from "./documents";
+export * from "./test";
 
