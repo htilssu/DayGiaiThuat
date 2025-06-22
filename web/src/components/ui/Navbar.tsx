@@ -91,8 +91,9 @@ export default function Navbar() {
           ? `0 4px 10px -2px rgba(0, 0, 0, ${shadowOpacity})`
           : "none",
       }}
-      className={`w-full py-4 sticky top-0 z-50 transition-all duration-500 bg-background/95 border-b theme-transition ${scrollY > 10
-        }`}>
+      className={`w-full py-4 sticky top-0 z-50 transition-all duration-500 bg-background/95 border-b theme-transition ${
+        scrollY > 10
+      }`}>
       <div className="container mx-auto flex items-center justify-between px-4">
         {/* Logo */}
         <Link
@@ -121,10 +122,8 @@ export default function Navbar() {
             />
             <NavItem
               href="/learn"
-              label="Học bài"
-              isActive={
-                pathname === "/learn" || pathname.startsWith("/learn/")
-              }
+              label="Bài học"
+              isActive={pathname === "/learn" || pathname.startsWith("/learn/")}
             />
             <NavItem
               href="/exercises"
@@ -143,7 +142,7 @@ export default function Navbar() {
             />
             <NavItem
               href="/about"
-              label="Giới thiệu"
+              label="FAQ"
               isActive={pathname === "/about"}
             />
           </ul>
@@ -386,8 +385,9 @@ function NavItem({
       <Link
         href={href}
         aria-current={isActive ? "page" : undefined}
-        className={`relative px-1 py-2 font-medium theme-transition flex items-center ${isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
-          } transition-colors`}>
+        className={`relative px-1 py-2 font-medium theme-transition flex items-center ${
+          isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
+        } transition-colors`}>
         {label}
 
         {/* Indicator thanh dưới chân - active */}
@@ -430,10 +430,11 @@ function MobileNavItem({
     <Link
       href={href}
       aria-current={isActive ? "page" : undefined}
-      className={`relative px-4 py-2.5 rounded-lg theme-transition overflow-hidden group ${isActive
-        ? "text-primary font-medium"
-        : "text-foreground/80 hover:bg-foreground/10 hover:text-primary"
-        } transition-all duration-300 hover:pl-6`}
+      className={`relative px-4 py-2.5 rounded-lg theme-transition overflow-hidden group ${
+        isActive
+          ? "text-primary font-medium"
+          : "text-foreground/80 hover:bg-foreground/10 hover:text-primary"
+      } transition-all duration-300 hover:pl-6`}
       onClick={onClick}>
       {/* Thanh indicator bên trái */}
       <span className="absolute left-0 top-0 bottom-0 w-0 bg-primary/20 transition-all duration-300 group-hover:w-1"></span>

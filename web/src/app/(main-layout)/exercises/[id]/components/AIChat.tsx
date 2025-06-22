@@ -30,8 +30,11 @@ export default function AIChat({
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // const ai = new GoogleGenAI({
+  //   apiKey: process.env.NEXT_PUBLIC_LLM_API_KEY,
+  // });
   const ai = new GoogleGenAI({
-    apiKey: process.env.NEXT_PUBLIC_LLM_API_KEY,
+    apiKey: "AIzaSyAoWvIFmtiL1MwP1y8ariEm61Zaq4-uNZo",
   });
 
   const handleTest = async () => {
@@ -39,7 +42,7 @@ export default function AIChat({
     try {
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-05-20",
-        contents: `Đây là code của học viên: ${code} và đây là kết quả test: ${results}. Đây là tiêu đề bài tập: ${title}`,
+        contents: `Đây là code của học viên: ${code} và đây là kết quả test: ${results}.`,
         config: {
           systemInstruction: `Bạn là một chuyên gia giải thuật chuyên nghiệp, dễ thương và thân thiện. Nhiệm vụ của bạn là đưa ra gợi ý cho học viên nếu họ làm bài chưa đúng và khen họ nếu họ đã đúng. Hãy đưa ra gợi ý thật ngắn gọn, dễ hiểu và có chút chăm chọc. Hãy chỉ đưa ra gợi ý về cách giải, không đưa ra lời giải cụ thể.`,
         },
@@ -133,13 +136,15 @@ export default function AIChat({
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`flex ${message.role === "user" ? "justify-end" : "justify-start"
-              }`}>
+            className={`flex ${
+              message.role === "user" ? "justify-end" : "justify-start"
+            }`}>
             <div
-              className={`max-w-[80%] rounded-lg px-4 py-2 ${message.role === "user"
+              className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                message.role === "user"
                   ? "bg-primary text-white"
                   : "bg-foreground/5 text-foreground"
-                }`}>
+              }`}>
               {message.content}
             </div>
           </div>

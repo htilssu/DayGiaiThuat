@@ -45,7 +45,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 15,
         description: "Kiểm tra kiến thức về các khái niệm cơ bản",
         type: "quiz",
-        isPreview: true,
+        isPreview: false,
       },
     ],
   },
@@ -61,7 +61,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 25,
         description: "Học về cách tổ chức và thao tác với mảng",
         type: "video",
-        isPreview: true,
+        isPreview: false,
       },
       {
         id: 5,
@@ -70,7 +70,7 @@ export const dsaCourseContent: Chapter[] = [
         description:
           "Tìm hiểu về cấu trúc và các thao tác cơ bản với danh sách liên kết đơn",
         type: "video",
-        isPreview: true,
+        isPreview: false,
       },
       {
         id: 6,
@@ -78,7 +78,7 @@ export const dsaCourseContent: Chapter[] = [
         duration: 45,
         description: "Thực hành các thao tác cơ bản với mảng",
         type: "exercise",
-        isPreview: true,
+        isPreview: false,
       },
     ],
   },

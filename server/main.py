@@ -79,3 +79,4 @@ app.add_middleware(CamelCaseMiddleware)
 register_router(app)
 
 add_exception_handlers(app)
+

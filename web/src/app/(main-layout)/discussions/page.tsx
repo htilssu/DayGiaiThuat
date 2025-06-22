@@ -24,6 +24,8 @@ import {
 import { discussionsApi } from "@/lib/api/discussions";
 import type { Discussion } from "@/lib/api/discussions/types";
 import { useRouter } from "next/navigation";
+import { discussions as mockDiscussions } from "@/data/discussions";
+import Link from "next/link";
 
 export default function DiscussionsPage() {
   const router = useRouter();
@@ -126,39 +128,41 @@ export default function DiscussionsPage() {
             </Group>
           ) : (
             <Stack gap="md">
-              {discussions.map((discussion) => (
-                <Card
+              {mockDiscussions.map((discussion) => (
+                <Link
                   key={discussion.id}
-                  withBorder
-                  className="bg-background/50 border-foreground/10 hover:border-primary/30 transition-all hover:shadow-md cursor-pointer theme-transition"
-                  onClick={() => router.push(`/discussions/${discussion.id}`)}>
-                  <Group justify="space-between" mb="xs">
-                    <Text size="lg" fw={500} className="text-foreground">
-                      {discussion.title}
-                    </Text>
-                    <Badge
-                      variant="light"
-                      className="bg-primary/20 text-primary border-primary/30">
-                      {discussion.category}
-                    </Badge>
-                  </Group>
-
-                  <Group gap="xl" mt="md" className="text-foreground/70">
-                    <Group gap="xs">
-                      <Text size="sm">By {discussion.author}</Text>
-                    </Group>
-                    <Group gap="xs">
-                      <IconCalendar size={16} />
-                      <Text size="sm">
-                        {new Date(discussion.createdAt).toLocaleDateString()}
+                  href={`/discussions/${discussion.id}`}>
+                  <Card
+                    withBorder
+                    className="bg-background/50 border-foreground/10 hover:border-primary/30 transition-all hover:shadow-md cursor-pointer theme-transition">
+                    <Group justify="space-between" mb="xs">
+                      <Text size="lg" fw={500} className="text-foreground">
+                        {discussion.title}
                       </Text>
+                      <Badge
+                        variant="light"
+                        className="bg-primary/20 text-primary border-primary/30">
+                        {discussion.category}
+                      </Badge>
                     </Group>
-                    <Group gap="xs">
-                      <IconMessageCircle size={16} />
-                      <Text size="sm">{discussion.replies} replies</Text>
+
+                    <Group gap="xl" mt="md" className="text-foreground/70">
+                      <Group gap="xs">
+                        <Text size="sm">By {discussion.author}</Text>
+                      </Group>
+                      <Group gap="xs">
+                        <IconCalendar size={16} />
+                        <Text size="sm">
+                          {new Date(discussion.createdAt).toLocaleDateString()}
+                        </Text>
+                      </Group>
+                      <Group gap="xs">
+                        <IconMessageCircle size={16} />
+                        <Text size="sm">{discussion.replies} replies</Text>
+                      </Group>
                     </Group>
-                  </Group>
-                </Card>
+                  </Card>
+                </Link>
               ))}
             </Stack>
           )}
