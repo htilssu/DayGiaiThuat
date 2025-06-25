@@ -1,50 +1,45 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   IconCircleCheck,
   IconCircleX,
   IconPlayerPlay,
-  IconCircle,
 } from "@tabler/icons-react";
 import { ExerciseDetail, TestResult } from "./types";
 import AIChat from "./AIChat";
 import { runTests, testCases } from "@/services/codeRunner";
+import MonacoEditor from "@/components/ui/MonacoEditor";
 
 /**
  * Component cho phần nộp bài tập và chạy test
  *
  * @param {Object} props - Props của component
  * @param {ExerciseDetail} props.exercise - Thông tin chi tiết bài tập
- * @param {string} props.userCode - Code của người dùng
- * @param {(code: string) => void} props.setUserCode - Hàm cập nhật code
  * @param {() => void} props.onSubmit - Hàm xử lý khi nộp bài
  * @returns {JSX.Element} Form nộp bài
  */
 export default function ExerciseSubmission({
   exercise,
-  userCode,
-  setUserCode,
   onSubmit,
 }: {
   exercise: ExerciseDetail;
-  userCode: string;
-  setUserCode: (code: string) => void;
   onSubmit: () => void;
 }) {
-  const [testResults, setTestResults] = useState<TestResult[]>([]);
+  const [testResults /*setTestResults*/] = useState<TestResult[]>([]);
   const [isRunningTests, setIsRunningTests] = useState(false);
-  const [allTestsPassed, setAllTestsPassed] = useState(false);
+  const [allTestsPassed /*setAllTestsPassed*/] = useState(false);
   const [callAIChat, setCallAIChat] = useState(false);
   const calling = {
     callAIChat,
     setCallAIChat,
   };
 
-  const [code, setCode] = useState(`function sumArray(arr) {
-    // Write your code here
-    return arr.reduce((sum, num) => sum + num, 0);
-  }`);
+  const [code, setCode] = useState(`function yourFunction() {
+  // Write your code here
+  return;
+}`);
+  const [language, setLanguage] = useState("javascript");
   const [results, setResults] = useState<
     Array<{
       input: string;
@@ -110,32 +105,12 @@ export default function ExerciseSubmission({
     }
   };
 
-  const editorRef = useRef<HTMLTextAreaElement | null>(null);
-  const lineNumbersRef = useRef<HTMLDivElement | null>(null);
-
-  const displayLineNumbers = () => {
-    const editor = editorRef.current;
-
-    const lineNumbersEle = document.getElementById("line-numbers");
-    if (!editor || !lineNumbersEle) return;
-    const lines = editor.value.split("\n");
-    lineNumbersEle.innerHTML = Array.from(
-      {
-        length: lines.length,
-      },
-      (_, i) => `<div>${i + 1}</div>`
-    ).join("");
-  };
+  // const editorRef = useRef<HTMLTextAreaElement | null>(null);
+  // const lineNumbersRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    displayLineNumbers();
+    // Remove displayLineNumbers call
   }, [code]);
-
-  const handleScroll = () => {
-    if (editorRef.current && lineNumbersRef.current) {
-      lineNumbersRef.current.scrollTop = editorRef.current.scrollTop;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -145,25 +120,48 @@ export default function ExerciseSubmission({
         <div className="space-y-4">
           <div className="border border-foreground/10 rounded-lg theme-transition">
             <div className="bg-foreground/5 p-3 border-b border-foreground/10 flex justify-between items-center">
-              <h3 className="font-medium text-foreground">Code</h3>
-              <div className="text-xs text-foreground/60">JavaScript</div>
+              <h3 className="font-medium text-foreground px-5">Code</h3>
+              <div className="relative">
+                <select
+                  id="language"
+                  aria-label="Chọn ngôn ngữ lập trình"
+                  className="w-full bg-transparent placeholder:text-primary text-primary text-sm border border-primary rounded-xl pl-4 pr-8 py-2 transition duration-300 ease focus:outline-none focus:border-primary hover:border-primary shadow-sm focus:shadow appearance-none cursor-pointer"
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}>
+                  <option value="javascript">JavaScript</option>
+                  <option value="typescript">TypeScript</option>
+                  <option value="python">Python</option>
+                  <option value="csharp">C#</option>
+                  <option value="c">C</option>
+                  <option value="cpp">C++</option>
+                  <option value="java">Java</option>
+                  <option value="php">PHP</option>
+                  <option value="ruby">Ruby</option>
+                  <option value="swift">Swift</option>
+                </select>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.2"
+                  stroke="currentColor"
+                  className="h-5 w-5 ml-1 absolute top-2.5 right-2.5 text-primary">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9"
+                  />
+                </svg>
+              </div>
             </div>
 
             <div className="flex relative h-96">
-              <div
-                id="line-numbers"
-                ref={lineNumbersRef}
-                className="font-mono h-96 p-4 border-r-2 text-right select-none bg-background text-foreground/60 theme-transition overflow-y-auto"
-                style={{ minWidth: 32, scrollbarWidth: "none" }}
-              />
-              <textarea
-                ref={editorRef}
-                id="code-editor"
+              <MonacoEditor
                 value={code}
-                onScroll={handleScroll}
-                onChange={(e) => setCode(e.target.value)}
-                className="w-full h-96 p-4 bg-background text-foreground/90 font-mono resize-none focus:outline-none theme-transition overflow-y-auto"
-                placeholder="Viết code của bạn ở đây..."
+                language={language}
+                theme="vs"
+                onChange={setCode}
+                height={"100%"}
               />
             </div>
           </div>
@@ -189,7 +187,7 @@ export default function ExerciseSubmission({
         </div>
 
         {/* AI Chat */}
-        <div className="h-96">
+        <div className="h-full">
           <AIChat
             code={code}
             results={results}
@@ -235,7 +233,7 @@ export default function ExerciseSubmission({
                 <div>
                   <IconPlayerPlay className="mx-auto h-12 w-12 text-foreground/30" />
                   <p className="mt-2">
-                    Nhấn nút "Chạy Test" để kiểm tra code của bạn
+                    Nhấn nút &quot;Chạy Test&quot; để kiểm tra code của bạn
                   </p>
                 </div>
               </div>

@@ -70,8 +70,8 @@ export default function AIChat({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    // e.preventDefault();
     if (!input.trim() || isLoading) return;
 
     const userMessage = input.trim();
@@ -176,7 +176,7 @@ export default function AIChat({
             className="flex-1 px-3 py-2 rounded-md border border-foreground/10 bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
           <button
-            onClick={handleTest}
+            onClick={handleSubmit}
             disabled={!input.trim() || isLoading}
             className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Gửi tin nhắn">

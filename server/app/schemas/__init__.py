@@ -5,3 +5,4 @@ from .course_schema import *
 from .badge_schema import *
 from .learning_progress_schema import *
 from .user_state_schema import *
+from .lesson_schema import *
