@@ -17,6 +17,12 @@ from pydantic import BaseModel, Field, ValidationError
 from app.core.tracing import trace_agent
 from typing import override, Dict, Any
 import logging
+import asyncio
+from google.api_core.exceptions import (
+    InternalServerError,
+    DeadlineExceeded,
+    ServiceUnavailable,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +75,10 @@ class InputTestAgent(BaseAgent):
         self._prompt = None
         self._tool_calling_agent = None
         self._agent_executor = None
+
+        # Retry configuration
+        self.max_retries = 3
+        self.retry_delay = 2  # seconds
 
         # Khởi tạo tool ngay vì nó không tốn nhiều tài nguyên
         async def get_course_by_id(course_id: int):
@@ -137,6 +147,57 @@ class InputTestAgent(BaseAgent):
             )
         return self._agent_executor
 
+    async def _execute_with_retry(
+        self, input_data: Dict[str, Any], config: Any
+    ) -> Dict[str, Any]:
+        """
+        Thực thi agent với retry logic cho Google AI API errors
+
+        Args:
+            input_data: Input cho agent
+            config: Runnable config
+
+        Returns:
+            Dict: Kết quả từ agent
+
+        Raises:
+            Exception: Sau khi hết số lần retry
+        """
+        last_exception = None
+
+        for attempt in range(self.max_retries):
+            try:
+                logger.info(
+                    f"Đang thực thi agent, lần thử {attempt + 1}/{self.max_retries}"
+                )
+                result = await self.agent_executor.ainvoke(input_data, config=config)
+                logger.info("Thực thi agent thành công")
+                return result
+
+            except (InternalServerError, DeadlineExceeded, ServiceUnavailable) as e:
+                last_exception = e
+                logger.warning(f"Google AI API error (lần {attempt + 1}): {e}")
+
+                if attempt < self.max_retries - 1:
+                    delay = self.retry_delay * (2**attempt)  # Exponential backoff
+                    logger.info(f"Đợi {delay} giây trước khi thử lại...")
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error(f"Đã thử {self.max_retries} lần nhưng vẫn thất bại")
+
+            except Exception as e:
+                # Lỗi khác không cần retry
+                logger.error(f"Lỗi không thể retry: {e}")
+                raise e
+
+        # Nếu đã hết số lần retry
+        if last_exception:
+            raise Exception(
+                f"Google AI API không khả dụng sau {self.max_retries} lần thử. Lỗi: {last_exception}"
+            )
+        else:
+            raise Exception(f"Không thể thực thi agent sau {self.max_retries} lần thử")
+
     async def _parse_output(
         self, output: Dict[str, Any], course_id: int
     ) -> InputTestAgentOutput:
@@ -198,19 +259,32 @@ class InputTestAgent(BaseAgent):
         )
 
         try:
-            # Thực thi agent
-            result = await self.agent_executor.ainvoke(
-                {"input": f"course_id: {course_id}"},
-                config=run_config,
+            # Thực thi agent với retry logic
+            result = await self._execute_with_retry(
+                {"input": f"course_id: {course_id}"}, run_config
             )
 
             # Phân tích kết quả bằng output parser
             parsed_result = await self._parse_output(result, course_id)
 
             return parsed_result
+
         except Exception as e:
             logger.error(f"Lỗi khi thực thi agent: {e}")
-            raise ValueError(f"Không thể tạo bài kiểm tra đầu vào: {e}")
+
+            # Tạo thông báo lỗi thân thiện hơn
+            if "Google AI" in str(e) or "Internal" in str(e):
+                error_message = (
+                    "Dịch vụ AI tạm thời không khả dụng. Vui lòng thử lại sau vài phút."
+                )
+            elif "timeout" in str(e).lower() or "deadline" in str(e).lower():
+                error_message = (
+                    "Quá trình tạo test mất quá nhiều thời gian. Vui lòng thử lại."
+                )
+            else:
+                error_message = f"Lỗi không xác định: {e}"
+
+            raise ValueError(error_message)
 
 
 def get_input_test_agent(course_service: CourseService = Depends(get_course_service)):

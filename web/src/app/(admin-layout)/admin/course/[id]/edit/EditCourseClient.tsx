@@ -65,6 +65,10 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
         },
         enabled: !!courseId,
         staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+        refetchInterval: (data) => {
+            // Auto-refresh every 10 seconds if test generation is pending
+            return data?.testGenerationStatus === 'pending' ? 10000 : false;
+        },
         retry: (failureCount, error: any) => {
             if (error?.response?.status === 404) {
                 notFound();

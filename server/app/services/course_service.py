@@ -341,7 +341,6 @@ class CourseService:
                 test_service = get_test_service(self.db)
 
                 # This would be the actual test generation logic
-                # For now, just simulate success
                 asyncio.run(
                     self._create_test_from_agent(agent, test_service, course_id)
                 )
@@ -356,6 +355,15 @@ class CourseService:
                 self.update_test_generation_status(
                     course_id, TestGenerationStatus.FAILED
                 )
+
+                # Log error với thông tin chi tiết
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.error(
+                    f"Lỗi khi tạo test cho khóa học {course_id}: {e}", exc_info=True
+                )
+
                 print(f"Error generating test for course {course_id}: {e}")
 
         # Run in background thread
