@@ -6,4 +6,10 @@ export * from "./profile";
 export * from "./courses";
 export * from "./documents";
 export * from "./test";
+export * from "./topics";
+export * from "./upload";
 
+// Admin APIs
+export * from "./admin-courses";
+export * from "./admin-topics";
+export * from "./admin-upload";

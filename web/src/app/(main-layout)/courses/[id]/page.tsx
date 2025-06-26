@@ -7,6 +7,13 @@ import { coursesApi } from "@/lib/api";
 import { Course } from "@/lib/api/courses";
 import { dsaCourseContent } from "@/data/courseContent";
 import Link from "next/link";
+import { useAppDispatch, useAppSelector } from "@/lib/store";
+import { addModal } from "@/lib/store/modalStore";
+import { reloadUser } from "@/lib/store/userStore";
+import { v4 as uuidv4 } from "uuid";
+import { testApi } from "@/lib/api";
+import { ModalWithCallbacks } from "@/lib/store/modalStore";
+
 
 /**
  * Component hiển thị chi tiết khóa học
@@ -14,7 +21,10 @@ import Link from "next/link";
 export default function CourseDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const courseId = Number(params.id);
+  const userState = useAppSelector((state) => state.user);
+
 
   const [course, setCourse] = useState<Course | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -23,12 +33,20 @@ export default function CourseDetailPage() {
     "overview" | "content" | "reviews"
   >("overview");
 
+  const [isUnregistering, setIsUnregistering] = useState<boolean>(false);
+  const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
+  const [isRegistering, setIsRegistering] = useState<boolean>(false);
+
   useEffect(() => {
     const fetchCourseDetails = async () => {
       try {
         setIsLoading(true);
         const data = await coursesApi.getCourseById(courseId);
         setCourse(data);
+
+        // Sử dụng trạng thái đăng ký từ phản hồi API
+        // Backend sẽ tự động kiểm tra trạng thái đăng ký nếu người dùng đã đăng nhập
+        setIsEnrolled(data.isEnrolled || false);
       } catch (err) {
         console.error("Lỗi khi tải thông tin khóa học:", err);
         setError("Không thể tải thông tin khóa học. Vui lòng thử lại sau.");
@@ -65,6 +83,280 @@ export default function CourseDetailPage() {
       return [];
     }
   };
+
+  // Xử lý đăng ký khóa học
+  const handleRegisterCourse = () => {
+    if (!userState.user) {
+      // Nếu chưa đăng nhập, chuyển hướng đến trang đăng nhập với returnUrl
+      const returnUrl = `/courses/${courseId}`;
+      router.push(`/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+      return;
+    }
+
+    // Hiển thị modal xác nhận đăng ký
+    dispatch(addModal({
+      id: uuidv4(),
+      title: "Xác nhận đăng ký khóa học",
+      description: (
+        <div>
+          <p>Bạn có chắc chắn muốn đăng ký khóa học <strong>{course?.title}</strong>?</p>
+          {course?.price && course.price > 0 ? (
+            <p className="mt-2">Giá: <strong>{course.price.toLocaleString('vi-VN')}₫</strong></p>
+          ) : (
+            <p className="mt-2">Khóa học này <strong>miễn phí</strong>.</p>
+          )}
+        </div>
+      ),
+      onConfirm: () => confirmEnrollCourse(),
+      onCancel: () => { },
+    }));
+  };
+
+  // Xác nhận đăng ký khóa học
+  const confirmEnrollCourse = async () => {
+    try {
+      setIsRegistering(true);
+      const response = await coursesApi.registerCourse(courseId);
+
+      if (response.success) {
+        // Cập nhật trạng thái đăng ký
+        setIsEnrolled(true);
+
+        // Đặt lại isInitial thành true để load lại thông tin người dùng
+        dispatch(reloadUser());
+
+        // Kiểm tra xem có bài kiểm tra đầu vào cho khóa học này không
+        const hasEntranceTest = await checkForEntranceTest();
+
+        if (hasEntranceTest) {
+          dispatch(addModal({
+            id: uuidv4(),
+            title: "Đăng ký thành công",
+            description: "Bạn sẽ được chuyển đến bài kiểm tra đầu vào để đánh giá trình độ.",
+            onConfirm: () => handleStartEntranceTest(),
+            onCancel: () => { },
+            confirmText: "Bắt đầu kiểm tra",
+          }));
+        } else {
+          // Hiển thị thông báo đăng ký thành công
+          dispatch(addModal({
+            id: uuidv4(),
+            title: "Đăng ký thành công",
+            description: "Bạn đã đăng ký khóa học thành công!",
+            onConfirm: () => { },
+            onCancel: () => { },
+          }));
+        }
+      } else {
+        // Hiển thị thông báo lỗi
+        dispatch(addModal({
+          id: uuidv4(),
+          title: "Đăng ký thất bại",
+          description: response.message || "Có lỗi xảy ra khi đăng ký khóa học. Vui lòng thử lại sau.",
+          onConfirm: () => { },
+          onCancel: () => { },
+        }));
+      }
+    } catch (err) {
+      console.error("Lỗi khi đăng ký khóa học:", err);
+      // Hiển thị thông báo lỗi
+      dispatch(addModal({
+        id: uuidv4(),
+        title: "Đăng ký thất bại",
+        description: "Có lỗi xảy ra khi đăng ký khóa học. Vui lòng thử lại sau.",
+        onConfirm: () => { },
+        onCancel: () => { },
+      }));
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  // Kiểm tra xem có bài kiểm tra đầu vào cho khóa học này không
+  const checkForEntranceTest = async () => {
+    try {
+      // Giả sử khóa học có liên kết với topic có cùng ID
+      const test = await testApi.getTestByTopic(courseId.toString());
+      return test !== null;
+    } catch (err) {
+      console.error("Lỗi khi kiểm tra bài kiểm tra đầu vào:", err);
+      return false;
+    }
+  };
+
+  // Hiển thị modal bài kiểm tra đầu vào
+  const showEntranceTestModal = () => {
+    dispatch(addModal({
+      id: uuidv4(),
+      title: "Làm bài kiểm tra đầu vào",
+      description: (
+        <div>
+          <p>Bạn đã đăng ký khóa học thành công!</p>
+          <p className="mt-2">Để giúp chúng tôi đánh giá trình độ và cung cấp lộ trình học phù hợp, vui lòng làm bài kiểm tra đầu vào.</p>
+        </div>
+      ),
+      onConfirm: () => handleStartEntranceTest(),
+      onCancel: () => router.push(`/topics/${courseId}`),
+      confirmText: "Làm bài kiểm tra",
+      cancelText: "Để sau",
+    }));
+  };
+
+  // Xử lý bắt đầu làm bài kiểm tra đầu vào
+  const handleStartEntranceTest = async () => {
+    try {
+      // Lấy thông tin bài kiểm tra
+      const test = await testApi.getTestByTopic(courseId.toString());
+
+      if (!test) {
+        console.error("Không tìm thấy bài kiểm tra cho topic này");
+        router.push(`/topics/${courseId}`);
+        return;
+      }
+
+      // Tạo session kiểm tra mới
+      if (userState.user) {
+        try {
+          // Kiểm tra xem đã có session nào đang hoạt động chưa
+          const userSessions = await testApi.getMyTestSessions();
+          const activeSession = userSessions.find(
+            session =>
+              session.test_id === parseInt(test.id) &&
+              session.status === 'in_progress' &&
+              !session.is_submitted
+          );
+
+          // Nếu đã có session đang hoạt động cho bài kiểm tra này, sử dụng session đó
+          if (activeSession) {
+            router.push(`/tests/topic-${courseId}`);
+            return;
+          }
+
+          // Kiểm tra xem có session nào khác đang hoạt động không
+          const otherActiveSessions = userSessions.filter(
+            session =>
+              session.status === 'in_progress' &&
+              !session.is_submitted
+          );
+
+          if (otherActiveSessions.length > 0) {
+            // Hiển thị thông báo và chuyển hướng đến session đang hoạt động
+            const activeSessionTestId = otherActiveSessions[0].test_id;
+
+            dispatch(addModal({
+              id: uuidv4(),
+              title: "Phiên làm bài đang hoạt động",
+              description: "Bạn đang có một phiên làm bài kiểm tra khác đang hoạt động. Vui lòng hoàn thành hoặc hủy phiên đó trước khi bắt đầu phiên mới.",
+              onConfirm: () => {
+                // Chuyển đến phiên đang hoạt động
+                router.push(`/tests/${activeSessionTestId}`);
+              },
+              onCancel: () => router.push(`/topics/${courseId}`),
+              confirmText: "Đến phiên đang hoạt động",
+              cancelText: "Quay lại",
+            }));
+            return;
+          }
+
+          // Nếu không có session nào đang hoạt động, tạo session mới
+          const sessionData = {
+            user_id: userState.user.id,
+            test_id: parseInt(test.id)
+          };
+          await testApi.createTestSession(sessionData);
+
+          // Chuyển hướng đến trang làm bài kiểm tra
+          router.push(`/tests/topic-${courseId}`);
+        } catch (error: any) {
+          console.error("Lỗi khi tạo phiên kiểm tra:", error);
+
+          // Xử lý lỗi khi đã có phiên đang hoạt động
+          if (error.response?.status === 400 && error.response?.data?.detail?.includes("phiên làm bài kiểm tra khác đang hoạt động")) {
+            dispatch(addModal({
+              id: uuidv4(),
+              title: "Phiên làm bài đang hoạt động",
+              description: error.response.data.detail,
+              onConfirm: () => {
+                // Chuyển đến trang danh sách kiểm tra
+                router.push(`/tests`);
+              },
+              onCancel: () => router.push(`/topics/${courseId}`),
+              confirmText: "Xem danh sách kiểm tra",
+              cancelText: "Quay lại",
+            }));
+            return;
+          }
+
+          // Hiển thị thông báo lỗi chung
+          dispatch(addModal({
+            id: uuidv4(),
+            title: "Lỗi",
+            description: "Không thể tạo phiên kiểm tra. Vui lòng thử lại sau.",
+            onConfirm: () => router.push(`/topics/${courseId}`),
+            onCancel: () => { },
+          }));
+        }
+      } else {
+        // Nếu không có thông tin người dùng, chuyển hướng đến trang đăng nhập
+        router.push(`/auth/login?returnUrl=${encodeURIComponent(`/tests/topic-${courseId}`)}`);
+      }
+    } catch (error) {
+      console.error("Lỗi khi tạo phiên kiểm tra:", error);
+      // Hiển thị thông báo lỗi
+      dispatch(addModal({
+        id: uuidv4(),
+        title: "Lỗi",
+        description: "Không thể tạo phiên kiểm tra. Vui lòng thử lại sau.",
+        onConfirm: () => router.push(`/topics/${courseId}`),
+        onCancel: () => { },
+      }));
+    }
+  };
+
+  // Xử lý hủy đăng ký khóa học
+  const handleUnregisterCourse = async () => {
+    try {
+      setIsUnregistering(true);
+      const response = await coursesApi.unregisterCourse(courseId);
+
+      if (response.success) {
+        // Cập nhật trạng thái đăng ký
+        setIsEnrolled(false);
+
+        // Hiển thị thông báo hủy đăng ký thành công
+        dispatch(addModal({
+          id: uuidv4(),
+          title: "Hủy đăng ký thành công",
+          description: "Bạn đã hủy đăng ký khóa học thành công!",
+          onConfirm: () => { },
+          onCancel: () => { },
+        }));
+      } else {
+        // Hiển thị thông báo lỗi
+        dispatch(addModal({
+          id: uuidv4(),
+          title: "Hủy đăng ký thất bại",
+          description: response.message || "Có lỗi xảy ra khi hủy đăng ký khóa học. Vui lòng thử lại sau.",
+          onConfirm: () => { },
+          onCancel: () => { },
+        }));
+      }
+    } catch (err) {
+      console.error("Lỗi khi hủy đăng ký khóa học:", err);
+      // Hiển thị thông báo lỗi
+      dispatch(addModal({
+        id: uuidv4(),
+        title: "Hủy đăng ký thất bại",
+        description: "Có lỗi xảy ra khi hủy đăng ký khóa học. Vui lòng thử lại sau.",
+        onConfirm: () => { },
+        onCancel: () => { },
+      }));
+    } finally {
+      setIsUnregistering(false);
+    }
+  };
+
+
 
   if (isLoading) {
     return (
@@ -165,11 +457,32 @@ export default function CourseDetailPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <button className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium">
-                  {course.price > 0
-                    ? `Đăng ký - ${course.price.toLocaleString("vi-VN")}₫`
-                    : "Đăng ký miễn phí"}
-                </button>
+                {isEnrolled ? (
+                  <>
+                    <Link
+                      href={`/topics/${courseId}`}
+                      className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium text-center">
+                      Tiếp tục học
+                    </Link>
+                    <button
+                      onClick={handleUnregisterCourse}
+                      disabled={isUnregistering}
+                      className="px-8 py-3 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive/20 transition font-medium disabled:opacity-70 disabled:cursor-not-allowed">
+                      {isUnregistering ? "Đang xử lý..." : "Hủy đăng ký"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleRegisterCourse}
+                    disabled={isRegistering}
+                    className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium disabled:opacity-70 disabled:cursor-not-allowed">
+                    {isRegistering
+                      ? "Đang xử lý..."
+                      : course.price > 0
+                        ? `Đăng ký - ${course.price.toLocaleString("vi-VN")}₫`
+                        : "Đăng ký miễn phí"}
+                  </button>
+                )}
                 <button
                   onClick={() => setActiveTab("content")}
                   className="px-8 py-3 border border-foreground/20 rounded-lg hover:bg-foreground/5 transition font-medium">
@@ -205,24 +518,24 @@ export default function CourseDetailPage() {
             <button
               onClick={() => setActiveTab("overview")}
               className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "overview"
-                  ? "border-primary text-primary"
-                  : "border-transparent hover:text-primary/80 hover:border-foreground/20"
+                ? "border-primary text-primary"
+                : "border-transparent hover:text-primary/80 hover:border-foreground/20"
                 }`}>
               Tổng quan
             </button>
             <button
               onClick={() => setActiveTab("content")}
               className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "content"
-                  ? "border-primary text-primary"
-                  : "border-transparent hover:text-primary/80 hover:border-foreground/20"
+                ? "border-primary text-primary"
+                : "border-transparent hover:text-primary/80 hover:border-foreground/20"
                 }`}>
               Nội dung khóa học
             </button>
             <button
               onClick={() => setActiveTab("reviews")}
               className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "reviews"
-                  ? "border-primary text-primary"
-                  : "border-transparent hover:text-primary/80 hover:border-foreground/20"
+                ? "border-primary text-primary"
+                : "border-transparent hover:text-primary/80 hover:border-foreground/20"
                 }`}>
               Đánh giá
             </button>
@@ -385,10 +698,10 @@ export default function CourseDetailPage() {
                           className="flex items-center gap-4 p-4 hover:bg-foreground/5">
                           <div
                             className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${lesson.type === "video"
-                                ? "bg-blue-500/10 text-blue-500"
-                                : lesson.type === "quiz"
-                                  ? "bg-purple-500/10 text-purple-500"
-                                  : "bg-green-500/10 text-green-500"
+                              ? "bg-blue-500/10 text-blue-500"
+                              : lesson.type === "quiz"
+                                ? "bg-purple-500/10 text-purple-500"
+                                : "bg-green-500/10 text-green-500"
                               }`}>
                             {lesson.type === "video" ? (
                               <svg

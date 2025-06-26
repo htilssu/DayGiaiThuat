@@ -41,6 +41,42 @@ export interface TestResult {
     }[];
 }
 
+export interface TestAnswer {
+    selectedOptionId?: string;
+    code?: string;
+    [key: string]: unknown;
+}
+
+export interface TestSession {
+    id: number;
+    user_id: number;
+    test_id: number;
+    start_time: string;
+    end_time?: string;
+    last_activity: string;
+    time_remaining_seconds: number;
+    status: 'in_progress' | 'completed' | 'expired';
+    is_submitted: boolean;
+    current_question_index: number;
+    answers: Record<string, TestAnswer>;
+    score?: number;
+    correct_answers?: number;
+}
+
+export interface TestSessionCreate {
+    user_id: number;
+    test_id: number;
+}
+
+export interface TestSessionUpdate {
+    current_question_index?: number;
+    answers?: Record<string, TestAnswer>;
+    time_remaining_seconds?: number;
+    last_activity?: string;
+    status?: string;
+    is_submitted?: boolean;
+}
+
 export const testApi = {
     getTests: async (): Promise<Test[]> => {
         const response = await client.get('/tests');
@@ -69,6 +105,37 @@ export const testApi = {
 
     submitQuestion: async (testId: string, questionId: string, answer: { selectedOptionId?: string; code?: string }): Promise<{ isCorrect: boolean; feedback?: string }> => {
         const response = await client.post(`/tests/${testId}/questions/${questionId}/submit`, answer);
+        return response.data;
+    },
+
+    // Test Session APIs
+    createTestSession: async (sessionData: TestSessionCreate): Promise<TestSession> => {
+        const response = await client.post('/tests/sessions', sessionData);
+        return response.data;
+    },
+
+    getTestSession: async (sessionId: number): Promise<TestSession> => {
+        const response = await client.get(`/tests/sessions/${sessionId}`);
+        return response.data;
+    },
+
+    getMyTestSessions: async (): Promise<TestSession[]> => {
+        const response = await client.get('/tests/sessions/user/me');
+        return response.data;
+    },
+
+    updateTestSession: async (sessionId: number, updateData: TestSessionUpdate): Promise<TestSession> => {
+        const response = await client.put(`/tests/sessions/${sessionId}`, updateData);
+        return response.data;
+    },
+
+    submitSessionAnswer: async (sessionId: number, questionId: string, answer: TestAnswer): Promise<TestSession> => {
+        const response = await client.post(`/tests/sessions/${sessionId}/answers/${questionId}`, { answer });
+        return response.data;
+    },
+
+    submitTestSession: async (sessionId: number, answers?: Record<string, TestAnswer>): Promise<TestResult> => {
+        const response = await client.post(`/tests/sessions/${sessionId}/submit`, { answers });
         return response.data;
     }
 }; 

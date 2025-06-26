@@ -1,24 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ThemeInitializer from "../components/ThemeInitializer";
 import HeadScripts from "./head-scripts";
-import { AuthProvider } from "@/contexts/AuthContext";
-import "@mantine/core/styles.css";
 import { MantineThemeProvider } from "@/components/MantineThemeProvider";
 import ChatBot from "@/components/ChatBot/ChatBot";
 import StoreWrapper from "@/components/wrapper/StoreWrapper";
 import ModalWrapper from "@/components/wrapper/ModalWrapper";
+import ClientWrapper from "@/components/wrapper/ClientWrapper";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Ứng dụng học giải thuật thông minh",
@@ -53,15 +42,17 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} antialiased transition-theme min-h-screen bg-background text-foreground`}>
+        className={`antialiased transition-theme min-h-screen bg-background text-foreground`}>
         <StoreWrapper>
-          <ThemeInitializer />
-          <MantineThemeProvider>
-            <ModalWrapper>
-              {children}
-            </ModalWrapper>
-            <ChatBot />
-          </MantineThemeProvider>
+          <ClientWrapper>
+            <ThemeInitializer />
+            <MantineThemeProvider>
+              <ModalWrapper>
+                {children}
+              </ModalWrapper>
+              <ChatBot />
+            </MantineThemeProvider>
+          </ClientWrapper>
         </StoreWrapper>
       </body>
     </html>
