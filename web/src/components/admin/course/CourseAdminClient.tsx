@@ -22,37 +22,81 @@ import {
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { IconPlus, IconChevronRight, IconPencil, IconTrash, IconAlertCircle } from "@tabler/icons-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Course, CourseCreatePayload } from "@/lib/api/courses";
-import { getAllCoursesAdmin, createCourseAdmin, deleteCourseAdmin } from "@/lib/api/admin-courses";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Course, CourseCreatePayload, getAllCoursesAdmin, createCourseAdmin, deleteCourseAdmin } from "@/lib/api/admin-courses";
 import { Topic } from "@/lib/api/admin-topics";
 import { notifications } from '@mantine/notifications';
+import TestGenerationStatus from './TestGenerationStatus';
 
 export default function CourseAdminClient() {
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [opened, { open, close }] = useDisclosure(false);
     const router = useRouter();
+    const queryClient = useQueryClient();
 
-    const fetchCourses = async () => {
-        try {
-            setLoading(true);
-            const courses = await getAllCoursesAdmin(); // Admin có thể xem tất cả khóa học
-            setCourses(courses);
-            setError(null);
-        } catch (err) {
-            setError("Không thể tải danh sách khóa học.");
+    // Use useQuery to cache courses data
+    const {
+        data: courses = [],
+        isLoading: loading,
+        error,
+        refetch: fetchCourses
+    } = useQuery({
+        queryKey: ['admin', 'courses'],
+        queryFn: async () => {
+            return await getAllCoursesAdmin();
+        },
+        staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+        retry: 3,
+    });
+
+    // Mutation for creating courses
+    const createCourseMutation = useMutation({
+        mutationFn: createCourseAdmin,
+        onSuccess: (newCourse) => {
+            // Update cache with new course
+            queryClient.setQueryData(['admin', 'courses'], (old: Course[] = []) => [...old, newCourse]);
+            notifications.show({
+                title: 'Thành công',
+                message: 'Khóa học đã được tạo thành công!',
+                color: 'green',
+            });
+            close();
+            form.reset();
+        },
+        onError: (err) => {
+            notifications.show({
+                title: 'Lỗi',
+                message: 'Không thể tạo khóa học.',
+                color: 'red',
+            });
             console.error(err);
-        } finally {
-            setLoading(false);
         }
-    };
+    });
 
-    useEffect(() => {
-        fetchCourses();
-    }, []);
+    // Mutation for deleting courses
+    const deleteCourseMutation = useMutation({
+        mutationFn: deleteCourseAdmin,
+        onSuccess: (_, courseId) => {
+            // Update cache by removing deleted course
+            queryClient.setQueryData(['admin', 'courses'], (old: Course[] = []) =>
+                old.filter(course => course.id !== courseId)
+            );
+            notifications.show({
+                title: 'Thành công',
+                message: 'Khóa học đã được xóa thành công!',
+                color: 'green',
+            });
+        },
+        onError: (err) => {
+            notifications.show({
+                title: 'Lỗi',
+                message: 'Không thể xóa khóa học.',
+                color: 'red',
+            });
+            console.error(err);
+        }
+    });
 
     const form = useForm({
         initialValues: {
@@ -73,42 +117,12 @@ export default function CourseAdminClient() {
     });
 
     const handleCreateCourse = async (values: CourseCreatePayload) => {
-        try {
-            const newCourse = await createCourseAdmin(values);
-            setCourses((prev) => [...prev, newCourse]);
-            notifications.show({
-                title: 'Thành công',
-                message: 'Khóa học đã được tạo thành công!',
-                color: 'green',
-            });
-            close();
-            form.reset();
-        } catch (err) {
-            notifications.show({
-                title: 'Lỗi',
-                message: 'Không thể tạo khóa học.',
-                color: 'red',
-            });
-            console.error(err);
-        }
+        createCourseMutation.mutate(values);
     };
 
     const handleDeleteCourse = async (courseId: number) => {
-        try {
-            await deleteCourseAdmin(courseId);
-            setCourses((prev) => prev.filter(course => course.id !== courseId));
-            notifications.show({
-                title: 'Thành công',
-                message: 'Khóa học đã được xóa thành công!',
-                color: 'green',
-            });
-        } catch (err) {
-            notifications.show({
-                title: 'Lỗi',
-                message: 'Không thể xóa khóa học.',
-                color: 'red',
-            });
-            console.error(err);
+        if (confirm('Bạn có chắc chắn muốn xóa khóa học này không?')) {
+            deleteCourseMutation.mutate(courseId);
         }
     };
 
@@ -140,6 +154,11 @@ export default function CourseAdminClient() {
                 </span>
             </Table.Td>
             <Table.Td>
+                <TestGenerationStatus
+                    status={course.testGenerationStatus || 'not_started'}
+                />
+            </Table.Td>
+            <Table.Td>
                 <span className="text-sm font-medium text-green-600">
                     {course.price === 0 ? 'Miễn phí' : `${course.price.toLocaleString()}₫`}
                 </span>
@@ -161,11 +180,8 @@ export default function CourseAdminClient() {
                             variant="light"
                             color="red"
                             size="sm"
-                            onClick={() => {
-                                if (confirm('Bạn có chắc chắn muốn xóa khóa học này không?')) {
-                                    handleDeleteCourse(course.id);
-                                }
-                            }}
+                            onClick={() => handleDeleteCourse(course.id)}
+                            loading={deleteCourseMutation.isPending}
                         >
                             <IconTrash size={14} />
                         </ActionIcon>
@@ -184,9 +200,9 @@ export default function CourseAdminClient() {
                     color="red"
                     className="mb-4"
                 >
-                    {error}
+                    {error.message || 'Không thể tải danh sách khóa học.'}
                 </Alert>
-                <Button onClick={fetchCourses} variant="outline">
+                <Button onClick={() => fetchCourses()} variant="outline">
                     Thử lại
                 </Button>
             </Container>
@@ -195,184 +211,130 @@ export default function CourseAdminClient() {
 
     return (
         <Container size="xl" className="py-8">
-            <div className="space-y-6">
-                <div>
-                    <Title order={1} className="text-3xl font-bold text-gray-900 mb-2">
+            <LoadingOverlay visible={loading} />
+
+            <Paper p="xl" shadow="sm" className="relative">
+                <Group justify="space-between" mb="xl">
+                    <Title order={2} className="text-gray-800">
                         Quản lý Khóa học
                     </Title>
-                    <p className="text-gray-600">
-                        Tạo và quản lý các khóa học cùng với chủ đề của chúng
-                    </p>
-                </div>
-
-                <Paper shadow="sm" p="xl" withBorder className="relative">
-                    <LoadingOverlay visible={loading} overlayProps={{ radius: "sm", blur: 2 }} />
-
-                    <Group justify="space-between" mb="lg">
-                        <Title order={2} className="text-xl font-semibold">
-                            Tất cả khóa học ({courses.length})
-                        </Title>
-                        <Button
-                            onClick={open}
-                            leftSection={<IconPlus size={16} />}
-                            className="bg-primary hover:bg-primary/90"
-                        >
-                            Tạo khóa học mới
-                        </Button>
-                    </Group>
-
-                    {courses.length === 0 && !loading ? (
-                        <div className="text-center py-12">
-                            <IconAlertCircle size={48} className="mx-auto text-gray-400 mb-4" />
-                            <Title order={3} className="text-gray-500 mb-2">Chưa có khóa học nào</Title>
-                            <p className="text-gray-400 mb-4">Hãy tạo khóa học đầu tiên của bạn</p>
-                            <Button onClick={open} leftSection={<IconPlus size={16} />}>
-                                Tạo khóa học mới
-                            </Button>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <Table striped highlightOnHover verticalSpacing="md">
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        <Table.Th>ID</Table.Th>
-                                        <Table.Th>Thông tin khóa học</Table.Th>
-                                        <Table.Th>Cấp độ</Table.Th>
-                                        <Table.Th>Trạng thái</Table.Th>
-                                        <Table.Th>Giá</Table.Th>
-                                        <Table.Th>Thao tác</Table.Th>
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>{courseRows}</Table.Tbody>
-                            </Table>
-                        </div>
-                    )}
-                </Paper>
-            </div>
-
-            <Modal
-                opened={opened}
-                onClose={close}
-                title={
-                    <Title order={3} className="text-xl font-semibold">
-                        Tạo khóa học mới
-                    </Title>
-                }
-                centered
-                size="lg"
-                padding="xl"
-            >
-                <form onSubmit={form.onSubmit(handleCreateCourse)} className="space-y-4">
-                    <Grid>
-                        <Grid.Col span={6}>
-                            <TextInput
-                                label="Tiêu đề khóa học"
-                                placeholder="Nhập tiêu đề khóa học"
-                                {...form.getInputProps("title")}
-                                required
-                                classNames={{
-                                    label: 'font-medium text-gray-700 mb-2',
-                                }}
-                            />
-                        </Grid.Col>
-                        <Grid.Col span={6}>
-                            <TextInput
-                                label="Cấp độ"
-                                placeholder="VD: Beginner, Intermediate, Advanced"
-                                {...form.getInputProps("level")}
-                                classNames={{
-                                    label: 'font-medium text-gray-700 mb-2',
-                                }}
-                            />
-                        </Grid.Col>
-                        <Grid.Col span={12}>
-                            <Textarea
-                                label="Mô tả"
-                                placeholder="Nhập mô tả khóa học"
-                                {...form.getInputProps("description")}
-                                rows={3}
-                                classNames={{
-                                    label: 'font-medium text-gray-700 mb-2',
-                                }}
-                            />
-                        </Grid.Col>
-                        <Grid.Col span={6}>
-                            <NumberInput
-                                label="Giá (VNĐ)"
-                                placeholder="Nhập giá"
-                                {...form.getInputProps("price")}
-                                min={0}
-                                classNames={{
-                                    label: 'font-medium text-gray-700 mb-2',
-                                }}
-                            />
-                        </Grid.Col>
-                        <Grid.Col span={6}>
-                            <NumberInput
-                                label="Thời lượng (phút)"
-                                placeholder="Nhập thời lượng"
-                                {...form.getInputProps("duration")}
-                                min={0}
-                                classNames={{
-                                    label: 'font-medium text-gray-700 mb-2',
-                                }}
-                            />
-                        </Grid.Col>
-                        <Grid.Col span={12}>
-                            <TextInput
-                                label="Thẻ tag"
-                                placeholder="Các thẻ tag cách nhau bằng dấu phẩy"
-                                {...form.getInputProps("tags")}
-                                classNames={{
-                                    label: 'font-medium text-gray-700 mb-2',
-                                }}
-                            />
-                        </Grid.Col>
-                        <Grid.Col span={12}>
-                            <Textarea
-                                label="Yêu cầu"
-                                placeholder="Nhập các yêu cầu cần thiết (chuỗi JSON)"
-                                {...form.getInputProps("requirements")}
-                                rows={2}
-                                classNames={{
-                                    label: 'font-medium text-gray-700 mb-2',
-                                }}
-                            />
-                        </Grid.Col>
-                        <Grid.Col span={12}>
-                            <Textarea
-                                label="Học viên sẽ học được gì"
-                                placeholder="Nhập những gì học viên sẽ học được (chuỗi JSON)"
-                                {...form.getInputProps("whatYouWillLearn")}
-                                rows={2}
-                                classNames={{
-                                    label: 'font-medium text-gray-700 mb-2',
-                                }}
-                            />
-                        </Grid.Col>
-                        <Grid.Col span={12}>
-                            <Switch
-                                label="Xuất bản khóa học"
-                                description="Khóa học sẽ hiển thị công khai cho học viên"
-                                {...form.getInputProps("isPublished", { type: 'checkbox' })}
-                                classNames={{
-                                    label: 'font-medium text-gray-700',
-                                    description: 'text-gray-500 text-sm',
-                                }}
-                            />
-                        </Grid.Col>
-                    </Grid>
                     <Button
-                        type="submit"
-                        mt="xl"
-                        fullWidth
-                        size="md"
-                        className="bg-primary hover:bg-primary/90"
+                        leftSection={<IconPlus size={16} />}
+                        onClick={open}
+                        loading={createCourseMutation.isPending}
                     >
-                        Tạo khóa học
+                        Tạo khóa học mới
                     </Button>
-                </form>
-            </Modal>
+                </Group>
+
+                <Table>
+                    <Table.Thead>
+                        <Table.Tr>
+                            <Table.Th>ID</Table.Th>
+                            <Table.Th>Thông tin khóa học</Table.Th>
+                            <Table.Th>Cấp độ</Table.Th>
+                            <Table.Th>Trạng thái</Table.Th>
+                            <Table.Th>Test đầu vào</Table.Th>
+                            <Table.Th>Giá</Table.Th>
+                            <Table.Th>Hành động</Table.Th>
+                        </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>{courseRows}</Table.Tbody>
+                </Table>
+
+                <Modal
+                    opened={opened}
+                    onClose={close}
+                    title="Tạo khóa học mới"
+                    size="lg"
+                >
+                    <form onSubmit={form.onSubmit(handleCreateCourse)}>
+                        <Grid>
+                            <Grid.Col span={12}>
+                                <TextInput
+                                    required
+                                    label="Tiêu đề khóa học"
+                                    placeholder="Nhập tiêu đề..."
+                                    {...form.getInputProps("title")}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={12}>
+                                <Textarea
+                                    label="Mô tả"
+                                    placeholder="Mô tả khóa học..."
+                                    rows={4}
+                                    {...form.getInputProps("description")}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={6}>
+                                <TextInput
+                                    required
+                                    label="Cấp độ"
+                                    placeholder="Beginner/Intermediate/Advanced"
+                                    {...form.getInputProps("level")}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={6}>
+                                <NumberInput
+                                    label="Giá (VNĐ)"
+                                    placeholder="0"
+                                    min={0}
+                                    {...form.getInputProps("price")}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={6}>
+                                <NumberInput
+                                    label="Thời lượng (phút)"
+                                    placeholder="0"
+                                    min={0}
+                                    {...form.getInputProps("duration")}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={6}>
+                                <Switch
+                                    label="Xuất bản khóa học"
+                                    {...form.getInputProps("isPublished", { type: "checkbox" })}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={12}>
+                                <TextInput
+                                    label="Tags"
+                                    placeholder="javascript,react,frontend"
+                                    {...form.getInputProps("tags")}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={12}>
+                                <Textarea
+                                    label="Yêu cầu"
+                                    placeholder="Các yêu cầu trước khi học..."
+                                    rows={3}
+                                    {...form.getInputProps("requirements")}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={12}>
+                                <Textarea
+                                    label="Những gì sẽ học được"
+                                    placeholder="Học viên sẽ học được..."
+                                    rows={3}
+                                    {...form.getInputProps("whatYouWillLearn")}
+                                />
+                            </Grid.Col>
+                        </Grid>
+
+                        <Group justify="flex-end" mt="md">
+                            <Button variant="outline" onClick={close}>
+                                Hủy
+                            </Button>
+                            <Button
+                                type="submit"
+                                loading={createCourseMutation.isPending}
+                            >
+                                Tạo khóa học
+                            </Button>
+                        </Group>
+                    </form>
+                </Modal>
+            </Paper>
         </Container>
     );
 } 

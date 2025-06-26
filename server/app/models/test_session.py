@@ -1,11 +1,13 @@
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, TYPE_CHECKING
 
 from app.database.database import Base
 from sqlalchemy import ForeignKey, String, Boolean, Integer, DateTime, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.models.test_model import Test
-from app.models.user_model import User
+
+if TYPE_CHECKING:
+    from app.models.test_model import Test
+    from app.models.user_model import User
 
 
 class TestSession(Base):

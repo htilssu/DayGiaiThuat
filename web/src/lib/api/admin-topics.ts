@@ -21,6 +21,14 @@ export type TopicCreatePayload = Omit<Topic, "id" | "createdAt" | "updatedAt">;
 export type TopicUpdatePayload = Partial<Pick<Topic, "name" | "description">>;
 
 /**
+ * Lấy tất cả chủ đề (admin)
+ * @returns Danh sách tất cả chủ đề
+ */
+export async function getAllTopicsAdmin(): Promise<Topic[]> {
+    return get<Topic[]>("/admin/topics");
+}
+
+/**
  * Lấy danh sách chủ đề theo khóa học (admin)
  * @param courseId ID của khóa học
  * @returns Danh sách chủ đề
@@ -66,6 +74,7 @@ export async function deleteTopicAdmin(id: number): Promise<void> {
 }
 
 export const adminTopicsApi = {
+    getAllTopicsAdmin,
     getTopicsByCourseAdmin,
     getTopicByIdAdmin,
     createTopicAdmin,

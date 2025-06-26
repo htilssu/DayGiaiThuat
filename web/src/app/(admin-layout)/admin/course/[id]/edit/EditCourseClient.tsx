@@ -26,29 +26,130 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
 import { IconArrowLeft, IconAlertCircle, IconDeviceFloppy, IconUpload, IconX, IconPhoto } from "@tabler/icons-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Course, CourseUpdatePayload } from "@/lib/api/courses";
-import { getCourseByIdAdmin, updateCourseAdmin } from "@/lib/api/admin-courses";
+import { getCourseByIdAdmin, updateCourseAdmin, createCourseTestAdmin } from "@/lib/api/admin-courses";
 import { uploadCourseImageAdmin, FileUploadResponse } from "@/lib/api/admin-upload";
 import { notifications } from '@mantine/notifications';
 import Link from "next/link";
+import TopicManagement from './TopicManagement';
+import TestGenerationStatus from '@/components/admin/course/TestGenerationStatus';
 
 interface EditCourseClientProps {
     courseId: number;
 }
 
 export default function EditCourseClient({ courseId }: EditCourseClientProps) {
-    const [course, setCourse] = useState<Course | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [uploading, setUploading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [topicModalOpened, setTopicModalOpened] = useState(false);
 
     // Image upload states
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+    const [uploading, setUploading] = useState(false);
 
     const router = useRouter();
+    const queryClient = useQueryClient();
+
+    // Use useQuery to cache course data
+    const {
+        data: course,
+        isLoading: loading,
+        error,
+        refetch: fetchCourse
+    } = useQuery({
+        queryKey: ['admin', 'course', courseId],
+        queryFn: async () => {
+            if (!courseId) throw new Error('Course ID is required');
+            return await getCourseByIdAdmin(courseId);
+        },
+        enabled: !!courseId,
+        staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+        retry: (failureCount, error: any) => {
+            if (error?.response?.status === 404) {
+                notFound();
+                return false;
+            }
+            return failureCount < 3;
+        },
+    });
+
+    // Mutation for updating course
+    const updateCourseMutation = useMutation({
+        mutationFn: async (values: CourseUpdatePayload) => {
+            let finalValues = { ...values };
+
+            // Upload image first if there's a selected image
+            if (selectedImage) {
+                setUploading(true);
+                try {
+                    const uploadResult: FileUploadResponse = await uploadCourseImageAdmin(courseId, selectedImage);
+                    finalValues.thumbnailUrl = uploadResult.url;
+                    setPendingImageUrl(uploadResult.url);
+                } catch (uploadError) {
+                    notifications.show({
+                        title: 'Lỗi upload ảnh',
+                        message: 'Không thể upload ảnh. Vui lòng thử lại.',
+                        color: 'red',
+                    });
+                    throw uploadError;
+                } finally {
+                    setUploading(false);
+                }
+            }
+
+            return await updateCourseAdmin(courseId, finalValues);
+        },
+        onSuccess: (updatedCourse) => {
+            // Update cache with new course data
+            queryClient.setQueryData(['admin', 'course', courseId], updatedCourse);
+
+            // Also update the courses list cache if it exists
+            queryClient.invalidateQueries({ queryKey: ['admin', 'courses'] });
+
+            // Reset image states after successful save
+            setSelectedImage(null);
+            setImagePreview(null);
+            setPendingImageUrl(null);
+
+            notifications.show({
+                title: 'Thành công',
+                message: 'Khóa học đã được cập nhật thành công!',
+                color: 'green',
+            });
+        },
+        onError: (err: any) => {
+            notifications.show({
+                title: 'Lỗi',
+                message: err.response?.data?.detail || 'Không thể cập nhật khóa học.',
+                color: 'red',
+            });
+            console.error(err);
+        }
+    });
+
+    // Mutation for generating test (realtime, không cache)
+    const generateTestMutation = useMutation({
+        mutationFn: () => createCourseTestAdmin(courseId),
+        onSuccess: () => {
+            notifications.show({
+                title: 'Thành công',
+                message: 'Đã bắt đầu tạo bài test. Quá trình có thể mất vài phút.',
+                color: 'green',
+            });
+
+            // Invalidate course data to get updated test status
+            queryClient.invalidateQueries({ queryKey: ['admin', 'course', courseId] });
+        },
+        onError: (err: any) => {
+            notifications.show({
+                title: 'Lỗi',
+                message: err.response?.data?.detail || 'Không thể tạo bài test.',
+                color: 'red',
+            });
+            console.error(err);
+        }
+    });
 
     const form = useForm<CourseUpdatePayload>({
         initialValues: {
@@ -69,44 +170,23 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
         },
     });
 
-    // Fetch course data
-    const fetchCourse = async () => {
-        try {
-            setLoading(true);
-            const courseData = await getCourseByIdAdmin(courseId);
-            setCourse(courseData);
-
-            // Set form values
-            form.setValues({
-                title: courseData.title || "",
-                description: courseData.description || "",
-                level: courseData.level || "Beginner",
-                price: courseData.price || 0,
-                duration: courseData.duration || 0,
-                isPublished: courseData.isPublished || false,
-                tags: courseData.tags || "",
-                requirements: courseData.requirements || "",
-                whatYouWillLearn: courseData.whatYouWillLearn || "",
-                thumbnailUrl: courseData.thumbnailUrl || "",
-            });
-
-            setError(null);
-        } catch (err: any) {
-            if (err.response?.status === 404) {
-                notFound();
-            }
-            setError("Không thể tải thông tin khóa học.");
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
+    // Update form when course data changes
     useEffect(() => {
-        if (courseId) {
-            fetchCourse();
+        if (course) {
+            form.setValues({
+                title: course.title || "",
+                description: course.description || "",
+                level: course.level || "Beginner",
+                price: course.price || 0,
+                duration: course.duration || 0,
+                isPublished: course.isPublished || false,
+                tags: course.tags || "",
+                requirements: course.requirements || "",
+                whatYouWillLearn: course.whatYouWillLearn || "",
+                thumbnailUrl: course.thumbnailUrl || "",
+            });
         }
-    }, [courseId]);
+    }, [course]);
 
     // Handle image file selection
     const handleImageSelect = (file: File | null) => {
@@ -130,76 +210,15 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
     };
 
     const handleUpdateCourse = async (values: CourseUpdatePayload) => {
-        try {
-            setSaving(true);
-
-            let finalValues = { ...values };
-
-            // Upload image first if there's a selected image
-            if (selectedImage) {
-                setUploading(true);
-                try {
-                    const uploadResult: FileUploadResponse = await uploadCourseImageAdmin(courseId, selectedImage);
-                    finalValues.thumbnailUrl = uploadResult.url;
-                    setPendingImageUrl(uploadResult.url);
-                } catch (uploadError) {
-                    notifications.show({
-                        title: 'Lỗi upload ảnh',
-                        message: 'Không thể upload ảnh. Vui lòng thử lại.',
-                        color: 'red',
-                    });
-                    throw uploadError;
-                } finally {
-                    setUploading(false);
-                }
-            }
-
-            // Update course with all data including new image URL
-            const updatedCourse = await updateCourseAdmin(courseId, finalValues);
-            setCourse(updatedCourse);
-
-            // Reset image states after successful save
-            setSelectedImage(null);
-            setImagePreview(null);
-            setPendingImageUrl(null);
-
-            notifications.show({
-                title: 'Thành công',
-                message: 'Khóa học đã được cập nhật thành công!',
-                color: 'green',
-            });
-
-        } catch (err: any) {
-            notifications.show({
-                title: 'Lỗi',
-                message: err.response?.data?.detail || 'Không thể cập nhật khóa học.',
-                color: 'red',
-            });
-            console.error(err);
-        } finally {
-            setSaving(false);
-        }
+        updateCourseMutation.mutate(values);
     };
 
-    const breadcrumbItems = [
-        { title: 'Dashboard', href: '/admin' },
-        { title: 'Quản lý khóa học', href: '/admin/course' },
-        { title: course?.title || 'Chỉnh sửa khóa học', href: '#' },
-    ].map((item, index) => (
-        index < 2 ? (
-            <Anchor component={Link} href={item.href} key={index}>
-                {item.title}
-            </Anchor>
-        ) : (
-            <span key={index}>{item.title}</span>
-        )
-    ));
+    const handleGenerateTest = async () => {
+        generateTestMutation.mutate();
+    };
 
-    // Get current image to display
     const getCurrentImageUrl = () => {
-        if (imagePreview) return imagePreview;
-        if (pendingImageUrl) return pendingImageUrl;
-        return course?.thumbnailUrl || null;
+        return pendingImageUrl || course?.thumbnailUrl || null;
     };
 
     if (error) {
@@ -211,241 +230,211 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
                     color="red"
                     className="mb-4"
                 >
-                    {error}
+                    {error.message || "Không thể tải thông tin khóa học."}
                 </Alert>
-                <Group>
-                    <Button onClick={fetchCourse} variant="outline">
-                        Thử lại
-                    </Button>
-                    <Button
-                        component={Link}
-                        href="/admin/course"
-                        leftSection={<IconArrowLeft size={16} />}
-                        variant="light"
-                    >
-                        Quay lại danh sách
-                    </Button>
-                </Group>
+                <Button onClick={() => fetchCourse()} variant="outline">
+                    Thử lại
+                </Button>
             </Container>
         );
     }
 
+    const breadcrumbItems = [
+        { title: 'Trang chủ', href: '/admin' },
+        { title: 'Khóa học', href: '/admin/course' },
+        { title: course?.title || 'Đang tải...', href: '#' },
+    ].map((item, index) => (
+        <Anchor component={Link} href={item.href} key={index}>
+            {item.title}
+        </Anchor>
+    ));
+
     return (
         <Container size="xl" className="py-8">
-            <div className="space-y-6">
-                <div>
-                    <Breadcrumbs className="mb-4">
-                        {breadcrumbItems}
-                    </Breadcrumbs>
+            <LoadingOverlay visible={loading} />
 
-                    <Group justify="space-between" align="center" className="mb-4">
-                        <div>
-                            <Title order={1} className="text-3xl font-bold text-gray-900 mb-2">
-                                Chỉnh sửa khóa học
-                            </Title>
-                            <p className="text-gray-600">
-                                Cập nhật thông tin chi tiết của khóa học
-                            </p>
-                        </div>
+            {/* Breadcrumbs */}
+            <Breadcrumbs mb="lg">{breadcrumbItems}</Breadcrumbs>
 
-                        <Button
-                            component={Link}
-                            href="/admin/course"
-                            leftSection={<IconArrowLeft size={16} />}
-                            variant="light"
-                        >
-                            Quay lại danh sách
-                        </Button>
-                    </Group>
-                </div>
+            {/* Header */}
+            <Group justify="space-between" mb="xl">
+                <Group>
+                    <ActionIcon
+                        variant="light"
+                        size="lg"
+                        onClick={() => router.push('/admin/course')}
+                    >
+                        <IconArrowLeft size={20} />
+                    </ActionIcon>
+                    <div>
+                        <Title order={2} className="text-gray-800">
+                            Chỉnh sửa khóa học
+                        </Title>
+                        <Text size="sm" c="dimmed">
+                            ID: {courseId} • {course?.isPublished ? 'Đã xuất bản' : 'Nháp'}
+                        </Text>
+                    </div>
+                </Group>
 
-                <Paper shadow="sm" p="xl" withBorder className="relative">
-                    <LoadingOverlay
-                        visible={loading || saving}
-                        overlayProps={{ radius: "sm", blur: 2 }}
-                        loaderProps={{ children: saving ? 'Đang lưu...' : 'Đang tải...' }}
-                    />
+                <Group>
+                    <Button
+                        variant="outline"
+                        onClick={() => setTopicModalOpened(true)}
+                    >
+                        Quản lý Topics
+                    </Button>
+                    <Button
+                        leftSection={<IconDeviceFloppy size={16} />}
+                        onClick={form.onSubmit(handleUpdateCourse)}
+                        loading={updateCourseMutation.isPending || uploading}
+                        disabled={!form.isDirty() && !selectedImage}
+                    >
+                        Lưu thay đổi
+                    </Button>
+                </Group>
+            </Group>
 
-                    {course && (
-                        <form onSubmit={form.onSubmit(handleUpdateCourse)} className="space-y-6">
-                            <Title order={2} className="text-xl font-semibold mb-6">
-                                Thông tin khóa học
-                            </Title>
-
+            <Grid>
+                {/* Main form */}
+                <Grid.Col span={{ base: 12, md: 8 }}>
+                    <Paper p="xl" shadow="sm">
+                        <form onSubmit={form.onSubmit(handleUpdateCourse)}>
                             <Grid>
-                                {/* Image Upload Section */}
                                 <Grid.Col span={12}>
-                                    <div className="space-y-4">
-                                        <Text size="sm" fw={500} className="text-gray-700">
-                                            Ảnh thumbnail
-                                        </Text>
-
-                                        {getCurrentImageUrl() && (
-                                            <Box className="relative inline-block">
-                                                <Image
-                                                    src={getCurrentImageUrl()}
-                                                    alt="Course thumbnail"
-                                                    className="w-64 h-36 object-cover rounded-lg border"
-                                                    fallbackSrc="/images/placeholder-course.jpg"
-                                                />
-                                                {(selectedImage || pendingImageUrl) && (
-                                                    <ActionIcon
-                                                        size="sm"
-                                                        variant="filled"
-                                                        color="red"
-                                                        className="absolute -top-2 -right-2"
-                                                        onClick={handleRemoveImage}
-                                                    >
-                                                        <IconX size={12} />
-                                                    </ActionIcon>
-                                                )}
-                                                {selectedImage && (
-                                                    <div className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-lg flex items-center justify-center">
-                                                        <Text size="xs" className="text-blue-600 font-medium bg-white px-2 py-1 rounded">
-                                                            Ảnh mới
-                                                        </Text>
-                                                    </div>
-                                                )}
-                                            </Box>
-                                        )}
-
-                                        <FileInput
-                                            placeholder="Chọn ảnh thumbnail"
-                                            accept="image/*"
-                                            value={selectedImage}
-                                            onChange={handleImageSelect}
-                                            leftSection={<IconUpload size={16} />}
-                                            disabled={uploading}
-                                            className="max-w-md"
-                                        />
-
-                                        <Text size="xs" className="text-gray-500">
-                                            Chọn ảnh để thay đổi thumbnail. Ảnh sẽ được upload khi bạn lưu thay đổi.
-                                        </Text>
-                                    </div>
-                                </Grid.Col>
-
-                                <Grid.Col span={6}>
                                     <TextInput
-                                        label="Tiêu đề khóa học"
-                                        placeholder="Nhập tiêu đề khóa học"
-                                        {...form.getInputProps("title")}
                                         required
-                                        classNames={{
-                                            label: 'font-medium text-gray-700 mb-2',
-                                        }}
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={6}>
-                                    <TextInput
-                                        label="Cấp độ"
-                                        placeholder="VD: Beginner, Intermediate, Advanced"
-                                        {...form.getInputProps("level")}
-                                        classNames={{
-                                            label: 'font-medium text-gray-700 mb-2',
-                                        }}
+                                        label="Tiêu đề khóa học"
+                                        placeholder="Nhập tiêu đề..."
+                                        {...form.getInputProps("title")}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={12}>
                                     <Textarea
                                         label="Mô tả"
-                                        placeholder="Nhập mô tả khóa học"
-                                        {...form.getInputProps("description")}
+                                        placeholder="Mô tả khóa học..."
                                         rows={4}
-                                        classNames={{
-                                            label: 'font-medium text-gray-700 mb-2',
-                                        }}
+                                        {...form.getInputProps("description")}
+                                    />
+                                </Grid.Col>
+                                <Grid.Col span={6}>
+                                    <TextInput
+                                        required
+                                        label="Cấp độ"
+                                        placeholder="Beginner/Intermediate/Advanced"
+                                        {...form.getInputProps("level")}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={6}>
                                     <NumberInput
                                         label="Giá (VNĐ)"
-                                        placeholder="Nhập giá"
-                                        {...form.getInputProps("price")}
+                                        placeholder="0"
                                         min={0}
-                                        thousandSeparator=","
-                                        classNames={{
-                                            label: 'font-medium text-gray-700 mb-2',
-                                        }}
+                                        {...form.getInputProps("price")}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={6}>
                                     <NumberInput
                                         label="Thời lượng (phút)"
-                                        placeholder="Nhập thời lượng"
-                                        {...form.getInputProps("duration")}
+                                        placeholder="0"
                                         min={0}
-                                        classNames={{
-                                            label: 'font-medium text-gray-700 mb-2',
-                                        }}
+                                        {...form.getInputProps("duration")}
+                                    />
+                                </Grid.Col>
+                                <Grid.Col span={6}>
+                                    <Switch
+                                        label="Xuất bản khóa học"
+                                        {...form.getInputProps("isPublished", { type: "checkbox" })}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={12}>
                                     <TextInput
-                                        label="Thẻ tag"
-                                        placeholder="Các thẻ tag cách nhau bằng dấu phẩy"
+                                        label="Tags"
+                                        placeholder="javascript,react,frontend"
                                         {...form.getInputProps("tags")}
-                                        classNames={{
-                                            label: 'font-medium text-gray-700 mb-2',
-                                        }}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={12}>
                                     <Textarea
                                         label="Yêu cầu"
-                                        placeholder="Nhập các yêu cầu cần thiết"
-                                        {...form.getInputProps("requirements")}
+                                        placeholder="Các yêu cầu trước khi học..."
                                         rows={3}
-                                        classNames={{
-                                            label: 'font-medium text-gray-700 mb-2',
-                                        }}
+                                        {...form.getInputProps("requirements")}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={12}>
                                     <Textarea
-                                        label="Học viên sẽ học được gì"
-                                        placeholder="Nhập những gì học viên sẽ học được"
-                                        {...form.getInputProps("whatYouWillLearn")}
+                                        label="Những gì sẽ học được"
+                                        placeholder="Học viên sẽ học được..."
                                         rows={3}
-                                        classNames={{
-                                            label: 'font-medium text-gray-700 mb-2',
-                                        }}
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={12}>
-                                    <Switch
-                                        label="Xuất bản khóa học"
-                                        description="Khóa học sẽ hiển thị công khai cho học viên"
-                                        {...form.getInputProps("isPublished", { type: 'checkbox' })}
-                                        classNames={{
-                                            label: 'font-medium text-gray-700',
-                                            description: 'text-gray-500 text-sm',
-                                        }}
+                                        {...form.getInputProps("whatYouWillLearn")}
                                     />
                                 </Grid.Col>
                             </Grid>
-
-                            <Group justify="flex-end" mt="xl" className="pt-6 border-t border-gray-200">
-                                <Button
-                                    variant="outline"
-                                    component={Link}
-                                    href="/admin/course"
-                                >
-                                    Hủy
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    leftSection={<IconDeviceFloppy size={16} />}
-                                    loading={saving || uploading}
-                                    className="bg-primary hover:bg-primary/90"
-                                >
-                                    {uploading ? 'Đang upload...' : 'Lưu thay đổi'}
-                                </Button>
-                            </Group>
                         </form>
-                    )}
-                </Paper>
-            </div>
+                    </Paper>
+                </Grid.Col>
+
+                {/* Sidebar */}
+                <Grid.Col span={{ base: 12, md: 4 }}>
+                    {/* Course Image */}
+                    <Paper p="lg" shadow="sm" mb="md">
+                        <Title order={4} mb="md">Ảnh khóa học</Title>
+
+                        {/* Current or preview image */}
+                        {(imagePreview || getCurrentImageUrl()) && (
+                            <Box mb="md" className="relative">
+                                <Image
+                                    src={imagePreview || getCurrentImageUrl()}
+                                    alt="Course thumbnail"
+                                    radius="md"
+                                    className="w-full aspect-video object-cover"
+                                />
+                                <ActionIcon
+                                    color="red"
+                                    size="sm"
+                                    className="absolute top-2 right-2"
+                                    onClick={handleRemoveImage}
+                                >
+                                    <IconX size={14} />
+                                </ActionIcon>
+                            </Box>
+                        )}
+
+                        <FileInput
+                            label="Upload ảnh mới"
+                            placeholder="Chọn file ảnh..."
+                            accept="image/*"
+                            leftSection={<IconUpload size={14} />}
+                            value={selectedImage}
+                            onChange={handleImageSelect}
+                            disabled={uploading}
+                        />
+
+                        {selectedImage && (
+                            <Text size="xs" c="dimmed" mt="xs">
+                                Ảnh sẽ được upload khi lưu khóa học
+                            </Text>
+                        )}
+                    </Paper>
+
+                    {/* Test Generation Status */}
+                    <Paper p="lg" shadow="sm">
+                        <Title order={4} mb="md">Test đầu vào</Title>
+                        <TestGenerationStatus
+                            status={course?.testGenerationStatus || 'not_started'}
+                            onGenerateTest={handleGenerateTest}
+                            loading={generateTestMutation.isPending}
+                        />
+                    </Paper>
+                </Grid.Col>
+            </Grid>
+
+            {/* Topic Management Modal */}
+            <TopicManagement
+                courseId={courseId}
+                opened={topicModalOpened}
+                onClose={() => setTopicModalOpened(false)}
+            />
         </Container>
     );
 } 

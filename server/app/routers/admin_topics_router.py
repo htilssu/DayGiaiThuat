@@ -62,21 +62,26 @@ async def create_topic(
 @router.get(
     "",
     response_model=List[TopicResponse],
-    summary="Lấy danh sách chủ đề theo khóa học (Admin)",
+    summary="Lấy danh sách chủ đề (Admin)",
     responses={
         200: {"description": "OK"},
         403: {"description": "Không có quyền truy cập"},
     },
 )
-async def get_topics_by_course_admin(
-    course_id: int,
+async def get_topics_admin(
+    course_id: int = None,
     db: Session = Depends(get_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
-    Lấy danh sách các chủ đề của một khóa học (chỉ admin)
+    Lấy danh sách các chủ đề (chỉ admin)
+    - Nếu có course_id: lấy chủ đề của khóa học đó
+    - Nếu không có course_id: lấy tất cả chủ đề
     """
-    topics = db.query(Topic).filter(Topic.course_id == course_id).all()
+    query = db.query(Topic)
+    if course_id is not None:
+        query = query.filter(Topic.course_id == course_id)
+    topics = query.all()
     return topics
 
 

@@ -12,5 +12,6 @@ export interface Course {
   what_you_will_learn?: string;
   created_at: string;
   updated_at: string;
+  test_generation_status?: string;
   is_enrolled?: boolean;
 }

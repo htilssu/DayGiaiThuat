@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
+from app.models.course_model import TestGenerationStatus
 
 
 class CourseBase(BaseModel):
@@ -101,12 +102,16 @@ class CourseResponse(CourseBase):
         id: ID của khóa học
         created_at: Thời điểm tạo khóa học
         updated_at: Thời điểm cập nhật gần nhất
+        test_generation_status: Trạng thái tạo bài test đầu vào
         is_enrolled: Trạng thái đăng ký của người dùng hiện tại (chỉ có khi người dùng đã đăng nhập)
     """
 
     id: int = Field(..., description="ID của khóa học")
     created_at: datetime = Field(..., description="Thời điểm tạo khóa học")
     updated_at: datetime = Field(..., description="Thời điểm cập nhật gần nhất")
+    test_generation_status: str = Field(
+        TestGenerationStatus.NOT_STARTED, description="Trạng thái tạo bài test đầu vào"
+    )
     is_enrolled: Optional[bool] = Field(
         False, description="Trạng thái đăng ký của người dùng hiện tại"
     )

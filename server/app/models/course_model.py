@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import List, TYPE_CHECKING
+from enum import Enum
 
 from sqlalchemy import Boolean, Integer, String, Float, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -9,6 +10,15 @@ from app.database.database import Base
 if TYPE_CHECKING:
     from app.models.user_state_model import UserState
     from app.models.topic_model import Topic
+
+
+class TestGenerationStatus(str, Enum):
+    """Trạng thái tạo bài test"""
+
+    PENDING = "pending"
+    SUCCESS = "success"
+    FAILED = "failed"
+    NOT_STARTED = "not_started"
 
 
 class Course(Base):
@@ -24,6 +34,7 @@ class Course(Base):
         duration (int): Thời lượng ước tính để hoàn thành khóa học (tính bằng phút)
         price (float): Giá của khóa học (0 nếu miễn phí)
         is_published (bool): Trạng thái xuất bản của khóa học
+        test_generation_status (str): Trạng thái tạo bài test đầu vào
         tags (List): Các thẻ tag liên quan đến khóa học
         sections (List): Các phần học trong khóa học
         requirements (List): Các yêu cầu cần có trước khi học
@@ -44,6 +55,11 @@ class Course(Base):
     )  # Thời lượng tính bằng phút
     price: Mapped[float] = mapped_column(Float, default=0.0)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Trạng thái tạo bài test đầu vào
+    test_generation_status: Mapped[str] = mapped_column(
+        String(20), default=TestGenerationStatus.NOT_STARTED
+    )
 
     # Các trường JSON
     tags: Mapped[str] = mapped_column(

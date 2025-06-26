@@ -531,6 +531,7 @@ def create_users(badges: List[Badge], courses: List[Course]) -> List[User]:
             "last_name": "User",
             "bio": "Quản trị viên hệ thống",
             "avatar": "https://example.com/avatars/admin.jpg",
+            "is_admin": True,
         },
         {
             "email": "user1@example.com",

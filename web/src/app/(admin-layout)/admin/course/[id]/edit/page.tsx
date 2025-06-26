@@ -9,11 +9,12 @@ export const metadata: Metadata = {
 };
 
 interface EditCoursePageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
-export default function EditCoursePage({ params }: EditCoursePageProps) {
-    return <EditCourseClient courseId={parseInt(params.id)} />;
+export default async function EditCoursePage({ params }: EditCoursePageProps) {
+    const resolvedParams = await params;
+    return <EditCourseClient courseId={parseInt(resolvedParams.id)} />;
 } 

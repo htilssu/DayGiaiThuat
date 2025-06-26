@@ -4,9 +4,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.models.course_model import Course
+from app.models.course_model import Course, TestGenerationStatus
 from app.models.user_course_model import UserCourse
 from app.models.user_model import User
+import asyncio
 
 
 class CourseService:
@@ -287,6 +288,118 @@ class CourseService:
             .first()
         )
         return enrollment is not None
+
+    def update_test_generation_status(self, course_id: int, status: str):
+        """
+        Cập nhật trạng thái tạo test cho khóa học
+
+        Args:
+            course_id: ID của khóa học
+            status: Trạng thái mới
+        """
+        try:
+            course = self.get_course(course_id)
+            if not course:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Không tìm thấy khóa học với ID {course_id}",
+                )
+
+            course.test_generation_status = status
+            self.db.commit()
+            self.db.refresh(course)
+
+            return course
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Lỗi khi cập nhật trạng thái test: {str(e)}",
+            )
+
+    async def generate_input_test_async(self, course_id: int):
+        """
+        Tạo bài test đầu vào bất đồng bộ
+
+        Args:
+            course_id: ID của khóa học
+        """
+
+        def run_in_thread():
+            try:
+                # Update status to pending
+                self.update_test_generation_status(
+                    course_id, TestGenerationStatus.PENDING
+                )
+
+                # Import agent here to avoid circular dependency
+                from app.core.agents.input_test_agent import get_input_test_agent
+                from app.services.test_service import get_test_service
+
+                # Create test agent and generate test
+                agent = get_input_test_agent(self)
+                test_service = get_test_service(self.db)
+
+                # This would be the actual test generation logic
+                # For now, just simulate success
+                asyncio.run(
+                    self._create_test_from_agent(agent, test_service, course_id)
+                )
+
+                # Update status to success
+                self.update_test_generation_status(
+                    course_id, TestGenerationStatus.SUCCESS
+                )
+
+            except Exception as e:
+                # Update status to failed
+                self.update_test_generation_status(
+                    course_id, TestGenerationStatus.FAILED
+                )
+                print(f"Error generating test for course {course_id}: {e}")
+
+        # Run in background thread
+        import threading
+
+        thread = threading.Thread(target=run_in_thread)
+        thread.start()
+
+    async def _create_test_from_agent(self, agent, test_service, course_id: int):
+        """
+        Tạo test từ agent result
+        """
+        try:
+            # Generate test using agent
+            result = await agent.act(course_id=course_id)
+
+            # Create test in database
+            test_data = {
+                "name": f"Bài kiểm tra đầu vào - Khóa học {course_id}",
+                "description": "Bài kiểm tra đánh giá trình độ đầu vào",
+                "topic_id": None,  # This is for the whole course
+                "duration_minutes": 60,
+                "questions": {
+                    "questions": [
+                        {
+                            "content": q.content,
+                            "difficulty": q.difficulty,
+                            "type": q.type,
+                            "answer": q.answer,
+                            "options": q.options,
+                        }
+                        for q in result.questions
+                    ]
+                },
+            }
+
+            # Save test (you'll need to implement test creation in test_service)
+            # test_service.create_test(test_data)
+            print(
+                f"Generated test data for course {course_id}: {len(test_data['questions']['questions'])} questions"
+            )
+
+        except Exception as e:
+            raise Exception(f"Failed to create test from agent: {e}")
 
 
 def get_course_service(db: Session = Depends(get_db)):

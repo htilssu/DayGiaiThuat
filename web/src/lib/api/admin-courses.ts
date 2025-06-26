@@ -20,11 +20,12 @@ export interface Course {
     tags: string;
     requirements: string | null;
     whatYouWillLearn: string | null;
+    testGenerationStatus: string;
     createdAt: string;
     updatedAt: string;
 }
 
-export type CourseCreatePayload = Omit<Course, "id" | "createdAt" | "updatedAt" | "thumbnailUrl"> & { thumbnailUrl?: string };
+export type CourseCreatePayload = Omit<Course, "id" | "createdAt" | "updatedAt" | "thumbnailUrl" | "testGenerationStatus"> & { thumbnailUrl?: string };
 export type CourseUpdatePayload = Partial<CourseCreatePayload>;
 
 /**

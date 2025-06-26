@@ -83,6 +83,7 @@ class UserExcludeSecret(BaseModel):
         email (str): Email của user
         username (str): Tên đăng nhập của user
         is_active (bool): Trạng thái hoạt động của tài khoản
+        is_admin (bool): Quyền admin của user
         created_at (datetime): Thời điểm tạo tài khoản
         updated_at (datetime): Thời điểm cập nhật gần nhất
     """
@@ -91,6 +92,7 @@ class UserExcludeSecret(BaseModel):
     email: str
     username: Optional[str] = None
     is_active: bool
+    is_admin: bool = False
     created_at: datetime
     updated_at: datetime
 

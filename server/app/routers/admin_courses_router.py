@@ -1,4 +1,3 @@
-from typing import List
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -70,6 +69,12 @@ async def create_course(
         db.add(new_course)
         db.commit()
         db.refresh(new_course)
+
+        # Tạo bài test đầu vào async
+        from app.services.course_service import CourseService
+
+        course_service = CourseService(db)
+        await course_service.generate_input_test_async(new_course.id)
 
         return new_course
     except SQLAlchemyError as e:
