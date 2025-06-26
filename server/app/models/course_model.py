@@ -1,9 +1,14 @@
-from typing import List
+from __future__ import annotations
+from typing import List, TYPE_CHECKING
 
 from sqlalchemy import Boolean, Integer, String, Float, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.database import Base
+
+if TYPE_CHECKING:
+    from app.models.user_state_model import UserState
+    from app.models.topic_model import Topic
 
 
 class Course(Base):
@@ -57,3 +62,4 @@ class Course(Base):
     user_states: Mapped[List["UserState"]] = relationship(
         back_populates="current_course"
     )
+    topics: Mapped[List["Topic"]] = relationship("Topic", back_populates="course")

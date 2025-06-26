@@ -36,6 +36,13 @@ class Settings(BaseSettings):
         RUN_SEEDERS_ON_STARTUP (bool): Chạy seeder khi khởi động
         SEEDERS_TO_RUN (List[str]): Danh sách các seeder cần chạy
         FORCE_SEEDERS (bool): Xóa dữ liệu cũ trước khi tạo mới
+        AWS_ACCESS_KEY_ID (str): AWS Access Key ID
+        AWS_SECRET_ACCESS_KEY (str): AWS Secret Access Key
+        AWS_REGION (str): AWS Region
+        S3_BUCKET_NAME (str): Tên bucket S3
+        S3_COURSE_IMAGE_PREFIX (str): Prefix cho ảnh khóa học trong S3
+        S3_USER_AVATAR_PREFIX (str): Prefix cho avatar người dùng trong S3
+        S3_PUBLIC_URL (str): URL công khai cho bucket S3
     """
 
     PROJECT_NAME: str
@@ -96,6 +103,15 @@ class Settings(BaseSettings):
     LANGSMITH_TRACING: bool = False
     LANGSMITH_PROJECT: str = "default"
 
+    # AWS S3 Settings
+    AWS_ACCESS_KEY_ID: Optional[str] = None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_REGION: str = "ap-southeast-1"  # Default region: Singapore
+    S3_BUCKET_NAME: Optional[str] = None
+    S3_COURSE_IMAGE_PREFIX: str = "course-images/"
+    S3_USER_AVATAR_PREFIX: str = "user-avatars/"
+    S3_PUBLIC_URL: Optional[str] = None  # CloudFront URL hoặc S3 public URL
+
     # Migration và Seeder
     RUN_MIGRATIONS_ON_STARTUP: bool = False
     RUN_SEEDERS_ON_STARTUP: bool = False
@@ -137,6 +153,31 @@ class Settings(BaseSettings):
         """
         # Sử dụng driver psycopg2 thay vì asyncpg cho SQLAlchemy đồng bộ
         return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+    @property
+    def ASYNC_DATABASE_URI(self) -> str:
+        """
+        Tạo connection string bất đồng bộ cho database sử dụng asyncpg
+
+        Returns:
+            str: Async connection string
+        """
+        # Sử dụng driver asyncpg cho SQLAlchemy bất đồng bộ
+        return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+    @property
+    def S3_ENABLED(self) -> bool:
+        """
+        Kiểm tra xem S3 đã được cấu hình đúng chưa
+
+        Returns:
+            bool: True nếu S3 đã được cấu hình đầy đủ
+        """
+        return bool(
+            self.AWS_ACCESS_KEY_ID
+            and self.AWS_SECRET_ACCESS_KEY
+            and self.S3_BUCKET_NAME
+        )
 
     class Config:
         case_sensitive = True

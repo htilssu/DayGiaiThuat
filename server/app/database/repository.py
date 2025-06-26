@@ -122,12 +122,3 @@ class Repository(BaseRepository[ModelType], Generic[ModelType]):
             else:
                 self.db.rollback()
                 raise HTTPException(status_code=500, detail="Có lỗi xảy ra")
-
-
-class GetRepository(Generic[ModelType]):
-    def __init__(self, model: Type[ModelType], db: Session = Depends(get_db)):
-        self.model = model
-        self.db = db
-
-    def __call__(self) -> Repository[ModelType]:
-        return Repository(self.model, self.db)

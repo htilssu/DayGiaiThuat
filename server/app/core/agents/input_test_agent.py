@@ -1,4 +1,5 @@
 from app.core.agents.base_agent import BaseAgent
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import Tool
 from fastapi import Depends
 from app.services.course_service import CourseService, get_course_service
@@ -10,6 +11,14 @@ from langchain_core.prompts.chat import MessagesPlaceholder
 from langchain.agents import AgentExecutor
 from app.models.course_model import Course
 from app.utils.model_utils import model_to_dict
+from langchain.output_parsers import OutputFixingParser
+from langchain_core.output_parsers import PydanticOutputParser
+from pydantic import BaseModel, Field, ValidationError
+from app.core.tracing import trace_agent
+from typing import override, Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 AGENT_PROMPT = """
 Bạn là chuyên gia đánh giá năng lực học sinh. Nhiệm vụ của bạn là tạo ra một bài kiểm tra đầu vào có tính phân hóa cao,
@@ -25,7 +34,29 @@ Yêu cầu:
 
 Mục tiêu cuối cùng là giúp xác định chính xác học sinh đang ở đâu trong hành trình học tập
 và từ đó đề xuất lộ trình học phù hợp.
+Bài kiểm tra sẽ có các định dạng sau:
+{test_format}
 """
+
+
+class Question(BaseModel):
+    content: str = Field(description="Nội dung câu hỏi")
+    difficulty: str = Field(description="Độ khó của câu hỏi")
+    type: str = Field(
+        description="Loại câu hỏi",
+        enum=[
+            "single_choice",
+            "multiple_choice",
+            "essay",
+        ],
+    )
+    answer: str = Field(description="Câu trả lời đúng")
+    options: list[str] = Field(description="Các câu trả lời sai")
+
+
+class InputTestAgentOutput(BaseModel):
+    questions: list[Question] = Field(description="Danh sách câu hỏi")
+    course_id: int = Field(description="ID của khóa học")
 
 
 class InputTestAgent(BaseAgent):
@@ -33,7 +64,13 @@ class InputTestAgent(BaseAgent):
         super().__init__()
         self.course_service = course_service
         self.available_args = ["course_id"]
+        self._output_parser = None
+        self._output_fix_parser = None
+        self._prompt = None
+        self._tool_calling_agent = None
+        self._agent_executor = None
 
+        # Khởi tạo tool ngay vì nó không tốn nhiều tài nguyên
         async def get_course_by_id(course_id: int):
             course: Course = await self.course_service.get_course_by_id(course_id)
             return model_to_dict(course)
@@ -47,31 +84,133 @@ class InputTestAgent(BaseAgent):
             ),
         ]
 
-        self.prompt = ChatPromptTemplate.from_messages(
-            [
-                SystemMessage(content=AGENT_PROMPT),
-                HumanMessagePromptTemplate.from_template("{input}"),
-                MessagesPlaceholder(variable_name="agent_scratchpad"),
-            ]
-        )
+    @property
+    def output_parser(self):
+        if self._output_parser is None:
+            self._output_parser = PydanticOutputParser(
+                pydantic_object=InputTestAgentOutput
+            )
+        return self._output_parser
 
-        self.tool_calling_agent = create_tool_calling_agent(
-            llm=self.base_llm,
-            tools=self.tools,
-            prompt=self.prompt,
-        )
+    @property
+    def output_fix_parser(self):
+        if self._output_fix_parser is None:
+            self._output_fix_parser = OutputFixingParser.from_llm(
+                llm=self.base_llm,
+                parser=self.output_parser,
+            )
+        return self._output_fix_parser
 
+    @property
+    def prompt(self):
+        if self._prompt is None:
+            self._prompt = ChatPromptTemplate.from_messages(
+                [
+                    SystemMessage(
+                        content=AGENT_PROMPT.format(
+                            test_format=self.output_parser.get_format_instructions()
+                        )
+                    ),
+                    HumanMessagePromptTemplate.from_template("{input}"),
+                    MessagesPlaceholder(variable_name="agent_scratchpad"),
+                ]
+            )
+        return self._prompt
+
+    @property
+    def tool_calling_agent(self):
+        if self._tool_calling_agent is None:
+            self._tool_calling_agent = create_tool_calling_agent(
+                llm=self.base_llm,
+                tools=self.tools,
+                prompt=self.prompt,
+            )
+        return self._tool_calling_agent
+
+    @property
+    def agent_executor(self):
+        if self._agent_executor is None:
+            self._agent_executor = AgentExecutor.from_agent_and_tools(
+                agent=self.tool_calling_agent,
+                tools=self.tools,
+                verbose=True,
+            )
+        return self._agent_executor
+
+    async def _parse_output(
+        self, output: Dict[str, Any], course_id: int
+    ) -> InputTestAgentOutput:
+        """
+        Phân tích và chuyển đổi output từ agent thành đối tượng InputTestAgentOutput
+
+        Args:
+            output: Kết quả từ agent executor
+            course_id: ID của khóa học
+
+        Returns:
+            InputTestAgentOutput: Đối tượng đã được phân tích
+
+        Raises:
+            ValueError: Nếu không thể phân tích output
+        """
+        try:
+            # Thử phân tích trực tiếp
+            if isinstance(output, dict) and "output" in output:
+                raw_output = output["output"]
+            else:
+                raw_output = output
+
+            # Sử dụng output fixing parser để sửa lỗi nếu cần
+            parsed_output = self.output_fix_parser.parse(raw_output)
+
+            # Đảm bảo course_id được thiết lập đúng
+            if parsed_output.course_id != course_id:
+                parsed_output.course_id = course_id
+
+            return parsed_output
+        except ValidationError as e:
+            logger.error(f"Lỗi validation khi phân tích output: {e}")
+            # Thử phương pháp khác nếu phân tích thất bại
+            try:
+                # Tạo một đối tượng mới với course_id đã biết
+                return InputTestAgentOutput(
+                    questions=output.get("questions", []), course_id=course_id
+                )
+            except Exception as e2:
+                logger.error(f"Không thể khôi phục từ lỗi phân tích: {e2}")
+                raise ValueError(f"Không thể phân tích output từ agent: {e}, {e2}")
+
+    @override
+    @trace_agent(project_name="default", tags=["input_test", "agent"])
     async def act(self, *args, **kwargs):
         super().act(*args, **kwargs)
         course_id = kwargs.get("course_id")
         if not course_id:
             raise ValueError("course_id is required")
-        agent_executor = AgentExecutor.from_agent_and_tools(
-            agent=self.tool_calling_agent,
-            tools=self.tools,
-            verbose=True,
+
+        run_config = RunnableConfig(
+            callbacks=self._callback_manager.handlers,
+            metadata={
+                "course_id": course_id,
+                "agent_type": "input_test_generator",
+            },
+            tags=["input_test", "generator", f"course:{course_id}"],
         )
-        return await agent_executor.ainvoke({"input": f"course_id: {course_id}"})
+
+        try:
+            # Thực thi agent
+            result = await self.agent_executor.ainvoke(
+                {"input": f"course_id: {course_id}"},
+                config=run_config,
+            )
+
+            # Phân tích kết quả bằng output parser
+            parsed_result = await self._parse_output(result, course_id)
+
+            return parsed_result
+        except Exception as e:
+            logger.error(f"Lỗi khi thực thi agent: {e}")
+            raise ValueError(f"Không thể tạo bài kiểm tra đầu vào: {e}")
 
 
 def get_input_test_agent(course_service: CourseService = Depends(get_course_service)):

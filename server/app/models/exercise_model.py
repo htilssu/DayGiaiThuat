@@ -34,7 +34,7 @@ class Exercise(Base):
     topic: Mapped["Topic"] = relationship(back_populates="exercises")
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
     @staticmethod
     def exercise_from_schema(data: ExerciseDetail):

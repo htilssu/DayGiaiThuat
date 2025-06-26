@@ -139,7 +139,7 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
             if (selectedImage) {
                 setUploading(true);
                 try {
-                    const uploadResult: FileUploadResponse = await uploadApi.uploadCourseImage(courseId, selectedImage);
+                    const uploadResult: FileUploadResponse = await uploadCourseImageAdmin(courseId, selectedImage);
                     finalValues.thumbnailUrl = uploadResult.url;
                     setPendingImageUrl(uploadResult.url);
                 } catch (uploadError) {
@@ -155,7 +155,7 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
             }
 
             // Update course with all data including new image URL
-            const updatedCourse = await coursesApi.updateCourse(courseId, finalValues);
+            const updatedCourse = await updateCourseAdmin(courseId, finalValues);
             setCourse(updatedCourse);
 
             // Reset image states after successful save

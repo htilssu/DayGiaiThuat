@@ -41,7 +41,7 @@ async def create_exercise(
 )
 async def get_exercise(
     exercise_id: int,
-    exercise_service: ExerciseService = Depends(ExerciseService),
+    exercise_service: ExerciseService = Depends(get_exercise_service),
 ):
     """
     Lấy thông tin bài tập theo ID

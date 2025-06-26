@@ -17,7 +17,7 @@ from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
 from app.core.agents.components.llm_model import create_new_creative_llm_model
 from app.core.config import settings
-from app.core.tracing import get_callback_manager, trace_agent
+from app.core.tracing import trace_agent
 from app.schemas.exercise_schema import ExerciseDetail
 
 SYSTEM_PROMPT_TEMPLATE_FOR_EXERCISE_GENERATOR = """
@@ -94,21 +94,7 @@ Nếu 1 bài tập đã tồn tại trong cơ sở dữ liệu, hãy tạo ra b�
 """
 
 
-class GenerateExerciseMetadata(type):
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        """
-        Possible changes to the value of the `__init__` argument do not affect
-        the returned instance.
-        """
-        if cls not in cls._instances:
-            instance = super().__call__(*args, **kwargs)
-            cls._instances[cls] = instance
-        return cls._instances[cls]
-
-
-class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadata):
+class GenerateExerciseQuestionAgent(BaseAgent):
     """
     Một AI agent sử dụng Langchain để tạo ra các bài tập giải thuật.
     Agent này có khả năng sử dụng Google Gemini làm mô hình ngôn ngữ,
@@ -152,7 +138,6 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             | create_new_creative_llm_model().with_structured_output(ExerciseDetail)
         )
 
-        # 4. Tạo Retriever Tool
         self.retriever_tool = Tool(
             name="retriever_algo_vault",
             func=self.retriever.invoke,  # Sử dụng invoke cho retriever đồng bộ
@@ -201,7 +186,6 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             self.output_fixing_parser_tool,
         ]
 
-        # 6. Tạo Prompt Template
         self.prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessage(content=SYSTEM_PROMPT_TEMPLATE),
@@ -211,10 +195,6 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             ]
         )
 
-        # Tạo callback manager với LangSmith tracer
-        self.callback_manager = get_callback_manager("default")
-
-        # Cấu hình agent với tracing
         self.agent = create_tool_calling_agent(
             self.base_llm,
             self.tools,
@@ -254,7 +234,7 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             )
 
         run_config = RunnableConfig(
-            callbacks=self.callback_manager.handlers,
+            callbacks=self._callback_manager.handlers,
             metadata={
                 "session_id": session_id,
                 "topic": topic,

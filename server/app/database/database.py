@@ -1,15 +1,10 @@
 from datetime import datetime
-import logging
 
-from alembic import command
-from alembic.config import Config
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 from app.core.config import settings
-
-# Tạo logger
-logger = logging.getLogger(__name__)
 
 # Tạo engine để kết nối database với timeout ngắn hơn để tránh treo ứng dụng nếu không kết nối được
 engine = create_engine(
@@ -18,8 +13,20 @@ engine = create_engine(
     connect_args={"connect_timeout": 5},  # Timeout 5 giây
 )
 
+# Tạo engine bất đồng bộ
+async_engine = create_async_engine(
+    settings.ASYNC_DATABASE_URI,
+    pool_pre_ping=True,  # Kiểm tra kết nối trước khi sử dụng
+    connect_args={"connect_timeout": 5},  # Timeout 5 giây
+)
+
 # Tạo SessionLocal class để tạo session cho mỗi request
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Tạo AsyncSessionLocal class để tạo session bất đồng bộ
+AsyncSessionLocal = async_sessionmaker(
+    async_engine, autocommit=False, autoflush=False, expire_on_commit=False
+)
 
 
 # Tạo Base class để kế thừa cho các model
@@ -47,27 +54,16 @@ def get_db():
         db.close()
 
 
-def run_migrations():
+async def get_async_session() -> AsyncSession:
     """
-    Chạy migration tự động khi ứng dụng khởi động sử dụng Alembic API
+    Tạo và trả về một database session bất đồng bộ mới cho mỗi request
+    và đảm bảo đóng kết nối sau khi xử lý xong.
 
-    Returns:
-        bool: True nếu migration thành công, False nếu có lỗi
+    Yields:
+        AsyncSession: Async database session
     """
-    try:
-        logger.info("Bắt đầu chạy migrations...")
-
-        alembic_cfg = Config("alembic.ini")
-
-        # Đặt URL kết nối database
-        alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URI)
-
-        # Chạy migration để cập nhật schema lên phiên bản mới nhất
-        with engine.connect():
-            command.upgrade(alembic_cfg, "head")
-
-        logger.info("Migration hoàn tất thành công!")
-        return True
-    except Exception as e:
-        logger.error(f"Lỗi trong quá trình migration: {str(e)}")
-        return False
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()

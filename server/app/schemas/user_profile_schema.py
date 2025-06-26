@@ -96,3 +96,20 @@ class UserExcludeSecret(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UserProfileResponse(BaseModel):
+    id: int
+    username: str
+    fullName: str
+    email: str
+    avatar: Optional[str] = None
+    bio: str
+    stats: UserStats
+    learningProgress: LearningProgress
+    courses: List[CourseProgress]
+    badges: List[Badge]
+    activities: List[Activity]
+
+    class Config:
+        from_attributes = True

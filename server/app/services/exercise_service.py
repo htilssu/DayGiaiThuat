@@ -10,7 +10,7 @@ from app.core.agents.exercise_agent import (
     get_exercise_agent,
 )
 from app.services.topic_service import TopicService, get_topic_service
-from app.database.repository import GetRepository, Repository
+from app.database.repository import Repository
 from app.database.database import get_db
 from sqlalchemy.orm import Session
 
@@ -27,9 +27,9 @@ class ExerciseService:
 
     def __init__(
         self,
-        exercise_agent: GenerateExerciseQuestionAgent = Depends(get_exercise_agent),
-        topic_service: TopicService = Depends(get_topic_service),
-        repository: Repository[ExerciseModel] = Depends(GetRepository(ExerciseModel)),
+        exercise_agent: GenerateExerciseQuestionAgent,
+        topic_service: TopicService,
+        repository: Repository[ExerciseModel],
     ):
         self.exercise_agent = exercise_agent
         self.topic_service = topic_service

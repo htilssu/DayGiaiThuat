@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
 
 from fastapi import Depends, HTTPException, status, Response
 from jose import JWTError, jwt
@@ -20,6 +19,10 @@ ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Tạo instance mới sử dụng cookie
 oauth2_cookie_scheme = OAuth2PasswordCookie(tokenUrl="auth/token")
+# Tạo instance mới sử dụng cookie với auto_error=False để không bắt buộc phải đăng nhập
+oauth2_cookie_scheme_optional = OAuth2PasswordCookie(
+    tokenUrl="auth/token", auto_error=False
+)
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +113,28 @@ async def get_current_user(
 
     # convert user to UserSchema
     return UserExcludeSecret.model_validate(user)
+
+
+async def get_current_user_optional(
+    token: str = Depends(oauth2_cookie_scheme_optional), db: Session = Depends(get_db)
+) -> UserExcludeSecret | None:
+    """
+    Lấy thông tin user hiện tại từ token trong cookie, không bắt buộc phải đăng nhập
+
+    Args:
+        token (str): JWT token từ cookie
+        db (Session): Database session
+
+    Returns:
+        User | None: Thông tin user nếu đã đăng nhập, None nếu chưa đăng nhập
+    """
+    if not token:
+        return None
+
+    try:
+        return await get_current_user(token=token, db=db)
+    except HTTPException:
+        return None
 
 
 def set_auth_cookie(response: Response, token: str) -> None:

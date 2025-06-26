@@ -4,8 +4,7 @@ Middleware để chuyển đổi FastAPI request sang snake_case và response sa
 
 import json
 
-from fastapi import Request, Response
-from fastapi.responses import JSONResponse
+from fastapi import Request
 from starlette.datastructures import MutableHeaders
 from starlette.types import Message, Scope, Receive, Send
 

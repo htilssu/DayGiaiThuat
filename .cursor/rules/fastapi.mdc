@@ -3,436 +3,52 @@ description:
 globs: 
 alwaysApply: true
 ---
+TITLE: Importing Routers: Relative Import (Balanced)
+DESCRIPTION: Demonstrates importing routers using a relative path within the application's package structure. This is the preferred method for 'balanced imports' in Python packages.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_10
 
-  You are an expert in Python, FastAPI, and scalable API development.
-  
-  Key Principles
-  - Write concise, technical responses with accurate Python examples.
-  - Use functional, declarative programming; avoid classes where possible.
-  - Prefer iteration and modularization over code duplication.
-  - Use descriptive variable names with auxiliary verbs (e.g., is_active, has_permission).
-  - Use lowercase with underscores for directories and files (e.g., routers/user_routes.py).
-  - Favor named exports for routes and utility functions.
-  - Use the Receive an Object, Return an Object (RORO) pattern.
-  
-  Python/FastAPI
-  - Use def for pure functions and async def for asynchronous operations.
-  - Use type hints for all function signatures. Prefer Pydantic models over raw dictionaries for input validation.
-  - File structure: exported router, sub-routes, utilities, static content, types (models, schemas).
-  - Avoid unnecessary curly braces in conditional statements.
-  - For single-line statements in conditionals, omit curly braces.
-  - Use concise, one-line syntax for simple conditional statements (e.g., if condition: do_something()).
-  
-  Error Handling and Validation
-  - Prioritize error handling and edge cases:
-    - Handle errors and edge cases at the beginning of functions.
-    - Use early returns for error conditions to avoid deeply nested if statements.
-    - Place the happy path last in the function for improved readability.
-    - Avoid unnecessary else statements; use the if-return pattern instead.
-    - Use guard clauses to handle preconditions and invalid states early.
-    - Implement proper error logging and user-friendly error messages.
-    - Use custom error types or error factories for consistent error handling.
-  
-  Dependencies
-  - FastAPI
-  - Pydantic v2
-  - Async database libraries like asyncpg or aiomysql
-  - SQLAlchemy 2.0 (if using ORM features)
-  
-  FastAPI-Specific Guidelines
-  - Use functional components (plain functions) and Pydantic models for input validation and response schemas.
-  - Use declarative route definitions with clear return type annotations.
-  - Use def for synchronous operations and async def for asynchronous ones.
-  - Minimize @app.on_event("startup") and @app.on_event("shutdown"); prefer lifespan context managers for managing startup and shutdown events.
-  - Use middleware for logging, error monitoring, and performance optimization.
-  - Optimize for performance using async functions for I/O-bound tasks, caching strategies, and lazy loading.
-  - Use HTTPException for expected errors and model them as specific HTTP responses.
-  - Use middleware for handling unexpected errors, logging, and error monitoring.
-  - Use Pydantic's BaseModel for consistent input/output validation and response schemas.
-  - When editing model, you shouldn't generate migration file, just run migration command of alembic
-  
-  Performance Optimization
-  - Minimize blocking I/O operations; use asynchronous operations for all database calls and external API requests.
-  - Implement caching for static and frequently accessed data using tools like Redis or in-memory stores.
-  - Optimize data serialization and deserialization with Pydantic.
-  - Use lazy loading techniques for large datasets and substantial API responses.
-  
-  Key Conventions
-  1. Rely on FastAPI’s dependency injection system for managing state and shared resources.
-  2. Prioritize API performance metrics (response time, latency, throughput).
-  3. Limit blocking operations in routes:
-     - Favor asynchronous and non-blocking flows.
-     - Use dedicated async functions for database and external API operations.
-     - Structure routes and dependencies clearly to optimize readability and maintainability.
-  
-  Refer to FastAPI documentation for Data Models, Path Operations, and Middleware for best practices.
-  
-  TITLE: Including Router within Another Router - Python
-DESCRIPTION: Shows how to include one 'APIRouter' instance ('other_router') into another 'APIRouter' instance ('router') using the 'router.include_router()' method. This allows for nesting routers and organizing routes hierarchically before including the parent router in the main application.
+LANGUAGE: Python
+CODE:
+```
+from .routers import items, users
+```
+
+
+----------------------------------------
+
+TITLE: Importing Routers: Absolute Import (Explicit)
+DESCRIPTION: Shows an alternative method for importing routers using an absolute path from the application's root. This is referred to as 'explicit import' and is also a valid way to import modules.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_11
+
+LANGUAGE: Python
+CODE:
+```
+from app.routers import items, users
+```
+
+----------------------------------------
+
+TITLE: Avoiding Name Collisions with APIRouter Imports
+DESCRIPTION: Illustrates a common issue where importing multiple routers that expose a variable with the same name (e.g., 'router') can lead to conflicts, as the latter import overwrites the former. This snippet shows the problematic import pattern that causes the collision.
 SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_12
 
 LANGUAGE: Python
 CODE:
 ```
-router.include_router(other_router)
+from .routers.items import router
+from .routers.users import router
 ```
-
 ----------------------------------------
 
-TITLE: Importing Routers Directly (Avoided) (Python)
-DESCRIPTION: Shows the import pattern (from .module import router) that causes name collisions when multiple modules export a variable named router, as subsequent imports overwrite previous ones.
+TITLE: Include APIRouters for users and items in main app
+DESCRIPTION: Shows how to include APIRouters from 'users' and 'items' submodules into the main FastAPI application using `app.include_router()`. This integrates all routes from the included routers into the main application's API.
 SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_17
 
 LANGUAGE: Python
 CODE:
 ```
-from .routers.items import router
-from .routers.users import router
-```
-
-----------------------------------------
-
-TITLE: Importing Routers (Direct, Name Collision) - Python
-DESCRIPTION: Illustrates importing the 'router' object directly from both 'items' and 'users' modules using relative paths. This highlights a potential name collision issue if both modules export an object with the same name ('router').
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_5
-
-LANGUAGE: Python
-CODE:
-```
-from .routers.items import router
-from .routers.users import router
-```
-
-----------------------------------------
-
-TITLE: Path Operation Relative to Router Prefix
-DESCRIPTION: Shows a path operation decorator using the `router` instance. The path `/{item_id}` is relative to the router's prefix (`/items`), resulting in the full path `/items/{item_id}`.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/es/docs/tutorial/bigger-applications.md#_snippet_4
-
-LANGUAGE: Python
-CODE:
-```
-@router.get("/{item_id})
-async def read_item(item_id: str):
-    ...
-```
-
-----------------------------------------
-
-TITLE: Including Routers in Main App - Python
-DESCRIPTION: Demonstrates how to include the 'APIRouter' instances from the imported router modules ('users.router', 'items.router') into the main 'FastAPI' application using the 'app.include_router()' method. This integrates the routes defined in the separate router files into the main application.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_7
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import FastAPI, Depends
-from app.dependencies import get_token_header
-
-from app.routers import items, users
-from app.internal import admin
-
-app = FastAPI()
-
 app.include_router(users.router)
 app.include_router(items.router)
-
-app.include_router(
-    admin.router,
-    prefix="/admin",
-    tags=["admin"],
-    dependencies=[Depends(get_token_header)],
-    responses={418: {"description": "I'm a teapot"}},
-)
-
-@app.get("/")
-async def read_root():
-    return {"Hello": "World"}
-```
-
-----------------------------------------
-
-TITLE: Configuring Traefik Middleware, Routers, and Services (TOML)
-DESCRIPTION: This TOML file defines a Traefik middleware to strip the `/api/v1` prefix from incoming requests, a router that matches paths starting with `/api/v1` and applies the stripping middleware, and a service that forwards these requests to the FastAPI application running on `http://127.0.0.1:8000`. This setup enables the proxy to handle the path prefix before forwarding to the backend.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/advanced/behind-a-proxy.md#_snippet_7
-
-LANGUAGE: TOML
-CODE:
-```
-[http]
-  [http.middlewares]
-
-    [http.middlewares.api-stripprefix.stripPrefix]
-      prefixes = ["/api/v1"]
-
-  [http.routers]
-
-    [http.routers.app-http]
-      entryPoints = ["http"]
-      service = "app"
-      rule = "PathPrefix(`/api/v1`)"
-      middlewares = ["api-stripprefix"]
-
-  [http.services]
-
-    [http.services.app]
-      [http.services.app.loadBalancer]
-        [[http.services.app.loadBalancer.servers]]
-          url = "http://127.0.0.1:8000"
-```
-
-----------------------------------------
-
-TITLE: Include APIRouter in another APIRouter (Python)
-DESCRIPTION: This snippet shows how to include one APIRouter instance (`other_router`) into another (`router`). This allows nesting router structures. Ensure this inclusion is done before the parent router (`router`) is included in the main FastAPI application.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_23
-
-LANGUAGE: Python
-CODE:
-```
-router.include_router(other_router)
-```
-
-----------------------------------------
-
-TITLE: Including Router with Custom Parameters (Python)
-DESCRIPTION: Includes an existing APIRouter (admin.router) using app.include_router(), applying custom settings like prefix, tags, dependencies, and responses during inclusion without altering the original router definition.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_20
-
-LANGUAGE: Python
-CODE:
-```
-app.include_router(
-    admin.router,
-    prefix="/admin",
-    tags=["admin"],
-    dependencies=[Depends(get_token_header)],
-    responses={418: {"description": "I'm a teapot"}},
-)
-```
-
-----------------------------------------
-
-TITLE: Including Routers in Main App (Python)
-DESCRIPTION: Uses app.include_router() to integrate path operations from APIRouter instances (users.router, items.router) defined in imported modules into the main FastAPI application.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_18
-
-LANGUAGE: Python
-CODE:
-```
-app.include_router(users.router)
-app.include_router(items.router)
-```
-
-----------------------------------------
-
-TITLE: Importing Routers (Relative) - Python
-DESCRIPTION: Demonstrates a relative import statement to bring in 'items' and 'users' modules from the 'routers' package. This is a common way to structure imports within a Python package.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_3
-
-LANGUAGE: Python
-CODE:
-```
-from .routers import items, users
-```
-
-----------------------------------------
-
-TITLE: Traefik Routes Configuration (routes.toml)
-DESCRIPTION: This TOML file configures Traefik to use the `/api/v1` path prefix, strip the prefix before forwarding requests to the Uvicorn server, and defines the service and router for the application.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/de/docs/advanced/behind-a-proxy.md#_snippet_6
-
-LANGUAGE: TOML
-CODE:
-```
-[http]
-  [http.middlewares]
-
-    [http.middlewares.api-stripprefix.stripPrefix]
-      prefixes = ["/api/v1"]
-
-  [http.routers]
-
-    [http.routers.app-http]
-      entryPoints = ["http"]
-      service = "app"
-      rule = "PathPrefix(`/api/v1`)"
-      middlewares = ["api-stripprefix"]
-
-  [http.services]
-
-    [http.services.app]
-      [http.services.app.loadBalancer]
-        [[http.services.app.loadBalancer.servers]]
-          url = "http://127.0.0.1:8000"
-```
-
-----------------------------------------
-
-TITLE: Importing Routers as Modules (Python)
-DESCRIPTION: Imports APIRouter instances by importing their containing modules (items, users) to prevent name collisions when multiple modules export variables with the same name (router).
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_16
-
-LANGUAGE: Python
-CODE:
-```
-from .routers import items, users
-```
-
-----------------------------------------
-
-TITLE: Defining Items Router with APIRouter (Python)
-DESCRIPTION: Creates an `APIRouter` instance for item-related path operations. It is configured with a path prefix `/items`, a tag `items`, a default 404 response, and the `get_token` dependency applied to all its path operations. It includes example path operations for `/` and `/{item_id}`.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_7
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import APIRouter, Depends, HTTPException
-
-from ..dependencies import get_token
-
-router = APIRouter(
-    prefix="/items",
-    tags=["items"],
-    dependencies=[Depends(get_token)],
-    responses={404: {"description": "Not found"}},
-)
-
-
-@router.get("/")
-async def read_items():
-    return [{"item_id": "Foo"}, {"item_id": "Bar"}]
-
-
-@router.get("/{item_id}")
-async def read_item(item_id: str):
-    if item_id != "foo":
-        raise HTTPException(status_code=404, detail="Item not found")
-    return {"item_id": "baz"}
-```
-
-----------------------------------------
-
-TITLE: Defining Admin Router (Basic) - Python
-DESCRIPTION: Shows the definition of an 'APIRouter' instance in a separate file ('app/internal/admin.py'). This router is defined without specific prefixes, tags, or dependencies applied directly to the 'APIRouter' instance itself, allowing these configurations to be applied when the router is included in the main application.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_8
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import APIRouter, Depends
-from app.dependencies import get_token_header
-
-router = APIRouter()
-
-@router.get("/admin", tags=["admin"])
-async def read_admin(token: str = Depends(get_token_header)):
-    return {"admin": True}
-```
-
-----------------------------------------
-
-TITLE: Importing Dependency with Relative Path
-DESCRIPTION: Shows how to import the `get_token` dependency function from the `app.dependencies` module into the `app.routers.items` module using a relative import (`..`).
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/es/docs/tutorial/bigger-applications.md#_snippet_5
-
-LANGUAGE: Python
-CODE:
-```
-from ..dependencies import get_token
-```
-
-----------------------------------------
-
-TITLE: Example Relative Path in APIRouter (Python)
-DESCRIPTION: Illustrates how a path operation is defined within an `APIRouter` using a path relative to the router's configured prefix. The path `/{item_id}` combined with the router prefix `/items` results in the full path `/items/{item_id}`.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_8
-
-LANGUAGE: Python
-CODE:
-```
-@router.get("/{item_id}")
-async def read_item(item_id: str):
-    ...
-```
-
-----------------------------------------
-
-TITLE: Importing APIRouter Modules (Avoiding Collisions) - Python
-DESCRIPTION: Imports the 'items' and 'users' router modules directly from the 'routers' package to prevent potential name collisions if their 'router' variables were imported individually.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/pt/docs/tutorial/bigger-applications.md#_snippet_4
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import FastAPI
-
-from .routers import items, users
-```
-
-----------------------------------------
-
-TITLE: Admin APIRouter Module - Python
-DESCRIPTION: Defines a simple APIRouter for administration routes. This router is designed to be shared across multiple projects without requiring modifications to its source file.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/pt/docs/tutorial/bigger-applications.md#_snippet_2
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import APIRouter
-
-router = APIRouter()
-
-@router.get("/")
-async def read_admin():
-    return {"message": "Admin reading"}
-```
-
-----------------------------------------
-
-TITLE: Importing Routers (Absolute) - Python
-DESCRIPTION: Shows an absolute import statement to bring in 'items' and 'users' modules from the 'app.routers' package. This is an alternative to relative imports, often used when the package structure is well-defined.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_4
-
-LANGUAGE: Python
-CODE:
-```
-from app.routers import items, users
-```
-
-----------------------------------------
-
-TITLE: Configuring APIRouter for Items
-DESCRIPTION: Demonstrates configuring an `APIRouter` instance in `app/routers/items.py` for item-related path operations. It sets a common `prefix` (`/items`), `tags` (`items`), a required `dependencies` list (using the `get_token` dependency), and default `responses` for all included routes.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/es/docs/tutorial/bigger-applications.md#_snippet_3
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import APIRouter, Depends, HTTPException
-
-from ..dependencies import get_token
-
-router = APIRouter(
-    prefix="/items",
-    tags=["items"],
-    dependencies=[Depends(get_token)],
-    responses={404: {"description": "Not found"}},
-)
-
-
-@router.get("/")
-async def read_items():
-    return [{"item_id": "Foo"}, {"item_id": "Bar"}]
-
-
-@router.get("/{item_id}")
-async def read_item(item_id: str):
-    if item_id != "foo":
-        raise HTTPException(status_code=404, detail="Item not found")
-    return {"item_id": item_id, "description": "The Foo description"}
-
 ```
 
 ----------------------------------------
@@ -451,64 +67,67 @@ async def create_invoice(invoice: Invoice):
 
 ----------------------------------------
 
-TITLE: Defining Traefik Routes and Services (TOML)
-DESCRIPTION: This TOML configuration sets up a middleware to strip the `/api/v1` prefix, defines a router `app-http` to match paths starting with `/api/v1`, and forwards requests to a service named `app`. The `app` service is configured to load balance requests to `http://127.0.0.1:8000`, which is where the FastAPI application is expected to run.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/advanced/behind-a-proxy.md#_snippet_7
+TITLE: Define a simple APIRouter for internal admin operations
+DESCRIPTION: Illustrates a basic APIRouter definition in a separate file (e.g., `app/internal/admin.py`) that can be shared across multiple projects. This router contains simple path operations without any custom prefixes or dependencies defined within itself.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_18
 
-LANGUAGE: TOML
+LANGUAGE: Python
 CODE:
 ```
-[http]
-  [http.middlewares]
+from fastapi import APIRouter
 
-    [http.middlewares.api-stripprefix.stripPrefix]
-      prefixes = ["/api/v1"]
+router = APIRouter()
 
-  [http.routers]
+@router.post("/admin/")
+async def create_admin_item(item: dict):
+    return {"message": "Admin item created", "item": item}
 
-    [http.routers.app-http]
-      entryPoints = ["http"]
-      service = "app"
-      rule = "PathPrefix(`/api/v1`)"
-      middlewares = ["api-stripprefix"]
-
-  [http.services]
-
-    [http.services.app]
-      [http.services.app.loadBalancer]
-        [[http.services.app.loadBalancer.servers]]
-          url = "http://127.0.0.1:8000"
+@router.get("/admin/legacy")
+async def read_legacy_admin():
+    return {"message": "Legacy Admin"}
 ```
 
 ----------------------------------------
 
-TITLE: Traefik Routes Configuration File
-DESCRIPTION: Configures Traefik to use the `/api/v1` path prefix. It defines a middleware to strip the prefix and a router to handle requests with the prefix, forwarding them to a Uvicorn server running at `http://127.0.0.1:8000`.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/es/docs/advanced/behind-a-proxy.md#_snippet_5
 
-LANGUAGE: TOML
+TITLE: Example Path Operation with APIRouter Prefix
+DESCRIPTION: Illustrates a path operation defined within an APIRouter. When the router has a prefix (e.g., /items), the path defined here (/{item_id}) combines with the prefix to form the full endpoint path (e.g., /items/{item_id}).
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_7
+
+LANGUAGE: Python
 CODE:
 ```
-[http]
-  [http.middlewares]
+@router.get("/{item_id}")
+async def read_item(item_id: str):
+    ...
+```
 
-    [http.middlewares.api-stripprefix.stripPrefix]
-      prefixes = ["/api/v1"]
+----------------------------------------
 
-  [http.routers]
+TITLE: FastAPI Main Application: Global Dependencies and Router Inclusion
+DESCRIPTION: Illustrates the main FastAPI application file (app/main.py), demonstrating how to initialize the FastAPI instance with global dependencies and include APIRouter instances from other modules. This centralizes application setup and routing.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_13
 
-    [http.routers.app-http]
-      entryPoints = ["http"]
-      service = "app"
-      rule = "PathPrefix(`/api/v1`)"
-      middlewares = ["api-stripprefix"]
+LANGUAGE: Python
+CODE:
+```
+from fastapi import FastAPI, Depends
+from .routers import items, users # Relative import for routers
 
-  [http.services]
+# Dummy global dependency for demonstration
+async def get_query_token(token: str = Depends(lambda: "default_token")):
+    return token
 
-    [http.services.app]
-      [http.services.app.loadBalancer]
-        [[http.services.app.loadBalancer.servers]]
-          url = "http://127.0.0.1:8000"
+# Initialize FastAPI app with global dependencies
+app = FastAPI(dependencies=[Depends(get_query_token)])
+
+# Include routers from submodules
+app.include_router(items.router)
+app.include_router(users.router)
+
+@app.get("/")
+async def read_root():
+    return {"message": "Welcome to the main app!"}
 ```
 
 ----------------------------------------
@@ -525,118 +144,14 @@ CODE:
 
 ----------------------------------------
 
-TITLE: Defining User Path Operations with APIRouter
-DESCRIPTION: Shows how to define path operations for a specific domain (users) in a separate file (`app/routers/users.py`) using `APIRouter`, including importing the router and defining GET endpoints.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_3
+TITLE: Relative Import for Dependencies in FastAPI Router
+DESCRIPTION: This snippet demonstrates a relative import using '..' to access modules in a parent directory. Specifically, it imports 'get_token_header' from 'app.dependencies' into 'app.routers.items', which is crucial for structuring larger applications with shared dependencies across different router modules.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_6
 
 LANGUAGE: Python
 CODE:
 ```
-from fastapi import APIRouter
-
-router = APIRouter()
-
-@router.get("/users/", tags=["users"])
-async def read_users():
-    return [{"username": "Rick"}, {"username": "Morty"}]
-
-@router.get("/users/me/", tags=["users"])
-async def read_user_me():
-    return {"username": "fakecurrentuser"}
-
-@router.get("/users/{username}", tags=["users"])
-async def read_user(username: str):
-    return {"username": username}
-```
-
-----------------------------------------
-
-TITLE: Traefik Routes Configuration
-DESCRIPTION: Configures Traefik to strip the /api/v1 path prefix and redirect requests to a Uvicorn server running at http://127.0.0.1:8000. It defines a middleware to strip the prefix and a router to apply the middleware to requests with the /api/v1 prefix.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/pt/docs/advanced/behind-a-proxy.md#_snippet_5
-
-LANGUAGE: TOML
-CODE:
-```
-[http]
-  [http.middlewares]
-
-    [http.middlewares.api-stripprefix.stripPrefix]
-      prefixes = ["/api/v1"]
-
-  [http.routers]
-
-    [http.routers.app-http]
-      entryPoints = ["http"]
-      service = "app"
-      rule = "PathPrefix(`/api/v1`)"
-      middlewares = ["api-stripprefix"]
-
-  [http.services]
-
-    [http.services.app]
-      [http.services.app.loadBalancer]
-        [[http.services.app.loadBalancer.servers]]
-          url = "http://127.0.0.1:8000"
-```
-
-----------------------------------------
-
-TITLE: Initializing FastAPI App with Global Dependencies - Python
-DESCRIPTION: Illustrates the main application file (`app/main.py`) where the `FastAPI` instance is created. It demonstrates how to declare global dependencies that will be applied to all path operations in the application, including those from included routers.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/zh/docs/tutorial/bigger-applications.md#_snippet_2
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import FastAPI, Depends
-
-from .dependencies import get_query_token
-
-from .routers import items, users
-
-app = FastAPI(dependencies=[Depends(get_query_token)])
-
-app.include_router(users.router)
-app.include_router(items.router)
-```
-
-----------------------------------------
-
-TITLE: Relative Import of APIRouters in Main App
-DESCRIPTION: Shows how to import APIRouter instances from submodules within the same package using a relative import (single dot). This is typically done in the main application file to bring in routers defined in other files.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_14
-
-LANGUAGE: Python
-CODE:
-```
-from .routers import items, users
-```
-
-----------------------------------------
-
-TITLE: Defining X-Token Dependency (Python 3.8+ Optional)
-DESCRIPTION: Defines a simple dependency function `get_token` in `app/dependencies.py` that reads the `X-Token` header using `Optional`. It raises an `HTTPException` if the token is not 'fake-super-secret-token'.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/es/docs/tutorial/bigger-applications.md#_snippet_1
-
-LANGUAGE: Python
-CODE:
-```
-from typing import Optional
-
-from fastapi import Header, HTTPException
-
-
-async def get_token(x_token: Optional[str] = Header(None)):
-    if x_token != "fake-super-secret-token":
-        raise HTTPException(status_code=400, detail="X-Token header invalid")
-    return x_token
-
-
-async def get_query_token(token: str):
-    if token != "jessica":
-        raise HTTPException(status_code=400, detail="No Jessica token provided")
-    return token
+from ..dependencies import get_token_header
 ```
 
 ----------------------------------------
@@ -655,121 +170,33 @@ async def process_invoice(invoice: Invoice):
 
 ----------------------------------------
 
-TITLE: Including Admin APIRouter with Custom Config - Python
-DESCRIPTION: Includes the 'admin.router' with custom parameters like a '/admin' prefix, 'admin' tag, 'get_token_header' dependency, and a specific response, demonstrating how to configure included routers without modifying their source files. Also adds a direct root route.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/pt/docs/tutorial/bigger-applications.md#_snippet_6
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import FastAPI, Depends
-from .dependencies import get_token_header
-from .internal import admin
-from .routers import items, users
-
-app = FastAPI()
-
-app.include_router(users.router)
-app.include_router(items.router)
-app.include_router(
-    admin.router,
-    prefix="/admin",
-    tags=["admin"],
-    dependencies=[Depends(get_token_header)],
-    responses={418: {"description": "I'm a teapot"}},
-)
-
-
-@app.get("/")
-async def root():
-    return {"message": "Hello Bigger Applications!"}
-```
-
-----------------------------------------
-
-TITLE: Importing APIRouter Submodules with Relative Path - FastAPI Python
-DESCRIPTION: Shows how to import `APIRouter` instances from submodules (`app/routers/items.py`, `app/routers/users.py`) into the main application file (`app/main.py`) using relative imports (`.`). This approach helps avoid naming conflicts when multiple routers are imported.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/zh/docs/tutorial/bigger-applications.md#_snippet_3
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import FastAPI, Depends
-
-from .dependencies import get_query_token
-
-from .routers import items, users
-
-app = FastAPI(dependencies=[Depends(get_query_token)])
-
-app.include_router(users.router)
-app.include_router(items.router)
-```
-
-----------------------------------------
-
-TITLE: Defining X-Token Dependency (Python 3.9+ Annotated)
-DESCRIPTION: Defines a simple dependency function `get_token` in `app/dependencies.py` that reads the `X-Token` header using `Annotated`. It raises an `HTTPException` if the token is not 'fake-super-secret-token'.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/es/docs/tutorial/bigger-applications.md#_snippet_0
-
-LANGUAGE: Python
-CODE:
-```
-from typing import Annotated
-
-from fastapi import Header, HTTPException
-
-
-async def get_token(x_token: Annotated[str, Header()]):
-    if x_token != "fake-super-secret-token":
-        raise HTTPException(status_code=400, detail="X-Token header invalid")
-    return x_token
-
-
-async def get_query_token(token: str):
-    if token != "jessica":
-        raise HTTPException(status_code=400, detail="No Jessica token provided")
-    return token
-```
-
-----------------------------------------
-
-TITLE: Including Admin Router with Custom Config - Python
-DESCRIPTION: Demonstrates including the 'admin.router' into the main 'FastAPI' application using 'app.include_router()'. This example shows how to apply custom configurations like a URL 'prefix' ('/admin'), 'tags' ('admin'), 'dependencies' (e.g., 'get_token_header'), and specific 'responses' directly during the inclusion process.
+TITLE: Import APIRouter Instances into Main FastAPI Application
+DESCRIPTION: This snippet demonstrates how to import APIRouter instances from separate modules (e.g., app.routers.users and app.routers.items) into the main FastAPI application. It uses relative imports to access these modules and then includes their routers using app.include_router(), effectively combining all defined routes under the main application.
 SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_9
 
 LANGUAGE: Python
 CODE:
 ```
-from fastapi import FastAPI, Depends
-from app.dependencies import get_token_header
-
-from app.routers import items, users
-from app.internal import admin
-
-app = FastAPI()
-
-app.include_router(users.router)
-app.include_router(items.router)
-
-app.include_router(
-    admin.router,
-    prefix="/admin",
-    tags=["admin"],
-    dependencies=[Depends(get_token_header)],
-    responses={418: {"description": "I'm a teapot"}},
-)
-
-@app.get("/")
-async def read_root():
-    return {"Hello": "World"}
+from .routers import items, users
 ```
 
 ----------------------------------------
 
-TITLE: Importing and Initializing APIRouter in FastAPI
-DESCRIPTION: This snippet shows how to import the APIRouter class from the fastapi library and create an instance of it. This router instance will be used to define path operations for a specific part of the application, like user-related routes.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_0
+TITLE: Nesting APIRouters within Another APIRouter
+DESCRIPTION: Demonstrates how to include one APIRouter within another APIRouter. This allows for hierarchical organization of routes, where child routers' path operations are integrated into a parent router before the parent is included in the main FastAPI application.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_14
+
+LANGUAGE: Python
+CODE:
+```
+router.include_router(other_router)
+```
+
+----------------------------------------
+
+TITLE: Initialize FastAPI APIRouter for Modular Endpoints
+DESCRIPTION: This Python snippet demonstrates how to import `APIRouter` from `fastapi` and create an instance. This `router` object will be used to group related path operations, allowing for better organization of API endpoints within a dedicated module like `app/routers/users.py`.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_1
 
 LANGUAGE: Python
 CODE:
@@ -781,21 +208,22 @@ router = APIRouter()
 
 ----------------------------------------
 
-TITLE: Importing Dependencies with Relative Path - FastAPI Python
-DESCRIPTION: Demonstrates importing dependencies from a parent directory using relative import (`..`) within a FastAPI router module (`app/routers/items.py`). This is crucial for structuring larger applications across multiple files and directories.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/zh/docs/tutorial/bigger-applications.md#_snippet_0
+TITLE: Importing Shared Dependencies in APIRouter Module
+DESCRIPTION: Demonstrates how to import a shared dependency function (e.g., get_x_token) from a separate dependencies module into an APIRouter module using a relative import. This allows the dependency to be reused across different routers or path operations.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_8
 
 LANGUAGE: Python
 CODE:
 ```
-from fastapi import APIRouter, Depends, HTTPException
-from ..dependencies import get_token_header
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.dependencies import get_x_token
 
 router = APIRouter(
     prefix="/items",
     tags=["items"],
-    dependencies=[Depends(get_token_header)],
-    responses={404: {"description": "Not found"}},
+    dependencies=[Depends(get_x_token)],
+    responses={404: {"description": "Not found"}}
 )
 
 
@@ -806,24 +234,125 @@ async def read_items():
 
 @router.get("/{item_id}")
 async def read_item(item_id: str):
-    return {"item_id": item_id}
-
-
-@router.get("/open/", tags=["custom"], responses={403: {"description": "Operation forbidden"}})
-async def read_open_item():
-    return {"item_id": "open"}
+    return {"item_id": item_id, "owner": "Alice"}
 ```
 
 ----------------------------------------
 
-TITLE: Applying Custom APIRoute Class to FastAPI Router
-DESCRIPTION: This Python snippet demonstrates how to apply a custom `APIRoute` class, such as `TimedRoute`, to an entire `APIRouter`. By setting the `route_class` parameter during `APIRouter` initialization, all path operations defined within this router will automatically use the specified custom route class, inheriting its modified behavior (e.g., adding response timing headers).
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/how-to/custom-request-and-route.md#_snippet_4
+TITLE: Configuring APIRouter with Common Parameters
+DESCRIPTION: This snippet demonstrates how to use FastAPI's APIRouter to group related path operations and apply common configurations like path prefixes, tags, extra responses, and dependencies. This reduces code duplication and organizes API endpoints efficiently. The X-Token dependency is applied to all paths within this router.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_6
 
 LANGUAGE: Python
 CODE:
 ```
-router = APIRouter(route_class=TimedRoute)
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.dependencies import get_x_token
+
+router = APIRouter(
+    prefix="/items",
+    tags=["items"],
+    dependencies=[Depends(get_x_token)],
+    responses={404: {"description": "Not found"}}
+)
+
+
+@router.get("/")
+async def read_items():
+    return [{"item_id": "Foo", "owner": "Alice"}, {"item_id": "Bar", "owner": "Bob"}]
+
+
+@router.get("/{item_id}")
+async def read_item(item_id: str):
+    return {"item_id": item_id, "owner": "Alice"}
+```
+
+----------------------------------------
+
+TITLE: Nesting APIRouters in FastAPI
+DESCRIPTION: Illustrates how to include one APIRouter within another APIRouter using `router.include_router(other_router)`. This method allows for hierarchical organization of API endpoints. It is important to perform this inclusion before the parent router is added to the main FastAPI application to ensure all nested path operations are registered correctly.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_22
+
+LANGUAGE: Python
+CODE:
+```
+router.include_router(other_router)
+```
+
+----------------------------------------
+
+TITLE: Define APIRouter with Common Configuration in FastAPI
+DESCRIPTION: This snippet demonstrates how to initialize an APIRouter instance with shared configurations such as a prefix for all routes, tags for OpenAPI documentation, default responses, and dependencies that apply to all path operations defined within this router. This reduces code duplication and centralizes common settings for a group of related endpoints.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_4
+
+LANGUAGE: Python
+CODE:
+```
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from ..dependencies import get_token_header
+
+router = APIRouter(
+    prefix="/items",
+    tags=["items"],
+    dependencies=[Depends(get_token_header)],
+    responses={404: {"description": "Not found"}},
+)
+
+@router.get("/")
+async def read_items():
+    return [{"item_id": "Foo"}, {"item_id": "Bar"}]
+
+@router.get("/{item_id}")
+async def read_item(item_id: str):
+    return {"item_id": item_id}
+
+@router.get("/{item_id}/custom", tags=["custom"], responses={403: {"description": "Operation forbidden"}})
+async def read_custom_item(item_id: str):
+    return {"item_id": item_id, "message": "This is a custom item"}
+```
+
+----------------------------------------
+
+TITLE: Include APIRouter with custom prefix, tags, dependencies, and responses
+DESCRIPTION: Demonstrates how to include an existing APIRouter (e.g., from an internal admin module) into the main FastAPI application while applying custom configurations. This includes setting a URL prefix, adding tags for documentation, enforcing dependencies, and defining custom responses, all without modifying the original router file.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_19
+
+LANGUAGE: Python
+CODE:
+```
+app.include_router(
+    admin.router,
+    prefix="/admin",
+    tags=["admin"],
+    dependencies=[Depends(get_token_header)],
+    responses={418: {"description": "I'm a teapot"}}
+)
+```
+
+----------------------------------------
+
+TITLE: Defining Path Operations with FastAPI APIRouter
+DESCRIPTION: This snippet demonstrates how to define path operations using an `APIRouter` instance, similar to how `FastAPI` is used. It includes example GET requests for listing users, getting a specific user, and getting a user's items, showcasing how to organize related endpoints within a dedicated router.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_4
+
+LANGUAGE: Python
+CODE:
+```
+@router.get("/users/", tags=["users"])
+async def read_users():
+    return [{"username": "Rick"}, {"username": "Morty"}]
+
+
+@router.get("/users/me", tags=["users"])
+async def read_user_me():
+    return {"username": "current user"}
+
+
+@router.get("/users/{username}", tags=["users"])
+async def read_user(username: str):
+    return {"username": username}
 ```
 
 ----------------------------------------
@@ -852,20 +381,28 @@ invoices_callback_router = APIRouter()
 
 ----------------------------------------
 
-TITLE: Add Custom Tags, Responses, and Dependencies to Path Operation
-DESCRIPTION: Shows how to add extra tags, responses, and dependencies specifically to a single path operation within an APIRouter, in addition to any defined at the router level. This allows for fine-grained control over documentation and behavior for individual endpoints.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_12
+TITLE: Applying Custom APIRoute Class to FastAPI Router
+DESCRIPTION: This Python snippet demonstrates how to apply a custom `APIRoute` class, such as `TimedRoute`, to an entire `APIRouter`. By setting the `route_class` parameter during `APIRouter` initialization, all path operations defined within this router will automatically use the specified custom route class, inheriting its modified behavior (e.g., adding response timing headers).
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/how-to/custom-request-and-route.md#_snippet_4
 
 LANGUAGE: Python
 CODE:
 ```
-@router.get("/custom-item/{item_id}",
-                tags=["custom"],
-                responses={403: {"description": "Operation forbidden"}},
-                dependencies=[Depends(get_current_user)])
-async def read_custom_item(item_id: str):
-     # ... implementation ...
-     pass
+router = APIRouter(route_class=TimedRoute)
+```
+
+----------------------------------------
+
+TITLE: Add a path operation directly to the FastAPI application
+DESCRIPTION: Shows that individual path operations can still be defined directly on the main FastAPI application instance, even when using APIRouters for modularity. This allows for flexible route management alongside included routers.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_20
+
+LANGUAGE: Python
+CODE:
+```
+@app.get("/")
+async def root():
+    return {"message": "Hello Bigger Applications!"}
 ```
 
 ----------------------------------------
@@ -930,63 +467,6 @@ async def create_invoice(
 
 ----------------------------------------
 
-TITLE: Main Application File Structure - Python
-DESCRIPTION: Shows the basic structure of the main application file ('app/main.py') for a larger FastAPI project. It includes importing the 'FastAPI' class and importing the router modules ('items', 'users') from the 'app.routers' package to avoid name collisions.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_6
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import FastAPI, Depends
-from app.dependencies import get_token_header
-
-from app.routers import items, users
-from app.internal import admin
-
-app = FastAPI()
-
-app.include_router(users.router)
-app.include_router(items.router)
-
-app.include_router(
-    admin.router,
-    prefix="/admin",
-    tags=["admin"],
-    dependencies=[Depends(get_token_header)],
-    responses={418: {"description": "I'm a teapot"}},
-)
-
-@app.get("/")
-async def read_root():
-    return {"Hello": "World"}
-```
-
-----------------------------------------
-
-TITLE: Defining X-Token Dependency (Python 3.8+ non-Annotated)
-DESCRIPTION: Defines a simple dependency function `get_token` in `app/dependencies.py` that reads the `X-Token` header. It raises an `HTTPException` if the token is not 'fake-super-secret-token'. This version does not use `Annotated` or `Optional`.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/es/docs/tutorial/bigger-applications.md#_snippet_2
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import Header, HTTPException
-
-
-async def get_token(x_token: str = Header()):
-    if x_token != "fake-super-secret-token":
-        raise HTTPException(status_code=400, detail="X-Token header invalid")
-    return x_token
-
-
-async def get_query_token(token: str):
-    if token != "jessica":
-        raise HTTPException(status_code=400, detail="No Jessica token provided")
-    return token
-```
-
-----------------------------------------
-
 TITLE: Initializing FastAPI APIRouter for Callbacks
 DESCRIPTION: This snippet initializes an `APIRouter` instance specifically for defining and documenting OpenAPI callbacks. This router will contain the path operations that describe the external API expected by your service for callback notifications.
 SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/advanced/openapi-callbacks.md#_snippet_2
@@ -1015,6 +495,24 @@ CODE:
 [providers]
   [providers.file]
     filename = "routes.toml"
+```
+
+----------------------------------------
+
+TITLE: Initializing Callback APIRouter in FastAPI
+DESCRIPTION: This code snippet demonstrates how to create a new APIRouter instance that will contain callback routes. This router is later used to define the structure and expected behavior of external APIs that will interact with your FastAPI application.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/de/docs/advanced/openapi-callbacks.md#_snippet_1
+
+LANGUAGE: Python
+CODE:
+```
+from typing import Optional
+
+from fastapi import APIRouter, FastAPI
+from pydantic import BaseModel
+
+
+invoices_callback_router = APIRouter()
 ```
 
 ----------------------------------------
@@ -1055,82 +553,6 @@ CODE:
 
 ----------------------------------------
 
-TITLE: Initializing Callback APIRouter in FastAPI
-DESCRIPTION: This code snippet demonstrates how to create a new APIRouter instance that will contain callback routes. This router is later used to define the structure and expected behavior of external APIs that will interact with your FastAPI application.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/de/docs/advanced/openapi-callbacks.md#_snippet_1
-
-LANGUAGE: Python
-CODE:
-```
-from typing import Optional
-
-from fastapi import APIRouter, FastAPI
-from pydantic import BaseModel
-
-
-invoices_callback_router = APIRouter()
-```
-
-----------------------------------------
-
-TITLE: Create Basic FastAPI Application with GET Endpoints
-DESCRIPTION: This code demonstrates how to set up a basic FastAPI application, defining two GET endpoints: a root path and an item path with a path parameter and an optional query parameter. It includes both synchronous (`def`) and asynchronous (`async def`) implementations for route handlers.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/README.md#_snippet_1
-
-LANGUAGE: Python
-CODE:
-```
-from typing import Union
-
-from fastapi import FastAPI
-
-app = FastAPI()
-
-
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
-
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
-```
-
-LANGUAGE: Python
-CODE:
-```
-from typing import Union
-
-from fastapi import FastAPI
-
-app = FastAPI()
-
-
-@app.get("/")
-async def read_root():
-    return {"Hello": "World"}
-
-
-@app.get("/items/{item_id}")
-async def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
-```
-
-----------------------------------------
-
-TITLE: Applying a Custom Route Class to an APIRouter in FastAPI
-DESCRIPTION: This line demonstrates how to apply a custom `APIRoute` class (e.g., `TimedRoute`) to an `APIRouter` instance. By setting the `route_class` parameter, all path operations defined under this router will automatically use the specified custom route class, allowing for centralized custom logic like adding response headers or modifying request handling.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/how-to/custom-request-and-route.md#_snippet_3
-
-LANGUAGE: Python
-CODE:
-```
-router = APIRouter(route_class=TimedRoute)
-```
-
-----------------------------------------
-
 TITLE: Creating an Invoice with Callback URL in FastAPI
 DESCRIPTION: This snippet defines a FastAPI path operation to create an invoice. It accepts an `Invoice` body and a `callback_url` query parameter of type `Url`. The `callbacks` argument in the decorator links this operation to a router for documenting the callback.
 SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/advanced/openapi-callbacks.md#_snippet_0
@@ -1152,6 +574,54 @@ async def create_invoice(invoice: Invoice, callback_url: Url):
     # Collect the money
     # Notify the client later
     return {"msg": "Invoice received!"}
+```
+
+----------------------------------------
+
+TITLE: Traefik Configuration File
+DESCRIPTION: Configures Traefik to listen on port 9999 and use routes defined in routes.toml.  This TOML file sets up the entry point for HTTP traffic and specifies the file containing routing rules.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/es/docs/advanced/behind-a-proxy.md#_snippet_4
+
+LANGUAGE: TOML
+CODE:
+```
+[entryPoints]
+  [entryPoints.http]
+    address = ":9999"
+
+[providers]
+  [providers.file]
+    filename = "routes.toml"
+```
+
+----------------------------------------
+
+TITLE: Applying a Custom Route Class to an APIRouter in FastAPI
+DESCRIPTION: This line demonstrates how to apply a custom `APIRoute` class (e.g., `TimedRoute`) to an `APIRouter` instance. By setting the `route_class` parameter, all path operations defined under this router will automatically use the specified custom route class, allowing for centralized custom logic like adding response headers or modifying request handling.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/how-to/custom-request-and-route.md#_snippet_3
+
+LANGUAGE: Python
+CODE:
+```
+router = APIRouter(route_class=TimedRoute)
+```
+
+----------------------------------------
+
+TITLE: Traefik Configuration File
+DESCRIPTION: Configures Traefik to listen on port 9999 and use routes defined in routes.toml. This setup is for local testing and avoids needing administrator privileges.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/pt/docs/advanced/behind-a-proxy.md#_snippet_4
+
+LANGUAGE: TOML
+CODE:
+```
+[entryPoints]
+  [entryPoints.http]
+    address = ":9999"
+
+[providers]
+  [providers.file]
+    filename = "routes.toml"
 ```
 
 ----------------------------------------
@@ -1202,60 +672,6 @@ def create_invoice(callback_url: str, body: InvoiceEvent):
 
 ----------------------------------------
 
-TITLE: Traefik Configuration File
-DESCRIPTION: Configures Traefik to listen on port 9999 and use routes defined in routes.toml.  This TOML file sets up the entry point for HTTP traffic and specifies the file containing routing rules.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/es/docs/advanced/behind-a-proxy.md#_snippet_4
-
-LANGUAGE: TOML
-CODE:
-```
-[entryPoints]
-  [entryPoints.http]
-    address = ":9999"
-
-[providers]
-  [providers.file]
-    filename = "routes.toml"
-```
-
-----------------------------------------
-
-TITLE: Traefik Configuration File
-DESCRIPTION: Configures Traefik to listen on port 9999 and use routes defined in routes.toml. This setup is for local testing and avoids needing administrator privileges.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/pt/docs/advanced/behind-a-proxy.md#_snippet_4
-
-LANGUAGE: TOML
-CODE:
-```
-[entryPoints]
-  [entryPoints.http]
-    address = ":9999"
-
-[providers]
-  [providers.file]
-    filename = "routes.toml"
-```
-
-----------------------------------------
-
-TITLE: Items APIRouter Module - Python
-DESCRIPTION: Defines a simple APIRouter for item-related routes. This module is intended to be imported and included in the main application.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/pt/docs/tutorial/bigger-applications.md#_snippet_0
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import APIRouter
-
-router = APIRouter()
-
-@router.get("/items/")
-async def read_items():
-    return [{"item_id": "Foo"}, {"item_id": "Bar"}]
-```
-
-----------------------------------------
-
 TITLE: Defining a GET Endpoint in FastAPI
 DESCRIPTION: This FastAPI snippet illustrates how to define a server-side GET endpoint. The `@app.get("/some/url")` decorator maps the `read_url` function to handle GET requests for the `/some/url` path, returning a JSON object as the response. This showcases FastAPI's declarative routing.
 SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/alternatives.md#_snippet_1
@@ -1268,295 +684,34 @@ def read_url():
     return {"message": "Hello World"}
 ```
 
-TITLE: OpenAPI Responses
-DESCRIPTION: This JSON snippet shows the OpenAPI schema generated for the responses, including the 404 response with the Message model, the 200 successful response with the Item model, and the 422 validation error response.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/fr/docs/advanced/additional-responses.md#_snippet_1
+----------------------------------------
 
-LANGUAGE: JSON
+TITLE: Example FastAPI Application File Structure
+DESCRIPTION: This snippet illustrates a typical file and directory structure for a larger FastAPI application, organizing modules into packages and subpackages like `app`, `routers`, and `internal`. The `__init__.py` files define Python packages, enabling modular imports.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/tutorial/bigger-applications.md#_snippet_0
+
+LANGUAGE: text
 CODE:
 ```
-{
-    "responses": {
-        "404": {
-            "description": "Additional Response",
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Message"
-                    }
-                }
-            }
-        },
-        "200": {
-            "description": "Successful Response",
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Item"
-                    }
-                }
-            }
-        },
-        "422": {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                    }
-                }
-            }
-        }
-    }
-}
+.
+├── app                  # "app" is a Python package
+│   ├── __init__.py      # this file makes "app" a "Python package"
+│   ├── main.py          # "main" module, e.g. import app.main
+│   ├── dependencies.py  # "dependencies" module, e.g. import app.dependencies
+│   └── routers          # "routers" is a "Python subpackage"
+│   │   ├── __init__.py  # makes "routers" a "Python subpackage"
+│   │   ├── items.py     # "items" submodule, e.g. import app.routers.items
+│   │   └── users.py     # "users" submodule, e.g. import app.routers.users
+│   └── internal         # "internal" is a "Python subpackage"
+│       ├── __init__.py  # makes "internal" a "Python subpackage"
+│       └── admin.py     # "admin" submodule, e.g. import app.internal.admin
 ```
 
 ----------------------------------------
 
-TITLE: OpenAPI Responses Schema
-DESCRIPTION: This JSON snippet shows the generated OpenAPI schema for the responses of a path operation, including a 404 response with a reference to the `Message` schema, a 200 response with a reference to the `Item` schema, and a 422 response for validation errors.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/de/docs/advanced/additional-responses.md#_snippet_1
-
-LANGUAGE: JSON
-CODE:
-```
-{
-    "responses": {
-        "404": {
-            "description": "Additional Response",
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Message"
-                    }
-                }
-            }
-        },
-        "200": {
-            "description": "Successful Response",
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Item"
-                    }
-                }
-            }
-        },
-        "422": {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                    }
-                }
-            }
-        }
-    }
-}
-```
-
-----------------------------------------
-
-TITLE: Generated OpenAPI Responses for FastAPI Path Operation
-DESCRIPTION: This JSON snippet shows the OpenAPI specification for the responses generated by FastAPI for a path operation. It includes the default 200 (Successful Response), 422 (Validation Error), and the explicitly defined 404 (Additional Response) with references to their respective Pydantic schemas.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/advanced/additional-responses.md#_snippet_1
-
-LANGUAGE: JSON
-CODE:
-```
-{
-    "responses": {
-        "404": {
-            "description": "Additional Response",
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Message"
-                    }
-                }
-            }
-        },
-        "200": {
-            "description": "Successful Response",
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Item"
-                    }
-                }
-            }
-        },
-        "422": {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                    }
-                }
-            }
-        }
-    }
-}
-```
-
-----------------------------------------
-
-TITLE: Documenting and Overriding Response with HTMLResponse
-DESCRIPTION: Illustrates how to use `response_class` to document the media type in OpenAPI while returning a custom `Response` object.  The `response_class` is used for documentation purposes, while the actual response is generated and returned by the function.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/ko/docs/advanced/custom-response.md#_snippet_3
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
-
-app = FastAPI()
-
-
-def generate_html_response():
-    html_content = """
-    <html>
-        <head>
-            <title>Some HTML in here</title>
-        </head>
-        <body>
-            <h1>Look ma! HTML!</h1>
-        </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content, status_code=200)
-
-
-@app.get("/items/", response_class=HTMLResponse)
-async def read_items():
-    return generate_html_response()
-```
-
-----------------------------------------
-
-TITLE: OpenAPI Path Operation Responses Schema (JSON)
-DESCRIPTION: This JSON snippet illustrates the generated OpenAPI schema for path operation responses. It defines the `404` response, including its description, content type (`application/json`), and a `$ref` to the `Message` schema component, ensuring proper documentation of error responses.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/advanced/additional-responses.md#_snippet_1
-
-LANGUAGE: JSON
-CODE:
-```
-{
-    "responses": {
-        "404": {
-            "description": "Additional Response",
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Message"
-                    }
-                }
-            }
-        },
-        "200": {
-            "description": "Successful Response",
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Item"
-                    }
-                }
-            }
-        },
-        "422": {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/HTTPValidationError"
-                    }
-                }
-            }
-        }
-    }
-}
-```
-
-----------------------------------------
-
-TITLE: Combining Response Model, Status Code, and OpenAPI Responses in FastAPI (Python)
-DESCRIPTION: This snippet illustrates how to combine `response_model`, `status_code`, and the `responses` parameter in FastAPI. It defines a `response_model` for the successful `200` response, adds a custom example for it, and also declares a `404` response with its own Pydantic model and description, enriching the OpenAPI documentation.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/advanced/additional-responses.md#_snippet_4
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import FastAPI
-from pydantic import BaseModel
-
-class Item(BaseModel):
-    id: str
-    value: str
-
-class Message(BaseModel):
-    message: str
-
-app = FastAPI()
-
-@app.get(
-    "/items/{item_id}",
-    response_model=Item,
-    responses={
-        404: {"model": Message, "description": "The item was not found"},
-        200: {
-            "description": "Item found successfully",
-            "content": {
-                "application/json": {
-                    "example": {"id": "foo", "value": "The Foo Wrestlers"}
-                }
-            }
-        }
-    }
-)
-async def read_item(item_id: str):
-    if item_id == "foo":
-        return {"id": "foo", "value": "The Foo Wrestlers"}
-    return {"message": "Item not found"}
-```
-
-----------------------------------------
-
-TITLE: Returning HTMLResponse Directly
-DESCRIPTION: Demonstrates how to return an `HTMLResponse` object directly from a *path operation*. It shows how to override the default FastAPI behavior and still document the response type in OpenAPI.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/ko/docs/advanced/custom-response.md#_snippet_2
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
-
-app = FastAPI()
-
-
-@app.get("/items/", response_class=HTMLResponse)
-async def read_items():
-    html_content = """
-    <html>
-        <head>
-            <title>Some HTML in here</title>
-        </head>
-        <body>
-            <h1>Look ma! HTML!</h1>
-        </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content, status_code=200)
-```
-
-----------------------------------------
-
-TITLE: Defining Additional Responses with Models in FastAPI
-DESCRIPTION: This code snippet demonstrates how to define additional responses for a FastAPI path operation using the `responses` parameter. It includes a 404 response with a Pydantic model `Message` and automatically generates the JSON schema for OpenAPI.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/de/docs/advanced/additional-responses.md#_snippet_0
+TITLE: Creating a Basic FastAPI Application
+DESCRIPTION: This Python code defines a simple FastAPI application with two routes: a root route ('/') that returns a greeting and an '/items/{item_id}' route that returns an item ID and an optional query parameter. It showcases the basic structure of a FastAPI application using synchronous functions.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/uk/docs/index.md#_snippet_2
 
 LANGUAGE: Python
 CODE:
@@ -1564,146 +719,75 @@ CODE:
 from typing import Union
 
 from fastapi import FastAPI
-from pydantic import BaseModel
-
-
-class Item(BaseModel):
-    id: str
-    value: str
-    tax: float
-
-
-class Message(BaseModel):
-    message: str
-
 
 app = FastAPI()
 
 
-@app.post("/items/{item_id}",
-    response_model=Item,
-    responses={
-        404: {
-            "description": "Additional Response",
-            "model": Message,
-        }
-    },
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
+
+@app.get("/items/{item_id}")
+def read_item(item_id: int, q: Union[str, None] = None):
+    return {"item_id": item_id, "q": q}
+```
+
+----------------------------------------
+
+TITLE: FastAPI APIRouter: Custom Tags and Responses
+DESCRIPTION: Shows how to define an APIRouter in FastAPI and apply additional tags and responses to individual path operations. These settings combine with any router-level configurations, providing granular control over API documentation.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_12
+
+LANGUAGE: Python
+CODE:
+```
+from fastapi import APIRouter, Depends, HTTPException, status
+
+# Assume get_token_header is defined elsewhere, e.g., in app/dependencies.py
+async def get_token_header():
+    # This is a placeholder for a real dependency
+    pass
+
+router = APIRouter(
+    prefix="/items",
+    tags=["items"],
+    dependencies=[Depends(get_token_header)],
+    responses={404: {"description": "Not found"}},
 )
-async def create_item(
-    item_id: int,
-    item: Item,
-    q: Union[str, None] = None
-):
-    results = {"item_id": item_id, **item.dict()}
-    if q:
-        results.update({"q": q})
-    return results
-```
 
-----------------------------------------
-
-TITLE: Returning HTML Response in FastAPI
-DESCRIPTION: This example shows how to return an HTML response directly from a FastAPI path operation. By importing `HTMLResponse` and setting it as the `response_class`, FastAPI automatically sets the `Content-Type` header to `text/html` and documents it correctly in OpenAPI.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/zh/docs/advanced/custom-response.md#_snippet_1
-
-LANGUAGE: Python
-CODE:
-```
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
-
-app = FastAPI()
-
-@app.get("/items/", response_class=HTMLResponse)
+@router.get("/")
 async def read_items():
-    return """
-    <html>
-        <head>
-            <title>Some HTML in here</title>
-        </head>
-        <body>
-            <h1>Hello HTML!</h1>
-        </body>
-    </html>
-    """
-```
+    return [{"item_id": "Foo"}, {"item_id": "Bar"}]
 
-----------------------------------------
-
-TITLE: Returning HTMLResponse Directly in FastAPI
-DESCRIPTION: Demonstrates how to return an HTMLResponse directly from a FastAPI path operation function. This allows for complete control over the response and overrides the default FastAPI behavior. The response_class parameter ensures proper documentation in OpenAPI.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/de/docs/advanced/custom-response.md#_snippet_3
-
-LANGUAGE: python
-CODE:
-```
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
-
-app = FastAPI()
-
-
-async def generate_html_response():
-    html_content = """
-    <html>
-        <head>
-            <title>Some HTML in here</title>
-        </head>
-        <body>
-            <h1>Look ma! HTML!</h1>
-        </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content, status_code=200)
-
-
-@app.get("/", response_class=HTMLResponse)
-async def read_items():
-    return await generate_html_response()
-
-
-@app.get("/items/{item_id}", response_class=HTMLResponse)
+@router.get("/{item_id}",
+            tags=["custom"], # Additional tag for this specific path operation
+            responses={403: {"description": "Operation forbidden"}}) # Additional response
 async def read_item(item_id: str):
-    return await generate_html_response()
+    if item_id == "forbidden":
+        raise HTTPException(status_code=403, detail="Forbidden item")
+    return {"item_id": item_id}
 ```
 
 ----------------------------------------
 
-TITLE: Returning a Generic Response Object in FastAPI
-DESCRIPTION: This snippet shows how to return a generic `Response` object directly from a FastAPI endpoint. This provides maximum control over the response content, status code, headers, and media type. However, using the base `Response` class directly means FastAPI will not automatically generate OpenAPI documentation for the response body or perform any serialization.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/advanced/custom-response.md#_snippet_4
+TITLE: Starting Traefik with Configuration File (Console)
+DESCRIPTION: This console command starts the Traefik proxy using the `traefik.toml` configuration file. It loads the defined entry points, providers, and routes, making Traefik ready to handle incoming requests.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/em/docs/advanced/behind-a-proxy.md#_snippet_8
 
-LANGUAGE: Python
+LANGUAGE: console
 CODE:
 ```
-from fastapi import FastAPI, Response
+./traefik --configFile=traefik.toml
 
-app = FastAPI()
-
-@app.get("/legacy-items/")
-async def read_legacy_items():
-    data = """<?xml version="1.0"?>
-    <shampoo>
-        <Liquid>
-            <Aqua>Water</Aqua>
-            <SodiumLaurethSulfate/>
-            <CocamidopropylBetaine/>
-        </Liquid>
-        <Bar>
-            <SodiumPalmate/>
-            <SodiumCocoate/>
-            <SodiumPalmKernelate/>
-        </Bar>
-    </shampoo>
-    """
-    return Response(content=data, media_type="application/xml")
+INFO[0000] Configuration loaded from file: /home/user/awesomeapi/traefik.toml
 ```
 
 ----------------------------------------
 
-TITLE: Combining Response Information in FastAPI
-DESCRIPTION: This example shows how to combine response information from multiple sources, including `response_model`, `status_code`, and `responses`. It declares a response model, uses the default status code 200, and adds extra information for the same response in `responses` to be included in the OpenAPI schema.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/de/docs/advanced/additional-responses.md#_snippet_4
+TITLE: Defining a Data Model and PUT Route with Pydantic
+DESCRIPTION: This code extends the FastAPI application to include a PUT route ('/items/{item_id}') that accepts a JSON body. It defines a Pydantic model (`Item`) to represent the expected data structure, enabling automatic data validation and serialization. The `update_item` function demonstrates how to access the validated data from the request body.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/az/docs/index.md#_snippet_2
 
 LANGUAGE: Python
 CODE:
@@ -1718,47 +802,198 @@ app = FastAPI()
 
 class Item(BaseModel):
     name: str
-    description: Union[str, None] = None
     price: float
-    tax: Union[float, None] = None
+    is_offer: Union[bool, None] = None
 
 
-@app.get(
-    "/items/{item_id}",
-    response_model=Item,
-    responses={
-        404: {"description": "Item not found"},
-        200: {
-            "description": "Successful Response",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "name": "Foo",
-                        "description": "A very nice Item",
-                        "price": 35.4,
-                        "tax": 3.2,
-                    }
-                }
-            },
-        },
-    },
-)
-async def read_item(item_id: int):
-    return {"name": "Foo", "description": "A very nice Item", "price": 35.4, "tax": 3.2}
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
+
+@app.get("/items/{item_id}")
+def read_item(item_id: int, q: Union[str, None] = None):
+    return {"item_id": item_id, "q": q}
+
+
+@app.put("/items/{item_id}")
+def update_item(item_id: int, item: Item):
+    return {"item_name": item.name, "item_id": item_id}
 ```
 
 ----------------------------------------
 
-TITLE: Expected Callback Response Body (JSON)
-DESCRIPTION: This JSON snippet shows the expected response body that the external API should return to your FastAPI application after receiving a callback. A simple `ok: true` indicates successful processing by the external service.
-SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/advanced/openapi-callbacks.md#_snippet_8
+TITLE: Upgrading FastAPI with Pydantic Model and PUT Request
+DESCRIPTION: This snippet extends the FastAPI application by introducing a Pydantic `BaseModel` to define the structure of a request body. It adds a `PUT` endpoint that accepts an `item_id` path parameter and an `Item` object as a request body, demonstrating how to handle structured input.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/index.md#_snippet_7
 
-LANGUAGE: JSON
+LANGUAGE: Python
 CODE:
 ```
-{
-    "ok": true
-}
+from typing import Union
+
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI()
+
+
+class Item(BaseModel):
+    name: str
+    price: float
+    is_offer: Union[bool, None] = None
+
+
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
+
+@app.get("/items/{item_id}")
+def read_item(item_id: int, q: Union[str, None] = None):
+    return {"item_id": item_id, "q": q}
+
+
+@app.put("/items/{item_id}")
+def update_item(item_id: int, item: Item):
+    return {"item_name": item.name, "item_id": item_id}
 ```
 
 ----------------------------------------
+
+TITLE: Create Basic FastAPI Application (Synchronous)
+DESCRIPTION: Defines a simple FastAPI application with a root endpoint and an item endpoint, using standard `def` functions for route handlers. This setup handles basic GET requests and demonstrates path and optional query parameters.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/README.md#_snippet_8
+
+LANGUAGE: Python
+CODE:
+```
+from typing import Union
+
+from fastapi import FastAPI
+
+app = FastAPI()
+
+
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
+
+@app.get("/items/{item_id}")
+def read_item(item_id: int, q: Union[str, None] = None):
+    return {"item_id": item_id, "q": q}
+```
+
+----------------------------------------
+
+TITLE: Creating a Basic FastAPI Application with async def
+DESCRIPTION: This Python code defines a simple FastAPI application with two routes: a root route ('/') that returns a greeting and an '/items/{item_id}' route that returns an item ID and an optional query parameter. It showcases the basic structure of a FastAPI application using asynchronous functions.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/uk/docs/index.md#_snippet_3
+
+LANGUAGE: Python
+CODE:
+```
+from typing import Union
+
+from fastapi import FastAPI
+
+app = FastAPI()
+
+
+@app.get("/")
+async def read_root():
+    return {"Hello": "World"}
+
+
+@app.get("/items/{item_id}")
+async def read_item(item_id: int, q: Union[str, None] = None):
+    return {"item_id": item_id, "q": q}
+```
+
+----------------------------------------
+
+TITLE: Creating a Basic FastAPI Application
+DESCRIPTION: This code snippet demonstrates how to create a basic FastAPI application with two GET endpoints: one for the root path ('/') and another for '/items/{item_id}'. The '/items/{item_id}' endpoint includes a path parameter 'item_id' and an optional query parameter 'q'.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/nl/docs/index.md#_snippet_1
+
+LANGUAGE: Python
+CODE:
+```
+from typing import Union
+
+from fastapi import FastAPI
+
+app = FastAPI()
+
+
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
+
+@app.get("/items/{item_id}")
+def read_item(item_id: int, q: Union[str, None] = None):
+    return {"item_id": item_id, "q": q}
+```
+
+----------------------------------------
+
+TITLE: Example FastAPI Application File Structure
+DESCRIPTION: This snippet illustrates a typical directory and file organization for a larger FastAPI application, demonstrating how Python packages and modules are structured. It includes `__init__.py` files to define packages and subpackages, and separate modules for main application logic, dependencies, and routers.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_0
+
+LANGUAGE: text
+CODE:
+```
+.
+├── app
+│   ├── __init__.py
+│   ├── main.py
+│   ├── dependencies.py
+│   └── routers
+│   │   ├── __init__.py
+│   │   ├── items.py
+│   │   └── users.py
+│   └── internal
+│       ├── __init__.py
+│       └── admin.py
+```
+
+----------------------------------------
+
+TITLE: Creating an Asynchronous FastAPI Application
+DESCRIPTION: This code snippet demonstrates how to create an asynchronous FastAPI application using `async def` for the route functions. This is useful when dealing with I/O-bound operations. It includes two GET endpoints: one for the root path ('/') and another for '/items/{item_id}'. The '/items/{item_id}' endpoint includes a path parameter 'item_id' and an optional query parameter 'q'.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/nl/docs/index.md#_snippet_2
+
+LANGUAGE: Python
+CODE:
+```
+from typing import Union
+
+from fastapi import FastAPI
+
+app = FastAPI()
+
+
+@app.get("/")
+async def read_root():
+    return {"Hello": "World"}
+
+
+@app.get("/items/{item_id}")
+async def read_item(item_id: int, q: Union[str, None] = None):
+    return {"item_id": item_id, "q": q}
+```
+
+----------------------------------------
+
+TITLE: Python Absolute Import: Importing APIRouters
+DESCRIPTION: Demonstrates an alternative absolute import method for bringing APIRouter instances from submodules into the main application. This approach uses the full package path, app.routers, to specify the module location.
+SOURCE: https://github.com/fastapi/fastapi/blob/master/docs/en/docs/tutorial/bigger-applications.md#_snippet_15
+
+LANGUAGE: Python
+CODE:
+```
+from app.routers import items, users
+```

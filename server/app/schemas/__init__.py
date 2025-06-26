@@ -1,7 +1,0 @@
-from .auth_schema import *
-from .user_profile_schema import *
-from .user_stats_schema import *
-from .course_schema import *
-from .badge_schema import *
-from .learning_progress_schema import *
-from .user_state_schema import *
