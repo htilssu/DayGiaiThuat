@@ -36,9 +36,9 @@ class Settings(BaseSettings):
         RUN_SEEDERS_ON_STARTUP (bool): Chạy seeder khi khởi động
         SEEDERS_TO_RUN (List[str]): Danh sách các seeder cần chạy
         FORCE_SEEDERS (bool): Xóa dữ liệu cũ trước khi tạo mới
-        AWS_ACCESS_KEY_ID (str): AWS Access Key ID
-        AWS_SECRET_ACCESS_KEY (str): AWS Secret Access Key
-        AWS_REGION (str): AWS Region
+        S3_ACCESS_KEY_ID (str): S3 Access Key ID
+        S3_SECRET_ACCESS_KEY (str): S3 Secret Access Key
+        S3_REGION (str): S3 Region
         S3_BUCKET_NAME (str): Tên bucket S3
         S3_COURSE_IMAGE_PREFIX (str): Prefix cho ảnh khóa học trong S3
         S3_USER_AVATAR_PREFIX (str): Prefix cho avatar người dùng trong S3
@@ -104,9 +104,8 @@ class Settings(BaseSettings):
     LANGSMITH_PROJECT: str = "default"
 
     # AWS S3 Settings
-    AWS_ACCESS_KEY_ID: Optional[str] = None
-    AWS_SECRET_ACCESS_KEY: Optional[str] = None
-    AWS_REGION: str = "ap-southeast-1"  # Default region: Singapore
+    S3_ACCESS_KEY_ID: Optional[str] = None
+    S3_SECRET_ACCESS_KEY: Optional[str] = None
     S3_BUCKET_NAME: Optional[str] = None
     S3_COURSE_IMAGE_PREFIX: str = "course-images/"
     S3_USER_AVATAR_PREFIX: str = "user-avatars/"
@@ -174,9 +173,7 @@ class Settings(BaseSettings):
             bool: True nếu S3 đã được cấu hình đầy đủ
         """
         return bool(
-            self.AWS_ACCESS_KEY_ID
-            and self.AWS_SECRET_ACCESS_KEY
-            and self.S3_BUCKET_NAME
+            self.S3_ACCESS_KEY_ID and self.S3_SECRET_ACCESS_KEY and self.S3_BUCKET_NAME
         )
 
     class Config:
