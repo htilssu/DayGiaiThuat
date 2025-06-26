@@ -22,6 +22,7 @@ export interface Course {
   whatYouWillLearn: string | null;
   createdAt: string;
   updatedAt: string;
+  testGenerationStatus?: string;
   isEnrolled?: boolean;
 }
 

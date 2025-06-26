@@ -67,7 +67,7 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
         staleTime: 2 * 60 * 1000, // Cache for 2 minutes
         refetchInterval: (data) => {
             // Auto-refresh every 10 seconds if test generation is pending
-            return data?.testGenerationStatus === 'pending' ? 10000 : false;
+            return (data as any)?.testGenerationStatus === 'pending' ? 10000 : false;
         },
         retry: (failureCount, error: any) => {
             if (error?.response?.status === 404) {
@@ -177,7 +177,7 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
     // Update form when course data changes
     useEffect(() => {
         if (course) {
-            form.setValues({
+            const newValues = {
                 title: course.title || "",
                 description: course.description || "",
                 level: course.level || "Beginner",
@@ -188,7 +188,12 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
                 requirements: course.requirements || "",
                 whatYouWillLearn: course.whatYouWillLearn || "",
                 thumbnailUrl: course.thumbnailUrl || "",
-            });
+            };
+
+            // Set both initial values and current values, then reset to clear dirty state
+            form.setInitialValues(newValues);
+            form.setValues(newValues);
+            form.resetDirty(newValues);
         }
     }, [course]);
 
@@ -289,7 +294,7 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
                     </Button>
                     <Button
                         leftSection={<IconDeviceFloppy size={16} />}
-                        onClick={form.onSubmit(handleUpdateCourse)}
+                        onClick={() => form.onSubmit(handleUpdateCourse)()}
                         loading={updateCourseMutation.isPending || uploading}
                         disabled={!form.isDirty() && !selectedImage}
                     >

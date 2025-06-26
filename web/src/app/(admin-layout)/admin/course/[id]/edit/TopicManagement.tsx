@@ -4,14 +4,7 @@ import React, { useState } from 'react';
 import { Button, TextInput, Checkbox, Modal, Group, Text, Box, Loader } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getAllTopicsAdmin, updateTopicAdmin } from '@/lib/api';
-
-interface Topic {
-    id: number;
-    name: string;
-    description: string;
-    courseId: number;
-}
+import { getAllTopicsAdmin, assignTopicToCourseAdmin, type Topic } from '@/lib/api/admin-topics';
 
 interface TopicManagementProps {
     courseId: number;
@@ -48,8 +41,8 @@ export default function TopicManagement({ courseId, opened, onClose }: TopicMana
             const topic = topics.find(t => t.id === topicId);
             if (!topic) return;
 
-            // Update topic's course assignment
-            await updateTopicAdmin(topicId, {
+            // Assign or unassign topic to course
+            await assignTopicToCourseAdmin(topicId, {
                 courseId: isSelected ? courseId : null,
             });
 
@@ -81,7 +74,7 @@ export default function TopicManagement({ courseId, opened, onClose }: TopicMana
 
     const filteredTopics = topics.filter(topic =>
         topic.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        topic.description.toLowerCase().includes(searchQuery.toLowerCase())
+        (topic.description && topic.description.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
     return (
@@ -119,7 +112,7 @@ export default function TopicManagement({ courseId, opened, onClose }: TopicMana
                                     <Box style={{ flex: 1 }}>
                                         <Text fw={500}>{topic.name}</Text>
                                         <Text size="sm" c="dimmed">
-                                            {topic.description}
+                                            {topic.description || 'Không có mô tả'}
                                         </Text>
                                     </Box>
                                     <Checkbox

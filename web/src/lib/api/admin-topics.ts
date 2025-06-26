@@ -19,6 +19,9 @@ export interface Topic {
 
 export type TopicCreatePayload = Omit<Topic, "id" | "createdAt" | "updatedAt">;
 export type TopicUpdatePayload = Partial<Pick<Topic, "name" | "description">>;
+export type TopicCourseAssignmentPayload = {
+    courseId: number | null;
+};
 
 /**
  * Lấy tất cả chủ đề (admin)
@@ -66,6 +69,18 @@ export async function updateTopicAdmin(id: number, topicData: TopicUpdatePayload
 }
 
 /**
+ * Assign/Unassign chủ đề với khóa học (admin)
+ * @param id ID của chủ đề
+ * @param assignmentData Dữ liệu assign khóa học
+ * @returns Chủ đề sau khi assign
+ */
+export async function assignTopicToCourseAdmin(id: number, assignmentData: TopicCourseAssignmentPayload): Promise<Topic> {
+    return put<Topic>(`/admin/topics/${id}/assign-course`, {
+        course_id: assignmentData.courseId
+    });
+}
+
+/**
  * Xóa chủ đề (admin)
  * @param id ID của chủ đề cần xóa
  */
@@ -79,5 +94,6 @@ export const adminTopicsApi = {
     getTopicByIdAdmin,
     createTopicAdmin,
     updateTopicAdmin,
+    assignTopicToCourseAdmin,
     deleteTopicAdmin,
 }; 

@@ -16,6 +16,13 @@ class TopicCreate(TopicBase):
 class TopicUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
+    course_id: Optional[int] = None
+
+
+class TopicCourseAssignment(BaseModel):
+    course_id: Optional[int] = Field(
+        None, description="ID của khóa học (null để unassign)"
+    )
 
 
 class TopicResponse(TopicBase):

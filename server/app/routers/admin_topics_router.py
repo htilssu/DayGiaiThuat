@@ -4,7 +4,12 @@ from typing import List
 
 from app.database.database import get_db
 from app.models.topic_model import Topic
-from app.schemas.topic_schema import TopicCreate, TopicResponse, TopicUpdate
+from app.schemas.topic_schema import (
+    TopicCreate,
+    TopicResponse,
+    TopicUpdate,
+    TopicCourseAssignment,
+)
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.utils.utils import get_current_user
 
@@ -156,6 +161,47 @@ async def update_topic(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi cập nhật chủ đề: {str(e)}",
+        )
+
+
+@router.patch(
+    "/{topic_id}/assign-course",
+    response_model=TopicResponse,
+    summary="Assign/Unassign khóa học cho chủ đề (Admin)",
+    responses={
+        200: {"description": "OK"},
+        403: {"description": "Không có quyền truy cập"},
+        404: {"description": "Không tìm thấy chủ đề"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def assign_topic_to_course(
+    topic_id: int,
+    assignment_data: TopicCourseAssignment,
+    db: Session = Depends(get_db),
+    admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
+    """
+    Assign hoặc unassign chủ đề với khóa học (chỉ admin)
+    """
+    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy chủ đề với ID {topic_id}",
+        )
+
+    try:
+        # Cập nhật course_id
+        topic.course_id = assignment_data.course_id
+        db.commit()
+        db.refresh(topic)
+        return topic
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi assign chủ đề: {str(e)}",
         )
 
 

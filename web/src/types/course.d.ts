@@ -2,16 +2,16 @@ export interface Course {
   id: number;
   title: string;
   description?: string;
-  thumbnail_url?: string;
+  thumbnailUrl?: string;
   level?: string;
   duration?: number;
   price?: number;
-  is_published?: boolean;
+  isPublished?: boolean;
   tags?: string;
   requirements?: string;
-  what_you_will_learn?: string;
-  created_at: string;
-  updated_at: string;
-  test_generation_status?: string;
-  is_enrolled?: boolean;
+  whatYouWillLearn?: string;
+  createdAt: string;
+  updatedAt: string;
+  testGenerationStatus?: string;
+  isEnrolled?: boolean;
 }

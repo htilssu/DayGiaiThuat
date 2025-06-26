@@ -82,7 +82,7 @@ class InputTestAgent(BaseAgent):
 
         # Khởi tạo tool ngay vì nó không tốn nhiều tài nguyên
         async def get_course_by_id(course_id: int):
-            course: Course = await self.course_service.get_course_by_id(course_id)
+            course: Course = self.course_service.get_course(course_id)
             return model_to_dict(course)
 
         self.tools = [

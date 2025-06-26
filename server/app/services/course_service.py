@@ -37,11 +37,7 @@ class CourseService:
         Returns:
             Course: Thông tin chi tiết của khóa học
         """
-        return (
-            self.db.query(Course)
-            .filter(Course.id == course_id, Course.is_active == True)
-            .first()
-        )
+        return self.db.query(Course).filter(Course.id == course_id).first()
 
     def create_course(self, course_data):
         """
