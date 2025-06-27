@@ -69,6 +69,11 @@ class TestService:
 
         return test
 
+    async def get_all_tests(self) -> List[Test]:
+        """Lấy danh sách tất cả bài kiểm tra"""
+        result = await self.session.execute(select(Test))
+        return list(result.scalars().all())
+
     async def get_tests_by_topic(self, topic_id: int) -> List[Test]:
         """Lấy danh sách bài kiểm tra theo topic"""
         result = await self.session.execute(
@@ -134,15 +139,15 @@ class TestService:
                 detail="Bạn đang có một phiên làm bài kiểm tra khác đang hoạt động. Vui lòng hoàn thành hoặc hủy phiên đó trước khi bắt đầu phiên mới.",
             )
 
-        # Tạo phiên mới
+        # Tạo phiên mới (chưa bắt đầu - start_time = None)
         now = datetime.utcnow()
         test_session = TestSession(
             user_id=session_data.user_id,
             test_id=session_data.test_id,
-            start_time=now,
+            start_time=None,  # Chưa bắt đầu thực sự
             last_activity=now,
             time_remaining_seconds=test.duration_minutes * 60,
-            status="in_progress",
+            status="pending",  # Trạng thái chưa bắt đầu
             is_submitted=False,
             current_question_index=0,
             answers={},
@@ -254,7 +259,7 @@ class TestService:
             if topic:
                 test_name = f"Kiểm tra: {topic.name}"
             elif course:
-                test_name = f"Bài kiểm tra đầu vào: {course.name}"
+                test_name = f"Bài kiểm tra đầu vào: {course.title}"
 
             # Số câu hỏi
             total_questions = 0
@@ -318,7 +323,7 @@ class TestService:
         if topic:
             test_name = f"Kiểm tra: {topic.name}"
         elif course:
-            test_name = f"Bài kiểm tra đầu vào: {course.name}"
+            test_name = f"Bài kiểm tra đầu vào: {course.title}"
 
         # Tính thời gian làm bài
         start_time = test_session.start_time
@@ -591,7 +596,16 @@ class TestService:
                 "session": session,
             }
 
-        # Check if time has expired based on start time and duration
+        # Nếu session ở trạng thái pending (chưa bắt đầu)
+        if session.status == "pending":
+            return {
+                "can_access": False,
+                "reason": "not_started",
+                "message": "Bài kiểm tra chưa được bắt đầu",
+                "session": session,
+            }
+
+        # Check if time has expired based on start time and duration (only for started sessions)
         if session.start_time:
             elapsed_seconds = (datetime.utcnow() - session.start_time).total_seconds()
             if elapsed_seconds >= session.time_remaining_seconds:

@@ -237,6 +237,50 @@ async def update_test_session(
     return updated_session
 
 
+@router.post("/sessions/{session_id}/start", response_model=TestSessionRead)
+async def start_test_session(
+    session_id: str,
+    test_service: TestService = Depends(get_test_service),
+    current_user=Depends(get_current_user),
+):
+    """Bắt đầu phiên làm bài kiểm tra"""
+    # Kiểm tra quyền truy cập
+    session = await test_service.get_test_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy phiên làm bài"
+        )
+
+    if session.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Không có quyền bắt đầu phiên làm bài của người dùng khác",
+        )
+
+    # Kiểm tra trạng thái session
+    if session.status not in ["pending", "in_progress"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Phiên làm bài không thể bắt đầu ở trạng thái hiện tại",
+        )
+
+    # Nếu đã bắt đầu rồi thì chỉ trả về session hiện tại
+    if session.status == "in_progress" and session.start_time:
+        return session
+
+    # Cập nhật thời gian bắt đầu thực sự và chuyển sang trạng thái in_progress
+    now = datetime.utcnow()
+    update_data = TestSessionUpdate(
+        start_time=now,
+        last_activity=now,
+        status="in_progress",
+        current_question_index=0,
+    )
+
+    updated_session = await test_service.update_session(session_id, update_data)
+    return updated_session
+
+
 @router.post(
     "/sessions/{session_id}/answers/{question_id}", response_model=TestSessionRead
 )

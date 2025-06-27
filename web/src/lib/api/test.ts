@@ -151,6 +151,11 @@ export const testApi = {
         return await post('/tests/sessions', request);
     },
 
+    // Start test session (mark as actively started)
+    startTestSession: async (sessionId: string): Promise<TestSession> => {
+        return await post(`/tests/sessions/${sessionId}/start`, {});
+    },
+
     // Get test session with test details
     getTestSession: async (sessionId: string): Promise<TestSessionWithTest> => {
         return await get(`/tests/sessions/${sessionId}`);

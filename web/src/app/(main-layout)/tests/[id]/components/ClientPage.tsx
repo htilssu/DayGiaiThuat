@@ -12,15 +12,21 @@ import {
     Group,
     Paper,
     Title,
-    Button
+    Button,
+    Badge,
+    Divider
 } from '@mantine/core';
 import {
     IconX,
     IconAlertTriangle,
     IconCheck,
-    IconClock
+    IconClock,
+    IconPlayerPlay,
+    IconBook,
+    IconClockHour9,
+    IconQuestionMark
 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { testApi, TestSessionWithTest, TestSessionDetail } from '@/lib/api';
 import { TestPage } from '@/components/test';
 import { useAppSelector } from '@/lib/store';
@@ -28,9 +34,11 @@ import { useAppSelector } from '@/lib/store';
 const ClientPage: React.FC = () => {
     const params = useParams();
     const router = useRouter();
+    const queryClient = useQueryClient();
     const sessionId = params.id as string;
     const userState = useAppSelector((state) => state.user);
     const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+    const [isStartingTest, setIsStartingTest] = useState(false);
 
     // Check session access
     const {
@@ -94,6 +102,137 @@ const ClientPage: React.FC = () => {
     // Connection status handler
     const handleConnectionStatusChange = (status: 'connecting' | 'connected' | 'disconnected') => {
         setConnectionStatus(status);
+    };
+
+    // Start test session mutation
+    const startTestMutation = useMutation({
+        mutationFn: async () => {
+            if (!sessionId) {
+                throw new Error('Không tìm thấy session ID');
+            }
+
+            // Gọi API để bắt đầu test session
+            const updatedSession = await testApi.startTestSession(sessionId);
+            return updatedSession;
+        },
+        onSuccess: () => {
+            // Invalidate queries để refresh data thay vì reload page
+            queryClient.invalidateQueries({ queryKey: ['sessionAccess', sessionId] });
+            queryClient.invalidateQueries({ queryKey: ['testSession', sessionId] });
+            setIsStartingTest(false);
+        },
+        onError: (error: any) => {
+            console.error('Error starting test:', error);
+            setIsStartingTest(false);
+        }
+    });
+
+    const handleStartTest = () => {
+        setIsStartingTest(true);
+        startTestMutation.mutate();
+    };
+
+    // Start Test Interface Component
+    const StartTestInterface = () => {
+        const session = accessCheck?.session;
+
+        if (!session) {
+            return (
+                <Container size="md" py="xl">
+                    <Alert color="orange" title="Không tìm thấy" icon={<IconAlertTriangle size={16} />}>
+                        <Text>Không tìm thấy thông tin bài kiểm tra.</Text>
+                        <Group gap="xs" mt="md">
+                            <Button variant="light" color="gray" onClick={() => router.push('/tests')}>
+                                Danh sách bài kiểm tra
+                            </Button>
+                        </Group>
+                    </Alert>
+                </Container>
+            );
+        }
+
+        return (
+            <Container size="md" py="xl">
+                <Paper p="xl" shadow="sm" withBorder>
+                    <Stack align="center" gap="lg">
+                        {/* Header Icon */}
+                        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
+                            <IconPlayerPlay size={40} color="blue" />
+                        </div>
+
+                        <Title order={2} ta="center">Sẵn sàng bắt đầu bài kiểm tra?</Title>
+
+                        <Text ta="center" c="dimmed" size="lg">
+                            Bạn sắp bắt đầu làm bài kiểm tra. Hãy đảm bảo bạn đã sẵn sàng.
+                        </Text>
+
+                        {/* Test Information */}
+                        <div className="w-full bg-gray-50 rounded-lg p-6">
+                            <Stack gap="md">
+                                <Group gap="md">
+                                    <IconBook size={20} color="gray" />
+                                    <div>
+                                        <Text fw={500}>Bài kiểm tra</Text>
+                                        <Text size="sm" c="dimmed">ID phiên: {sessionId}</Text>
+                                    </div>
+                                </Group>
+
+                                <Divider />
+
+                                <Group gap="md">
+                                    <IconClockHour9 size={20} color="orange" />
+                                    <div>
+                                        <Text fw={500}>Thời gian làm bài</Text>
+                                        <Text size="sm" c="dimmed">{Math.round(session.timeRemainingSeconds / 60)} phút</Text>
+                                    </div>
+                                </Group>
+
+                                <Group gap="md">
+                                    <IconQuestionMark size={20} color="green" />
+                                    <div>
+                                        <Text fw={500}>Trạng thái</Text>
+                                        <Badge color={session.status === 'in_progress' ? 'blue' : 'gray'} variant="light">
+                                            {session.status === 'in_progress' ? 'Chưa bắt đầu' : session.status}
+                                        </Badge>
+                                    </div>
+                                </Group>
+                            </Stack>
+                        </div>
+
+                        {/* Instructions */}
+                        <div className="w-full bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <Text size="sm" c="orange.7" fw={500} mb="xs">⚠️ Lưu ý quan trọng:</Text>
+                            <Stack gap="xs">
+                                <Text size="sm" c="orange.8">• Bài kiểm tra sẽ tự động nộp khi hết thời gian</Text>
+                                <Text size="sm" c="orange.8">• Không được đóng trình duyệt trong quá trình làm bài</Text>
+                                <Text size="sm" c="orange.8">• Hãy đảm bảo kết nối internet ổn định</Text>
+                                <Text size="sm" c="orange.8">• Làm bài một cách trung thực và độc lập</Text>
+                            </Stack>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <Group gap="md" mt="md">
+                            <Button
+                                variant="light"
+                                color="gray"
+                                onClick={() => router.push('/tests')}
+                                disabled={isStartingTest}
+                            >
+                                Quay lại
+                            </Button>
+                            <Button
+                                size="md"
+                                onClick={handleStartTest}
+                                loading={isStartingTest}
+                                leftSection={<IconPlayerPlay size={18} />}
+                            >
+                                Bắt đầu làm bài
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Paper>
+            </Container>
+        );
     };
 
     // Loading state
@@ -222,7 +361,13 @@ const ClientPage: React.FC = () => {
             );
         }
 
-        // Other access denied reasons
+        // Show start test interface for sessions that exist but not yet started or permission issues
+        // Only show start interface if there's actually a session to start
+        if (session && (accessCheck.reason === 'not_started' || accessCheck.reason !== 'permission_denied')) {
+            return <StartTestInterface />;
+        }
+
+        // True error cases (no session data or permission denied)
         return (
             <Container size="md" py="xl">
                 <Alert color="red" title="Không thể truy cập" icon={<IconAlertTriangle size={16} />}>
@@ -237,6 +382,17 @@ const ClientPage: React.FC = () => {
         );
     }
 
+    // If we can access the session and testSession data is available, show TestPage
+    if (accessCheck?.can_access && testSession) {
+        return (
+            <TestPage
+                sessionId={sessionId}
+                onConnectionStatusChange={handleConnectionStatusChange}
+            />
+        );
+    }
+
+    // Fallback for missing testSession data
     if (!testSession) {
         return (
             <Container size="md" py="xl">
@@ -247,7 +403,7 @@ const ClientPage: React.FC = () => {
         );
     }
 
-    // Render test page if can access
+    // Default fallback - should not reach here
     return (
         <TestPage
             sessionId={sessionId}

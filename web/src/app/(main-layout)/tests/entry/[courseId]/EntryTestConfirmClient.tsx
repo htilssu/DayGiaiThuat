@@ -37,9 +37,15 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
     const [isStarting, setIsStarting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Validate courseId at component entry
+    const courseIdNumber = parseInt(courseId);
+    const isCourseIdValid = !isNaN(courseIdNumber) && courseIdNumber > 0 && courseId.trim() !== '';
+
     // Debug logging
     console.log('🔍 EntryTestConfirmClient Debug:', {
         courseId,
+        courseIdNumber,
+        isCourseIdValid,
         userState: {
             isLoading: userState.isLoading,
             isInitial: userState.isInitial,
@@ -52,11 +58,11 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
         queryKey: ['course', courseId],
         queryFn: async () => {
             console.log('🚀 Fetching course:', courseId);
-            const result = await coursesApi.getCourseById(parseInt(courseId));
+            const result = await coursesApi.getCourseById(courseIdNumber);
             console.log('✅ Course result:', result);
             return result;
         },
-        enabled: !!courseId,
+        enabled: !!courseId && isCourseIdValid,
     });
 
     // Fetch entry test information
@@ -64,11 +70,11 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
         queryKey: ['courseEntryTest', courseId],
         queryFn: async () => {
             console.log('🚀 Fetching entry test for course:', courseId);
-            const result = await coursesApi.getCourseEntryTest(parseInt(courseId));
+            const result = await coursesApi.getCourseEntryTest(courseIdNumber);
             console.log('✅ Entry test result:', result);
             return result;
         },
-        enabled: !!courseId && !!userState.user,
+        enabled: !!courseId && isCourseIdValid && !!userState.user,
         retry: false, // Don't retry on error to see the actual error
     });
 
@@ -90,14 +96,14 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
     }, [userState, router]);
 
     const handleStartTest = async () => {
-        if (!userState.user || isStarting || !entryTest) return;
+        if (!userState.user || isStarting || !entryTest || !isCourseIdValid) return;
 
         try {
             setIsStarting(true);
             setError(null);
 
             // Gọi API để tạo test session
-            const testSession = await coursesApi.startCourseEntryTest(parseInt(courseId));
+            const testSession = await coursesApi.startCourseEntryTest(courseIdNumber);
             console.log('✅ Created test session:', testSession.id);
             console.log('🔄 Redirecting to:', `/tests/${testSession.id}`);
 
@@ -111,8 +117,33 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
     };
 
     const handleCancel = () => {
-        router.push(`/courses/${courseId}`);
+        if (isCourseIdValid) {
+            router.push(`/courses/${courseId}`);
+        } else {
+            router.push('/courses');
+        }
     };
+
+    // Handle invalid courseId
+    if (!isCourseIdValid) {
+        return (
+            <Container size="md" py="xl">
+                <Paper p="xl" radius="md" withBorder>
+                    <Alert
+                        icon={<IconAlertCircle size="1rem" />}
+                        title="ID khóa học không hợp lệ"
+                        color="red"
+                        mb="lg"
+                    >
+                        ID khóa học "{courseId}" không hợp lệ. Vui lòng kiểm tra lại đường link hoặc chọn khóa học từ danh sách.
+                    </Alert>
+                    <Button onClick={() => router.push('/courses')}>
+                        Quay về danh sách khóa học
+                    </Button>
+                </Paper>
+            </Container>
+        );
+    }
 
     if (!userState.user && !userState.isLoading) {
         return null; // Will redirect to login
