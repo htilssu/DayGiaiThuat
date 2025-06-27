@@ -70,6 +70,44 @@ export interface TestSessionWithTest extends TestSession {
     test: Test;
 }
 
+export interface TestHistorySummary {
+    sessionId: string;
+    testId: number;
+    topicId?: number;
+    courseId?: number;
+    testName: string;
+    startTime: string;
+    endTime?: string;
+    durationMinutes: number;
+    score?: number;
+    correctAnswers?: number;
+    totalQuestions: number;
+    status: string;
+}
+
+export interface TestSessionDetail {
+    sessionId: string;
+    testId: number;
+    userId: number;
+    testName: string;
+    startTime: string;
+    endTime?: string;
+    durationMinutes: number;
+    timeRemainingSeconds: number;
+    status: string;
+    isSubmitted: boolean;
+    currentQuestionIndex: number;
+    score?: number;
+    correctAnswers?: number;
+    totalQuestions: number;
+    answers: Record<string, any>;
+    questions: TestQuestion[];
+    topicId?: number;
+    courseId?: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
 export interface CreateTestSessionRequest {
     testId: number;
 }
@@ -143,9 +181,14 @@ export const testApi = {
         return await post(`/tests/sessions/${sessionId}/submit`, { answers });
     },
 
-    // Get user's test history
-    getUserTestHistory: async (): Promise<TestSession[]> => {
+    // Get user's test history (summary only)
+    getUserTestHistory: async (): Promise<TestHistorySummary[]> => {
         return await get('/tests/sessions/history');
+    },
+
+    // Get detailed test session info
+    getTestSessionDetail: async (sessionId: string): Promise<TestSessionDetail> => {
+        return await get(`/tests/sessions/${sessionId}/detail`);
     },
 
     // Get test results by session ID

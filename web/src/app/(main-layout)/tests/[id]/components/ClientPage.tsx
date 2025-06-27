@@ -21,7 +21,7 @@ import {
     IconClock
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { testApi, TestSessionWithTest } from '@/lib/api';
+import { testApi, TestSessionWithTest, TestSessionDetail } from '@/lib/api';
 import { TestPage } from '@/components/test';
 import { useAppSelector } from '@/lib/store';
 
@@ -48,7 +48,7 @@ const ClientPage: React.FC = () => {
         refetchOnWindowFocus: false,
     });
 
-    // Fetch test session data if can access
+    // Fetch test session data if can access (for active sessions)
     const {
         data: testSession,
         isLoading: sessionLoading,
@@ -67,6 +67,23 @@ const ClientPage: React.FC = () => {
         gcTime: 10 * 60 * 1000,
     });
 
+    // Fetch detailed session data for completed sessions
+    const isCompletedSession = accessCheck?.reason === 'test_completed' || accessCheck?.reason === 'test_expired';
+    const {
+        data: sessionDetail,
+        isLoading: detailLoading,
+        error: detailError
+    } = useQuery<TestSessionDetail>({
+        queryKey: ['testSessionDetail', sessionId],
+        queryFn: async () => {
+            const result = await testApi.getTestSessionDetail(sessionId);
+            return result;
+        },
+        enabled: !!sessionId && !!userState.user && isCompletedSession,
+        retry: 2,
+        refetchOnWindowFocus: false,
+    });
+
     // Redirect if not authenticated
     useEffect(() => {
         if (!userState.isLoading && !userState.isInitial && !userState.user) {
@@ -80,7 +97,7 @@ const ClientPage: React.FC = () => {
     };
 
     // Loading state
-    if (accessLoading || (accessCheck?.can_access && sessionLoading)) {
+    if (accessLoading || (accessCheck?.can_access && sessionLoading) || (isCompletedSession && detailLoading)) {
         return (
             <Container size="md" py="xl">
                 <Paper p="xl" shadow="sm" withBorder>
@@ -94,8 +111,8 @@ const ClientPage: React.FC = () => {
     }
 
     // Error state
-    if (accessError || (accessCheck?.can_access && sessionError)) {
-        const error = accessError || sessionError;
+    if (accessError || (accessCheck?.can_access && sessionError) || (isCompletedSession && detailError)) {
+        const error = accessError || sessionError || detailError;
         return (
             <Container size="md" py="xl">
                 <Alert color="red" title="Lỗi" icon={<IconX size={16} />}>
@@ -148,28 +165,43 @@ const ClientPage: React.FC = () => {
                             </Text>
 
                             {/* Show results if available */}
-                            {session && session.score !== undefined && session.correctAnswers !== undefined && (
+                            {sessionDetail && (
                                 <div className="bg-gray-50 rounded-lg p-6 w-full">
-                                    <Text fw={500} mb="md" ta="center">Kết quả bài kiểm tra</Text>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <Text fw={500} mb="md" ta="center">Kết quả bài kiểm tra: {sessionDetail.testName}</Text>
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                                         <div className="text-center">
                                             <div className="text-2xl font-bold text-blue-600 mb-2">
-                                                {Math.round(session.score)}%
+                                                {sessionDetail.score ? Math.round(sessionDetail.score) : 0}%
                                             </div>
                                             <div className="text-sm text-gray-600">Điểm số</div>
                                         </div>
                                         <div className="text-center">
                                             <div className="text-2xl font-bold text-green-600 mb-2">
-                                                {session.correctAnswers}
+                                                {sessionDetail.correctAnswers || 0}
                                             </div>
                                             <div className="text-sm text-gray-600">Câu đúng</div>
                                         </div>
                                         <div className="text-center">
                                             <div className="text-2xl font-bold text-gray-600 mb-2">
-                                                {testSession?.test?.questions?.length ?? 0}
+                                                {sessionDetail.totalQuestions}
                                             </div>
                                             <div className="text-sm text-gray-600">Tổng câu hỏi</div>
                                         </div>
+                                        <div className="text-center">
+                                            <div className="text-2xl font-bold text-orange-600 mb-2">
+                                                {sessionDetail.durationMinutes}
+                                            </div>
+                                            <div className="text-sm text-gray-600">Phút làm bài</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Additional details */}
+                                    <div className="text-sm text-gray-600 space-y-1">
+                                        <div>Bắt đầu: {new Date(sessionDetail.startTime).toLocaleString('vi-VN')}</div>
+                                        {sessionDetail.endTime && (
+                                            <div>Kết thúc: {new Date(sessionDetail.endTime).toLocaleString('vi-VN')}</div>
+                                        )}
+                                        <div>Trạng thái: {sessionDetail.status === 'completed' ? 'Hoàn thành' : 'Hết thời gian'}</div>
                                     </div>
                                 </div>
                             )}
@@ -178,8 +210,8 @@ const ClientPage: React.FC = () => {
                                 <Button onClick={() => router.push('/tests')}>
                                     Danh sách bài kiểm tra
                                 </Button>
-                                {session?.test?.topicId && (
-                                    <Button variant="light" onClick={() => router.push(`/topics/${session.test.topicId}`)}>
+                                {sessionDetail?.topicId && (
+                                    <Button variant="light" onClick={() => router.push(`/topics/${sessionDetail.topicId}`)}>
                                         Quay lại chủ đề
                                     </Button>
                                 )}

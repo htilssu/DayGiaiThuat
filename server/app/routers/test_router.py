@@ -21,6 +21,7 @@ from app.schemas.test_schema import (
     TestSessionWithTest,
     TestSubmission,
     TestResult,
+    TestHistorySummary,
 )
 from app.utils.utils import get_current_user
 
@@ -192,13 +193,23 @@ async def get_my_test_sessions(
     return sessions
 
 
-@router.get("/sessions/history", response_model=List[TestSessionWithTest])
+@router.get("/sessions/history", response_model=List[TestHistorySummary])
 async def get_test_history(
     test_service: TestService = Depends(get_test_service),
     current_user=Depends(get_current_user),
 ):
-    """Lấy lịch sử làm bài kiểm tra của người dùng với thông tin bài kiểm tra"""
+    """Lấy lịch sử làm bài kiểm tra của người dùng - chỉ thông tin cơ bản"""
     return await test_service.get_user_test_history(current_user.id)
+
+
+@router.get("/sessions/{session_id}/detail", response_model=Dict[str, Any])
+async def get_test_session_detail(
+    session_id: str,
+    test_service: TestService = Depends(get_test_service),
+    current_user=Depends(get_current_user),
+):
+    """Lấy thông tin chi tiết của một phiên làm bài đã hoàn thành"""
+    return await test_service.get_test_session_detail(session_id, current_user.id)
 
 
 @router.put("/sessions/{session_id}", response_model=TestSessionRead)

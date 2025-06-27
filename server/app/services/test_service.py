@@ -15,6 +15,7 @@ from app.schemas.test_schema import (
     TestSubmission,
     TestResult,
     QuestionFeedback,
+    TestHistorySummary,
 )
 
 
@@ -218,11 +219,16 @@ class TestService:
         )
         return result.scalars().all()
 
-    async def get_user_test_history(self, user_id: int) -> List[Dict[str, Any]]:
-        """Lấy lịch sử làm bài kiểm tra của người dùng với thông tin bài kiểm tra"""
+    async def get_user_test_history(self, user_id: int) -> List[TestHistorySummary]:
+        """Lấy lịch sử làm bài kiểm tra của người dùng - chỉ thông tin cơ bản"""
+        from app.models.topic_model import Topic
+        from app.models.course_model import Course
+
         result = await self.session.execute(
-            select(TestSession, Test)
+            select(TestSession, Test, Topic, Course)
             .join(Test, TestSession.test_id == Test.id)
+            .outerjoin(Topic, Test.topic_id == Topic.id)
+            .outerjoin(Course, Test.course_id == Course.id)
             .where(
                 and_(
                     TestSession.user_id == user_id,
@@ -233,50 +239,122 @@ class TestService:
         )
 
         history = []
-        for test_session, test in result.all():
-            # Tính thời gian làm bài
+        for test_session, test, topic, course in result.all():
+            # Tính thời gian làm bài thực tế
             start_time = test_session.start_time
             end_time = test_session.end_time or test_session.updated_at
+            duration_minutes = 0
 
-            # Chuyển đổi sang dictionary và thêm thông tin test
-            session_dict = {
-                "id": test_session.id,
-                "testId": test_session.test_id,
-                "userId": test_session.user_id,
-                "startTime": start_time.isoformat() if start_time else None,
-                "endTime": end_time.isoformat() if end_time else None,
-                "timeRemainingSeconds": test_session.time_remaining_seconds,
-                "status": test_session.status,
-                "isSubmitted": test_session.is_submitted,
-                "currentQuestionIndex": test_session.current_question_index,
-                "score": test_session.score,
-                "correctAnswers": test_session.correct_answers,
-                "answers": test_session.answers or {},
-                "createdAt": (
-                    test_session.created_at.isoformat()
-                    if test_session.created_at
-                    else None
-                ),
-                "updatedAt": (
-                    test_session.updated_at.isoformat()
-                    if test_session.updated_at
-                    else None
-                ),
-                "test": {
-                    "id": test.id,
-                    "name": test.name,
-                    "description": test.description,
-                    "questions": test.questions,
-                    "durationMinutes": test.duration_minutes,
-                    "passingScore": test.passing_score,
-                    "difficulty": getattr(test, "difficulty", None),
-                    "topicName": getattr(test, "topic_name", None),
-                    "courseName": getattr(test, "course_name", None),
-                },
-            }
-            history.append(session_dict)
+            if start_time and end_time:
+                duration_delta = end_time - start_time
+                duration_minutes = int(duration_delta.total_seconds() / 60)
+
+            # Tên bài kiểm tra từ topic hoặc course
+            test_name = "Bài kiểm tra"
+            if topic:
+                test_name = f"Kiểm tra: {topic.name}"
+            elif course:
+                test_name = f"Bài kiểm tra đầu vào: {course.name}"
+
+            # Số câu hỏi
+            total_questions = 0
+            if test.questions:
+                if isinstance(test.questions, list):
+                    total_questions = len(test.questions)
+                elif isinstance(test.questions, dict):
+                    total_questions = len(test.questions)
+
+            summary = TestHistorySummary(
+                session_id=test_session.id,
+                test_id=test_session.test_id,
+                topic_id=test.topic_id,
+                course_id=test.course_id,
+                test_name=test_name,
+                start_time=start_time,
+                end_time=end_time,
+                duration_minutes=duration_minutes,
+                score=test_session.score,
+                correct_answers=test_session.correct_answers,
+                total_questions=total_questions,
+                status=test_session.status,
+            )
+            history.append(summary)
 
         return history
+
+    async def get_test_session_detail(
+        self, session_id: str, user_id: int
+    ) -> Dict[str, Any]:
+        """Lấy thông tin chi tiết của một phiên làm bài"""
+        from app.models.topic_model import Topic
+        from app.models.course_model import Course
+
+        result = await self.session.execute(
+            select(TestSession, Test, Topic, Course)
+            .join(Test, TestSession.test_id == Test.id)
+            .outerjoin(Topic, Test.topic_id == Topic.id)
+            .outerjoin(Course, Test.course_id == Course.id)
+            .where(TestSession.id == session_id)
+        )
+
+        session_data = result.first()
+        if not session_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Không tìm thấy phiên làm bài",
+            )
+
+        test_session, test, topic, course = session_data
+
+        # Kiểm tra quyền truy cập
+        if test_session.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Không có quyền xem phiên làm bài này",
+            )
+
+        # Tên bài kiểm tra
+        test_name = "Bài kiểm tra"
+        if topic:
+            test_name = f"Kiểm tra: {topic.name}"
+        elif course:
+            test_name = f"Bài kiểm tra đầu vào: {course.name}"
+
+        # Tính thời gian làm bài
+        start_time = test_session.start_time
+        end_time = test_session.end_time or test_session.updated_at
+        duration_minutes = 0
+
+        if start_time and end_time:
+            duration_delta = end_time - start_time
+            duration_minutes = int(duration_delta.total_seconds() / 60)
+
+        return {
+            "sessionId": test_session.id,
+            "testId": test_session.test_id,
+            "userId": test_session.user_id,
+            "testName": test_name,
+            "startTime": start_time.isoformat() if start_time else None,
+            "endTime": end_time.isoformat() if end_time else None,
+            "durationMinutes": duration_minutes,
+            "timeRemainingSeconds": test_session.time_remaining_seconds,
+            "status": test_session.status,
+            "isSubmitted": test_session.is_submitted,
+            "currentQuestionIndex": test_session.current_question_index,
+            "score": test_session.score,
+            "correctAnswers": test_session.correct_answers,
+            "totalQuestions": len(test.questions) if test.questions else 0,
+            "answers": test_session.answers or {},
+            "questions": test.questions or [],
+            "topicId": test.topic_id,
+            "courseId": test.course_id,
+            "createdAt": (
+                test_session.created_at.isoformat() if test_session.created_at else None
+            ),
+            "updatedAt": (
+                test_session.updated_at.isoformat() if test_session.updated_at else None
+            ),
+        }
 
     async def update_session(
         self, session_id: str, update_data: TestSessionUpdate

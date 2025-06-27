@@ -40,7 +40,7 @@ import {
     IconClockHour9
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { testApi } from '@/lib/api';
+import { testApi, TestHistorySummary } from '@/lib/api';
 import { useAppSelector } from '@/lib/store';
 
 const ClientPage: React.FC = () => {
@@ -79,17 +79,11 @@ const ClientPage: React.FC = () => {
         try {
             setStartingTest(testId);
 
-            // Kiểm tra xem có session đang hoạt động không
+            // Kiểm tra xem có thể làm bài kiểm tra không
             const canTake = await testApi.canTakeTest(testId);
 
-            if (canTake.has_active_session) {
-                // Có session đang hoạt động, chuyển đến session đó
-                router.push(`/tests/${canTake.session_id}`);
-                return;
-            }
-
-            if (!canTake.can_take) {
-                alert(canTake.message || 'Không thể làm bài kiểm tra này');
+            if (!canTake.canTake) {
+                alert(canTake.reason || 'Không thể làm bài kiểm tra này');
                 return;
             }
 
@@ -170,18 +164,13 @@ const ClientPage: React.FC = () => {
         });
     };
 
-    const calculateDuration = (startTime: string, endTime?: string) => {
-        const start = new Date(startTime);
-        const end = endTime ? new Date(endTime) : new Date();
-        const diffMs = end.getTime() - start.getTime();
-        const diffMinutes = Math.round(diffMs / (1000 * 60));
-
-        if (diffMinutes < 60) {
-            return `${diffMinutes} phút`;
+    const formatTestDuration = (minutes: number) => {
+        if (minutes < 60) {
+            return `${minutes} phút`;
         }
-        const hours = Math.floor(diffMinutes / 60);
-        const minutes = diffMinutes % 60;
-        return minutes > 0 ? `${hours}h ${minutes}m` : `${hours} giờ`;
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours} giờ`;
     };
 
     if (!userState.user) {
@@ -367,18 +356,13 @@ const ClientPage: React.FC = () => {
                                         </Table.Tr>
                                     </Table.Thead>
                                     <Table.Tbody>
-                                        {testHistory.map((session: any) => (
-                                            <Table.Tr key={session.id}>
+                                        {testHistory.map((session: TestHistorySummary) => (
+                                            <Table.Tr key={session.sessionId}>
                                                 <Table.Td>
                                                     <Stack gap={2}>
                                                         <Text fw={500} size="sm">
-                                                            {session.test?.name || `Bài kiểm tra ${session.testId}`}
+                                                            {session.testName}
                                                         </Text>
-                                                        {session.test?.topic_name && (
-                                                            <Text size="xs" c="dimmed">
-                                                                {session.test.topic_name}
-                                                            </Text>
-                                                        )}
                                                     </Stack>
                                                 </Table.Td>
                                                 <Table.Td>
@@ -391,14 +375,14 @@ const ClientPage: React.FC = () => {
                                                                     <IconX size={12} />
                                                         }
                                                     >
-                                                        {getStatusLabel(session.status, session.isSubmitted)}
+                                                        {getStatusLabel(session.status, true)}
                                                     </Badge>
                                                 </Table.Td>
                                                 <Table.Td>
                                                     <Group gap="xs">
                                                         <IconClock size={14} color="gray" />
                                                         <Text size="sm">
-                                                            {calculateDuration(session.startTime, session.endTime)}
+                                                            {formatTestDuration(session.durationMinutes)}
                                                         </Text>
                                                     </Group>
                                                 </Table.Td>
@@ -422,7 +406,7 @@ const ClientPage: React.FC = () => {
                                                         <Group gap="xs">
                                                             <IconTarget size={14} color="green" />
                                                             <Text size="sm">
-                                                                {session.correctAnswers}/{session.test?.questions?.length || '?'}
+                                                                {session.correctAnswers}/{session.totalQuestions}
                                                             </Text>
                                                         </Group>
                                                     ) : (
@@ -441,7 +425,7 @@ const ClientPage: React.FC = () => {
                                                     <Button
                                                         size="xs"
                                                         variant="light"
-                                                        onClick={() => handleViewResult(session.id)}
+                                                        onClick={() => handleViewResult(session.sessionId)}
                                                     >
                                                         Xem kết quả
                                                     </Button>

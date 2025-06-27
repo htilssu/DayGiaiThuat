@@ -111,3 +111,20 @@ class TestResult(BaseModel):
     total_questions: int
     correct_answers: int
     feedback: Dict[str, QuestionFeedback] = {}
+
+
+class TestHistorySummary(BaseModel):
+    """Schema cho lịch sử làm bài - chỉ thông tin cơ bản"""
+
+    session_id: str
+    test_id: int
+    topic_id: Optional[int] = None
+    course_id: Optional[int] = None
+    test_name: str  # Tên bài kiểm tra (từ topic hoặc course)
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    duration_minutes: int  # Thời gian làm bài thực tế (phút)
+    score: Optional[float] = None
+    correct_answers: Optional[int] = None
+    total_questions: int
+    status: str
