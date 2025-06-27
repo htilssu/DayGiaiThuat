@@ -1,27 +1,44 @@
-import { redirect } from 'next/navigation';
-import { Metadata } from 'next';
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { testApi } from '@/lib/api';
-import { getAuthHeaders } from '@/lib/utils/auth';
+import { useAppSelector } from '@/lib/store';
 
-export const metadata: Metadata = {
-    title: "Bài kiểm tra đầu vào - AI Agent Giải Thuật",
-    description: "Làm bài kiểm tra đầu vào để đánh giá trình độ và nhận lộ trình học phù hợp",
-    authors: [{ name: "AI Agent Giải Thuật Team" }],
-    keywords: ["giải thuật", "học tập", "lập trình", "AI", "kiểm tra đầu vào", "đánh giá trình độ"],
-};
+export default function TopicTestPage({ params }: { params: { topicId: string } }) {
+    const router = useRouter();
+    const userState = useAppSelector(state => state.user);
 
-export default async function TopicTestPage({ params }: { params: { topicId: string } }) {
-    const headers = getAuthHeaders();
-    if (!headers) {
-        redirect('/auth/login');
-    }
+    useEffect(() => {
+        const createTestSession = async () => {
+            if (!userState.user) {
+                router.push('/auth/login');
+                return;
+            }
 
-    try {
-        const session = await testApi.createTestSessionFromTopic(parseInt(params.topicId), headers);
-        redirect(`/tests/${session.id}`);
-    } catch (error) {
-        console.error("Error creating test session from topic:", error);
-        // Handle error, maybe redirect to an error page or show a message
-        redirect('/error'); // Or a more specific error page
-    }
+            try {
+                const test = await testApi.getTestByTopic(params.topicId);
+                if (test) {
+                    const session = await testApi.createTestSession({
+                        user_id: userState.user.id,
+                        test_id: parseInt(test.id)
+                    });
+                    console.log('Created session with UUID:', session.id);
+                    router.push(`/tests/${session.id}`);
+                } else {
+                    console.error("No test found for topic:", params.topicId);
+                    router.push('/tests'); // Redirect to tests list
+                }
+            } catch (error) {
+                console.error("Error creating test session from topic:", error);
+                router.push('/tests'); // Redirect to tests list on error
+            }
+        };
+
+        if (userState.user) {
+            createTestSession();
+        }
+    }, [userState.user, params.topicId, router]);
+
+    return <div>Đang tạo phiên làm bài...</div>;
 }  

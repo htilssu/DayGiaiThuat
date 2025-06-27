@@ -25,17 +25,17 @@ class TestBase(BaseModel):
 
 
 class TestCreate(TestBase):
-    questions: Dict[str, Any] = {}
+    questions: List[Any] = []
 
 
 class TestUpdate(BaseModel):
     duration_minutes: Optional[int] = None
-    questions: Optional[Dict[str, Any]] = None
+    questions: Optional[List[Any]] = None
 
 
 class TestInDB(TestBase):
     id: int
-    questions: Dict[str, Any] = {}
+    questions: List[Any] = []
 
     class Config:
         from_attributes = True

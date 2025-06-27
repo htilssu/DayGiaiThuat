@@ -1,23 +1,25 @@
-import { client } from "./client";
+import { get, post, patch } from './client';
 
 export interface TestQuestion {
     id: string;
-    title: string;
     content: string;
-    type: "multiple_choice" | "problem";
-    options?: {
-        id: string;
-        text: string;
-    }[];
-    codeTemplate?: string;
+    type: 'single_choice' | 'essay';
+    difficulty?: string;
+    answer?: string;
+    options?: string[];
 }
 
 export interface Test {
-    id: string;
-    topicId?: number;
+    id: number;
     courseId?: number;
-    duration_minutes: number;
-    questions: Record<string, any>;
+    topicId?: number;
+    questions: TestQuestion[];
+    durationMinutes: number;
+    passingScore?: number;
+    maxAttempts?: number;
+    isPublic?: boolean;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface TestSubmission {
@@ -33,11 +35,7 @@ export interface TestResult {
     score: number;
     totalQuestions: number;
     correctAnswers: number;
-    feedback: {
-        questionId: string;
-        isCorrect: boolean;
-        feedback?: string;
-    }[];
+    completedAt: string;
 }
 
 export interface TestAnswer {
@@ -48,120 +46,137 @@ export interface TestAnswer {
 
 export interface TestSession {
     id: string;
-    user_id: number;
-    test_id: number;
-    start_time: string;
-    end_time?: string;
-    last_activity: string;
-    time_remaining_seconds: number;
+    userId: number;
+    testId: number;
+    timeRemainingSeconds: number;
     status: 'in_progress' | 'completed' | 'expired';
-    is_submitted: boolean;
-    current_question_index: number;
-    answers: Record<string, TestAnswer>;
-    score?: number;
-    correct_answers?: number;
+    isSubmitted: boolean;
+    currentQuestionIndex: number;
+    score?: number | null;
+    correctAnswers?: number | null;
+    answers: Record<string, {
+        selectedOptionId?: string;
+        code?: string;
+        feedback?: {
+            isCorrect: boolean;
+            feedback?: string;
+        };
+    }>;
+    createdAt: string;
+    updatedAt: string;
 }
 
-export interface TestSessionCreate {
-    user_id: number;
-    test_id: number;
-}
-
-export interface TestSessionUpdate {
-    current_question_index?: number;
-    answers?: Record<string, TestAnswer>;
-    time_remaining_seconds?: number;
-    last_activity?: string;
-    status?: string;
-    is_submitted?: boolean;
-}
-
-export interface TestSessionWithTest {
-    id: string;
-    user_id: number;
-    test_id: number;
-    start_time: string;
-    end_time?: string;
-    last_activity: string;
-    time_remaining_seconds: number;
-    status: 'in_progress' | 'completed' | 'expired';
-    is_submitted: boolean;
-    current_question_index: number;
-    answers: Record<string, TestAnswer>;
-    score?: number;
-    correct_answers?: number;
+export interface TestSessionWithTest extends TestSession {
     test: Test;
 }
 
+export interface CreateTestSessionRequest {
+    testId: number;
+}
+
+export interface SubmitSessionAnswerRequest {
+    questionId: string;
+    answer: {
+        selectedOptionId?: string;
+        code?: string;
+    };
+}
+
+export interface UpdateTestSessionRequest {
+    currentQuestionIndex?: number;
+    timeRemainingSeconds?: number;
+}
+
 export const testApi = {
-    getTests: async (): Promise<Test[]> => {
-        const response = await client.get('/tests');
-        return response.data;
+    // Get available tests for a topic
+    getTestsByTopic: async (topicId: number): Promise<Test[]> => {
+        return await get(`/tests/topic/${topicId}`);
     },
 
-    getTest: async (testId: string): Promise<Test> => {
-        const response = await client.get(`/tests/${testId}`);
-        return response.data;
+    // Get available tests for a course (entry test)
+    getTestsByCourse: async (courseId: number): Promise<Test[]> => {
+        return await get(`/tests/course/${courseId}`);
     },
 
-    getTestByTopic: async (topicId: string): Promise<Test | null> => {
+    // Get test by ID
+    getTestById: async (testId: number): Promise<Test> => {
+        return await get(`/tests/${testId}`);
+    },
+
+    // Create a new test session
+    createTestSession: async (request: CreateTestSessionRequest): Promise<TestSession> => {
+        return await post('/tests/sessions', request);
+    },
+
+    // Get test session with test details
+    getTestSession: async (sessionId: string): Promise<TestSessionWithTest> => {
+        return await get(`/tests/sessions/${sessionId}`);
+    },
+
+    // Update test session (progress, time)
+    updateTestSession: async (sessionId: string, updates: UpdateTestSessionRequest): Promise<TestSession> => {
+        return await patch(`/tests/sessions/${sessionId}`, updates);
+    },
+
+    // Submit answer for a specific question
+    submitSessionAnswer: async (
+        sessionId: string,
+        questionId: string,
+        answer: { selectedOptionId?: string; code?: string }
+    ): Promise<void> => {
+        await post(`/tests/sessions/${sessionId}/answers`, {
+            questionId,
+            answer
+        });
+    },
+
+    // Submit entire test session
+    submitTestSession: async (
+        sessionId: string,
+        answers: Record<string, { selectedOptionId?: string; code?: string }>
+    ): Promise<TestResult> => {
+        return await post(`/tests/sessions/${sessionId}/submit`, { answers });
+    },
+
+    // Get user's test history
+    getUserTestHistory: async (): Promise<TestSession[]> => {
+        return await get('/tests/sessions/history');
+    },
+
+    // Get test results by session ID
+    getTestResult: async (sessionId: string): Promise<TestResult> => {
+        return await get(`/tests/sessions/${sessionId}/result`);
+    },
+
+    // Resume test session (if exists)
+    resumeTestSession: async (testId: number): Promise<TestSessionWithTest | null> => {
         try {
-            const response = await client.get(`/tests/topic/${topicId}`);
-            return response.data;
-        } catch (error) {
-            console.error("Error fetching test for topic:", error);
-            return null;
+            return await get(`/tests/${testId}/resume`);
+        } catch (error: any) {
+            if (error.response?.status === 404) {
+                return null;
+            }
+            throw error;
         }
     },
 
-    submitTest: async (submission: TestSubmission): Promise<TestResult> => {
-        const response = await client.post(`/tests/${submission.testId}/submit`, submission);
-        return response.data;
+    // Check if user can take test (based on prerequisites, attempts, etc.)
+    canTakeTest: async (testId: number): Promise<{ canTake: boolean; reason?: string }> => {
+        return await get(`/tests/${testId}/can-take`);
     },
 
-    submitQuestion: async (testId: string, questionId: string, answer: { selectedOptionId?: string; code?: string }): Promise<{ isCorrect: boolean; feedback?: string }> => {
-        const response = await client.post(`/tests/${testId}/questions/${questionId}/submit`, answer);
-        return response.data;
+    // WebSocket connection for real-time test session updates
+    connectToTestSession: (sessionId: string): WebSocket => {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = process.env.NEXT_PUBLIC_API_URL?.replace('http://', '').replace('https://', '') ||
+            window.location.host.replace(':3000', ':8000');
+        const wsUrl = `${protocol}//${host}/tests/ws/test-sessions/${sessionId}`;
+
+        return new WebSocket(wsUrl);
     },
 
-    // Test Session APIs
-    createTestSession: async (sessionData: TestSessionCreate): Promise<TestSession> => {
-        const response = await client.post('/tests/sessions', sessionData);
-        return response.data;
-    },
-
-    getTestSession: async (sessionId: string): Promise<TestSessionWithTest> => {
-        const response = await client.get(`/tests/sessions/${sessionId}`);
-        return response.data;
-    },
-
-    getMyTestSessions: async (): Promise<TestSession[]> => {
-        const response = await client.get('/tests/sessions/user/me');
-        return response.data;
-    },
-
-    updateTestSession: async (sessionId: string, updateData: TestSessionUpdate): Promise<TestSession> => {
-        const response = await client.put(`/tests/sessions/${sessionId}`, updateData);
-        return response.data;
-    },
-
-    submitSessionAnswer: async (sessionId: string, questionId: string, answer: TestAnswer): Promise<TestSession> => {
-        const response = await client.post(`/tests/sessions/${sessionId}/answers/${questionId}`, { answer });
-        return response.data;
-    },
-
-    submitTestSession: async (sessionId: string, answers?: Record<string, TestAnswer>): Promise<TestResult> => {
-        const response = await client.post(`/tests/sessions/${sessionId}/submit`, { answers });
-        return response.data;
-    },
-
-    createTestSessionFromCourseEntryTest: async (courseId: number): Promise<TestSession> => {
-        const response = await client.post(`/courses/${courseId}/entry-test/start`);
-        return response.data;
-    },
-
-    getCourseEntryTest: async (courseId: number): Promise<Test> => {
-        const response = await client.get(`/courses/${courseId}/entry-test`);
-        return response.data;
+    // Sync test session state (fallback when WebSocket disconnects)
+    syncTestSession: async (sessionId: string): Promise<TestSessionWithTest> => {
+        return await get(`/tests/sessions/${sessionId}/sync`);
     }
 }; 

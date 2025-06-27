@@ -3,7 +3,7 @@ from typing import Dict, Optional, TYPE_CHECKING
 import uuid
 
 from app.database.database import Base
-from sqlalchemy import ForeignKey, String, Boolean, Integer, DateTime, JSON
+from sqlalchemy import ForeignKey, String, Boolean, Integer, DateTime, JSON, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
@@ -39,6 +39,14 @@ class TestSession(Base):
     # Kết quả sau khi nộp bài
     score: Mapped[Optional[float]] = mapped_column(Integer, nullable=True)
     correct_answers: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # Thời gian tạo và cập nhật (đồng bộ với database schema)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), index=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), index=True
+    )
 
     # Relationships
     test: Mapped["Test"] = relationship("Test", back_populates="sessions")

@@ -22,7 +22,7 @@ import {
 import {
     IconClock,
     IconQuestionMark,
-    IconPlay,
+    IconPlayerPlay,
     IconTrophy,
     IconBook,
     IconChevronRight,
@@ -35,7 +35,7 @@ import { useAppSelector } from '@/lib/store';
 
 const ClientPage: React.FC = () => {
     const router = useRouter();
-    const userState = useAppSelector((state) => state.auth);
+    const userState = useAppSelector((state) => state.user);
     const [startingTest, setStartingTest] = useState<number | null>(null);
 
     const {
@@ -220,7 +220,7 @@ const ClientPage: React.FC = () => {
                                         {/* Action Button */}
                                         <Button
                                             fullWidth
-                                            leftSection={startingTest === test.id ? <Loader size={16} /> : <IconPlay size={16} />}
+                                            leftSection={startingTest === test.id ? <Loader size={16} /> : <IconPlayerPlay size={16} />}
                                             rightSection={<IconChevronRight size={16} />}
                                             variant="filled"
                                             loading={startingTest === test.id}

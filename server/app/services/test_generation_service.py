@@ -174,25 +174,27 @@ class TestGenerationService:
             if not course:
                 raise ValueError(f"Không tìm thấy khóa học với ID {course_id}")
 
-            # Chuyển đổi questions từ agent format sang database format
-            questions_dict = {}
+            # Chuyển đổi questions từ agent format sang database format (array)
+            questions_list = []
             for i, question in enumerate(test_result.questions):
                 question_id = f"q_{i + 1}"
-                questions_dict[question_id] = {
-                    "id": question_id,
-                    "content": question.content,
-                    "type": question.type,
-                    "difficulty": question.difficulty,
-                    "answer": question.answer,
-                    "options": question.options if question.options else [],
-                }
+                questions_list.append(
+                    {
+                        "id": question_id,
+                        "content": question.content,
+                        "type": question.type,
+                        "difficulty": question.difficulty,
+                        "answer": question.answer,
+                        "options": question.options if question.options else [],
+                    }
+                )
 
             # Tạo test object và lưu vào database
             test = Test(
                 topic_id=None,  # Test thuộc về course, không thuộc về topic cụ thể
                 course_id=course_id,  # Test thuộc về course này
                 duration_minutes=60,  # Mặc định 60 phút
-                questions=questions_dict,
+                questions=questions_list,
             )
 
             # Lưu bằng session sync
@@ -226,25 +228,27 @@ class TestGenerationService:
             if not course:
                 raise ValueError(f"Không tìm thấy khóa học với ID {course_id}")
 
-            # Chuyển đổi questions từ agent format sang database format
-            questions_dict = {}
+            # Chuyển đổi questions từ agent format sang database format (array)
+            questions_list = []
             for i, question in enumerate(test_result.questions):
                 question_id = f"q_{i + 1}"
-                questions_dict[question_id] = {
-                    "id": question_id,
-                    "content": question.content,
-                    "type": question.type,
-                    "difficulty": question.difficulty,
-                    "answer": question.answer,
-                    "options": question.options if question.options else [],
-                }
+                questions_list.append(
+                    {
+                        "id": question_id,
+                        "content": question.content,
+                        "type": question.type,
+                        "difficulty": question.difficulty,
+                        "answer": question.answer,
+                        "options": question.options if question.options else [],
+                    }
+                )
 
             # Tạo test object và lưu vào database
             test = Test(
                 topic_id=None,  # Test thuộc về course, không thuộc về topic cụ thể
                 course_id=course_id,  # Test thuộc về course này
                 duration_minutes=60,  # Mặc định 60 phút
-                questions=questions_dict,
+                questions=questions_list,
             )
 
             # Lưu bằng session sync

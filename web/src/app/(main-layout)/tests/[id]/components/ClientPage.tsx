@@ -36,6 +36,19 @@ const ClientPage: React.FC = () => {
     const userState = useAppSelector((state) => state.user);
     const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
 
+    // Debug logging
+    useEffect(() => {
+        console.log('🧪 TestSession Debug:', {
+            sessionId,
+            userState: {
+                isLoading: userState.isLoading,
+                isInitial: userState.isInitial,
+                hasUser: !!userState.user,
+                userId: userState.user?.id
+            }
+        });
+    }, [sessionId, userState]);
+
     // Fetch test session data
     const {
         data: testSession,
@@ -44,15 +57,45 @@ const ClientPage: React.FC = () => {
         refetch
     } = useQuery({
         queryKey: ['testSession', sessionId],
-        queryFn: () => testApi.getTestSession(parseInt(sessionId)),
+        queryFn: async () => {
+            console.log('🔄 Fetching test session:', sessionId);
+            try {
+                const result = await testApi.getTestSession(sessionId);
+                console.log('✅ Test session fetched successfully:', result);
+                return result;
+            } catch (err) {
+                console.error('❌ Error fetching test session:', err);
+                throw err;
+            }
+        },
         enabled: !!sessionId && !!userState.user,
         retry: 2,
         refetchOnWindowFocus: false,
     });
 
+    // Debug logging for query state
+    useEffect(() => {
+        console.log('📊 Query State:', {
+            isLoading,
+            error: error ? {
+                message: (error as any)?.message,
+                response: (error as any)?.response?.data,
+                status: (error as any)?.response?.status
+            } : null,
+            hasData: !!testSession,
+            testSession: testSession ? {
+                id: testSession.id,
+                status: testSession.status,
+                hasTest: !!testSession.test,
+                questionsCount: testSession.test?.questions?.length
+            } : null
+        });
+    }, [isLoading, error, testSession]);
+
     // Redirect if not authenticated
     useEffect(() => {
         if (!userState.isLoading && !userState.isInitial && !userState.user) {
+            console.log('🔒 User not authenticated, redirecting to login');
             router.push('/auth/login');
         }
     }, [userState, router]);
@@ -98,6 +141,20 @@ const ClientPage: React.FC = () => {
                         Mất kết nối
                     </Badge>
                 );
+        }
+    };
+
+    // Status badge
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'in_progress':
+                return <Badge color="blue">Đang làm bài</Badge>;
+            case 'completed':
+                return <Badge color="green">Đã hoàn thành</Badge>;
+            case 'expired':
+                return <Badge color="red">Hết thời gian</Badge>;
+            default:
+                return <Badge color="gray">{status}</Badge>;
         }
     };
 
@@ -155,11 +212,13 @@ const ClientPage: React.FC = () => {
                         <Group gap="md" align="center">
                             <Title order={3}>Bài Kiểm Tra</Title>
                             {getConnectionBadge()}
+                            {getStatusBadge(testSession.status)}
                         </Group>
                         {testSession.test && (
                             <Text c="dimmed" size="sm">
                                 Câu hỏi: {testSession.test.questions.length} •
-                                Thời gian: {testSession.test.duration} phút
+                                Thời gian: {testSession.test.durationMinutes} phút •
+                                Câu hiện tại: {testSession.currentQuestionIndex + 1}/{testSession.test.questions.length}
                             </Text>
                         )}
                     </Stack>
@@ -167,12 +226,12 @@ const ClientPage: React.FC = () => {
                     <Stack gap={4} align="end">
                         <Group gap="xs" align="center">
                             <IconClock size={16} />
-                            <Text fw={500}>
-                                {formatTimeRemaining(testSession.time_remaining_seconds)}
+                            <Text fw={500} c={testSession.timeRemainingSeconds < 300 ? 'red' : undefined}>
+                                {formatTimeRemaining(testSession.timeRemainingSeconds)}
                             </Text>
                         </Group>
                         <Text c="dimmed" size="sm">
-                            Trạng thái: {testSession.status}
+                            {testSession.isSubmitted ? 'Đã nộp bài' : 'Chưa nộp bài'}
                         </Text>
                     </Stack>
                 </Group>
@@ -187,11 +246,31 @@ const ClientPage: React.FC = () => {
                     </Group>
                     <Progress value={progress} color={progress === 100 ? 'green' : 'blue'} />
                 </Stack>
+
+                {/* Test results (if completed) */}
+                {testSession.isSubmitted && testSession.score !== null && (
+                    <>
+                        <Divider my="sm" />
+                        <Group justify="space-between" align="center">
+                            <Text size="sm" fw={500}>Kết quả:</Text>
+                            <Group gap="md">
+                                <Text size="sm">
+                                    Điểm: <span style={{ fontWeight: 500 }}>{testSession.score}/100</span>
+                                </Text>
+                                {testSession.correctAnswers !== null && (
+                                    <Text size="sm">
+                                        Đúng: <span style={{ fontWeight: 500 }}>{testSession.correctAnswers}/{testSession.test.questions.length}</span>
+                                    </Text>
+                                )}
+                            </Group>
+                        </Group>
+                    </>
+                )}
             </Paper>
 
             {/* Test content */}
             <TestPage
-                sessionId={parseInt(sessionId)}
+                sessionId={sessionId}
                 onConnectionStatusChange={setConnectionStatus}
             />
         </Container>

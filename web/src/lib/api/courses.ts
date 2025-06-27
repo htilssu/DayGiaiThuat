@@ -99,7 +99,7 @@ export interface Test {
   topicId?: number;
   courseId?: number;
   durationMinutes: number;
-  questions: Record<string, any>;
+  questions: any[];
 }
 
 /**

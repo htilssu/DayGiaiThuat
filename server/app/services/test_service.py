@@ -38,7 +38,40 @@ class TestService:
     async def get_test(self, test_id: int) -> Optional[Test]:
         """Lấy thông tin bài kiểm tra theo ID"""
         result = await self.session.execute(select(Test).where(Test.id == test_id))
-        return result.scalars().first()
+        test = result.scalars().first()
+
+        # Migration: Convert questions from dict to array if needed
+        if test and test.questions:
+            print(f"Debug: test.questions type: {type(test.questions)}")
+            print(f"Debug: test.questions is dict: {isinstance(test.questions, dict)}")
+            print(f"Debug: test.questions is list: {isinstance(test.questions, list)}")
+
+            if isinstance(test.questions, dict) and not isinstance(
+                test.questions, list
+            ):
+                print("Converting questions from dict to array...")
+                # Convert from dict format to array format
+                questions_list = []
+                for key, question in test.questions.items():
+                    questions_list.append(question)
+
+                # Update the test object and save to database
+                from sqlalchemy import update
+
+                await self.session.execute(
+                    update(Test)
+                    .where(Test.id == test_id)
+                    .values(questions=questions_list)
+                )
+                await self.session.commit()
+
+                # Update local object
+                test.questions = questions_list
+                print(f"Converted questions to array: {len(questions_list)} items")
+            else:
+                print("Questions already in correct format")
+
+        return test
 
     async def get_tests_by_topic(self, topic_id: int) -> List[Test]:
         """Lấy danh sách bài kiểm tra theo topic"""
@@ -165,7 +198,9 @@ class TestService:
         result = await self.session.execute(
             select(TestSession).where(TestSession.id == session_id)
         )
-        return result.scalars().first()
+        test_session = result.scalars().first()
+
+        return test_session
 
     async def get_active_session(
         self, user_id: int, test_id: int
@@ -285,13 +320,20 @@ class TestService:
 
         return result
 
-    def _calculate_score(
-        self, questions: Dict[str, Any], answers: Dict[str, Any]
-    ) -> TestResult:
+    def _calculate_score(self, questions: Any, answers: Dict[str, Any]) -> TestResult:
         """Tính điểm cho bài kiểm tra"""
         # Trong thực tế, đây sẽ là logic phức tạp để chấm điểm dựa trên loại câu hỏi
         # Đây chỉ là một triển khai đơn giản
-        total_questions = len(questions) if isinstance(questions, list) else 0
+
+        # Handle both dict and list formats
+        questions_list = []
+        if isinstance(questions, list):
+            questions_list = questions
+        elif isinstance(questions, dict):
+            # Convert dict to list for backward compatibility
+            questions_list = list(questions.values())
+
+        total_questions = len(questions_list)
         if total_questions == 0:
             return TestResult(
                 score=0, total_questions=0, correct_answers=0, feedback={}
@@ -300,7 +342,7 @@ class TestService:
         correct_count = 0
         feedback = {}
 
-        for question in questions:
+        for question in questions_list:
             question_id = question.get("id", "")
             if not question_id or question_id not in answers:
                 feedback[question_id] = QuestionFeedback(

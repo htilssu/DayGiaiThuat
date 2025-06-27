@@ -24,7 +24,7 @@ import {
     IconBookmark
 } from '@tabler/icons-react';
 import { useAppSelector } from '@/lib/store';
-import { coursesApi, testApi } from '@/lib/api';
+import { coursesApi } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 
 interface EntryTestConfirmClientProps {
@@ -37,36 +37,69 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
     const [isStarting, setIsStarting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Debug logging
+    console.log('🔍 EntryTestConfirmClient Debug:', {
+        courseId,
+        userState: {
+            isLoading: userState.isLoading,
+            isInitial: userState.isInitial,
+            user: userState.user ? 'exists' : 'null'
+        }
+    });
+
     // Fetch course information
     const { data: course, isLoading: courseLoading, error: courseError } = useQuery({
         queryKey: ['course', courseId],
-        queryFn: () => coursesApi.getCourseById(parseInt(courseId)),
+        queryFn: async () => {
+            console.log('🚀 Fetching course:', courseId);
+            const result = await coursesApi.getCourseById(parseInt(courseId));
+            console.log('✅ Course result:', result);
+            return result;
+        },
         enabled: !!courseId,
     });
 
     // Fetch entry test information
     const { data: entryTest, isLoading: testLoading, error: testError } = useQuery({
-        queryKey: ['entryTest', courseId],
-        queryFn: () => testApi.getCourseEntryTest(parseInt(courseId)),
+        queryKey: ['courseEntryTest', courseId],
+        queryFn: async () => {
+            console.log('🚀 Fetching entry test for course:', courseId);
+            const result = await coursesApi.getCourseEntryTest(parseInt(courseId));
+            console.log('✅ Entry test result:', result);
+            return result;
+        },
         enabled: !!courseId && !!userState.user,
+        retry: false, // Don't retry on error to see the actual error
+    });
+
+    console.log('🔍 Query states:', {
+        courseLoading,
+        testLoading,
+        courseError: courseError ? 'exists' : 'null',
+        testError: testError ? 'exists' : 'null',
+        course: course ? 'exists' : 'null',
+        entryTest: entryTest ? 'exists' : 'null'
     });
 
     useEffect(() => {
         // Kiểm tra đăng nhập
         if (!userState.isLoading && !userState.isInitial && !userState.user) {
+            console.log('🚫 User not logged in, redirecting to login');
             router.push('/auth/login');
         }
     }, [userState, router]);
 
     const handleStartTest = async () => {
-        if (!userState.user || isStarting) return;
+        if (!userState.user || isStarting || !entryTest) return;
 
         try {
             setIsStarting(true);
             setError(null);
 
             // Gọi API để tạo test session
-            const testSession = await testApi.createTestSessionFromCourseEntryTest(parseInt(courseId));
+            const testSession = await coursesApi.startCourseEntryTest(parseInt(courseId));
+            console.log('✅ Created test session:', testSession.id);
+            console.log('🔄 Redirecting to:', `/tests/${testSession.id}`);
 
             // Chuyển hướng đến trang làm bài với session ID
             router.push(`/tests/${testSession.id}`);
@@ -102,6 +135,7 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
     }
 
     if (hasError || !course) {
+        console.error('🚨 Error or no course:', { courseError, testError, course });
         return (
             <Container size="md" py="xl">
                 <Paper p="xl" radius="md" withBorder>
@@ -111,7 +145,9 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
                         color="red"
                         mb="lg"
                     >
-                        {testError ? 'Không thể tải thông tin bài kiểm tra. Khóa học này có thể chưa có bài test đầu vào.' : 'Không thể tải thông tin khóa học. Vui lòng thử lại sau.'}
+                        {testError ? `Không thể tải thông tin bài kiểm tra: ${JSON.stringify(testError)}` :
+                            courseError ? `Không thể tải thông tin khóa học: ${JSON.stringify(courseError)}` :
+                                'Vui lòng thử lại sau.'}
                     </Alert>
                     <Button onClick={() => router.push('/courses')}>
                         Quay về danh sách khóa học
@@ -121,9 +157,29 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
         );
     }
 
+    if (!entryTest) {
+        return (
+            <Container size="md" py="xl">
+                <Paper p="xl" radius="md" withBorder>
+                    <Alert
+                        icon={<IconAlertCircle size="1rem" />}
+                        title="Không có bài kiểm tra đầu vào"
+                        color="yellow"
+                        mb="lg"
+                    >
+                        Khóa học này chưa có bài kiểm tra đầu vào. Bạn có thể bắt đầu học ngay.
+                    </Alert>
+                    <Button onClick={() => router.push(`/courses/${courseId}`)}>
+                        Bắt đầu học khóa học
+                    </Button>
+                </Paper>
+            </Container>
+        );
+    }
+
     // Tính toán thời gian làm bài (phút) và số câu hỏi
-    const durationMinutes = entryTest ? entryTest.duration_minutes : 45;
-    const questionCount = entryTest ? Object.keys(entryTest.questions).length : 0;
+    const durationMinutes = entryTest.durationMinutes || 45;
+    const questionCount = entryTest.questions?.length || 0;
 
     return (
         <Container size="md" py="xl">

@@ -1,110 +1,182 @@
 import React, { useState, useEffect } from 'react';
-import { Stack, Button, Text, Paper, Box, Tabs } from '@mantine/core';
-import Editor from '@monaco-editor/react';
-import { TestQuestion } from '@/lib/api';
+import { Paper, Title, Text, Stack, Textarea, Button, Alert, Badge, Group } from '@mantine/core';
+import { IconCheck, IconX, IconAlertCircle, IconEdit } from '@tabler/icons-react';
+
+export interface TestQuestion {
+    id: string;
+    content: string;
+    type: 'single_choice' | 'essay';
+    difficulty?: string;
+    answer?: string;
+    options?: string[];
+}
 
 interface ProblemQuestionProps {
     question: TestQuestion;
-    onSubmit: (code: string) => Promise<void>;
-    isSubmitting?: boolean;
-    initialCode?: string;
-    feedback?: {
-        isCorrect: boolean;
-        feedback?: string;
-    };
+    onSubmit: (answer: string) => Promise<void>;
+    isSubmitting: boolean;
+    feedback?: { isCorrect: boolean; feedback?: string };
+    initialAnswer?: string;
 }
 
 export const ProblemQuestion: React.FC<ProblemQuestionProps> = ({
     question,
     onSubmit,
-    isSubmitting = false,
-    initialCode,
+    isSubmitting,
     feedback,
+    initialAnswer
 }) => {
-    const [code, setCode] = useState<string>(initialCode || question.codeTemplate || '');
-    const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(!!feedback);
+    const [answer, setAnswer] = useState<string>(initialAnswer || '');
+    const [hasSubmitted, setHasSubmitted] = useState<boolean>(!!feedback || !!initialAnswer);
 
-    // Update code when initialCode prop changes
     useEffect(() => {
-        if (initialCode) {
-            setCode(initialCode);
-        }
-    }, [initialCode]);
-
-    // Set answer as submitted when feedback is provided
-    useEffect(() => {
-        if (feedback) {
-            setIsAnswerSubmitted(true);
-        }
-    }, [feedback]);
-
-    const handleEditorChange = (value: string | undefined) => {
-        if (value !== undefined) {
-            setCode(value);
-        }
-    };
+        setAnswer(initialAnswer || '');
+        setHasSubmitted(!!feedback || !!initialAnswer);
+    }, [question.id, initialAnswer, feedback]);
 
     const handleSubmit = async () => {
-        await onSubmit(code);
-        setIsAnswerSubmitted(true);
+        if (!answer.trim()) return;
+
+        try {
+            await onSubmit(answer);
+            setHasSubmitted(true);
+        } catch (error) {
+            console.error('Error submitting answer:', error);
+        }
     };
 
+    const handleAnswerChange = (value: string) => {
+        setAnswer(value);
+    };
+
+    const handleEdit = () => {
+        setHasSubmitted(false);
+    };
+
+    // Determine if answer is correct (for essay questions, this might be based on feedback)
+    const isCorrect = feedback?.isCorrect;
+    const showAnswer = hasSubmitted || feedback;
+
     return (
-        <Paper p="md" withBorder>
-            <Stack>
-                <Text fw={600} size="lg">{question.title}</Text>
-
-                <Tabs defaultValue="problem">
-                    <Tabs.List>
-                        <Tabs.Tab value="problem">Đề bài</Tabs.Tab>
-                        <Tabs.Tab value="solution">Giải pháp</Tabs.Tab>
-                    </Tabs.List>
-
-                    <Tabs.Panel value="problem" pt="md">
+        <Paper p="lg" withBorder>
+            <Stack gap="md">
+                {/* Question header */}
+                <Group justify="space-between" align="flex-start">
+                    <div style={{ flex: 1 }}>
+                        <Title order={4} mb="xs">Câu hỏi tự luận</Title>
                         <Text>{question.content}</Text>
-                    </Tabs.Panel>
-
-                    <Tabs.Panel value="solution" pt="md">
-                        <Box h={400}>
-                            <Editor
-                                height="100%"
-                                defaultLanguage="python"
-                                value={code}
-                                onChange={handleEditorChange}
-                                options={{
-                                    minimap: { enabled: false },
-                                    scrollBeyondLastLine: false,
-                                    fontSize: 14,
-                                    readOnly: isAnswerSubmitted,
-                                }}
-                            />
-                        </Box>
-                    </Tabs.Panel>
-                </Tabs>
-
-                {feedback && (
-                    <Box
-                        p="sm"
-                        bg={feedback.isCorrect ? 'green.1' : 'red.1'}
-                        c={feedback.isCorrect ? 'green.8' : 'red.8'}
-                        style={{ borderRadius: '4px' }}
-                    >
-                        <Text fw={500}>
-                            {feedback.isCorrect ? 'Đúng!' : 'Sai!'}
-                        </Text>
-                        {feedback.feedback && (
-                            <Text size="sm" mt="xs">{feedback.feedback}</Text>
+                    </div>
+                    <Group gap="xs">
+                        {question.difficulty && (
+                            <Badge color="orange" variant="light" size="sm">
+                                {question.difficulty}
+                            </Badge>
                         )}
-                    </Box>
+                        {showAnswer && feedback?.isCorrect !== undefined && (
+                            <Badge
+                                color={isCorrect ? 'green' : 'orange'}
+                                variant="filled"
+                                size="sm"
+                                leftSection={isCorrect ? <IconCheck size={12} /> : <IconX size={12} />}
+                            >
+                                {isCorrect ? 'Đạt yêu cầu' : 'Cần cải thiện'}
+                            </Badge>
+                        )}
+                    </Group>
+                </Group>
+
+                {/* Answer input */}
+                <Stack gap="sm">
+                    <Text size="sm" fw={500}>Câu trả lời của bạn:</Text>
+                    <Textarea
+                        value={answer}
+                        onChange={(event) => handleAnswerChange(event.currentTarget.value)}
+                        placeholder="Nhập câu trả lời của bạn..."
+                        minRows={6}
+                        maxRows={15}
+                        autosize
+                        disabled={hasSubmitted && isSubmitting}
+                        styles={{
+                            input: {
+                                backgroundColor: hasSubmitted ? '#f8f9fa' : undefined,
+                                borderColor: showAnswer && isCorrect ? '#28a745' :
+                                    showAnswer && isCorrect === false ? '#ffc107' : undefined
+                            }
+                        }}
+                    />
+                    <Text size="xs" c="dimmed">
+                        {answer.length} ký tự
+                    </Text>
+                </Stack>
+
+                {/* Feedback */}
+                {showAnswer && feedback?.feedback && (
+                    <Alert
+                        icon={<IconAlertCircle size="1rem" />}
+                        title="Phản hồi từ hệ thống"
+                        color={isCorrect ? 'green' : 'orange'}
+                        variant="light"
+                    >
+                        {feedback.feedback}
+                    </Alert>
                 )}
 
-                <Button
-                    onClick={handleSubmit}
-                    disabled={isAnswerSubmitted}
-                    loading={isSubmitting}
-                >
-                    Nộp bài
-                </Button>
+                {/* Show suggested answer if available */}
+                {showAnswer && question.answer && (
+                    <Alert
+                        icon={<IconCheck size="1rem" />}
+                        title="Gợi ý đáp án"
+                        color="blue"
+                        variant="light"
+                    >
+                        <Text size="sm">
+                            <strong>Gợi ý:</strong> {question.answer}
+                        </Text>
+                    </Alert>
+                )}
+
+                {/* Action buttons */}
+                <Group justify="flex-end">
+                    {!hasSubmitted ? (
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={!answer.trim() || isSubmitting}
+                            loading={isSubmitting}
+                            color="blue"
+                        >
+                            {isSubmitting ? 'Đang lưu...' : 'Lưu câu trả lời'}
+                        </Button>
+                    ) : (
+                        <Group>
+                            <Button
+                                variant="outline"
+                                leftSection={<IconEdit size={16} />}
+                                onClick={handleEdit}
+                                disabled={isSubmitting}
+                            >
+                                Chỉnh sửa
+                            </Button>
+                            {!hasSubmitted && (
+                                <Button
+                                    onClick={handleSubmit}
+                                    disabled={!answer.trim() || isSubmitting}
+                                    loading={isSubmitting}
+                                    color="blue"
+                                >
+                                    Lưu lại
+                                </Button>
+                            )}
+                        </Group>
+                    )}
+                </Group>
+
+                {hasSubmitted && !isSubmitting && (
+                    <Alert color="blue" variant="light">
+                        <Text size="sm">
+                            ✅ Câu trả lời của bạn đã được lưu. Bạn có thể tiếp tục với câu hỏi tiếp theo hoặc chỉnh sửa câu trả lời này.
+                        </Text>
+                    </Alert>
+                )}
             </Stack>
         </Paper>
     );
