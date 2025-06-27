@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Paper, Title, Text, Stack, Textarea, Button, Alert, Badge, Group } from '@mantine/core';
 import { IconCheck, IconX, IconAlertCircle, IconEdit } from '@tabler/icons-react';
+import { useDebouncedCallback } from '@mantine/hooks';
 
 export interface TestQuestion {
     id: string;
@@ -13,49 +14,50 @@ export interface TestQuestion {
 
 interface ProblemQuestionProps {
     question: TestQuestion;
-    onSubmit: (answer: string) => Promise<void>;
-    isSubmitting: boolean;
+    onAnswerChange: (answer: string) => void;
     feedback?: { isCorrect: boolean; feedback?: string };
     initialAnswer?: string;
+    questionNumber?: number;
 }
 
 export const ProblemQuestion: React.FC<ProblemQuestionProps> = ({
     question,
-    onSubmit,
-    isSubmitting,
+    onAnswerChange,
     feedback,
-    initialAnswer
+    initialAnswer,
+    questionNumber
 }) => {
     const [answer, setAnswer] = useState<string>(initialAnswer || '');
-    const [hasSubmitted, setHasSubmitted] = useState<boolean>(!!feedback || !!initialAnswer);
+    const [lastSavedAnswer, setLastSavedAnswer] = useState<string>(initialAnswer || '');
 
     useEffect(() => {
         setAnswer(initialAnswer || '');
-        setHasSubmitted(!!feedback || !!initialAnswer);
-    }, [question.id, initialAnswer, feedback]);
+        setLastSavedAnswer(initialAnswer || '');
+    }, [question.id, initialAnswer]);
 
-    const handleSubmit = async () => {
-        if (!answer.trim()) return;
-
-        try {
-            await onSubmit(answer);
-            setHasSubmitted(true);
-        } catch (error) {
-            console.error('Error submitting answer:', error);
+    // Debounced function để tự động gửi qua socket sau 1 giây khi user ngừng typing
+    const debouncedSave = useDebouncedCallback((value: string) => {
+        if (value !== lastSavedAnswer) {
+            onAnswerChange(value); // Gửi qua socket thông qua callback
+            setLastSavedAnswer(value);
         }
-    };
+    }, 1000);
 
     const handleAnswerChange = (value: string) => {
         setAnswer(value);
+        // Gọi debounced save
+        debouncedSave(value);
     };
 
     const handleEdit = () => {
-        setHasSubmitted(false);
+        setAnswer(initialAnswer || '');
+        setLastSavedAnswer(initialAnswer || '');
     };
 
     // Determine if answer is correct (for essay questions, this might be based on feedback)
     const isCorrect = feedback?.isCorrect;
-    const showAnswer = hasSubmitted || feedback;
+    const showAnswer = !!feedback;
+    const hasUnsavedChanges = answer !== lastSavedAnswer;
 
     return (
         <Paper p="lg" withBorder>
@@ -63,12 +65,21 @@ export const ProblemQuestion: React.FC<ProblemQuestionProps> = ({
                 {/* Question header */}
                 <Group justify="space-between" align="flex-start">
                     <div style={{ flex: 1 }}>
-                        <Title order={4} mb="xs">Câu hỏi tự luận</Title>
+                        <Group gap="xs" mb="xs">
+                            {questionNumber && (
+                                <Badge color="blue" variant="filled" size="sm">
+                                    Câu {questionNumber}
+                                </Badge>
+                            )}
+                            <Badge color="orange" variant="light" size="sm">
+                                Tự luận
+                            </Badge>
+                        </Group>
                         <Text>{question.content}</Text>
                     </div>
                     <Group gap="xs">
                         {question.difficulty && (
-                            <Badge color="orange" variant="light" size="sm">
+                            <Badge color="gray" variant="light" size="sm">
                                 {question.difficulty}
                             </Badge>
                         )}
@@ -95,18 +106,29 @@ export const ProblemQuestion: React.FC<ProblemQuestionProps> = ({
                         minRows={6}
                         maxRows={15}
                         autosize
-                        disabled={hasSubmitted && isSubmitting}
                         styles={{
                             input: {
-                                backgroundColor: hasSubmitted ? '#f8f9fa' : undefined,
                                 borderColor: showAnswer && isCorrect ? '#28a745' :
-                                    showAnswer && isCorrect === false ? '#ffc107' : undefined
+                                    showAnswer && isCorrect === false ? '#ffc107' :
+                                        hasUnsavedChanges ? '#1890ff' : undefined
                             }
                         }}
                     />
-                    <Text size="xs" c="dimmed">
-                        {answer.length} ký tự
-                    </Text>
+                    <Group justify="space-between">
+                        <Text size="xs" c="dimmed">
+                            {answer.length} ký tự
+                        </Text>
+                        {hasUnsavedChanges && (
+                            <Text size="xs" c="blue">
+                                Đang lưu...
+                            </Text>
+                        )}
+                        {!hasUnsavedChanges && lastSavedAnswer && (
+                            <Text size="xs" c="green">
+                                ✅ Đã lưu
+                            </Text>
+                        )}
+                    </Group>
                 </Stack>
 
                 {/* Feedback */}
@@ -135,48 +157,6 @@ export const ProblemQuestion: React.FC<ProblemQuestionProps> = ({
                     </Alert>
                 )}
 
-                {/* Action buttons */}
-                <Group justify="flex-end">
-                    {!hasSubmitted ? (
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={!answer.trim() || isSubmitting}
-                            loading={isSubmitting}
-                            color="blue"
-                        >
-                            {isSubmitting ? 'Đang lưu...' : 'Lưu câu trả lời'}
-                        </Button>
-                    ) : (
-                        <Group>
-                            <Button
-                                variant="outline"
-                                leftSection={<IconEdit size={16} />}
-                                onClick={handleEdit}
-                                disabled={isSubmitting}
-                            >
-                                Chỉnh sửa
-                            </Button>
-                            {!hasSubmitted && (
-                                <Button
-                                    onClick={handleSubmit}
-                                    disabled={!answer.trim() || isSubmitting}
-                                    loading={isSubmitting}
-                                    color="blue"
-                                >
-                                    Lưu lại
-                                </Button>
-                            )}
-                        </Group>
-                    )}
-                </Group>
-
-                {hasSubmitted && !isSubmitting && (
-                    <Alert color="blue" variant="light">
-                        <Text size="sm">
-                            ✅ Câu trả lời của bạn đã được lưu. Bạn có thể tiếp tục với câu hỏi tiếp theo hoặc chỉnh sửa câu trả lời này.
-                        </Text>
-                    </Alert>
-                )}
             </Stack>
         </Paper>
     );

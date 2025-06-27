@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Paper, Title, Text, Stack, Radio, Button, Alert, Badge, Group } from '@mantine/core';
+import { Paper, Title, Text, Stack, Radio, Alert, Badge, Group } from '@mantine/core';
 import { IconCheck, IconX, IconAlertCircle } from '@tabler/icons-react';
 
 export interface TestQuestion {
@@ -13,67 +13,39 @@ export interface TestQuestion {
 
 interface MultipleChoiceQuestionProps {
     question: TestQuestion;
-    onSubmit: (selectedOption: string) => Promise<void>;
-    isSubmitting: boolean;
+    onAnswerChange: (selectedOption: string) => void;
     feedback?: { isCorrect: boolean; feedback?: string };
     initialAnswer?: string;
+    questionNumber?: number;
 }
 
-// Utility function to shuffle array
-const shuffleArray = <T,>(array: T[]): T[] => {
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    return newArray;
-};
 
 export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
     question,
-    onSubmit,
-    isSubmitting,
+    onAnswerChange,
     feedback,
-    initialAnswer
+    initialAnswer,
+    questionNumber
 }) => {
     const [selectedOption, setSelectedOption] = useState<string>(initialAnswer || '');
-    const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
-    const [hasSubmitted, setHasSubmitted] = useState<boolean>(!!feedback);
 
-    // Initialize shuffled options on mount or when question changes
+    // Initialize selected answer when question or initial answer changes
     useEffect(() => {
-        if (question.options && question.options.length > 0) {
-            // Only shuffle if we don't have a previous answer (to maintain consistency)
-            if (!initialAnswer && !feedback) {
-                setShuffledOptions(shuffleArray(question.options));
-            } else {
-                setShuffledOptions(question.options);
-            }
-        }
         setSelectedOption(initialAnswer || '');
-        setHasSubmitted(!!feedback);
-    }, [question.id, question.options, initialAnswer, feedback]);
-
-    const handleSubmit = async () => {
-        if (!selectedOption) return;
-
-        try {
-            await onSubmit(selectedOption);
-            setHasSubmitted(true);
-        } catch (error) {
-            console.error('Error submitting answer:', error);
-        }
-    };
+    }, [question.id, initialAnswer]);
 
     const handleOptionChange = (value: string) => {
-        if (!hasSubmitted) {
-            setSelectedOption(value);
-        }
+        setSelectedOption(value);
+        // Tự động gửi qua socket ngay khi user thay đổi (thông qua onAnswerChange callback)
+        onAnswerChange(value);
     };
 
     // Determine if answer is correct
-    const isCorrect = feedback?.isCorrect ?? (hasSubmitted && selectedOption === question.answer);
-    const showAnswer = hasSubmitted || feedback;
+    const isCorrect = feedback?.isCorrect ?? (selectedOption === question.answer && !!selectedOption);
+    const showAnswer = !!feedback;
+
+    // Use original options order - không trộn câu trả lời
+    const displayOptions = question.options || [];
 
     return (
         <Paper p="lg" withBorder>
@@ -81,12 +53,21 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
                 {/* Question header */}
                 <Group justify="space-between" align="flex-start">
                     <div style={{ flex: 1 }}>
-                        <Title order={4} mb="xs">Câu hỏi trắc nghiệm</Title>
+                        <Group gap="xs" mb="xs">
+                            {questionNumber && (
+                                <Badge color="blue" variant="filled" size="sm">
+                                    Câu {questionNumber}
+                                </Badge>
+                            )}
+                            <Badge color="cyan" variant="light" size="sm">
+                                Trắc nghiệm
+                            </Badge>
+                        </Group>
                         <Text>{question.content}</Text>
                     </div>
                     <Group gap="xs">
                         {question.difficulty && (
-                            <Badge color="blue" variant="light" size="sm">
+                            <Badge color="gray" variant="light" size="sm">
                                 {question.difficulty}
                             </Badge>
                         )}
@@ -111,7 +92,7 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
                     size="md"
                 >
                     <Stack gap="sm" mt="sm">
-                        {shuffledOptions.map((option, index) => {
+                        {displayOptions.map((option, index) => {
                             const isSelectedOption = selectedOption === option;
                             const isCorrectOption = showAnswer && option === question.answer;
                             const isWrongSelection = showAnswer && isSelectedOption && !isCorrectOption;
@@ -126,13 +107,17 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
                                             ? '#e8f5e8'
                                             : isWrongSelection
                                                 ? '#ffe8e8'
-                                                : undefined,
+                                                : isSelectedOption
+                                                    ? '#e6f3ff'
+                                                    : undefined,
                                         borderColor: isCorrectOption
                                             ? '#28a745'
                                             : isWrongSelection
                                                 ? '#dc3545'
-                                                : undefined,
-                                        cursor: hasSubmitted ? 'default' : 'pointer'
+                                                : isSelectedOption
+                                                    ? '#1890ff'
+                                                    : undefined,
+                                        cursor: 'pointer'
                                     }}
                                 >
                                     <Radio
@@ -148,13 +133,12 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
                                                 )}
                                             </Group>
                                         }
-                                        disabled={hasSubmitted}
                                         styles={{
                                             radio: {
-                                                cursor: hasSubmitted ? 'default' : 'pointer'
+                                                cursor: 'pointer'
                                             },
                                             label: {
-                                                cursor: hasSubmitted ? 'default' : 'pointer'
+                                                cursor: 'pointer'
                                             }
                                         }}
                                     />
@@ -190,27 +174,7 @@ export const MultipleChoiceQuestion: React.FC<MultipleChoiceQuestionProps> = ({
                     </Alert>
                 )}
 
-                {/* Submit button */}
-                {!hasSubmitted && (
-                    <Group justify="flex-end">
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={!selectedOption || isSubmitting}
-                            loading={isSubmitting}
-                            color="blue"
-                        >
-                            {isSubmitting ? 'Đang lưu...' : 'Lưu câu trả lời'}
-                        </Button>
-                    </Group>
-                )}
 
-                {hasSubmitted && (
-                    <Alert color="blue" variant="light">
-                        <Text size="sm">
-                            ✅ Câu trả lời của bạn đã được lưu. Bạn có thể tiếp tục với câu hỏi tiếp theo.
-                        </Text>
-                    </Alert>
-                )}
             </Stack>
         </Paper>
     );

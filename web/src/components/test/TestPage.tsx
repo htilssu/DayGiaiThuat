@@ -34,7 +34,11 @@ const useTestSessionQuery = (sessionId: string) => {
             return sessionData;
         },
         enabled: !!sessionId,
-        refetchInterval: 30000, // Refetch every 30 seconds as fallback
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        staleTime: 5 * 60 * 1000,
+        gcTime: 10 * 60 * 1000, // gcTime thay cho cacheTime trong v5
+        refetchInterval: false,
     });
 };
 
@@ -127,12 +131,13 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
         };
     }, [testSession, isAuthLoading]);
 
-    // Timer countdown
+    // Timer countdown - tự động đếm ngược từ client side
     const startTimer = useCallback(() => {
         if (timerIntervalRef.current) {
             clearInterval(timerIntervalRef.current);
         }
 
+        console.log('⏰ Starting client-side timer...');
         timerIntervalRef.current = setInterval(() => {
             setTimeRemaining(prev => {
                 if (prev === null || prev <= 0) {
@@ -140,6 +145,8 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
                     handleTimeUp();
                     return 0;
                 }
+
+                // Luôn đếm ngược từ client side
                 return prev - 1;
             });
         }, TIMER_INTERVAL);
@@ -148,6 +155,7 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
     const handleTimeUp = useCallback(async () => {
         if (testSubmitted) return;
 
+        console.log('⏰ Time up! Auto-submitting test...');
         try {
             const result = await testApi.submitTestSession(sessionId, answers);
             setTestResult(result);
@@ -218,35 +226,30 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
         ws.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                console.log("WebSocket message received:", message);
+                console.log("🔄 WebSocket message received:", message);
                 setLastSyncTime(new Date());
 
                 switch (message.type) {
                     case "sessionState":
+                        console.log("📊 Session state updated:", message);
                         if (message.currentQuestionIndex !== undefined) {
                             setCurrentQuestionIndex(message.currentQuestionIndex);
                             const page = Math.floor(message.currentQuestionIndex / QUESTIONS_PER_PAGE) + 1;
                             setCurrentPage(page);
                         }
-                        if (message.timeRemainingSeconds !== undefined) {
-                            setTimeRemaining(message.timeRemainingSeconds);
-                        }
+                        // Bỏ cập nhật timeRemainingSeconds từ websocket
+                        // Client sẽ tự quản lý thời gian
                         if (message.answers) {
                             setAnswers(message.answers);
                         }
                         break;
 
-                    case "timeUpdate":
-                        if (message.timeRemainingSeconds !== undefined) {
-                            setTimeRemaining(message.timeRemainingSeconds);
-                        }
-                        break;
-
                     case "answerSaved":
-                        console.log("Answer saved for question:", message.questionId);
+                        console.log("✅ Answer saved for question:", message.questionId);
                         break;
 
                     case "questionIndexUpdated":
+                        console.log("🔄 Question index updated:", message.questionIndex);
                         if (message.questionIndex !== undefined) {
                             setCurrentQuestionIndex(message.questionIndex);
                             const page = Math.floor(message.questionIndex / QUESTIONS_PER_PAGE) + 1;
@@ -255,14 +258,18 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
                         break;
 
                     case "pong":
-                        // Heartbeat response
+                        // Heartbeat response - không log để tránh spam
+                        break;
+
+                    case "error":
+                        console.error("❌ WebSocket error from server:", message.message);
                         break;
 
                     default:
-                        console.log("Unknown message type:", message.type);
+                        console.log("❓ Unknown message type:", message.type);
                 }
             } catch (error) {
-                console.error("Error parsing WebSocket message:", error);
+                console.error("❌ Error parsing WebSocket message:", error);
             }
         };
 
@@ -289,29 +296,40 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
         return ws;
     }, [currentQuestionIndex, answers, onConnectionStatusChange]);
 
-    // Sync data when reconnected
+    // Sync data when reconnected - chỉ sync answers và question index, không sync time
     const syncData = useCallback(async () => {
         try {
+            console.log('🔄 Syncing data from server...');
             const latestSession = await refetch();
             if (latestSession.data) {
+                console.log('📊 Synced data:', {
+                    currentQuestionIndex: latestSession.data.currentQuestionIndex,
+                    answersCount: Object.keys(latestSession.data.answers || {}).length,
+                    note: 'Time not synced - managed by client'
+                });
+
                 setCurrentQuestionIndex(latestSession.data.currentQuestionIndex);
                 setAnswers(latestSession.data.answers);
-                setTimeRemaining(latestSession.data.timeRemainingSeconds);
+                // Không sync thời gian nữa - client tự quản lý
+                // setTimeRemaining(latestSession.data.timeRemainingSeconds);
 
                 const page = Math.floor(latestSession.data.currentQuestionIndex / QUESTIONS_PER_PAGE) + 1;
                 setCurrentPage(page);
             }
         } catch (error) {
-            console.error('Failed to sync data:', error);
+            console.error('❌ Failed to sync data:', error);
         }
     }, [refetch]);
 
-    // Auto-sync data every 30 seconds when disconnected
+    // Auto-sync data every 60 seconds when disconnected (giảm frequency để tránh spam)
     useEffect(() => {
         let syncInterval: NodeJS.Timeout;
 
         if (connectionStatus === 'disconnected') {
-            syncInterval = setInterval(syncData, 30000);
+            console.log('🔌 Connection lost, starting periodic sync...');
+            syncInterval = setInterval(syncData, 60000); // 60s thay vì 30s
+        } else if (connectionStatus === 'connected') {
+            console.log('✅ Connection restored, stopping periodic sync');
         }
 
         return () => {
@@ -333,23 +351,20 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
         }
     }, [sessionId]);
 
-    // Save answer
-    const saveAnswer = useCallback(async (questionId: string, answer: any) => {
+    // Save answer - chỉ gửi qua websocket, không qua API  
+    const saveAnswerViaSocket = useCallback((questionId: string, answer: any) => {
         if (!sessionId) return;
 
-        try {
-            await testApi.submitSessionAnswer(sessionId, questionId, answer);
-
-            // Also send via WebSocket if connected
-            if (wsRef.current?.readyState === WebSocket.OPEN) {
-                wsRef.current.send(JSON.stringify({
-                    type: 'saveAnswer',
-                    questionId,
-                    answer
-                }));
-            }
-        } catch (error) {
-            console.error('Failed to save answer:', error);
+        // Gửi qua websocket để cập nhật test session
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            console.log('📤 Sending answer via websocket:', { questionId, answer });
+            wsRef.current.send(JSON.stringify({
+                type: 'save_answer',
+                question_id: questionId,
+                answer
+            }));
+        } else {
+            console.warn('⚠️ WebSocket not connected, cannot save answer');
         }
     }, [sessionId]);
 
@@ -387,39 +402,33 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
         handleQuestionNavigation(newQuestionIndex);
     };
 
-    // Answer submission handlers
-    const handleMultipleChoiceSubmit = async (questionId: string, selectedOption: string) => {
-        setSubmitting(true);
-        try {
-            const answer = { selectedOptionId: selectedOption };
-            await saveAnswer(questionId, answer);
+    // Answer change handlers - auto-save via websocket
+    const handleMultipleChoiceAnswer = (questionId: string, selectedOption: string) => {
+        const answer = { selectedOptionId: selectedOption };
 
-            setAnswers(prev => ({
-                ...prev,
-                [questionId]: answer
-            }));
-        } catch (error) {
-            console.error('Failed to submit answer:', error);
-        } finally {
-            setSubmitting(false);
-        }
+        // Cập nhật state local
+        const newAnswers = {
+            ...answers,
+            [questionId]: answer
+        };
+        setAnswers(newAnswers);
+
+        // Gửi qua socket để cập nhật test session
+        saveAnswerViaSocket(questionId, answer);
     };
 
-    const handleProblemSubmit = async (questionId: string, answerText: string) => {
-        setSubmitting(true);
-        try {
-            const answer = { code: answerText };
-            await saveAnswer(questionId, answer);
+    const handleProblemAnswer = (questionId: string, answerText: string) => {
+        const answer = { code: answerText };
 
-            setAnswers(prev => ({
-                ...prev,
-                [questionId]: answer
-            }));
-        } catch (error) {
-            console.error('Failed to submit answer:', error);
-        } finally {
-            setSubmitting(false);
-        }
+        // Cập nhật state local
+        const newAnswers = {
+            ...answers,
+            [questionId]: answer
+        };
+        setAnswers(newAnswers);
+
+        // Gửi qua socket để cập nhật test session
+        saveAnswerViaSocket(questionId, answer);
     };
 
     // Test submission handlers
@@ -673,7 +682,7 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
                             <Title order={2}>Bài Kiểm Tra</Title>
                             <Text c="dimmed" size="sm">
                                 Trang {currentPage}/{totalPages} •
-                                Câu {currentQuestionIndex + 1}/{test.questions.length}
+                                Hiển thị câu {startIndex + 1}-{Math.min(endIndex, test.questions.length)} / {test.questions.length}
                             </Text>
                         </div>
                         <Group gap="lg">
@@ -709,34 +718,44 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
                     </Stack>
                 </Paper>
 
-                {/* Current question */}
-                {currentQuestion ? (
-                    currentQuestion.type === 'single_choice' ? (
-                        <MultipleChoiceQuestion
-                            question={currentQuestion}
-                            onSubmit={(selectedOption) => handleMultipleChoiceSubmit(currentQuestion.id, selectedOption)}
-                            isSubmitting={submitting}
-                            feedback={currentAnswer?.feedback}
-                            initialAnswer={currentAnswer?.selectedOptionId}
-                        />
-                    ) : currentQuestion.type === 'essay' ? (
-                        <ProblemQuestion
-                            question={currentQuestion}
-                            onSubmit={(answer) => handleProblemSubmit(currentQuestion.id, answer)}
-                            isSubmitting={submitting}
-                            feedback={currentAnswer?.feedback}
-                            initialAnswer={currentAnswer?.code}
-                        />
+                {/* Questions for current page */}
+                <Stack gap="lg">
+                    {currentPageQuestions.length > 0 ? (
+                        currentPageQuestions.map((question, localIndex) => {
+                            const globalIndex = startIndex + localIndex;
+                            const questionNumber = globalIndex + 1;
+                            const currentAnswer = answers[question.id];
+
+                            return question.type === 'single_choice' ? (
+                                <MultipleChoiceQuestion
+                                    key={question.id}
+                                    question={question}
+                                    onAnswerChange={(selectedOption) => handleMultipleChoiceAnswer(question.id, selectedOption)}
+                                    feedback={currentAnswer?.feedback}
+                                    initialAnswer={currentAnswer?.selectedOptionId}
+                                    questionNumber={questionNumber}
+                                />
+                            ) : question.type === 'essay' ? (
+                                <ProblemQuestion
+                                    key={question.id}
+                                    question={question}
+                                    onAnswerChange={(answer) => handleProblemAnswer(question.id, answer)}
+                                    feedback={currentAnswer?.feedback}
+                                    initialAnswer={currentAnswer?.code}
+                                    questionNumber={questionNumber}
+                                />
+                            ) : (
+                                <Alert key={question.id} color="orange" title="Loại câu hỏi không được hỗ trợ">
+                                    Loại câu hỏi "{question.type}" chưa được hỗ trợ.
+                                </Alert>
+                            );
+                        })
                     ) : (
-                        <Alert color="orange" title="Loại câu hỏi không được hỗ trợ">
-                            Loại câu hỏi "{currentQuestion.type}" chưa được hỗ trợ.
+                        <Alert color="red" title="Lỗi">
+                            Không tìm thấy câu hỏi cho trang này.
                         </Alert>
-                    )
-                ) : (
-                    <Alert color="red" title="Lỗi">
-                        Không tìm thấy câu hỏi hiện tại.
-                    </Alert>
-                )}
+                    )}
+                </Stack>
 
                 {/* Pagination */}
                 {totalPages > 1 && (
@@ -758,17 +777,17 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
                     <Group>
                         <Button
                             variant="outline"
-                            onClick={handlePreviousQuestion}
-                            disabled={currentQuestionIndex === 0 || submitting}
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
                         >
-                            Câu trước
+                            Trang trước
                         </Button>
-                        {currentQuestionIndex < test.questions.length - 1 && (
+                        {currentPage < totalPages && (
                             <Button
-                                onClick={handleNextQuestion}
-                                disabled={submitting}
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
                             >
-                                Câu tiếp theo
+                                Trang tiếp theo
                             </Button>
                         )}
                     </Group>
@@ -777,7 +796,6 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
                         <Button
                             variant="light"
                             onClick={handleSubmitTest}
-                            disabled={submitting}
                         >
                             Xem lại bài làm
                         </Button>
@@ -785,8 +803,6 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
                         <Button
                             color="green"
                             onClick={handleSubmitTest}
-                            disabled={submitting}
-                            loading={submitting}
                         >
                             Nộp bài
                         </Button>
