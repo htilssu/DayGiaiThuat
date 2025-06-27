@@ -1,72 +1,120 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Container, Title, Text, Stack, Card, Group, Button, Loader, Alert } from '@mantine/core';
-import { IconAlertCircle, IconClock } from '@tabler/icons-react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Test, testApi } from '@/lib/api';
+import {
+    Container,
+    Title,
+    Grid,
+    Card,
+    Text,
+    Button,
+    Badge,
+    Group,
+    Stack,
+    Paper,
+    ActionIcon,
+    Loader,
+    Alert,
+    ThemeIcon,
+    Divider
+} from '@mantine/core';
+import {
+    IconClock,
+    IconQuestionMark,
+    IconPlay,
+    IconTrophy,
+    IconBook,
+    IconChevronRight,
+    IconAlertCircle,
+    IconRefresh
+} from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
+import { testApi } from '@/lib/api';
+import { useAppSelector } from '@/lib/store';
 
 const ClientPage: React.FC = () => {
     const router = useRouter();
-    const [tests, setTests] = useState<Test[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const userState = useAppSelector((state) => state.auth);
+    const [startingTest, setStartingTest] = useState<number | null>(null);
 
-    useEffect(() => {
-        const fetchTests = async () => {
-            try {
-                setLoading(true);
-                // Sử dụng testApi.getTests để lấy danh sách bài kiểm tra
-                try {
-                    const data = await testApi.getTests();
-                    setTests(data);
-                } catch (apiError) {
-                    console.error('API error, using sample data:', apiError);
-                    // Nếu API chưa sẵn sàng, sử dụng dữ liệu mẫu
-                    const sampleData: Test[] = [
-                        {
-                            id: '1',
-                            title: 'Kiểm tra giải thuật cơ bản',
-                            description: 'Bài kiểm tra về các giải thuật sắp xếp, tìm kiếm và cấu trúc dữ liệu cơ bản',
-                            duration: 60,
-                            questions: []
-                        },
-                        {
-                            id: '2',
-                            title: 'Kiểm tra lập trình Python',
-                            description: 'Bài kiểm tra về ngôn ngữ lập trình Python và các thư viện phổ biến',
-                            duration: 90,
-                            questions: []
-                        },
-                        {
-                            id: '3',
-                            title: 'Kiểm tra giải thuật nâng cao',
-                            description: 'Bài kiểm tra về các giải thuật nâng cao như quy hoạch động, thuật toán tham lam',
-                            duration: 120,
-                            questions: []
-                        }
-                    ];
-                    setTests(sampleData);
-                }
-            } catch (err) {
-                console.error('Error fetching tests:', err);
-                setError('Không thể tải danh sách bài kiểm tra. Vui lòng thử lại sau.');
-            } finally {
-                setLoading(false);
-            }
-        };
+    const {
+        data: tests,
+        isLoading,
+        error,
+        refetch
+    } = useQuery({
+        queryKey: ['tests'],
+        queryFn: () => testApi.getTests(),
+        enabled: !!userState.user,
+    });
 
-        fetchTests();
-    }, []);
+    const handleStartTest = async (testId: number) => {
+        if (!userState.user || startingTest) return;
 
-    const handleStartTest = (testId: string) => {
-        router.push(`/tests/${testId}`);
+        try {
+            setStartingTest(testId);
+
+            // Tạo test session mới
+            const session = await testApi.createTestSession({
+                test_id: testId,
+                user_id: userState.user.id
+            });
+
+            // Chuyển hướng đến trang làm bài
+            router.push(`/tests/${session.id}`);
+        } catch (error: any) {
+            console.error('Error starting test:', error);
+            alert('Có lỗi xảy ra khi bắt đầu bài kiểm tra. Vui lòng thử lại.');
+        } finally {
+            setStartingTest(null);
+        }
     };
 
-    if (loading) {
+    const getDifficultyColor = (level: string) => {
+        switch (level.toLowerCase()) {
+            case 'easy':
+            case 'dễ':
+                return 'green';
+            case 'medium':
+            case 'trung bình':
+                return 'yellow';
+            case 'hard':
+            case 'khó':
+                return 'red';
+            default:
+                return 'blue';
+        }
+    };
+
+    const formatDuration = (minutes: number) => {
+        if (minutes < 60) {
+            return `${minutes} phút`;
+        }
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        return remainingMinutes > 0
+            ? `${hours}h ${remainingMinutes}m`
+            : `${hours} giờ`;
+    };
+
+    if (!userState.user) {
         return (
             <Container size="md" py="xl">
-                <Stack align="center" justify="center" h={400}>
+                <Alert color="orange" title="Yêu cầu đăng nhập" icon={<IconAlertCircle size={16} />}>
+                    <Text mb="md">Bạn cần đăng nhập để xem danh sách bài kiểm tra.</Text>
+                    <Button onClick={() => router.push('/auth/login')}>
+                        Đăng nhập
+                    </Button>
+                </Alert>
+            </Container>
+        );
+    }
+
+    if (isLoading) {
+        return (
+            <Container size="lg" py="xl">
+                <Stack align="center" gap="md">
                     <Loader size="lg" />
                     <Text>Đang tải danh sách bài kiểm tra...</Text>
                 </Stack>
@@ -77,36 +125,128 @@ const ClientPage: React.FC = () => {
     if (error) {
         return (
             <Container size="md" py="xl">
-                <Alert icon={<IconAlertCircle size="1rem" />} title="Lỗi" color="red">
-                    {error}
+                <Alert color="red" title="Có lỗi xảy ra" icon={<IconAlertCircle size={16} />}>
+                    <Text mb="md">
+                        Không thể tải danh sách bài kiểm tra. Vui lòng thử lại.
+                    </Text>
+                    <Group gap="xs">
+                        <ActionIcon variant="light" color="blue" onClick={() => refetch()}>
+                            <IconRefresh size={16} />
+                        </ActionIcon>
+                        <Button variant="light" leftSection={<IconRefresh size={16} />} onClick={() => refetch()}>
+                            Thử lại
+                        </Button>
+                    </Group>
                 </Alert>
             </Container>
         );
     }
 
     return (
-        <Container size="md" py="xl">
-            <Stack>
-                <Title order={1}>Danh sách bài kiểm tra</Title>
-                <Text color="dimmed">Chọn một bài kiểm tra để bắt đầu</Text>
+        <Container size="lg" py="xl">
+            <Stack gap="xl">
+                {/* Header */}
+                <div>
+                    <Title order={1} mb="xs">Danh Sách Bài Kiểm Tra</Title>
+                    <Text c="dimmed" size="lg">
+                        Chọn bài kiểm tra để đánh giá kiến thức và kỹ năng của bạn
+                    </Text>
+                </div>
 
-                {tests.map((test) => (
-                    <Card key={test.id} withBorder shadow="sm" p="md">
-                        <Stack>
-                            <Title order={3}>{test.title}</Title>
-                            <Text>{test.description}</Text>
+                {/* Tests Grid */}
+                {tests && tests.length > 0 ? (
+                    <Grid gutter="md">
+                        {tests.map((test: any) => (
+                            <Grid.Col key={test.id} span={{ base: 12, md: 6, lg: 4 }}>
+                                <Card shadow="sm" padding="lg" radius="md" withBorder h="100%">
+                                    <Stack gap="md" h="100%" justify="space-between">
+                                        {/* Test Header */}
+                                        <Stack gap="xs">
+                                            <Group justify="space-between" align="flex-start">
+                                                <ThemeIcon size="lg" variant="light" color="blue">
+                                                    <IconQuestionMark size={20} />
+                                                </ThemeIcon>
+                                                <Badge
+                                                    color={getDifficultyColor(test.difficulty || 'medium')}
+                                                    variant="light"
+                                                    size="sm"
+                                                >
+                                                    {test.difficulty || 'Trung bình'}
+                                                </Badge>
+                                            </Group>
 
-                            <Group>
-                                <IconClock size="1rem" />
-                                <Text>{test.duration} phút</Text>
-                            </Group>
+                                            <Title order={4} lineClamp={2}>
+                                                {test.name || `Bài kiểm tra ${test.id}`}
+                                            </Title>
 
-                            <Button onClick={() => handleStartTest(test.id)}>
-                                Bắt đầu làm bài
-                            </Button>
+                                            {test.description && (
+                                                <Text c="dimmed" size="sm" lineClamp={3}>
+                                                    {test.description}
+                                                </Text>
+                                            )}
+                                        </Stack>
+
+                                        <Divider />
+
+                                        {/* Test Info */}
+                                        <Stack gap="xs">
+                                            <Group gap="xs" justify="space-between">
+                                                <Group gap="xs">
+                                                    <IconClock size={16} color="gray" />
+                                                    <Text size="sm" c="dimmed">
+                                                        {formatDuration(test.duration_minutes || 60)}
+                                                    </Text>
+                                                </Group>
+                                                <Group gap="xs">
+                                                    <IconQuestionMark size={16} color="gray" />
+                                                    <Text size="sm" c="dimmed">
+                                                        {test.questions ? Object.keys(test.questions).length : '?'} câu
+                                                    </Text>
+                                                </Group>
+                                            </Group>
+
+                                            {test.topic_name && (
+                                                <Group gap="xs">
+                                                    <IconBook size={16} color="gray" />
+                                                    <Text size="sm" c="dimmed" lineClamp={1}>
+                                                        {test.topic_name}
+                                                    </Text>
+                                                </Group>
+                                            )}
+                                        </Stack>
+
+                                        <Divider />
+
+                                        {/* Action Button */}
+                                        <Button
+                                            fullWidth
+                                            leftSection={startingTest === test.id ? <Loader size={16} /> : <IconPlay size={16} />}
+                                            rightSection={<IconChevronRight size={16} />}
+                                            variant="filled"
+                                            loading={startingTest === test.id}
+                                            onClick={() => handleStartTest(test.id)}
+                                            disabled={!!startingTest}
+                                        >
+                                            {startingTest === test.id ? 'Đang bắt đầu...' : 'Bắt đầu làm bài'}
+                                        </Button>
+                                    </Stack>
+                                </Card>
+                            </Grid.Col>
+                        ))}
+                    </Grid>
+                ) : (
+                    <Paper p="xl" withBorder>
+                        <Stack align="center" gap="md">
+                            <ThemeIcon size="xl" variant="light" color="gray">
+                                <IconQuestionMark size={32} />
+                            </ThemeIcon>
+                            <Title order={3} ta="center">Chưa có bài kiểm tra nào</Title>
+                            <Text c="dimmed" ta="center">
+                                Hiện tại chưa có bài kiểm tra nào khả dụng. Vui lòng quay lại sau.
+                            </Text>
                         </Stack>
-                    </Card>
-                ))}
+                    </Paper>
+                )}
             </Stack>
         </Container>
     );

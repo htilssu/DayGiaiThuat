@@ -22,7 +22,7 @@ import {
     Box,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
 import { IconArrowLeft, IconAlertCircle, IconDeviceFloppy, IconUpload, IconX, IconPhoto } from "@tabler/icons-react";
@@ -34,6 +34,7 @@ import { notifications } from '@mantine/notifications';
 import Link from "next/link";
 import TopicManagement from './TopicManagement';
 import TestGenerationStatus from '@/components/admin/course/TestGenerationStatus';
+import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 
 interface EditCourseClientProps {
     courseId: number;
@@ -45,11 +46,42 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
     // Image upload states
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
+
+    // Ref cho FileInput để có thể trigger programmatically
+    const fileInputRef = useRef<HTMLButtonElement>(null);
 
     const router = useRouter();
     const queryClient = useQueryClient();
+
+    // Drag and drop hook
+    const { isDragOver, dragHandlers } = useDragAndDrop(
+        (files: File[]) => {
+            const file = files[0]; // Chỉ lấy file đầu tiên vì chỉ cho phép 1 ảnh
+            if (file) {
+                handleImageSelect(file);
+                notifications.show({
+                    title: 'Thành công',
+                    message: `Đã chọn file: ${file.name}`,
+                    color: 'green',
+                });
+            }
+        },
+        {
+            acceptedTypes: ['image/*'],
+            maxFileSize: 10 * 1024 * 1024, // 10MB
+            multiple: false,
+            showNotifications: true, // Hiển thị notification cho validation errors
+            customValidator: (file: File) => {
+                // Custom validation cho ảnh
+                if (!file.type.startsWith('image/')) {
+                    return 'Vui lòng chỉ chọn file ảnh (JPG, PNG, GIF).';
+                }
+                return null;
+            }
+        },
+        uploading
+    );
 
     // Use useQuery to cache course data
     const {
@@ -88,8 +120,12 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
                 setUploading(true);
                 try {
                     const uploadResult: FileUploadResponse = await uploadCourseImageAdmin(courseId, selectedImage);
-                    finalValues.thumbnailUrl = uploadResult.url;
-                    setPendingImageUrl(uploadResult.url);
+                    course!.thumbnailUrl = uploadResult.url;
+                    // Invalidate cache để refetch course data mới nhất với thumbnail đã được cập nhật từ server
+                    await queryClient.invalidateQueries({ queryKey: ['admin', 'course', courseId] });
+
+                    // Không cần set finalValues.thumbnailUrl nữa vì server đã cập nhật rồi
+                    console.log('Image uploaded successfully:', uploadResult.url);
                 } catch (uploadError) {
                     notifications.show({
                         title: 'Lỗi upload ảnh',
@@ -102,19 +138,41 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
                 }
             }
 
-            return await updateCourseAdmin(courseId, finalValues);
+            // Chỉ update course nếu có thay đổi form data khác (không phải chỉ ảnh)
+            const hasOtherChanges = Object.keys(finalValues).some(key =>
+                key !== 'thumbnailUrl' && form.isDirty(key as any)
+            );
+
+            if (hasOtherChanges || !selectedImage) {
+                return await updateCourseAdmin(courseId, finalValues);
+            }
+
+            // Nếu chỉ upload ảnh thì return course hiện tại
+            return course;
         },
         onSuccess: (updatedCourse) => {
-            // Update cache with new course data
-            queryClient.setQueryData(['admin', 'course', courseId], updatedCourse);
+            console.log('Update course success:', updatedCourse);
+
+            // Reset image states sau khi save thành công
+            setSelectedImage(null);
+            setImagePreview(null);
+
+            // Nếu có updatedCourse và nó có thumbnailUrl, cập nhật cache
+            if (updatedCourse && updatedCourse.thumbnailUrl) {
+                queryClient.setQueryData(['admin', 'course', courseId], updatedCourse);
+                setImagePreview(null);
+            } else {
+                // Nếu không có thumbnailUrl trong response (trường hợp chỉ upload ảnh)
+                queryClient.invalidateQueries({ queryKey: ['admin', 'course', courseId] })
+                    .then(() => {
+                        setTimeout(() => {
+                            setImagePreview(null);
+                        }, 1500);
+                    });
+            }
 
             // Also update the courses list cache if it exists
             queryClient.invalidateQueries({ queryKey: ['admin', 'courses'] });
-
-            // Reset image states after successful save
-            setSelectedImage(null);
-            setImagePreview(null);
-            setPendingImageUrl(null);
 
             notifications.show({
                 title: 'Thành công',
@@ -194,8 +252,16 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
             form.setInitialValues(newValues);
             form.setValues(newValues);
             form.resetDirty(newValues);
+
+            // Chỉ reset image states khi lần đầu load course hoặc khi không có pending upload
+            if (!selectedImage && !imagePreview) {
+                setSelectedImage(null);
+                setImagePreview(null);
+                // Không reset pendingImageUrl để giữ ảnh vừa upload
+                // setPendingImageUrl(null);
+            }
         }
-    }, [course]);
+    }, [course, selectedImage, imagePreview]);
 
     // Handle image file selection
     const handleImageSelect = (file: File | null) => {
@@ -215,7 +281,11 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
     const handleRemoveImage = () => {
         setSelectedImage(null);
         setImagePreview(null);
-        setPendingImageUrl(null);
+    };
+
+    // Trigger file input when clicking on placeholder
+    const handlePlaceholderClick = () => {
+        fileInputRef.current?.click();
     };
 
     const handleUpdateCourse = async (values: CourseUpdatePayload) => {
@@ -227,8 +297,67 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
     };
 
     const getCurrentImageUrl = () => {
-        return pendingImageUrl || course?.thumbnailUrl || null;
+        // Ưu tiên: imagePreview (đang chọn) > URL ảnh pending (vừa upload) > ảnh hiện tại của course
+        let url = null;
+
+        if (imagePreview) {
+            // Nếu đang preview ảnh mới được chọn
+            url = imagePreview;
+        } else if (course?.thumbnailUrl) {
+            // Ảnh hiện tại của course từ database
+            url = course.thumbnailUrl;
+        }
+        return url;
     };
+
+    // Debug effect để kiểm tra course data
+    useEffect(() => {
+        if (course) {
+            console.log('Course data loaded:', {
+                id: course.id,
+                title: course.title,
+                thumbnailUrl: course.thumbnailUrl,
+                hasThumbail: !!course.thumbnailUrl
+            });
+        } else {
+            console.log('Course data is null/undefined');
+        }
+    }, [course]);
+
+    // Debug effect để theo dõi image states
+    useEffect(() => {
+        console.log('Image states changed:', {
+            selectedImage: selectedImage?.name,
+            imagePreview: !!imagePreview,
+            currentUrl: getCurrentImageUrl(),
+            isDragOver
+        });
+    }, [selectedImage, imagePreview, course?.thumbnailUrl, isDragOver]);
+
+    // Effect để đảm bảo cache được cập nhật khi pendingImageUrl thay đổi
+    useEffect(() => {
+        if (!selectedImage && !course?.thumbnailUrl) {
+            // Nếu có pendingImageUrl nhưng course.thumbnailUrl vẫn chưa có
+            // thì refetch để có dữ liệu mới nhất
+            console.log('Course thumbnailUrl still not available, refetching...');
+            const timer = setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ['admin', 'course', courseId] });
+            }, 1000);
+
+            return () => clearTimeout(timer);
+        }
+    }, [selectedImage, course?.thumbnailUrl, courseId, queryClient]);
+
+    // Effect để reset imagePreview khi course.thumbnailUrl đã được cập nhật
+    useEffect(() => {
+        if (course?.thumbnailUrl && !selectedImage) {
+            // Nếu có cả imagePreview và course.thumbnailUrl, nghĩa là đã sync xong
+            console.log('Course thumbnailUrl synced, resetting imagePreview');
+            setTimeout(() => {
+                setImagePreview(null);
+            }, 500);
+        }
+    }, [course?.thumbnailUrl, selectedImage]);
 
     if (error) {
         return (
@@ -390,39 +519,180 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
                         <Title order={4} mb="md">Ảnh khóa học</Title>
 
                         {/* Current or preview image */}
-                        {(imagePreview || getCurrentImageUrl()) && (
-                            <Box mb="md" className="relative">
+                        {getCurrentImageUrl() ? (
+                            <Box
+                                mb="md"
+                                style={{ position: 'relative' }}
+                                className="group"
+                                {...(uploading ? {} : dragHandlers)}
+                            >
                                 <Image
-                                    src={imagePreview || getCurrentImageUrl()}
+                                    src={getCurrentImageUrl()}
                                     alt="Course thumbnail"
                                     radius="md"
-                                    className="w-full aspect-video object-cover"
+                                    className={`w-full aspect-video object-cover cursor-pointer transition-all duration-200 ${isDragOver ? 'opacity-70 scale-105' : ''
+                                        }`}
+                                    fallbackSrc="/images/placeholder-course.jpg"
+                                    onClick={handlePlaceholderClick}
                                 />
+
+                                {/* Drag overlay */}
+                                {isDragOver && (
+                                    <Box
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 0,
+                                            backgroundColor: 'rgba(59, 130, 246, 0.9)',
+                                            borderRadius: '8px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            zIndex: 5,
+                                        }}
+                                    >
+                                        <div className="text-center text-white">
+                                            <IconPhoto size={48} className="mx-auto mb-2" />
+                                            <Text size="lg" fw={600} color="white">
+                                                Thả ảnh mới vào đây
+                                            </Text>
+                                            <Text size="sm" color="white" opacity={0.9}>
+                                                Sẽ thay thế ảnh hiện tại
+                                            </Text>
+                                        </div>
+                                    </Box>
+                                )}
                                 <ActionIcon
-                                    color="red"
-                                    size="sm"
-                                    className="absolute top-2 right-2"
+                                    size="lg"
+                                    variant="filled"
                                     onClick={handleRemoveImage}
+                                    style={{
+                                        position: 'absolute',
+                                        top: '8px',
+                                        right: '8px',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                        border: '2px solid rgba(239, 68, 68, 0.2)',
+                                        borderRadius: '50%',
+                                        zIndex: 10,
+                                        opacity: 0.9,
+                                        transition: 'all 0.2s ease',
+                                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.opacity = '1';
+                                        e.currentTarget.style.transform = 'scale(1.1)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.opacity = '0.9';
+                                        e.currentTarget.style.transform = 'scale(1)';
+                                    }}
                                 >
-                                    <IconX size={14} />
+                                    <IconX size={18} color="#ef4444" />
                                 </ActionIcon>
+                            </Box>
+                        ) : (
+                            <Box
+                                mb="md"
+                                className={`w-full aspect-video rounded-md flex items-center justify-center transition-all duration-200 ${uploading
+                                    ? 'cursor-not-allowed opacity-50 bg-gray-100 border-2 border-dashed border-gray-300'
+                                    : isDragOver
+                                        ? 'cursor-pointer bg-blue-50 border-2 border-dashed border-blue-400 transform scale-105'
+                                        : 'cursor-pointer bg-gray-100 border-2 border-dashed border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                    }`}
+                                onClick={uploading ? undefined : handlePlaceholderClick}
+                                {...(uploading ? {} : dragHandlers)}
+                            >
+                                <div className="text-center">
+                                    {uploading ? (
+                                        <>
+                                            <div className="animate-spin text-4xl mb-2">⏳</div>
+                                            <Text size="sm" c="dimmed">
+                                                Đang upload ảnh...
+                                            </Text>
+                                        </>
+                                    ) : isDragOver ? (
+                                        <>
+                                            <IconPhoto size={48} className="mx-auto mb-2 text-blue-500" />
+                                            <Text size="sm" c="blue" fw={500}>
+                                                Thả ảnh vào đây
+                                            </Text>
+                                            <Text size="xs" c="blue">
+                                                JPG, PNG, GIF tối đa 10MB
+                                            </Text>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <IconPhoto size={48} className="mx-auto mb-2 text-gray-400" />
+                                            <Text size="sm" c="dimmed">
+                                                Nhấn hoặc kéo thả ảnh vào đây
+                                            </Text>
+                                            <Text size="xs" c="dimmed">
+                                                JPG, PNG, GIF tối đa 10MB
+                                            </Text>
+                                        </>
+                                    )}
+                                </div>
                             </Box>
                         )}
 
+                        {/* Hidden FileInput - chỉ dùng để trigger dialog */}
                         <FileInput
-                            label="Upload ảnh mới"
                             placeholder="Chọn file ảnh..."
                             accept="image/*"
                             leftSection={<IconUpload size={14} />}
                             value={selectedImage}
                             onChange={handleImageSelect}
                             disabled={uploading}
+                            ref={fileInputRef}
+                            style={{ display: 'none' }}
                         />
 
-                        {selectedImage && (
-                            <Text size="xs" c="dimmed" mt="xs">
-                                Ảnh sẽ được upload khi lưu khóa học
-                            </Text>
+                        {/* Upload progress hoặc info */}
+                        {uploading && (
+                            <Box p="xs" className="bg-yellow-50 rounded border border-yellow-200">
+                                <Group gap="xs">
+                                    <div className="animate-spin">⏳</div>
+                                    <Text size="sm" fw={500} c="yellow.7">
+                                        Đang upload ảnh...
+                                    </Text>
+                                </Group>
+                            </Box>
+                        )}
+
+                        {selectedImage && !uploading && (
+                            <Box p="xs" className="bg-blue-50 rounded border border-blue-200">
+                                <Text size="sm" fw={500} c="blue">
+                                    📁 {selectedImage.name}
+                                </Text>
+                                <Text size="xs" c="dimmed">
+                                    Ảnh sẽ được upload khi lưu khóa học
+                                </Text>
+                            </Box>
+                        )}
+
+                        {course?.thumbnailUrl && !selectedImage && !uploading && (
+                            <Box p="xs" className="bg-green-50 rounded border border-green-200">
+                                <Text size="xs" c="green" fw={500}>
+                                    ✓ Ảnh hiện tại: {course.thumbnailUrl.split('/').pop()}
+                                </Text>
+                                <Text size="xs" c="dimmed">
+                                    Nhấn vào ảnh phía trên để thay đổi
+                                </Text>
+                            </Box>
+                        )}
+
+                        {/* Debug info trong development */}
+                        {process.env.NODE_ENV === 'development' && (
+                            <Box mt="xs" p="xs" className="bg-gray-50 rounded text-xs">
+                                <Text size="xs" fw={500} mb={4}>Debug Info:</Text>
+                                <Text size="xs">Course ID: {course?.id}</Text>
+                                <Text size="xs">Thumbnail URL: {course?.thumbnailUrl || 'null'}</Text>
+                                <Text size="xs">Current URL: {getCurrentImageUrl() || 'null'}</Text>
+                                <Text size="xs">Image Preview: {imagePreview ? 'có' : 'không'}</Text>
+                                <Text size="xs">Selected Image: {selectedImage?.name || 'không'}</Text>
+                            </Box>
                         )}
                     </Paper>
 

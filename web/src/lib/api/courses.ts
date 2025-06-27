@@ -6,6 +6,41 @@
 import { get, post, del, put } from "./client";
 
 /**
+ * Kiểu dữ liệu cho lesson
+ */
+export interface Lesson {
+  id: number;
+  externalId: string;
+  title: string;
+  description?: string;
+  type: string;
+  order: number;
+  content?: string;
+  sections?: {
+    id: number;
+    title: string;
+    content: string;
+    type: string;
+    order: number;
+  }[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Kiểu dữ liệu cho topic với lessons
+ */
+export interface TopicWithLessons {
+  id: number;
+  name: string;
+  description?: string;
+  courseId?: number;
+  lessons: Lesson[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
  * Kiểu dữ liệu cho khóa học
  */
 export interface Course {
@@ -26,6 +61,13 @@ export interface Course {
   isEnrolled?: boolean;
 }
 
+/**
+ * Kiểu dữ liệu cho thông tin chi tiết khóa học bao gồm topics và lessons
+ */
+export interface CourseDetail extends Course {
+  topics: TopicWithLessons[];
+}
+
 export type CourseCreatePayload = Omit<Course, "id" | "createdAt" | "updatedAt" | "isEnrolled" | "thumbnailUrl"> & { thumbnailUrl?: string };
 export type CourseUpdatePayload = Partial<CourseCreatePayload>;
 
@@ -36,8 +78,47 @@ export interface CourseEnrollment {
   id: number;
   userId: number;
   courseId: number;
-  enrolledAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Kiểu dữ liệu cho response đăng ký khóa học
+ */
+export interface CourseEnrollmentResponse {
+  enrollment: CourseEnrollment;
+  hasEntryTest: boolean;
+  entryTestId: number | null;
+}
+
+/**
+ * Kiểu dữ liệu cho test
+ */
+export interface Test {
+  id: number;
+  topicId?: number;
+  courseId?: number;
+  durationMinutes: number;
+  questions: Record<string, any>;
+}
+
+/**
+ * Kiểu dữ liệu cho test session
+ */
+export interface TestSession {
+  id: number;
+  userId: number;
+  testId: number;
+  startTime: string;
+  endTime?: string;
+  lastActivity: string;
+  timeRemainingSeconds: number;
   status: string;
+  isSubmitted: boolean;
+  currentQuestionIndex: number;
+  answers: Record<string, any>;
+  score?: number;
+  feedback?: Record<string, any>;
 }
 
 export interface EnrolledCourse extends Course {
@@ -62,12 +143,12 @@ export async function getCourses(page = 1, limit = 10) {
 }
 
 /**
- * Lấy thông tin chi tiết của một khóa học
+ * Lấy thông tin chi tiết của một khóa học bao gồm topics và lessons
  * @param id - ID của khóa học
- * @returns Thông tin chi tiết khóa học
+ * @returns Thông tin chi tiết khóa học với topics và lessons
  */
-export async function getCourseById(id: number): Promise<Course> {
-  const course = await get<Course>(`/courses/${id}`);
+export async function getCourseById(id: number): Promise<CourseDetail> {
+  const course = await get<CourseDetail>(`/courses/${id}`);
   // Đảm bảo tính tương thích giữa backend (is_enrolled) và frontend (isEnrolled)
   if ((course as any).is_enrolled !== undefined) {
     course.isEnrolled = (course as any).is_enrolled;
@@ -99,8 +180,8 @@ export async function updateCourse(id: number, courseData: CourseUpdatePayload):
  * @param courseId - ID của khóa học
  * @returns Thông tin đăng ký khóa học
  */
-export async function enrollCourse(courseId: number) {
-  return post(`/courses/enroll`, { courseId });
+export async function enrollCourse(courseId: number): Promise<CourseEnrollmentResponse> {
+  return post<CourseEnrollmentResponse>(`/courses/enroll`, { course_id: courseId });
 }
 
 /**
@@ -138,6 +219,24 @@ export async function getCourseTopics(courseId: number) {
   return get(`/courses/${courseId}/user-topics`);
 }
 
+/**
+ * Lấy test đầu vào của khóa học
+ * @param courseId - ID của khóa học
+ * @returns Test đầu vào
+ */
+export async function getCourseEntryTest(courseId: number): Promise<Test> {
+  return get<Test>(`/courses/${courseId}/entry-test`);
+}
+
+/**
+ * Bắt đầu làm bài test đầu vào của khóa học
+ * @param courseId - ID của khóa học
+ * @returns Test session đã được tạo
+ */
+export async function startCourseEntryTest(courseId: number): Promise<TestSession> {
+  return post<TestSession>(`/courses/${courseId}/entry-test/start`, {});
+}
+
 export const coursesApi = {
   getCourses,
   getCourseById,
@@ -148,5 +247,7 @@ export const coursesApi = {
   checkEnrollmentStatus,
   getEnrolledCourses,
   getCourseTopics,
+  getCourseEntryTest,
+  startCourseEntryTest,
 };
 

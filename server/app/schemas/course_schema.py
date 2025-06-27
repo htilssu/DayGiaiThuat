@@ -1,8 +1,18 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 from app.models.course_model import TestGenerationStatus
+
+# Import TopicWithLessonsResponse directly for runtime
+try:
+    from app.schemas.topic_schema import TopicWithLessonsResponse
+except ImportError:
+    # Fallback for circular import issues
+    TopicWithLessonsResponse = None
+
+if TYPE_CHECKING:
+    from app.schemas.topic_schema import TopicWithLessonsResponse
 
 
 class CourseBase(BaseModel):
@@ -122,6 +132,19 @@ class CourseResponse(CourseBase):
         from_attributes = True
 
 
+class CourseDetailResponse(CourseResponse):
+    """
+    Schema cho response chi tiết khóa học bao gồm cả topics và lessons
+    """
+
+    topics: List["TopicWithLessonsResponse"] = Field(
+        default_factory=list, description="Danh sách topics và lessons"
+    )
+
+    class Config:
+        from_attributes = True
+
+
 class CourseListResponse(BaseModel):
     """
     Schema cho response khi lấy danh sách khóa học với phân trang
@@ -139,3 +162,12 @@ class CourseListResponse(BaseModel):
     page: int
     limit: int
     totalPages: int
+
+
+# Rebuild model after TopicWithLessonsResponse is available
+def rebuild_course_models():
+    """Rebuild course models để resolve forward references"""
+    try:
+        CourseDetailResponse.model_rebuild()
+    except Exception:
+        pass

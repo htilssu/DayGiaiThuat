@@ -10,6 +10,7 @@ from app.database.database import Base
 if TYPE_CHECKING:
     from app.models.user_state_model import UserState
     from app.models.topic_model import Topic
+    from app.models.test_model import Test
 
 
 class TestGenerationStatus(str, Enum):
@@ -79,3 +80,4 @@ class Course(Base):
         back_populates="current_course"
     )
     topics: Mapped[List["Topic"]] = relationship("Topic", back_populates="course")
+    tests: Mapped[List["Test"]] = relationship("Test", back_populates="course")

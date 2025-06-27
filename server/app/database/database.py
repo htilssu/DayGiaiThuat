@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import AsyncGenerator
 
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Mapped, mapped_column
@@ -6,36 +7,53 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 
 from app.core.config import settings
 
-# Tạo engine để kết nối database với timeout ngắn hơn để tránh treo ứng dụng nếu không kết nối được
+# Tối ưu hóa engine cho startup nhanh hơn
 engine = create_engine(
     settings.DATABASE_URI,
     pool_pre_ping=True,  # Kiểm tra kết nối trước khi sử dụng
-    connect_args={"connect_timeout": 5},  # Timeout 5 giây
+    connect_args={"connect_timeout": 5},  # Timeout 5 giây cho psycopg2
 )
 
-# Tạo engine bất đồng bộ
+# Tạo engine bất đồng bộ với cấu hình tối ưu
+# asyncpg không hỗ trợ connect_timeout, sử dụng server_settings
 async_engine = create_async_engine(
     settings.ASYNC_DATABASE_URI,
     pool_pre_ping=True,  # Kiểm tra kết nối trước khi sử dụng
-    connect_args={"connect_timeout": 5},  # Timeout 5 giây
+    connect_args={
+        "server_settings": {
+            "application_name": "ai_agent_giai_thuat",
+        },
+        "command_timeout": 5,  # Timeout cho asyncpg commands
+    },
+    pool_timeout=30,  # Timeout để lấy connection từ pool
+    pool_recycle=3600,  # Recycle connections mỗi giờ
 )
 
-# Tạo SessionLocal class để tạo session cho mỗi request
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Tạo SessionLocal class với tối ưu hóa
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    expire_on_commit=False,  # Tăng performance
+)
 
-# Tạo AsyncSessionLocal class để tạo session bất đồng bộ
+# Tạo AsyncSessionLocal class với tối ưu hóa
 AsyncSessionLocal = async_sessionmaker(
-    async_engine, autocommit=False, autoflush=False, expire_on_commit=False
+    async_engine,
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,
+    class_=AsyncSession,
 )
 
 
 # Tạo Base class để kế thừa cho các model
 class Base(DeclarativeBase):
     created_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), nullable=False
+        server_default=func.now(), nullable=False, index=True
     )
     updated_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), onupdate=func.now(), nullable=False
+        server_default=func.now(), onupdate=func.now(), nullable=False, index=True
     )
 
 
@@ -54,7 +72,7 @@ def get_db():
         db.close()
 
 
-async def get_async_session() -> AsyncSession:
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Tạo và trả về một database session bất đồng bộ mới cho mỗi request
     và đảm bảo đóng kết nối sau khi xử lý xong.
@@ -67,3 +85,37 @@ async def get_async_session() -> AsyncSession:
             yield session
         finally:
             await session.close()
+
+
+def check_db_connection() -> bool:
+    """
+    Kiểm tra kết nối database đồng bộ
+
+    Returns:
+        bool: True nếu kết nối thành công
+    """
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(func.now())
+            result.fetchone()
+        return True
+    except Exception as e:
+        print(f"Database sync connection error: {e}")
+        return False
+
+
+async def check_async_db_connection() -> bool:
+    """
+    Kiểm tra kết nối database bất đồng bộ
+
+    Returns:
+        bool: True nếu kết nối thành công
+    """
+    try:
+        async with async_engine.connect() as conn:
+            result = await conn.execute(func.now())
+            await result.fetchone()
+        return True
+    except Exception as e:
+        print(f"Database async connection error: {e}")
+        return False

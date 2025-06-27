@@ -12,7 +12,8 @@ CODE:
 ```
 from .routers import items, users
 ```
-
+# 
+in backend alwat get snake key because i have an middware to convert camelCase from request to snake_key
 
 ----------------------------------------
 

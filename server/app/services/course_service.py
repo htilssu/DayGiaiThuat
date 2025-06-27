@@ -7,7 +7,6 @@ from app.database.database import get_db
 from app.models.course_model import Course, TestGenerationStatus
 from app.models.user_course_model import UserCourse
 from app.models.user_model import User
-import asyncio
 
 
 class CourseService:
@@ -142,7 +141,7 @@ class CourseService:
             course_id: ID của khóa học
 
         Returns:
-            UserCourse: Thông tin đăng ký khóa học
+            dict: Thông tin đăng ký khóa học và test đầu vào (nếu có)
         """
         try:
             # Kiểm tra xem người dùng có tồn tại không
@@ -184,7 +183,18 @@ class CourseService:
             self.db.commit()
             self.db.refresh(enrollment)
 
-            return enrollment
+            # Kiểm tra xem có test đầu vào cho khóa học này không
+            from app.models.test_model import Test
+
+            entry_test = self.db.query(Test).filter(Test.course_id == course_id).first()
+
+            result = {
+                "enrollment": enrollment,
+                "has_entry_test": entry_test is not None,
+                "entry_test_id": entry_test.id if entry_test else None,
+            }
+
+            return result
         except SQLAlchemyError as e:
             self.db.rollback()
             raise HTTPException(
@@ -313,97 +323,280 @@ class CourseService:
                 detail=f"Lỗi khi cập nhật trạng thái test: {str(e)}",
             )
 
+    def generate_input_test_sync(self, course_id: int):
+        """
+        Tạo bài test đầu vào đồng bộ (sync) - Deprecated
+
+        Sử dụng TestGenerationService thay thế
+        """
+        from app.services.test_generation_service import TestGenerationService
+
+        test_gen_service = TestGenerationService(self.db)
+        return test_gen_service.generate_input_test_sync(course_id)
+
     async def generate_input_test_async(self, course_id: int):
         """
-        Tạo bài test đầu vào bất đồng bộ
+        Tạo bài test đầu vào bất đồng bộ - Deprecated
+
+        Sử dụng TestGenerationService thay thế
+        """
+        from app.services.test_generation_service import TestGenerationService
+
+        test_gen_service = TestGenerationService(self.db)
+        return await test_gen_service.generate_input_test_async(course_id)
+
+    def _create_test_from_agent_sync(self, agent, course_id: int):
+        """
+        Tạo bài test từ agent và lưu vào database (phiên bản sync)
 
         Args:
+            agent: Agent để tạo test
             course_id: ID của khóa học
+
+        Returns:
+            Test: Bài test đã được tạo
         """
+        try:
+            # Tạo test từ agent bằng asyncio.run() để chạy sync
+            import asyncio
 
-        def run_in_thread():
-            try:
-                # Update status to pending
-                self.update_test_generation_status(
-                    course_id, TestGenerationStatus.PENDING
-                )
+            test_result = asyncio.run(agent.act(course_id=course_id))
 
-                # Import agent here to avoid circular dependency
-                from app.core.agents.input_test_agent import get_input_test_agent
-                from app.services.test_service import get_test_service
+            # Lưu test vào database
+            test = self._save_test_to_database_sync(course_id, test_result)
 
-                # Create test agent and generate test
-                agent = get_input_test_agent(self)
-                test_service = get_test_service(self.db)
+            return test
 
-                # This would be the actual test generation logic
-                asyncio.run(
-                    self._create_test_from_agent(agent, test_service, course_id)
-                )
-
-                # Update status to success
-                self.update_test_generation_status(
-                    course_id, TestGenerationStatus.SUCCESS
-                )
-
-            except Exception as e:
-                # Update status to failed
-                self.update_test_generation_status(
-                    course_id, TestGenerationStatus.FAILED
-                )
-
-                # Log error với thông tin chi tiết
-                import logging
-
-                logger = logging.getLogger(__name__)
-                logger.error(
-                    f"Lỗi khi tạo test cho khóa học {course_id}: {e}", exc_info=True
-                )
-
-                print(f"Error generating test for course {course_id}: {e}")
-
-        # Run in background thread
-        import threading
-
-        thread = threading.Thread(target=run_in_thread)
-        thread.start()
+        except Exception as e:
+            # Cập nhật trạng thái thất bại
+            self.update_test_generation_status(course_id, TestGenerationStatus.FAILED)
+            raise e
 
     async def _create_test_from_agent(self, agent, test_service, course_id: int):
         """
-        Tạo test từ agent result
+        Tạo bài test từ agent và lưu vào database
+
+        Args:
+            agent: Agent để tạo test
+            test_service: Service để lưu test (không dùng nữa, để tương thích)
+            course_id: ID của khóa học
         """
         try:
-            # Generate test using agent
-            result = await agent.act(course_id=course_id)
+            # Tạo test từ agent
+            test_result = await agent.act(course_id=course_id)
 
-            # Create test in database
-            test_data = {
-                "name": f"Bài kiểm tra đầu vào - Khóa học {course_id}",
-                "description": "Bài kiểm tra đánh giá trình độ đầu vào",
-                "topic_id": None,  # This is for the whole course
-                "duration_minutes": 60,
-                "questions": {
-                    "questions": [
-                        {
-                            "content": q.content,
-                            "difficulty": q.difficulty,
-                            "type": q.type,
-                            "answer": q.answer,
-                            "options": q.options,
-                        }
-                        for q in result.questions
-                    ]
-                },
-            }
-
-            # Save test (you'll need to implement test creation in test_service)
-            # test_service.create_test(test_data)
-            print(
-                f"Generated test data for course {course_id}: {len(test_data['questions']['questions'])} questions"
-            )
+            # Chuyển đổi output từ agent thành format phù hợp để lưu vào database
+            await self._save_test_to_database(None, course_id, test_result)
 
         except Exception as e:
-            raise Exception(f"Failed to create test from agent: {e}")
+            # Cập nhật trạng thái thất bại
+            self.update_test_generation_status(course_id, TestGenerationStatus.FAILED)
+            raise e
+
+    def _save_test_to_database_sync(self, course_id: int, test_result):
+        """
+        Lưu kết quả test từ agent vào database (phiên bản sync)
+
+        Args:
+            course_id: ID của khóa học
+            test_result: Kết quả từ agent (InputTestAgentOutput)
+
+        Returns:
+            Test: Bài test đã được lưu
+        """
+        try:
+            # Lấy course để lấy thông tin
+            course = self.get_course(course_id)
+            if not course:
+                raise ValueError(f"Không tìm thấy khóa học với ID {course_id}")
+
+            # Chuyển đổi questions từ agent format sang database format
+            questions_dict = {}
+            for i, question in enumerate(test_result.questions):
+                question_id = f"q_{i + 1}"
+                questions_dict[question_id] = {
+                    "id": question_id,
+                    "content": question.content,
+                    "type": question.type,
+                    "difficulty": question.difficulty,
+                    "answer": question.answer,
+                    "options": question.options if question.options else [],
+                }
+
+            # Tạo test object và lưu vào database
+            from app.models.test_model import Test
+
+            test = Test(
+                topic_id=None,  # Test thuộc về course, không thuộc về topic cụ thể
+                course_id=course_id,  # Test thuộc về course này
+                duration_minutes=60,  # Mặc định 60 phút
+                questions=questions_dict,
+            )
+
+            # Lưu bằng session sync
+            self.db.add(test)
+            self.db.commit()
+            self.db.refresh(test)
+
+            # Log thành công
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.info(
+                f"Đã tạo thành công bài test ID {test.id} cho khóa học {course_id} (course: {course.title})"
+            )
+
+            return test
+
+        except Exception as e:
+            self.db.rollback()
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Lỗi khi lưu test vào database: {e}", exc_info=True)
+            raise e
+
+    async def _save_test_to_database(self, test_service, course_id: int, test_result):
+        """
+        Lưu kết quả test từ agent vào database
+
+        Args:
+            test_service: Service để lưu test
+            course_id: ID của khóa học
+            test_result: Kết quả từ agent (InputTestAgentOutput)
+        """
+        try:
+            # Lấy course để lấy thông tin
+            course = self.get_course(course_id)
+            if not course:
+                raise ValueError(f"Không tìm thấy khóa học với ID {course_id}")
+
+            # Chuyển đổi questions từ agent format sang database format
+            questions_dict = {}
+            for i, question in enumerate(test_result.questions):
+                question_id = f"q_{i + 1}"
+                questions_dict[question_id] = {
+                    "id": question_id,
+                    "content": question.content,
+                    "type": question.type,
+                    "difficulty": question.difficulty,
+                    "answer": question.answer,
+                    "options": question.options if question.options else [],
+                }
+
+            # Tạo test data để lưu vào database
+            from app.schemas.test_schema import TestCreate
+
+            test_data = TestCreate(
+                topic_id=None,  # Test thuộc về course, không thuộc về topic cụ thể
+                course_id=course_id,  # Test thuộc về course này
+                duration_minutes=60,  # Mặc định 60 phút
+                questions=questions_dict,
+            )
+
+            # Lưu vào database (tạm thời dùng sync để tránh lỗi async session)
+            from app.models.test_model import Test
+
+            test = Test(
+                topic_id=test_data.topic_id,
+                course_id=test_data.course_id,
+                duration_minutes=test_data.duration_minutes,
+                questions=test_data.questions,
+            )
+
+            # Lưu bằng session sync
+            self.db.add(test)
+            self.db.commit()
+            self.db.refresh(test)
+
+            # Log thành công
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.info(
+                f"Đã tạo thành công bài test ID {test.id} cho khóa học {course_id} (course: {course.title})"
+            )
+
+            return test
+
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Lỗi khi lưu test vào database: {e}", exc_info=True)
+            raise e
+
+    def update_course_thumbnail(self, course_id: int, thumbnail_url: str):
+        """
+        Cập nhật ảnh thumbnail cho khóa học
+
+        Args:
+            course_id (int): ID của khóa học
+            thumbnail_url (str): URL của ảnh thumbnail mới
+
+        Returns:
+            Course: Thông tin khóa học sau khi cập nhật
+
+        Raises:
+            HTTPException: Nếu không tìm thấy khóa học hoặc có lỗi database
+        """
+        try:
+            # Tìm khóa học cần cập nhật
+            course = self.get_course(course_id)
+            if not course:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Không tìm thấy khóa học với ID {course_id}",
+                )
+
+            # Cập nhật URL thumbnail
+            course.thumbnail_url = thumbnail_url
+
+            # Lưu thay đổi vào database
+            self.db.commit()
+            self.db.refresh(course)
+
+            return course
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Lỗi khi cập nhật ảnh thumbnail: {str(e)}",
+            )
+
+    def get_course_entry_test(self, course_id: int):
+        """
+        Lấy test đầu vào của khóa học
+
+        Args:
+            course_id: ID của khóa học
+
+        Returns:
+            Test: Test đầu vào của khóa học (nếu có)
+
+        Raises:
+            HTTPException: Nếu không tìm thấy khóa học
+        """
+        try:
+            # Kiểm tra khóa học có tồn tại không
+            course = self.get_course(course_id)
+            if not course:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Không tìm thấy khóa học với ID {course_id}",
+                )
+
+            # Lấy test đầu vào
+            from app.models.test_model import Test
+
+            entry_test = self.db.query(Test).filter(Test.course_id == course_id).first()
+
+            return entry_test
+        except SQLAlchemyError as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Lỗi khi lấy test đầu vào: {str(e)}",
+            )
 
 
 def get_course_service(db: Session = Depends(get_db)):

@@ -1,12 +1,10 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 
 from app.services.storage_service import StorageService, get_storage_service
+from app.services.course_service import CourseService, get_course_service
 from app.utils.utils import get_current_user
 from app.schemas.user_profile_schema import UserExcludeSecret
-from app.models.course_model import Course
-from app.database.database import get_db
 
 router = APIRouter(
     prefix="/admin/upload",
@@ -47,8 +45,8 @@ async def upload_course_image(
     course_id: int,
     file: UploadFile = File(...),
     storage_service: StorageService = Depends(get_storage_service),
+    course_service: CourseService = Depends(get_course_service),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
-    db: Session = Depends(get_db),
 ):
     """
     Upload ảnh cho khóa học (chỉ admin)
@@ -57,14 +55,14 @@ async def upload_course_image(
         course_id (int): ID của khóa học
         file (UploadFile): File ảnh cần upload
         storage_service (StorageService): Service xử lý lưu trữ
+        course_service (CourseService): Service xử lý khóa học
         admin_user (UserExcludeSecret): Thông tin admin đã xác thực
-        db (Session): Session database
 
     Returns:
         FileUploadResponse: Thông tin file đã upload
     """
     # Kiểm tra xem khóa học có tồn tại không
-    course = db.query(Course).filter(Course.id == course_id).first()
+    course = course_service.get_course(course_id)
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -75,13 +73,11 @@ async def upload_course_image(
         # Upload file
         result = await storage_service.upload_course_image(file, course_id)
 
-        # Cập nhật URL ảnh trong database
-        course.thumbnailUrl = result["url"]
-        db.commit()
+        # Cập nhật URL ảnh trong database thông qua service
+        course_service.update_course_thumbnail(course_id, result["url"])
 
         return result
     except Exception as e:
-        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi upload ảnh: {str(e)}",

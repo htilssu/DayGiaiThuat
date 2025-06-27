@@ -1,4 +1,6 @@
-uvicorn
+uvicorn[standard]
+uvloop
+httptools
 passlib[bcrypt]>=1.7.4
 sqlalchemy~=2.0.23
 pydantic[email]~=2.11.4

@@ -1,21 +1,35 @@
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends, Query, status, Body
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database.database import get_db
 from app.models.course_model import Course
+from app.models.topic_model import Topic
 from app.schemas.course_schema import (
-    CourseResponse,
     CourseListResponse,
+    CourseDetailResponse,
+    rebuild_course_models,
 )
-from app.schemas.topic_schema import TopicWithUserState
+from app.schemas.topic_schema import (
+    TopicWithUserState,
+    TopicWithLessonsResponse,
+    rebuild_models,
+)
+from app.schemas.lesson_schema import LessonResponse, rebuild_lesson_models
 from app.schemas.user_course_schema import (
-    UserCourseResponse,
+    CourseEnrollmentResponse,
 )
+from app.schemas.test_schema import TestRead, TestSessionResponse
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.services.course_service import CourseService, get_course_service
 from app.services.topic_service import TopicService, get_topic_service
+from app.services.test_service import TestService, get_test_service
 from app.utils.utils import get_current_user, get_current_user_optional
+
+# Rebuild models để resolve forward references
+rebuild_lesson_models()
+rebuild_models()
+rebuild_course_models()
 
 router = APIRouter(
     prefix="/courses",
@@ -71,7 +85,7 @@ async def get_courses(
 
 @router.get(
     "/{course_id}",
-    response_model=CourseResponse,
+    response_model=CourseDetailResponse,
     responses={
         200: {"description": "OK"},
         404: {"description": "Không tìm thấy khóa học"},
@@ -84,7 +98,7 @@ async def get_course_by_id(
     current_user: UserExcludeSecret = Depends(get_current_user_optional),
 ):
     """
-    Lấy thông tin chi tiết của một khóa học
+    Lấy thông tin chi tiết của một khóa học bao gồm topics và lessons
 
     Args:
         course_id: ID của khóa học
@@ -92,7 +106,7 @@ async def get_course_by_id(
         current_user: Thông tin người dùng hiện tại (nếu đã đăng nhập)
 
     Returns:
-        CourseResponse: Thông tin chi tiết của khóa học
+        CourseDetailResponse: Thông tin chi tiết của khóa học kèm topics và lessons
 
     Raises:
         HTTPException: Nếu không tìm thấy khóa học hoặc không có quyền truy cập
@@ -117,16 +131,37 @@ async def get_course_by_id(
         course_service = CourseService(db)
         is_enrolled = course_service.is_enrolled(current_user.id, course_id)
 
-    # Gán trạng thái đăng ký vào response
-    course_dict = CourseResponse.model_validate(course).model_dump()
+    # Lấy topics với lessons
+    topics = (
+        db.query(Topic)
+        .filter(Topic.course_id == course_id)
+        .options(joinedload(Topic.lessons))
+        .order_by(Topic.created_at)
+        .all()
+    )
+
+    # Convert topics to response format
+    topics_response = []
+    for topic in topics:
+        lessons_response = [
+            LessonResponse.model_validate(lesson)
+            for lesson in sorted(topic.lessons, key=lambda x: x.created_at)
+        ]
+        topic_response = TopicWithLessonsResponse.model_validate(topic)
+        topic_response.lessons = lessons_response
+        topics_response.append(topic_response)
+
+    # Tạo response
+    course_dict = CourseDetailResponse.model_validate(course).model_dump()
     course_dict["is_enrolled"] = is_enrolled
+    course_dict["topics"] = [topic.model_dump() for topic in topics_response]
 
     return course_dict
 
 
 @router.post(
     "/enroll",
-    response_model=UserCourseResponse,
+    response_model=CourseEnrollmentResponse,
     status_code=status.HTTP_201_CREATED,
     responses={
         201: {"description": "Đăng ký thành công"},
@@ -149,12 +184,12 @@ async def enroll_course(
         current_user: Thông tin người dùng hiện tại
 
     Returns:
-        UserCourseResponse: Thông tin đăng ký khóa học
+        CourseEnrollmentResponse: Thông tin đăng ký khóa học và test đầu vào
 
     Raises:
         HTTPException: Nếu có lỗi khi đăng ký
     """
-    course_id = data.get("courseId")
+    course_id = data.get("course_id")
     if not course_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -270,3 +305,96 @@ async def get_user_topics(
     """
     topics = topic_service.get_user_topics(course_id, current_user.id)
     return topics
+
+
+@router.get(
+    "/{course_id}/entry-test",
+    response_model=TestRead,
+    responses={
+        200: {"description": "OK"},
+        404: {"description": "Không tìm thấy test đầu vào"},
+        403: {"description": "Chưa đăng ký khóa học"},
+    },
+)
+async def get_course_entry_test(
+    course_id: int,
+    course_service: CourseService = Depends(get_course_service),
+    current_user: UserExcludeSecret = Depends(get_current_user),
+):
+    """
+    Lấy test đầu vào của khóa học
+
+    Args:
+        course_id: ID của khóa học
+        course_service: Service xử lý khóa học
+        current_user: Thông tin người dùng hiện tại
+
+    Returns:
+        TestRead: Thông tin test đầu vào
+
+    Raises:
+        HTTPException: Nếu không tìm thấy test hoặc chưa đăng ký khóa học
+    """
+    # Kiểm tra xem người dùng đã đăng ký khóa học chưa
+    if not course_service.is_enrolled(current_user.id, course_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn cần đăng ký khóa học trước khi làm test đầu vào",
+        )
+
+    # Lấy test đầu vào
+    entry_test = course_service.get_course_entry_test(course_id)
+    if not entry_test:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Khóa học này không có test đầu vào",
+        )
+
+    return entry_test
+
+
+@router.post(
+    "/{course_id}/entry-test/start",
+    response_model=TestSessionResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        201: {"description": "Tạo phiên làm bài test thành công"},
+        400: {"description": "Dữ liệu không hợp lệ hoặc đã có phiên làm bài khác"},
+        403: {"description": "Chưa đăng ký khóa học"},
+        404: {"description": "Không tìm thấy test đầu vào"},
+    },
+)
+async def start_course_entry_test(
+    course_id: int,
+    course_service: CourseService = Depends(get_course_service),
+    test_service: TestService = Depends(get_test_service),
+    current_user: UserExcludeSecret = Depends(get_current_user),
+):
+    """
+    Bắt đầu làm bài test đầu vào của khóa học
+
+    Args:
+        course_id: ID của khóa học
+        course_service: Service xử lý khóa học
+        test_service: Service xử lý test
+        current_user: Thông tin người dùng hiện tại
+
+    Returns:
+        TestSessionResponse: Thông tin phiên làm bài test
+
+    Raises:
+        HTTPException: Nếu có lỗi khi tạo phiên làm bài
+    """
+    # Kiểm tra người dùng đã đăng ký khóa học chưa
+    if not course_service.is_enrolled(current_user.id, course_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn cần đăng ký khóa học trước khi làm bài test",
+        )
+
+    # Tạo test session cho entry test
+    test_session = await test_service.create_test_session_from_course_entry_test(
+        course_id=course_id, user_id=current_user.id
+    )
+
+    return test_session

@@ -19,21 +19,18 @@ class TestQuestion(BaseModel):
 
 
 class TestBase(BaseModel):
-    name: str
-    description: str = ""
-    topic_id: int
+    topic_id: Optional[int] = None
+    course_id: Optional[int] = None
     duration_minutes: int = 60
 
 
 class TestCreate(TestBase):
-    questions: List[Dict[str, Any]] = []
+    questions: Dict[str, Any] = {}
 
 
 class TestUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
     duration_minutes: Optional[int] = None
-    questions: Optional[List[Dict[str, Any]]] = None
+    questions: Optional[Dict[str, Any]] = None
 
 
 class TestInDB(TestBase):
@@ -67,7 +64,7 @@ class TestSessionUpdate(BaseModel):
 
 
 class TestSessionInDB(TestSessionBase):
-    id: int
+    id: str
     start_time: datetime
     end_time: Optional[datetime] = None
     last_activity: datetime
@@ -84,6 +81,10 @@ class TestSessionInDB(TestSessionBase):
 
 
 class TestSessionRead(TestSessionInDB):
+    pass
+
+
+class TestSessionResponse(TestSessionInDB):
     pass
 
 

@@ -41,3 +41,25 @@ class UserCourseResponse(UserCourseBase):
         """Cấu hình cho Pydantic model"""
 
         from_attributes = True
+
+
+class CourseEnrollmentResponse(BaseModel):
+    """
+    Schema cho response khi đăng ký khóa học
+
+    Attributes:
+        enrollment: Thông tin đăng ký khóa học
+        has_entry_test: Có test đầu vào hay không
+        entry_test_id: ID của test đầu vào (nếu có)
+    """
+
+    enrollment: UserCourseResponse = Field(
+        ..., description="Thông tin đăng ký khóa học"
+    )
+    has_entry_test: bool = Field(..., description="Có test đầu vào hay không")
+    entry_test_id: int | None = Field(None, description="ID của test đầu vào (nếu có)")
+
+    class Config:
+        """Cấu hình cho Pydantic model"""
+
+        from_attributes = True

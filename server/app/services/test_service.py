@@ -25,9 +25,8 @@ class TestService:
     async def create_test(self, test_data: TestCreate) -> Test:
         """Tạo một bài kiểm tra mới"""
         test = Test(
-            name=test_data.name,
-            description=test_data.description,
             topic_id=test_data.topic_id,
+            course_id=test_data.course_id,
             duration_minutes=test_data.duration_minutes,
             questions=test_data.questions,
         )
@@ -142,7 +141,26 @@ class TestService:
         session_data = TestSessionCreate(user_id=user_id, test_id=selected_test.id)
         return await self.create_test_session(session_data)
 
-    async def get_test_session(self, session_id: int) -> Optional[TestSession]:
+    async def create_test_session_from_course_entry_test(
+        self, course_id: int, user_id: int
+    ) -> TestSession:
+        """Tạo một phiên làm bài kiểm tra đầu vào cho khóa học"""
+        # Tìm test đầu vào của khóa học
+        result = await self.session.execute(
+            select(Test).where(Test.course_id == course_id)
+        )
+        entry_test = result.scalars().first()
+
+        if not entry_test:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy bài kiểm tra đầu vào cho khóa học ID: {course_id}",
+            )
+
+        session_data = TestSessionCreate(user_id=user_id, test_id=entry_test.id)
+        return await self.create_test_session(session_data)
+
+    async def get_test_session(self, session_id: str) -> Optional[TestSession]:
         """Lấy thông tin phiên làm bài kiểm tra theo ID"""
         result = await self.session.execute(
             select(TestSession).where(TestSession.id == session_id)
@@ -171,7 +189,7 @@ class TestService:
         return list(result.scalars().all())
 
     async def update_session(
-        self, session_id: int, update_data: TestSessionUpdate
+        self, session_id: str, update_data: TestSessionUpdate
     ) -> Optional[TestSession]:
         """Cập nhật thông tin phiên làm bài"""
         session = await self.get_test_session(session_id)
@@ -198,7 +216,7 @@ class TestService:
         return session
 
     async def update_session_answer(
-        self, session_id: int, question_id: str, answer: Any
+        self, session_id: str, question_id: str, answer: Any
     ) -> Optional[TestSession]:
         """Cập nhật câu trả lời cho một câu hỏi trong phiên làm bài"""
         session = await self.get_test_session(session_id)
@@ -223,7 +241,7 @@ class TestService:
         return session
 
     async def submit_test_session(
-        self, session_id: int, submission: Optional[TestSubmission] = None
+        self, session_id: str, submission: Optional[TestSubmission] = None
     ) -> TestResult:
         """Nộp bài kiểm tra và tính điểm"""
         session = await self.get_test_session(session_id)

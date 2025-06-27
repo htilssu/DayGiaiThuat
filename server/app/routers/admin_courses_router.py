@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from app.database.database import get_db
 from app.models.course_model import Course
@@ -10,7 +11,8 @@ from app.schemas.course_schema import (
     CourseUpdate,
 )
 from app.schemas.user_profile_schema import UserExcludeSecret
-from app.core.agents.input_test_agent import InputTestAgent, get_input_test_agent
+
+from app.services.course_service import CourseService, get_course_service
 from app.utils.utils import get_current_user
 
 router = APIRouter(
@@ -18,6 +20,17 @@ router = APIRouter(
     tags=["admin-courses"],
     responses={404: {"description": "Không tìm thấy khóa học"}},
 )
+
+
+class ThumbnailUpdateRequest(BaseModel):
+    thumbnail_url: str
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "thumbnail_url": "https://example.com/images/course-thumbnail.jpg"
+            }
+        }
 
 
 def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
@@ -71,8 +84,6 @@ async def create_course(
         db.refresh(new_course)
 
         # Tạo bài test đầu vào async
-        from app.services.course_service import CourseService
-
         course_service = CourseService(db)
         await course_service.generate_input_test_async(new_course.id)
 
@@ -194,7 +205,7 @@ async def delete_course(
 
 @router.post(
     "/{course_id}/test",
-    summary="Tạo bài kiểm tra đầu vào cho khóa học (Admin)",
+    summary="Tạo bài kiểm tra đầu vào cho khóa học - Async (Admin)",
     status_code=status.HTTP_201_CREATED,
     responses={
         201: {"description": "Created"},
@@ -205,13 +216,44 @@ async def delete_course(
 )
 async def create_test(
     course_id: int,
-    input_test_agent: InputTestAgent = Depends(get_input_test_agent),
+    course_service: CourseService = Depends(get_course_service),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
-    Tạo bài kiểm tra đầu vào cho khóa học (chỉ admin)
+    Tạo bài kiểm tra đầu vào cho khóa học - Background (chỉ admin)
     """
-    return await input_test_agent.act(course_id=course_id)
+    await course_service.generate_input_test_async(course_id)
+    return {"message": "Đã bắt đầu tạo test trong background", "course_id": course_id}
+
+
+@router.post(
+    "/{course_id}/test-sync",
+    summary="Tạo bài kiểm tra đầu vào cho khóa học - Sync (Admin)",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        201: {"description": "Created"},
+        400: {"description": "Dữ liệu không hợp lệ"},
+        403: {"description": "Không có quyền truy cập"},
+        500: {"description": "Internal server error"},
+    },
+)
+def create_test_sync(
+    course_id: int,
+    course_service: CourseService = Depends(get_course_service),
+    admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
+    """
+    Tạo bài kiểm tra đầu vào cho khóa học - Đồng bộ (chỉ admin)
+    Hàm này sẽ chờ cho đến khi test được tạo xong rồi mới trả về kết quả
+    """
+    test = course_service.generate_input_test_sync(course_id)
+    return {
+        "message": "Đã tạo test thành công",
+        "course_id": course_id,
+        "test_id": test.id,
+        "questions_count": len(test.questions) if test.questions else 0,
+        "duration_minutes": test.duration_minutes,
+    }
 
 
 @router.get(
@@ -259,3 +301,51 @@ async def get_course_by_id_admin(
         )
 
     return course
+
+
+@router.patch(
+    "/{course_id}/thumbnail",
+    response_model=CourseResponse,
+    summary="Cập nhật ảnh thumbnail khóa học (Admin)",
+    responses={
+        200: {"description": "Cập nhật thành công"},
+        403: {"description": "Không có quyền truy cập"},
+        404: {"description": "Không tìm thấy khóa học"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def update_course_thumbnail(
+    course_id: int,
+    thumbnail_data: ThumbnailUpdateRequest,
+    course_service: CourseService = Depends(get_course_service),
+    admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
+    """
+    Cập nhật ảnh thumbnail cho khóa học (chỉ admin)
+
+    Args:
+        course_id (int): ID của khóa học
+        thumbnail_data (ThumbnailUpdateRequest): Dữ liệu ảnh thumbnail mới
+        course_service (CourseService): Service xử lý khóa học
+        admin_user (UserExcludeSecret): Thông tin admin đã xác thực
+
+    Returns:
+        CourseResponse: Thông tin khóa học sau khi cập nhật
+
+    Raises:
+        HTTPException: Nếu không tìm thấy khóa học hoặc có lỗi khi cập nhật
+    """
+    try:
+        # Cập nhật thumbnail thông qua service
+        updated_course = course_service.update_course_thumbnail(
+            course_id, thumbnail_data.thumbnail_url
+        )
+        return updated_course
+    except HTTPException:
+        # Re-raise HTTPException từ service
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi cập nhật ảnh thumbnail: {str(e)}",
+        )

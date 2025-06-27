@@ -23,6 +23,7 @@ from app.schemas.test_schema import (
 )
 from app.utils.utils import get_current_user
 
+
 router = APIRouter(prefix="/tests", tags=["tests"])
 
 # Kết nối WebSocket để theo dõi và cập nhật phiên làm bài
@@ -151,7 +152,7 @@ async def create_test_session_from_topic(
 
 @router.get("/sessions/{session_id}", response_model=TestSessionWithTest)
 async def get_test_session(
-    session_id: int,
+    session_id: str,
     test_service: TestService = Depends(get_test_service),
     current_user=Depends(get_current_user),
 ):
@@ -193,7 +194,7 @@ async def get_my_test_sessions(
 
 @router.put("/sessions/{session_id}", response_model=TestSessionRead)
 async def update_test_session(
-    session_id: int,
+    session_id: str,
     update_data: TestSessionUpdate,
     test_service: TestService = Depends(get_test_service),
     current_user=Depends(get_current_user),
@@ -220,7 +221,7 @@ async def update_test_session(
     "/sessions/{session_id}/answers/{question_id}", response_model=TestSessionRead
 )
 async def submit_answer(
-    session_id: int,
+    session_id: str,
     question_id: str,
     answer: Dict[str, Any],
     test_service: TestService = Depends(get_test_service),
@@ -260,7 +261,7 @@ async def submit_answer(
 
 @router.post("/sessions/{session_id}/submit", response_model=TestResult)
 async def submit_test(
-    session_id: int,
+    session_id: str,
     submission: Optional[TestSubmission] = None,
     test_service: TestService = Depends(get_test_service),
     current_user=Depends(get_current_user),
@@ -299,28 +300,31 @@ async def submit_test(
     return result
 
 
-@router.websocket("/ws/{session_id}")
+@router.websocket("/ws/test-sessions/{session_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
-    session_id: int,
+    session_id: str,
     test_service: TestService = Depends(get_test_service),
-    current_user=Depends(get_current_user),
 ):
     """WebSocket endpoint để theo dõi và cập nhật phiên làm bài"""
-    # Kiểm tra quyền truy cập
-    session = await test_service.get_test_session(session_id)
-    if not session or session.user_id != current_user.id:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        return
-
     await websocket.accept()
 
-    # Lưu kết nối
-    if current_user.id not in active_connections:
-        active_connections[current_user.id] = {}
-    active_connections[current_user.id][session_id] = websocket
-
     try:
+        # Lấy thông tin session trước tiên
+        session = await test_service.get_test_session(session_id)
+        if not session:
+            await websocket.send_json(
+                {"type": "error", "message": "Không tìm thấy phiên làm bài"}
+            )
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        # Lưu kết nối
+        user_id = session.user_id
+        if user_id not in active_connections:
+            active_connections[user_id] = {}
+        active_connections[user_id][session_id] = websocket
+
         # Gửi trạng thái hiện tại của phiên
         await websocket.send_json(
             {
@@ -335,52 +339,80 @@ async def websocket_endpoint(
 
         # Lắng nghe cập nhật từ client
         while True:
-            data = await websocket.receive_json()
+            try:
+                data = await websocket.receive_json()
 
-            # Xử lý các loại tin nhắn
-            if data["type"] == "heartbeat":
-                # Cập nhật thời gian hoạt động
-                update_data = TestSessionUpdate(last_activity=datetime.utcnow())
-                await test_service.update_session(session_id, update_data)
+                # Xử lý các loại tin nhắn
+                if data["type"] == "heartbeat" or data["type"] == "ping":
+                    # Cập nhật thời gian hoạt động
+                    update_data = TestSessionUpdate(last_activity=datetime.utcnow())
+                    await test_service.update_session(session_id, update_data)
 
-                # Gửi lại thời gian còn lại
-                updated_session = await test_service.get_test_session(session_id)
+                    # Gửi lại thời gian còn lại
+                    updated_session = await test_service.get_test_session(session_id)
+                    if updated_session:
+                        await websocket.send_json(
+                            {
+                                "type": "time_update",
+                                "time_remaining_seconds": updated_session.time_remaining_seconds,
+                                "timestamp": datetime.utcnow().isoformat(),
+                            }
+                        )
+
+                elif data["type"] == "save_answer":
+                    # Lưu câu trả lời
+                    question_id = data.get("question_id")
+                    answer = data.get("answer")
+                    if question_id and answer is not None:
+                        await test_service.update_session_answer(
+                            session_id, question_id, answer
+                        )
+                        await websocket.send_json(
+                            {
+                                "type": "answer_saved",
+                                "question_id": question_id,
+                                "timestamp": datetime.utcnow().isoformat(),
+                            }
+                        )
+
+                elif data["type"] == "update_question_index":
+                    # Cập nhật chỉ số câu hỏi hiện tại
+                    new_index = data.get("question_index")
+                    if new_index is not None:
+                        update_data = TestSessionUpdate(
+                            current_question_index=new_index
+                        )
+                        await test_service.update_session(session_id, update_data)
+                        await websocket.send_json(
+                            {
+                                "type": "question_index_updated",
+                                "question_index": new_index,
+                                "timestamp": datetime.utcnow().isoformat(),
+                            }
+                        )
+
+            except ValueError:
+                # Lỗi parsing JSON, gửi thông báo lỗi
                 await websocket.send_json(
-                    {
-                        "type": "time_update",
-                        "time_remaining_seconds": updated_session.time_remaining_seconds,
-                    }
+                    {"type": "error", "message": "Dữ liệu không hợp lệ"}
                 )
 
-            elif data["type"] == "save_answer":
-                # Lưu câu trả lời
-                question_id = data.get("question_id")
-                answer = data.get("answer")
-                if question_id and answer:
-                    await test_service.update_session_answer(
-                        session_id, question_id, answer
-                    )
-                    await websocket.send_json(
-                        {
-                            "type": "answer_saved",
-                            "question_id": question_id,
-                            "timestamp": datetime.utcnow().isoformat(),
-                        }
-                    )
-
     except WebSocketDisconnect:
+        # Client đã disconnect
+        pass
+    except Exception as e:
+        # Log lỗi
+        print(f"WebSocket error: {e}")
+    finally:
         # Xóa kết nối khi client ngắt kết nối
-        if (
-            current_user.id in active_connections
-            and session_id in active_connections[current_user.id]
-        ):
-            del active_connections[current_user.id][session_id]
-            if not active_connections[current_user.id]:
-                del active_connections[current_user.id]
+        if user_id in active_connections and session_id in active_connections[user_id]:
+            del active_connections[user_id][session_id]
+            if not active_connections[user_id]:
+                del active_connections[user_id]
 
 
 async def broadcast_session_update(
-    user_id: int, session_id: int, message: Dict[str, Any]
+    user_id: int, session_id: str, message: Dict[str, Any]
 ):
     """Gửi cập nhật đến tất cả các kết nối WebSocket của phiên làm bài"""
     if user_id in active_connections and session_id in active_connections[user_id]:

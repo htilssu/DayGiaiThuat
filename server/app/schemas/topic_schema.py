@@ -1,12 +1,24 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, TYPE_CHECKING
 from pydantic import BaseModel, Field
+
+# Import LessonResponse directly for runtime
+try:
+    from app.schemas.lesson_schema import LessonResponse
+except ImportError:
+    # Fallback for circular import issues
+    LessonResponse = None
+
+if TYPE_CHECKING:
+    from app.schemas.lesson_schema import LessonResponse
 
 
 class TopicBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="Tên chủ đề")
     description: Optional[str] = Field(None, description="Mô tả chủ đề")
-    course_id: int = Field(..., description="ID của khóa học chứa chủ đề này")
+    course_id: Optional[int] = Field(
+        None, description="ID của khóa học chứa chủ đề này (có thể null)"
+    )
 
 
 class TopicCreate(TopicBase):
@@ -49,8 +61,30 @@ class TopicWithUserState(BaseModel):
     id: int
     name: str
     description: Optional[str]
-    course_id: int
+    course_id: Optional[int]
     user_topic_state: Optional[UserTopic]
 
     class Config:
         from_attributes = True
+
+
+class TopicWithLessonsResponse(TopicResponse):
+    """
+    Schema cho topic bao gồm cả danh sách lessons
+    """
+
+    lessons: List["LessonResponse"] = Field(
+        default_factory=list, description="Danh sách lessons"
+    )
+
+    class Config:
+        from_attributes = True
+
+
+# Rebuild model after LessonResponse is available
+def rebuild_models():
+    """Rebuild models để resolve forward references"""
+    try:
+        TopicWithLessonsResponse.model_rebuild()
+    except Exception:
+        pass

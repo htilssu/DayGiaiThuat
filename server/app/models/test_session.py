@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Dict, Optional, TYPE_CHECKING
+import uuid
 
 from app.database.database import Base
 from sqlalchemy import ForeignKey, String, Boolean, Integer, DateTime, JSON
@@ -13,7 +14,9 @@ if TYPE_CHECKING:
 class TestSession(Base):
     __tablename__ = "test_sessions"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, index=True, default=lambda: str(uuid.uuid4())
+    )
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
     test_id: Mapped[int] = mapped_column(Integer, ForeignKey("tests.id"), index=True)
 

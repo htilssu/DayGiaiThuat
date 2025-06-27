@@ -3,7 +3,7 @@
  * @module api/admin-topics
  */
 
-import { get, post, del, put } from "./client";
+import { get, post, del, put, patch } from "./client";
 
 /**
  * Kiểu dữ liệu cho chủ đề
@@ -12,7 +12,7 @@ export interface Topic {
     id: number;
     name: string;
     description: string | null;
-    courseId: number;
+    courseId: number | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -75,7 +75,7 @@ export async function updateTopicAdmin(id: number, topicData: TopicUpdatePayload
  * @returns Chủ đề sau khi assign
  */
 export async function assignTopicToCourseAdmin(id: number, assignmentData: TopicCourseAssignmentPayload): Promise<Topic> {
-    return put<Topic>(`/admin/topics/${id}/assign-course`, {
+    return patch<Topic>(`/admin/topics/${id}/assign-course`, {
         course_id: assignmentData.courseId
     });
 }

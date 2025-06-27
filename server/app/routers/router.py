@@ -1,22 +1,26 @@
 from fastapi import FastAPI
 
-from app.routers import (
-    auth_router,
-    courses_router,
-    document_router,
-    exercise_router,
-    test_router,
-    tutor_router,
-    topic_router,
-    users_router,
-    upload_router,
-    admin_courses_router,
-    admin_topics_router,
-    admin_upload_router,
-)
-
 
 def register_router(app: FastAPI):
+    """Register all routers with lazy loading for faster startup"""
+
+    # Lazy import để tăng tốc startup
+    from app.routers import (
+        auth_router,
+        courses_router,
+        document_router,
+        exercise_router,
+        test_router,
+        tutor_router,
+        topic_router,
+        users_router,
+        upload_router,
+        admin_courses_router,
+        admin_topics_router,
+        admin_upload_router,
+        test_generation_router,
+    )
+
     # User routes (không có prefix admin)
     app.include_router(auth_router.router)
     app.include_router(users_router.router)
@@ -32,3 +36,6 @@ def register_router(app: FastAPI):
     app.include_router(admin_courses_router.router)
     app.include_router(admin_topics_router.router)
     app.include_router(admin_upload_router.router)
+
+    # Test generation routes
+    app.include_router(test_generation_router.router)

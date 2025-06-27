@@ -1,8 +1,9 @@
 import os
 import uuid
-from typing import Optional, Dict, Any
 import logging
 from datetime import datetime
+from typing import Dict, Any, Optional
+from pathlib import Path
 
 import boto3
 from botocore.exceptions import ClientError
@@ -15,27 +16,46 @@ logger = logging.getLogger(__name__)
 
 class StorageService:
     """
-    Service xử lý việc lưu trữ file trên AWS S3
+    Service xử lý việc lưu trữ file trên AWS S3 hoặc Cloudflare R2
+
+    Quy trình upload:
+    1. Lưu file tạm thời vào thư mục upload
+    2. Upload file từ thư mục tạm thời lên S3
+    3. Xóa file tạm thời sau khi upload (thành công hoặc thất bại)
     """
 
     def __init__(self):
         """
         Khởi tạo service với các thông tin cấu hình từ settings
         """
+        # Set environment variables để fix lỗi MissingContentLength với boto3 ≥1.36.0
+        os.environ["AWS_REQUEST_CHECKSUM_CALCULATION"] = (
+            settings.AWS_REQUEST_CHECKSUM_CALCULATION
+        )
+        os.environ["AWS_RESPONSE_CHECKSUM_VALIDATION"] = (
+            settings.AWS_RESPONSE_CHECKSUM_VALIDATION
+        )
+
         if not settings.S3_ENABLED:
             logger.warning(
-                "S3 không được cấu hình đầy đủ. Các tính năng upload sẽ không hoạt động."
+                "S3/R2 không được cấu hình đầy đủ. Các tính năng upload sẽ không hoạt động."
             )
             self.s3_client = None
             return
 
         try:
-            self.s3_client = boto3.client(
-                "s3",
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                region_name=settings.AWS_REGION,
-            )
+            # Cấu hình client cho S3/R2
+            client_config = {
+                "aws_access_key_id": settings.S3_ACCESS_KEY_ID,
+                "aws_secret_access_key": settings.S3_SECRET_ACCESS_KEY,
+                "region_name": settings.S3_REGION,
+            }
+
+            # Nếu có endpoint URL (cho Cloudflare R2), thêm vào config
+            if settings.S3_ENDPOINT_URL:
+                client_config["endpoint_url"] = settings.S3_ENDPOINT_URL
+
+            self.s3_client = boto3.client("s3", **client_config)
             self.bucket_name = settings.S3_BUCKET_NAME
         except Exception as e:
             logger.error(f"Không thể khởi tạo S3 client: {str(e)}")
@@ -84,11 +104,22 @@ class StorageService:
         today = datetime.now().strftime("%Y-%m-%d")
         return f"{file_prefix}{today}/{unique_id}{ext.lower()}"
 
+    def _create_upload_directory(self) -> str:
+        """
+        Tạo thư mục upload tạm thời nếu chưa tồn tại
+
+        Returns:
+            str: Đường dẫn thư mục upload
+        """
+        upload_dir = settings.UPLOAD_DIR
+        Path(upload_dir).mkdir(exist_ok=True)
+        return upload_dir
+
     async def upload_file(
         self, file: UploadFile, prefix: str, metadata: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """
-        Upload file lên S3
+        Upload file lên S3 qua file tạm thời
 
         Args:
             file (UploadFile): File cần upload
@@ -117,34 +148,87 @@ class StorageService:
                 detail="Chỉ chấp nhận file hình ảnh",
             )
 
-        try:
-            # Tạo key cho file
-            file_key = self._generate_file_key(prefix, file.filename)
-
-            # Upload file lên S3
-            file_content = await file.read()
-            self.s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=file_key,
-                Body=file_content,
-                ContentType=content_type,
-                Metadata=metadata or {},
+        # Kiểm tra file size (giới hạn 10MB)
+        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+        if hasattr(file, "size") and file.size and file.size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File quá lớn. Kích thước tối đa là 10MB",
             )
 
-            # Tạo public URL nếu có cấu hình
+        # Tạo thư mục upload tạm thời
+        upload_dir = self._create_upload_directory()
+
+        # Tạo tên file tạm thời
+        temp_filename = f"{uuid.uuid4()}{os.path.splitext(file.filename)[1]}"
+        temp_file_path = os.path.join(upload_dir, temp_filename)
+
+        try:
+            # Tạo key cho file trên S3
+            file_key = self._generate_file_key(prefix, file.filename)
+            logger.info(f"Generated file key: {file_key}")
+
+            # Bước 1: Lưu file tạm thời vào thư mục upload
+            logger.info(f"Saving temporary file to: {temp_file_path}")
+            file_content = await file.read()
+            file_size = len(file_content)
+
+            # Kiểm tra file content không rỗng
+            if file_size == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="File không có nội dung",
+                )
+
+            with open(temp_file_path, "wb") as temp_file:
+                temp_file.write(file_content)
+
+            logger.info(
+                f"File saved temporarily: {temp_file_path}, size: {file_size} bytes"
+            )
+
+            # Bước 2: Upload file từ thư mục tạm thời lên S3
+            logger.info(f"Uploading to S3 bucket: {self.bucket_name}")
+
+            # Chuẩn bị ExtraArgs cho upload (set file là public)
+            extra_args = {
+                "ContentType": content_type,
+                "ACL": "public-read",  # Đặt file là public
+                "Metadata": metadata or {},
+            }
+
+            self.s3_client.upload_file(
+                temp_file_path,
+                self.bucket_name,
+                file_key,
+                ExtraArgs=extra_args,
+            )
+
+            logger.info(f"Upload successful for key: {file_key}")
+
+            # Tạo public URL
             public_url = None
             if settings.S3_PUBLIC_URL:
-                public_url = f"{settings.S3_PUBLIC_URL.rstrip('/')}/{file_key}"
+                public_url = f"{settings.S3_PUBLIC_URL.rstrip('/')}/{self.bucket_name}/{file_key}"
             else:
-                # Sử dụng S3 URL mặc định
-                public_url = f"https://{self.bucket_name}.s3.{settings.AWS_REGION}.amazonaws.com/{file_key}"
+                # Cho Cloudflare R2, URL format khác với AWS S3
+                if settings.S3_ENDPOINT_URL:
+                    # Cloudflare R2 public URL format
+                    endpoint_url = settings.S3_ENDPOINT_URL.replace(
+                        ".r2.cloudflarestorage.com", ".r2.dev"
+                    )
+                    public_url = f"{endpoint_url}/{self.bucket_name}/{file_key}"
+                else:
+                    # Fallback: sử dụng S3 URL mặc định
+                    public_url = f"https://{self.bucket_name}.s3.{settings.S3_REGION}.amazonaws.com/{file_key}"
 
             return {
                 "key": file_key,
                 "url": public_url,
                 "content_type": content_type,
-                "size": len(file_content),
+                "size": file_size,
             }
+
         except ClientError as e:
             logger.error(f"Lỗi khi upload file lên S3: {str(e)}")
             raise HTTPException(
@@ -158,6 +242,16 @@ class StorageService:
                 detail="Đã xảy ra lỗi khi xử lý file",
             )
         finally:
+            # Bước 3: Xóa file tạm thời sau khi upload (thành công hoặc thất bại)
+            try:
+                if os.path.exists(temp_file_path):
+                    os.remove(temp_file_path)
+                    logger.info(f"Temporary file removed: {temp_file_path}")
+            except Exception as e:
+                logger.warning(
+                    f"Không thể xóa file tạm thời {temp_file_path}: {str(e)}"
+                )
+
             # Reset file position để có thể đọc lại nếu cần
             await file.seek(0)
 

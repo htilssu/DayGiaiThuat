@@ -6,8 +6,9 @@ from fastapi.openapi.docs import get_redoc_html
 
 from app.core.config import settings
 from app.exceptions.exception_handler import add_exception_handlers
-from app.middleware.camel_case_middleware import CamelCaseMiddleware
 from app.routers.router import register_router
+from app.middleware.camel_case_middleware import CamelCaseMiddleware
+
 
 # Khởi tạo logger
 logger = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="""
-
+    ## API Documentation
     ## Tài liệu API
 
     * **/docs** - Swagger UI (hiện tại)
