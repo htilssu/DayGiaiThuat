@@ -276,7 +276,10 @@ class TestService:
         return session
 
     async def submit_test_session(
-        self, session_id: str, submission: Optional[TestSubmission] = None
+        self,
+        session_id: str,
+        submission: Optional[TestSubmission] = None,
+        is_auto_submit: bool = False,
     ) -> TestResult:
         """Nộp bài kiểm tra và tính điểm"""
         session = await self.get_test_session(session_id)
@@ -310,7 +313,10 @@ class TestService:
 
         # Cập nhật thông tin phiên làm bài
         session.end_time = datetime.utcnow()
-        session.status = "completed"
+        if is_auto_submit:
+            session.status = "expired"  # Mark as expired for auto-submit
+        else:
+            session.status = "completed"  # Mark as completed for manual submit
         session.is_submitted = True
         session.score = result.score
         session.correct_answers = result.correct_answers
@@ -415,6 +421,58 @@ class TestService:
             await self.session.commit()
 
         return expired_count
+
+    async def can_access_test_session(
+        self, session_id: str, user_id: int
+    ) -> Dict[str, Any]:
+        """Kiểm tra xem người dùng có thể truy cập phiên làm bài hay không"""
+        session = await self.get_test_session(session_id)
+
+        if not session:
+            return {
+                "can_access": False,
+                "reason": "session_not_found",
+                "message": "Không tìm thấy phiên làm bài",
+            }
+
+        if session.user_id != user_id:
+            return {
+                "can_access": False,
+                "reason": "permission_denied",
+                "message": "Không có quyền truy cập phiên làm bài này",
+            }
+
+        if session.status == "completed":
+            return {
+                "can_access": False,
+                "reason": "test_completed",
+                "message": "Bài kiểm tra đã được hoàn thành",
+                "session": session,
+            }
+
+        if session.status == "expired":
+            return {
+                "can_access": False,
+                "reason": "test_expired",
+                "message": "Bài kiểm tra đã hết thời gian",
+                "session": session,
+            }
+
+        # Check if time has expired based on start time and duration
+        if session.start_time:
+            elapsed_seconds = (datetime.utcnow() - session.start_time).total_seconds()
+            if elapsed_seconds >= session.time_remaining_seconds:
+                # Auto-expire the session
+                session.status = "expired"
+                await self.session.commit()
+                return {
+                    "can_access": False,
+                    "reason": "test_expired",
+                    "message": "Bài kiểm tra đã hết thời gian",
+                    "session": session,
+                }
+
+        return {"can_access": True, "session": session}
 
 
 def get_test_service(session: AsyncSession = Depends(get_async_session)):

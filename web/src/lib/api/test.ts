@@ -178,5 +178,15 @@ export const testApi = {
     // Sync test session state (fallback when WebSocket disconnects)
     syncTestSession: async (sessionId: string): Promise<TestSessionWithTest> => {
         return await get(`/tests/sessions/${sessionId}/sync`);
+    },
+
+    // Check session access
+    checkSessionAccess: async (sessionId: string): Promise<{
+        can_access: boolean;
+        reason?: string;
+        message: string;
+        session?: TestSession;
+    }> => {
+        return await get(`/tests/sessions/${sessionId}/access-check`);
     }
 }; 
