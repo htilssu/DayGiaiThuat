@@ -1,44 +1,19 @@
-'use client';
+import React from 'react';
+import { Metadata } from 'next';
+import ClientPage from './components/ClientPage';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { testApi } from '@/lib/api';
-import { useAppSelector } from '@/lib/store';
+export const metadata: Metadata = {
+    title: "Bài kiểm tra theo chủ đề - AI Agent Giải Thuật",
+    description: "Làm bài kiểm tra theo chủ đề cụ thể để đánh giá kiến thức",
+    authors: [{ name: "AI Agent Giải Thuật Team" }],
+    keywords: ["giải thuật", "học tập", "lập trình", "AI", "kiểm tra", "chủ đề"],
+};
 
-export default function TopicTestPage({ params }: { params: { topicId: string } }) {
-    const router = useRouter();
-    const userState = useAppSelector(state => state.user);
+interface PageProps {
+    params: Promise<{ topicId: string }>;
+}
 
-    useEffect(() => {
-        const createTestSession = async () => {
-            if (!userState.user) {
-                router.push('/auth/login');
-                return;
-            }
-
-            try {
-                const test = await testApi.getTestByTopic(params.topicId);
-                if (test) {
-                    const session = await testApi.createTestSession({
-                        user_id: userState.user.id,
-                        test_id: parseInt(test.id)
-                    });
-                    console.log('Created session with UUID:', session.id);
-                    router.push(`/tests/${session.id}`);
-                } else {
-                    console.error("No test found for topic:", params.topicId);
-                    router.push('/tests'); // Redirect to tests list
-                }
-            } catch (error) {
-                console.error("Error creating test session from topic:", error);
-                router.push('/tests'); // Redirect to tests list on error
-            }
-        };
-
-        if (userState.user) {
-            createTestSession();
-        }
-    }, [userState.user, params.topicId, router]);
-
-    return <div>Đang tạo phiên làm bài...</div>;
+export default async function TopicTestPage({ params }: PageProps) {
+    const { topicId } = await params;
+    return <ClientPage topicId={parseInt(topicId)} />;
 }  

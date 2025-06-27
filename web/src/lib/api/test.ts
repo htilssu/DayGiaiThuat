@@ -88,6 +88,11 @@ export interface UpdateTestSessionRequest {
 }
 
 export const testApi = {
+    // Get all available tests
+    getTests: async (): Promise<Test[]> => {
+        return await get('/tests');
+    },
+
     // Get available tests for a topic
     getTestsByTopic: async (topicId: number): Promise<Test[]> => {
         return await get(`/tests/topic/${topicId}`);

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.database import get_async_session
@@ -42,9 +42,6 @@ class TestService:
 
         # Migration: Convert questions from dict to array if needed
         if test and test.questions:
-            print(f"Debug: test.questions type: {type(test.questions)}")
-            print(f"Debug: test.questions is dict: {isinstance(test.questions, dict)}")
-            print(f"Debug: test.questions is list: {isinstance(test.questions, list)}")
 
             if isinstance(test.questions, dict) and not isinstance(
                 test.questions, list
@@ -56,8 +53,6 @@ class TestService:
                     questions_list.append(question)
 
                 # Update the test object and save to database
-                from sqlalchemy import update
-
                 await self.session.execute(
                     update(Test)
                     .where(Test.id == test_id)
@@ -217,11 +212,71 @@ class TestService:
         return result.scalars().first()
 
     async def get_user_sessions(self, user_id: int) -> List[TestSession]:
-        """Lấy danh sách các phiên làm bài của người dùng"""
+        """Lấy danh sách tất cả session của một user"""
         result = await self.session.execute(
             select(TestSession).where(TestSession.user_id == user_id)
         )
-        return list(result.scalars().all())
+        return result.scalars().all()
+
+    async def get_user_test_history(self, user_id: int) -> List[Dict[str, Any]]:
+        """Lấy lịch sử làm bài kiểm tra của người dùng với thông tin bài kiểm tra"""
+        result = await self.session.execute(
+            select(TestSession, Test)
+            .join(Test, TestSession.test_id == Test.id)
+            .where(
+                and_(
+                    TestSession.user_id == user_id,
+                    TestSession.status.in_(["completed", "expired"]),
+                )
+            )
+            .order_by(TestSession.start_time.desc())
+        )
+
+        history = []
+        for test_session, test in result.all():
+            # Tính thời gian làm bài
+            start_time = test_session.start_time
+            end_time = test_session.end_time or test_session.updated_at
+
+            # Chuyển đổi sang dictionary và thêm thông tin test
+            session_dict = {
+                "id": test_session.id,
+                "testId": test_session.test_id,
+                "userId": test_session.user_id,
+                "startTime": start_time.isoformat() if start_time else None,
+                "endTime": end_time.isoformat() if end_time else None,
+                "timeRemainingSeconds": test_session.time_remaining_seconds,
+                "status": test_session.status,
+                "isSubmitted": test_session.is_submitted,
+                "currentQuestionIndex": test_session.current_question_index,
+                "score": test_session.score,
+                "correctAnswers": test_session.correct_answers,
+                "answers": test_session.answers or {},
+                "createdAt": (
+                    test_session.created_at.isoformat()
+                    if test_session.created_at
+                    else None
+                ),
+                "updatedAt": (
+                    test_session.updated_at.isoformat()
+                    if test_session.updated_at
+                    else None
+                ),
+                "test": {
+                    "id": test.id,
+                    "name": test.name,
+                    "description": test.description,
+                    "questions": test.questions,
+                    "durationMinutes": test.duration_minutes,
+                    "passingScore": test.passing_score,
+                    "difficulty": getattr(test, "difficulty", None),
+                    "topicName": getattr(test, "topic_name", None),
+                    "courseName": getattr(test, "course_name", None),
+                },
+            }
+            history.append(session_dict)
+
+        return history
 
     async def update_session(
         self, session_id: str, update_data: TestSessionUpdate

@@ -192,6 +192,15 @@ async def get_my_test_sessions(
     return sessions
 
 
+@router.get("/sessions/history", response_model=List[TestSessionWithTest])
+async def get_test_history(
+    test_service: TestService = Depends(get_test_service),
+    current_user=Depends(get_current_user),
+):
+    """Lấy lịch sử làm bài kiểm tra của người dùng với thông tin bài kiểm tra"""
+    return await test_service.get_user_test_history(current_user.id)
+
+
 @router.put("/sessions/{session_id}", response_model=TestSessionRead)
 async def update_test_session(
     session_id: str,

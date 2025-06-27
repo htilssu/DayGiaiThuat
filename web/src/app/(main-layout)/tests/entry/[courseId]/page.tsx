@@ -9,6 +9,11 @@ export const metadata: Metadata = {
     keywords: ["giải thuật", "học tập", "lập trình", "AI", "kiểm tra", "test đầu vào"],
 };
 
-export default function EntryTestConfirmPage({ params }: { params: { courseId: string } }) {
-    return <EntryTestConfirmClient courseId={params.courseId} />;
+interface PageProps {
+    params: Promise<{ courseId: string }>;
+}
+
+export default async function EntryTestConfirmPage({ params }: PageProps) {
+    const { courseId } = await params;
+    return <EntryTestConfirmClient courseId={courseId} />;
 } 
