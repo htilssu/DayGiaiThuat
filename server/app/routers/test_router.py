@@ -587,3 +587,86 @@ async def check_session_access(
         session_id, current_user.id
     )
     return access_check
+
+
+@router.get("/admin/active-sessions-status")
+async def get_active_sessions_status(
+    test_service: TestService = Depends(get_test_service),
+    current_user=Depends(get_current_user),
+):
+    """Xem trạng thái các phiên làm bài đang hoạt động (Admin only)"""
+    # Kiểm tra quyền admin
+    if not hasattr(current_user, "is_admin") or not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chỉ admin mới có quyền thực hiện chức năng này",
+        )
+
+    from sqlalchemy import select, and_
+    from app.models.test_session import TestSession
+    from datetime import datetime
+
+    # Lấy tất cả phiên đang hoạt động
+    result = await test_service.session.execute(
+        select(TestSession).where(
+            and_(
+                TestSession.status.in_(["pending", "in_progress"]),
+                TestSession.is_submitted == False,
+            )
+        )
+    )
+    active_sessions = list(result.scalars().all())
+
+    now = datetime.utcnow()
+    session_info = []
+
+    for session in active_sessions:
+        # Tính thời gian từ lúc tạo hoặc bắt đầu
+        if session.status == "pending":
+            time_since_created = now - session.created_at
+            time_info = (
+                f"Tạo từ {int(time_since_created.total_seconds() / 60)} phút trước"
+            )
+        else:  # in_progress
+            if session.start_time:
+                elapsed_seconds = (now - session.start_time).total_seconds()
+                time_info = f"Bắt đầu từ {int(elapsed_seconds / 60)} phút trước, còn {max(0, int((session.time_remaining_seconds - elapsed_seconds) / 60))} phút"
+            else:
+                time_info = "Không có thông tin thời gian bắt đầu"
+
+        session_info.append(
+            {
+                "session_id": session.id,
+                "user_id": session.user_id,
+                "test_id": session.test_id,
+                "status": session.status,
+                "time_info": time_info,
+                "last_activity": session.last_activity.isoformat(),
+            }
+        )
+
+    return {
+        "active_sessions_count": len(active_sessions),
+        "sessions": session_info,
+    }
+
+
+@router.get("/admin/expired-sessions-report")
+async def get_expired_sessions_report(
+    test_service: TestService = Depends(get_test_service),
+    current_user=Depends(get_current_user),
+):
+    """Xem báo cáo các phiên làm bài đã hết hạn (Admin only)"""
+    # Kiểm tra quyền admin
+    if not hasattr(current_user, "is_admin") or not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Chỉ admin mới có quyền thực hiện chức năng này",
+        )
+
+    report = await test_service.count_expired_sessions()
+
+    return {
+        "message": f"Tìm thấy {report['expired_count']} phiên làm bài đã hết hạn trong tổng số {report['total_sessions']} phiên",
+        **report,
+    }

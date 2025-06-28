@@ -116,19 +116,10 @@ class TestService:
                 detail=f"Không tìm thấy bài kiểm tra với ID: {session_data.test_id}",
             )
 
-        # Kiểm tra xem user có phiên làm bài đang hoạt động khác không
-        other_active_sessions = await self.session.execute(
-            select(TestSession).where(
-                and_(
-                    TestSession.user_id == session_data.user_id,
-                    TestSession.status.in_(["pending", "in_progress"]),
-                    TestSession.is_submitted == False,
-                )
-            )
-        )
-        other_active_sessions = other_active_sessions.scalars().all()
+        # Kiểm tra xem user có phiên làm bài thực sự đang hoạt động không
+        has_active_session = await self.has_truly_active_session(session_data.user_id)
 
-        if other_active_sessions:
+        if has_active_session:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Bạn đang có một phiên làm bài kiểm tra khác đang hoạt động. Vui lòng hoàn thành hoặc hủy phiên đó trước khi bắt đầu phiên mới.",
@@ -206,11 +197,43 @@ class TestService:
             select(TestSession).where(
                 TestSession.user_id == user_id,
                 TestSession.test_id == test_id,
-                TestSession.status == "in_progress",
+                TestSession.status.in_(["pending", "in_progress"]),
                 TestSession.is_submitted == False,
             )
         )
-        return result.scalars().first()
+        sessions = result.scalars().all()
+
+        now = datetime.utcnow()
+
+        # Kiểm tra từng session xem có thực sự active không
+        for session in sessions:
+            if self._is_session_truly_active(session, now):
+                return session
+
+        return None
+
+    def _is_session_truly_active(self, session: TestSession, now: datetime) -> bool:
+        """Helper method để kiểm tra session có thực sự đang hoạt động không"""
+        if session.status == "pending":
+            # Phiên pending: kiểm tra có quá 30 phút từ lúc tạo không
+            time_since_created = now - session.created_at
+            return time_since_created <= timedelta(minutes=30)
+
+        elif session.status == "in_progress":
+            # Phiên in_progress: kiểm tra có hết thời gian làm bài không
+            if session.start_time:
+                elapsed_seconds = (now - session.start_time).total_seconds()
+                if elapsed_seconds >= session.time_remaining_seconds:
+                    return False  # Đã hết thời gian làm bài
+
+            # Kiểm tra thời gian không hoạt động
+            inactive_time = now - session.last_activity
+            if inactive_time > timedelta(minutes=30):
+                return False  # Quá lâu không hoạt động
+
+            return True
+
+        return False
 
     async def get_user_sessions(self, user_id: int) -> List[TestSession]:
         """Lấy danh sách tất cả session của một user"""
@@ -505,35 +528,79 @@ class TestService:
 
         return False
 
-    async def check_and_update_expired_sessions(self) -> int:
-        """Kiểm tra và cập nhật các phiên làm bài đã hết hạn"""
-        # Lấy tất cả các phiên đang hoạt động
+    async def count_expired_sessions(self) -> Dict[str, Any]:
+        """Đếm số phiên làm bài đã hết hạn (không thay đổi status)"""
+        # Lấy tất cả các phiên đang có status pending hoặc in_progress
         result = await self.session.execute(
             select(TestSession).where(
-                TestSession.status == "in_progress", TestSession.is_submitted == False
+                and_(
+                    TestSession.status.in_(["pending", "in_progress"]),
+                    TestSession.is_submitted == False,
+                )
             )
         )
-        active_sessions = list(result.scalars().all())
+        sessions = list(result.scalars().all())
 
         expired_count = 0
+        expired_sessions = []
         now = datetime.utcnow()
 
-        for session in active_sessions:
-            # Kiểm tra thời gian không hoạt động
-            inactive_time = now - session.last_activity
-            if inactive_time > timedelta(minutes=30):  # 30 phút không hoạt động
-                session.status = "expired"
+        for session in sessions:
+            is_expired = False
+            reason = ""
+
+            if session.status == "pending":
+                # Phiên pending: kiểm tra thời gian từ lúc tạo
+                time_since_created = now - session.created_at
+                if time_since_created > timedelta(minutes=30):
+                    is_expired = True
+                    reason = f"Pending quá {int(time_since_created.total_seconds() / 60)} phút"
+
+            elif session.status == "in_progress":
+                # Phiên in_progress: kiểm tra theo nhiều tiêu chí
+
+                # 1. Kiểm tra thời gian không hoạt động
+                inactive_time = now - session.last_activity
+                if inactive_time > timedelta(minutes=30):
+                    is_expired = True
+                    reason = f"Không hoạt động {int(inactive_time.total_seconds() / 60)} phút"
+
+                # 2. Kiểm tra thời gian làm bài đã hết
+                elif session.start_time:
+                    elapsed_seconds = (now - session.start_time).total_seconds()
+                    if elapsed_seconds >= session.time_remaining_seconds:
+                        is_expired = True
+                        remaining_minutes = max(
+                            0,
+                            int(
+                                (session.time_remaining_seconds - elapsed_seconds) / 60
+                            ),
+                        )
+                        reason = f"Hết thời gian làm bài (quá {int((elapsed_seconds - session.time_remaining_seconds) / 60)} phút)"
+
+                # 3. Kiểm tra time_remaining_seconds đã <= 0
+                elif session.time_remaining_seconds <= 0:
+                    is_expired = True
+                    reason = "time_remaining_seconds <= 0"
+
+            if is_expired:
                 expired_count += 1
+                expired_sessions.append(
+                    {
+                        "session_id": session.id,
+                        "user_id": session.user_id,
+                        "test_id": session.test_id,
+                        "status": session.status,
+                        "reason": reason,
+                        "created_at": session.created_at.isoformat(),
+                    }
+                )
 
-            # Kiểm tra thời gian còn lại
-            if session.time_remaining_seconds <= 0:
-                session.status = "expired"
-                expired_count += 1
-
-        if expired_count > 0:
-            await self.session.commit()
-
-        return expired_count
+        return {
+            "total_sessions": len(sessions),
+            "expired_count": expired_count,
+            "expired_sessions": expired_sessions,
+        }
 
     async def can_access_test_session(
         self, session_id: str, user_id: int
@@ -573,6 +640,16 @@ class TestService:
 
         # Nếu session ở trạng thái pending (chưa bắt đầu)
         if session.status == "pending":
+            # Kiểm tra có hết hạn thời gian pending không
+            now = datetime.utcnow()
+            time_since_created = now - session.created_at
+            if time_since_created > timedelta(minutes=30):
+                return {
+                    "can_access": False,
+                    "reason": "test_expired",
+                    "message": "Phiên làm bài đã hết hạn thời gian pending",
+                    "session": session,
+                }
             return {
                 "can_access": False,
                 "reason": "not_started",
@@ -580,13 +657,10 @@ class TestService:
                 "session": session,
             }
 
-        # Check if time has expired based on start time and duration (only for started sessions)
-        if session.start_time:
-            elapsed_seconds = (datetime.utcnow() - session.start_time).total_seconds()
-            if elapsed_seconds >= session.time_remaining_seconds:
-                # Auto-expire the session
-                session.status = "expired"
-                await self.session.commit()
+        # Kiểm tra session in_progress có thực sự còn active không
+        if session.status == "in_progress":
+            now = datetime.utcnow()
+            if not self._is_session_truly_active(session, now):
                 return {
                     "can_access": False,
                     "reason": "test_expired",
@@ -628,6 +702,29 @@ class TestService:
         await self.session.commit()
         await self.session.refresh(session)
         return session
+
+    async def has_truly_active_session(self, user_id: int) -> bool:
+        """Kiểm tra xem user có phiên làm bài thực sự đang hoạt động không"""
+        # Lấy tất cả session có trạng thái pending hoặc in_progress chưa submit
+        result = await self.session.execute(
+            select(TestSession).where(
+                and_(
+                    TestSession.user_id == user_id,
+                    TestSession.status.in_(["pending", "in_progress"]),
+                    TestSession.is_submitted == False,
+                )
+            )
+        )
+        sessions = result.scalars().all()
+
+        now = datetime.utcnow()
+
+        # Kiểm tra xem có session nào thực sự đang hoạt động không
+        for session in sessions:
+            if self._is_session_truly_active(session, now):
+                return True
+
+        return False  # Không có session nào thực sự đang hoạt động
 
 
 def get_test_service(session: AsyncSession = Depends(get_async_session)):
