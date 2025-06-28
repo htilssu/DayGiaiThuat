@@ -46,6 +46,7 @@ async function createTopic(topicData: {
   description?: string;
   prerequisites?: string[];
   course_id: number;
+  order?: number;
   external_id?: string;
 }) {
   return post<Topic>(`/topics`, topicData);

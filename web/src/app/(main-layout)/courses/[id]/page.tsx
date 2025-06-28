@@ -473,7 +473,7 @@ export default function CourseDetailPage() {
                                     : ""}
                                 </span>
                                 <Link
-                                  href={`/topics/${topic.id}/lessons/${lesson.external_id}`}
+                                  href={`/lessons/${lesson.id}`}
                                   className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
                                   Xem ngay
                                 </Link>
