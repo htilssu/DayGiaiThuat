@@ -7,4 +7,6 @@ export * from "./courses";
 export * from "./documents";
 export * from "./topics";
 export * from "./lessons";
+export * from "./exercises";
+export * from "./quizzes";
 export * from "./types";

@@ -75,7 +75,13 @@ class LessonService:
         if not lesson:
             return None
         
-        return LessonResponseSchema.model_validate(lesson)
+        lesson_dict = lesson.__dict__.copy()
+        lesson_dict['sections'] = [
+            LessonSectionSchema.model_validate(section, from_attributes=True) for section in lesson.sections
+        ]
+        if lesson.exercise:
+            lesson_dict['exercise'] = lesson.exercise
+        return LessonResponseSchema.model_validate(lesson_dict)
     
     def get_lesson_by_external_id(self, external_id: str) -> Optional[LessonResponseSchema]:
         """
@@ -87,7 +93,13 @@ class LessonService:
         if not lesson:
             return None
         
-        return LessonResponseSchema.model_validate(lesson)
+        lesson_dict = lesson.__dict__.copy()
+        lesson_dict['sections'] = [
+            LessonSectionSchema.model_validate(section, from_attributes=True) for section in lesson.sections
+        ]
+        if lesson.exercise:
+            lesson_dict['exercise'] = lesson.exercise
+        return LessonResponseSchema.model_validate(lesson_dict)
     
     def get_lessons_by_topic(self, topic_id: int) -> List[LessonResponseSchema]:
         """
