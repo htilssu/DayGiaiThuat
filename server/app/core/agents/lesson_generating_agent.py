@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.retrievers import ContextualCompressionRetriever
+from pydantic import BaseModel, Field
 from langchain.retrievers.document_compressors import LLMChainExtractor
 import json
 import re
@@ -10,8 +11,52 @@ from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
 from app.core.agents.components.llm_model import create_new_creative_llm_model
 from app.schemas.lesson_schema import (
-    GenerateLessonRequestSchema, CreateLessonSchema, LessonSectionSchema
+    GenerateLessonRequestSchema,
+    CreateLessonSchema,
+    LessonSectionSchema,
 )
+
+SYSTEM_PROMPT = """
+        Bạn là một gia sư dạy lập trình và giải thuật. hãy tạo bài giảng để sinh viên có thể dễ dàng hiểu và học được.
+        Bài giảng sẽ gồm lý thuyết
+        Chủ đề: {topic_name}
+        Tiêu đề bài học: {lesson_title}
+        Mô tả: {lesson_description}
+        Độ khó: {difficulty_level}
+        Loại bài học: {lesson_type}
+        Số phần tối đa: {max_sections}
+
+        Thông tin tham khảo từ cơ sở dữ liệu:
+        {context}
+
+        Hãy tạo cấu trúc bài học với các phần sau (trả về JSON):
+        {{
+            "sections": [
+                {{
+                    "type": "text|code|quiz",
+                    "title": "Tiêu đề phần",
+                    "description": "Mô tả ngắn về nội dung",
+                    "order": 1
+                }}
+            ]
+        }}
+
+        Lưu ý:
+        - Bắt đầu với phần giới thiệu (type: "text")
+        - Bao gồm các ví dụ code nếu cần thiết (type: "code")
+        - Kết thúc với bài tập hoặc câu hỏi (type: "quiz")
+        - Đảm bảo logic và thứ tự hợp lý
+"""
+
+
+class LessonGeneratingAgentRequestSchema(BaseModel):
+    topic_name: str = Field(..., description="Tên chủ đề bài học")
+    lesson_title: str = Field(..., description="Tiêu đề bài học")
+    lesson_description: str = Field(..., description="Mô tả bài học")
+    difficulty_level: str = Field(..., description="Độ khó của bài học")
+    lesson_type: str = Field(..., description="Loại bài học")
+    include_examples: bool = Field(..., description="Bao gồm ví dụ code")
+    include_exercises: bool = Field(..., description="Bao gồm bài tập")
 
 
 class LessonGeneratingAgent(BaseAgent):
@@ -22,9 +67,14 @@ class LessonGeneratingAgent(BaseAgent):
     def __init__(self):
         super().__init__()
         self.available_args = [
-            "topic_name", "lesson_title", "lesson_description",
-            "difficulty_level", "lesson_type", "include_examples",
-            "include_exercises", "max_sections"
+            "topic_name",
+            "lesson_title",
+            "lesson_description",
+            "difficulty_level",
+            "lesson_type",
+            "include_examples",
+            "include_exercises",
+            "max_sections",
         ]
         self.vector_store = get_vector_store("document")
         self.llm = create_new_creative_llm_model()
@@ -35,8 +85,13 @@ class LessonGeneratingAgent(BaseAgent):
 
         self.lesson_structure_prompt = PromptTemplate(
             input_variables=[
-                "topic_name", "lesson_title", "lesson_description",
-                "difficulty_level", "lesson_type", "context", "max_sections"
+                "topic_name",
+                "lesson_title",
+                "lesson_description",
+                "difficulty_level",
+                "lesson_type",
+                "context",
+                "max_sections",
             ],
             template="""
             Bạn là một chuyên gia giáo dục về lập trình và giải thuật. Dựa trên thông tin sau, hãy tạo cấu trúc bài học:
@@ -68,7 +123,7 @@ class LessonGeneratingAgent(BaseAgent):
             - Bao gồm các ví dụ code nếu cần thiết (type: "code")
             - Kết thúc với bài tập hoặc câu hỏi (type: "quiz")
             - Đảm bảo logic và thứ tự hợp lý
-            """
+            """,
         )
 
         self.content_generation_prompt = PromptTemplate(
@@ -92,7 +147,7 @@ class LessonGeneratingAgent(BaseAgent):
                 "answer": 0-3 (chỉ cho quiz, 0=A, 1=B, 2=C, 3=D),
                 "explanation": "Giải thích đáp án" (chỉ cho quiz)
             }}
-            """
+            """,
         )
 
     def retrieve_relevant_context(self, query: str, k: int = 5) -> str:
@@ -104,7 +159,7 @@ class LessonGeneratingAgent(BaseAgent):
             compressor = LLMChainExtractor.from_llm(self.llm)
             compression_retriever = ContextualCompressionRetriever(
                 base_retriever=self.vector_store.as_retriever(search_kwargs={"k": k}),
-                base_compressor=compressor
+                base_compressor=compressor,
             )
 
             docs = compression_retriever.get_relevant_documents(query)
@@ -112,18 +167,24 @@ class LessonGeneratingAgent(BaseAgent):
             # Combine all retrieved content
             context_parts = []
             for doc in docs:
-                if hasattr(doc, 'page_content'):
+                if hasattr(doc, "page_content"):
                     context_parts.append(doc.page_content)
-                elif isinstance(doc, dict) and 'page_content' in doc:
-                    context_parts.append(doc['page_content'])
+                elif isinstance(doc, dict) and "page_content" in doc:
+                    context_parts.append(doc["page_content"])
 
-            return "\n\n".join(context_parts) if context_parts else "Không tìm thấy thông tin liên quan."
+            return (
+                "\n\n".join(context_parts)
+                if context_parts
+                else "Không tìm thấy thông tin liên quan."
+            )
 
         except Exception as e:
             print(f"Error retrieving context: {e}")
             return "Không thể truy xuất thông tin từ cơ sở dữ liệu."
 
-    def generate_lesson_structure(self, request: GenerateLessonRequestSchema, context: str) -> List[Dict[str, Any]]:
+    def generate_lesson_structure(
+        self, request: GenerateLessonRequestSchema, context: str
+    ) -> List[Dict[str, Any]]:
         """
         Generate lesson structure based on retrieved context.
         """
@@ -137,27 +198,44 @@ class LessonGeneratingAgent(BaseAgent):
                 difficulty_level=request.difficulty_level,
                 lesson_type=request.lesson_type,
                 context=context,
-                max_sections=request.max_sections
+                max_sections=request.max_sections,
             )
 
             # Extract JSON from response
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            json_match = re.search(r"\{.*\}", response, re.DOTALL)
             if json_match:
                 structure_data = json.loads(json_match.group())
                 return structure_data.get("sections", [])
             else:
                 # Fallback: create basic structure
                 return [
-                    {"type": "text", "title": "Giới thiệu", "description": "Phần mở đầu", "order": 1},
-                    {"type": "text", "title": "Nội dung chính", "description": "Nội dung bài học", "order": 2},
-                    {"type": "quiz", "title": "Bài tập", "description": "Câu hỏi kiểm tra", "order": 3}
+                    {
+                        "type": "text",
+                        "title": "Giới thiệu",
+                        "description": "Phần mở đầu",
+                        "order": 1,
+                    },
+                    {
+                        "type": "text",
+                        "title": "Nội dung chính",
+                        "description": "Nội dung bài học",
+                        "order": 2,
+                    },
+                    {
+                        "type": "quiz",
+                        "title": "Bài tập",
+                        "description": "Câu hỏi kiểm tra",
+                        "order": 3,
+                    },
                 ]
 
         except Exception as e:
             print(f"Error generating lesson structure: {e}")
             return []
 
-    def generate_section_content(self, section_info: Dict[str, Any], context: str, difficulty_level: str) -> Dict[str, Any]:
+    def generate_section_content(
+        self, section_info: Dict[str, Any], context: str, difficulty_level: str
+    ) -> Dict[str, Any]:
         """
         Generate detailed content for a lesson section.
         """
@@ -167,11 +245,11 @@ class LessonGeneratingAgent(BaseAgent):
             response = chain.run(
                 section_info=json.dumps(section_info, ensure_ascii=False),
                 context=context,
-                difficulty_level=difficulty_level
+                difficulty_level=difficulty_level,
             )
 
             # Extract JSON from response
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            json_match = re.search(r"\{.*\}", response, re.DOTALL)
             if json_match:
                 content_data = json.loads(json_match.group())
                 return content_data
@@ -184,7 +262,7 @@ class LessonGeneratingAgent(BaseAgent):
                     ),
                     "options": None,
                     "answer": None,
-                    "explanation": None
+                    "explanation": None,
                 }
 
         except Exception as e:
@@ -196,10 +274,12 @@ class LessonGeneratingAgent(BaseAgent):
                 ),
                 "options": None,
                 "answer": None,
-                "explanation": None
+                "explanation": None,
             }
 
-    def generate_lesson(self, request: GenerateLessonRequestSchema) -> CreateLessonSchema:
+    def generate_lesson(
+        self, request: GenerateLessonRequestSchema
+    ) -> CreateLessonSchema:
         """
         Main method to generate a complete lesson using RAG.
         """
@@ -207,7 +287,9 @@ class LessonGeneratingAgent(BaseAgent):
         self.check_available_args(**request.dict())
 
         # Retrieve relevant context from Pinecone
-        query = f"{request.topic_name} {request.lesson_title} {request.lesson_description}"
+        query = (
+            f"{request.topic_name} {request.lesson_title} {request.lesson_description}"
+        )
         context = self.retrieve_relevant_context(query)
 
         # Generate lesson structure
@@ -226,7 +308,7 @@ class LessonGeneratingAgent(BaseAgent):
                 order=section_info.get("order", len(sections) + 1),
                 options=content_data.get("options"),
                 answer=content_data.get("answer"),
-                explanation=content_data.get("explanation")
+                explanation=content_data.get("explanation"),
             )
             sections.append(section)
 
@@ -238,8 +320,8 @@ class LessonGeneratingAgent(BaseAgent):
             title=request.lesson_title,
             description=request.lesson_description,
             topic_id=0,  # This should be set by the caller
-            order=1,     # This should be set by the caller
-            sections=sections
+            order=1,  # This should be set by the caller
+            sections=sections,
         )
 
         return lesson
