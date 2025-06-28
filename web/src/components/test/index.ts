@@ -1,3 +1,6 @@
-export { default as MultipleChoiceQuestion } from './MultipleChoiceQuestion';
-export { default as ProblemQuestion } from './ProblemQuestion';
-export { default as TestPage } from './TestPage'; 
+export { TestPage } from './TestPage';
+export { TestPageNew } from './TestPageNew';
+export { TestLanding } from './TestLanding';
+export { TestQuiz } from './TestQuiz';
+export { MultipleChoiceQuestion } from './MultipleChoiceQuestion';
+export { ProblemQuestion } from './ProblemQuestion'; 

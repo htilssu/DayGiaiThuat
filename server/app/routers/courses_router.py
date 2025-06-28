@@ -19,7 +19,7 @@ from app.schemas.lesson_schema import LessonResponse, rebuild_lesson_models
 from app.schemas.user_course_schema import (
     CourseEnrollmentResponse,
 )
-from app.schemas.test_schema import TestRead, TestSessionResponse
+from app.schemas.test_schema import TestRead, TestSessionRead
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.services.course_service import CourseService, get_course_service
 from app.services.topic_service import TopicService, get_topic_service
@@ -252,7 +252,7 @@ async def get_enrolled_courses(
         List: Danh sách khóa học đã đăng ký
     """
     # Sử dụng service để lấy danh sách khóa học đã đăng ký
-    enrolled_courses = course_service.get_enrolled_courses(current_user.id)
+    enrolled_courses = course_service.get_user_courses(current_user.id)
     return enrolled_courses
 
 
@@ -355,7 +355,7 @@ async def get_course_entry_test(
 
 @router.post(
     "/{course_id}/entry-test/start",
-    response_model=TestSessionResponse,
+    response_model=TestSessionRead,
     status_code=status.HTTP_201_CREATED,
     responses={
         201: {"description": "Tạo phiên làm bài test thành công"},
@@ -380,7 +380,7 @@ async def start_course_entry_test(
         current_user: Thông tin người dùng hiện tại
 
     Returns:
-        TestSessionResponse: Thông tin phiên làm bài test
+        TestSessionRead: Thông tin phiên làm bài test
 
     Raises:
         HTTPException: Nếu có lỗi khi tạo phiên làm bài

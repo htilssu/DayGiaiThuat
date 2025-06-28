@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
     Container,
     Title,
@@ -40,28 +40,78 @@ import {
     IconClockHour9
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { testApi, TestHistorySummary } from '@/lib/api';
+import { testApi, TestHistorySummary, coursesApi, EnrolledCourse } from '@/lib/api';
 import { useAppSelector } from '@/lib/store';
 
 const ClientPage: React.FC = () => {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const userState = useAppSelector((state) => state.user);
     const [startingTest, setStartingTest] = useState<number | null>(null);
     const [activeTab, setActiveTab] = useState<string>('available');
 
-    // Query cho danh sách bài kiểm tra có sẵn  
+    // Handle authentication redirect
+    useEffect(() => {
+        if (!userState.isLoading && !userState.isInitial && !userState.user) {
+            // Store current URL for redirect after login
+            const currentUrl = window.location.pathname + window.location.search;
+            router.push(`/auth/login?redirect=${encodeURIComponent(currentUrl)}`);
+            return;
+        }
+    }, [userState, router]);
+
+    // Lấy danh sách khóa học đã đăng ký
     const {
-        data: tests,
+        data: enrolledCourses,
+        isLoading: coursesLoading,
+        error: coursesError,
+        refetch: refetchCourses
+    } = useQuery({
+        queryKey: ['enrolledCourses'],
+        queryFn: () => coursesApi.getEnrolledCourses(),
+        enabled: !!userState.user,
+    });
+
+    // Lấy entry tests từ các khóa học đã đăng ký
+    const {
+        data: courseTests,
         isLoading: testsLoading,
         error: testsError,
         refetch: refetchTests
     } = useQuery({
-        queryKey: ['tests'],
-        queryFn: () => testApi.getTests(),
-        enabled: !!userState.user,
+        queryKey: ['courseTests', enrolledCourses],
+        queryFn: async () => {
+            if (!enrolledCourses || enrolledCourses.length === 0) {
+                return [];
+            }
+
+            const testPromises = enrolledCourses.map(async (course) => {
+                try {
+                    const entryTest = await coursesApi.getCourseEntryTest(course.id);
+                    return {
+                        ...entryTest,
+                        courseTitle: course.title,
+                        courseId: course.id,
+                        courseThumbnail: course.thumbnailUrl,
+                        courseLevel: course.level
+                    };
+                } catch (error: any) {
+                    // Nếu course không có entry test thì return null
+                    if (error.response?.status === 404) {
+                        return null;
+                    }
+                    console.error(`Error fetching entry test for course ${course.id}:`, error);
+                    return null;
+                }
+            });
+
+            const results = await Promise.all(testPromises);
+            return results.filter(test => test !== null);
+        },
+        enabled: !!enrolledCourses && enrolledCourses.length > 0,
     });
 
-    // Query cho lịch sử làm bài
+    // Lấy lịch sử làm bài
     const {
         data: testHistory,
         isLoading: historyLoading,
@@ -102,6 +152,10 @@ const ClientPage: React.FC = () => {
         }
     };
 
+    const handleStartEntryTest = (courseId: number) => {
+        router.push(`/tests/entry/${courseId}`);
+    };
+
     const handleViewResult = (sessionId: string) => {
         router.push(`/tests/${sessionId}`);
     };
@@ -110,12 +164,15 @@ const ClientPage: React.FC = () => {
         switch (level.toLowerCase()) {
             case 'easy':
             case 'dễ':
+            case 'beginner':
                 return 'green';
             case 'medium':
             case 'trung bình':
+            case 'intermediate':
                 return 'yellow';
             case 'hard':
             case 'khó':
+            case 'advanced':
                 return 'red';
             default:
                 return 'blue';
@@ -153,15 +210,25 @@ const ClientPage: React.FC = () => {
             : `${hours} giờ`;
     };
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleString('vi-VN', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+    const formatDate = (dateString: string | null | undefined) => {
+        if (!dateString) {
+            return 'Chưa bắt đầu';
+        }
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                return 'Thời gian không hợp lệ';
+            }
+            return date.toLocaleString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            return 'Thời gian không hợp lệ';
+        }
     };
 
     const formatTestDuration = (minutes: number) => {
@@ -173,6 +240,19 @@ const ClientPage: React.FC = () => {
         return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours} giờ`;
     };
 
+    // Show loading while checking authentication
+    if (userState.isLoading || userState.isInitial) {
+        return (
+            <Container size="lg" py="xl">
+                <Stack align="center" gap="md">
+                    <Loader size="lg" />
+                    <Text>Đang kiểm tra thông tin đăng nhập...</Text>
+                </Stack>
+            </Container>
+        );
+    }
+
+    // If user is not logged in, show login required message
     if (!userState.user) {
         return (
             <Container size="md" py="xl">
@@ -186,8 +266,8 @@ const ClientPage: React.FC = () => {
         );
     }
 
-    const isLoading = testsLoading || historyLoading;
-    const error = testsError || historyError;
+    const isLoading = coursesLoading || testsLoading || historyLoading;
+    const error = coursesError || testsError || historyError;
 
     if (isLoading) {
         return (
@@ -209,6 +289,7 @@ const ClientPage: React.FC = () => {
                     </Text>
                     <Group gap="xs">
                         <Button variant="light" leftSection={<IconRefresh size={16} />} onClick={() => {
+                            refetchCourses();
                             refetchTests();
                             refetchHistory();
                         }}>
@@ -227,15 +308,41 @@ const ClientPage: React.FC = () => {
                 <div>
                     <Title order={1} mb="xs">Bài Kiểm Tra</Title>
                     <Text c="dimmed" size="lg">
-                        Quản lý và theo dõi quá trình làm bài kiểm tra của bạn
+                        Quản lý và theo dõi quá trình làm bài kiểm tra từ các khóa học bạn đã đăng ký
                     </Text>
                 </div>
+
+                {/* Enrolled Courses Summary */}
+                {enrolledCourses && enrolledCourses.length > 0 && (
+                    <Paper p="md" bg="blue.0" radius="md">
+                        <Group justify="space-between" align="center">
+                            <Group gap="xs">
+                                <ThemeIcon size="lg" variant="light" color="blue">
+                                    <IconBook size={20} />
+                                </ThemeIcon>
+                                <div>
+                                    <Text fw={500}>Khóa học đã đăng ký</Text>
+                                    <Text size="sm" c="dimmed">
+                                        Bạn đã đăng ký {enrolledCourses.length} khóa học
+                                    </Text>
+                                </div>
+                            </Group>
+                            <Button
+                                variant="light"
+                                size="sm"
+                                onClick={() => router.push('/courses')}
+                            >
+                                Xem tất cả
+                            </Button>
+                        </Group>
+                    </Paper>
+                )}
 
                 {/* Tabs */}
                 <Tabs value={activeTab} onChange={(value) => setActiveTab(value || 'available')}>
                     <Tabs.List>
                         <Tabs.Tab value="available" leftSection={<IconQuestionMark size={16} />}>
-                            Bài kiểm tra khả dụng
+                            Bài kiểm tra đầu vào ({courseTests?.length || 0})
                         </Tabs.Tab>
                         <Tabs.Tab value="history" leftSection={<IconHistory size={16} />}>
                             Lịch sử làm bài ({testHistory?.length || 0})
@@ -244,9 +351,9 @@ const ClientPage: React.FC = () => {
 
                     {/* Available Tests Tab */}
                     <Tabs.Panel value="available" pt="md">
-                        {tests && tests.length > 0 ? (
+                        {courseTests && courseTests.length > 0 ? (
                             <Grid gutter="md">
-                                {tests.map((test: any) => (
+                                {courseTests.map((test: any) => (
                                     <Grid.Col key={test.id} span={{ base: 12, md: 6, lg: 4 }}>
                                         <Card shadow="sm" padding="lg" radius="md" withBorder h="100%">
                                             <Stack gap="md" h="100%" justify="space-between">
@@ -257,23 +364,21 @@ const ClientPage: React.FC = () => {
                                                             <IconQuestionMark size={20} />
                                                         </ThemeIcon>
                                                         <Badge
-                                                            color={getDifficultyColor(test.difficulty || 'medium')}
+                                                            color={getDifficultyColor(test.courseLevel || 'medium')}
                                                             variant="light"
                                                             size="sm"
                                                         >
-                                                            {test.difficulty || 'Trung bình'}
+                                                            {test.courseLevel || 'Trung bình'}
                                                         </Badge>
                                                     </Group>
 
                                                     <Title order={4} lineClamp={2}>
-                                                        {test.name || `Bài kiểm tra ${test.id}`}
+                                                        Bài kiểm tra đầu vào
                                                     </Title>
 
-                                                    {test.description && (
-                                                        <Text c="dimmed" size="sm" lineClamp={3}>
-                                                            {test.description}
-                                                        </Text>
-                                                    )}
+                                                    <Text fw={500} size="sm" c="blue.6">
+                                                        {test.courseTitle}
+                                                    </Text>
                                                 </Stack>
 
                                                 <Divider />
@@ -284,25 +389,23 @@ const ClientPage: React.FC = () => {
                                                         <Group gap="xs">
                                                             <IconClock size={16} color="gray" />
                                                             <Text size="sm" c="dimmed">
-                                                                {formatDuration(test.duration_minutes || 60)}
+                                                                {formatDuration(test.durationMinutes || 45)}
                                                             </Text>
                                                         </Group>
                                                         <Group gap="xs">
                                                             <IconQuestionMark size={16} color="gray" />
                                                             <Text size="sm" c="dimmed">
-                                                                {test.questions ? test.questions.length : '?'} câu
+                                                                {test.questions ? test.questions.length : '15-20'} câu
                                                             </Text>
                                                         </Group>
                                                     </Group>
 
-                                                    {test.topic_name && (
-                                                        <Group gap="xs">
-                                                            <IconBook size={16} color="gray" />
-                                                            <Text size="sm" c="dimmed" lineClamp={1}>
-                                                                {test.topic_name}
-                                                            </Text>
-                                                        </Group>
-                                                    )}
+                                                    <Group gap="xs">
+                                                        <IconBook size={16} color="gray" />
+                                                        <Text size="sm" c="dimmed" lineClamp={1}>
+                                                            Đánh giá kiến thức nền tảng
+                                                        </Text>
+                                                    </Group>
                                                 </Stack>
 
                                                 <Divider />
@@ -310,14 +413,12 @@ const ClientPage: React.FC = () => {
                                                 {/* Action Button */}
                                                 <Button
                                                     fullWidth
-                                                    leftSection={startingTest === test.id ? <Loader size={16} /> : <IconPlayerPlay size={16} />}
+                                                    leftSection={<IconPlayerPlay size={16} />}
                                                     rightSection={<IconChevronRight size={16} />}
                                                     variant="filled"
-                                                    loading={startingTest === test.id}
-                                                    onClick={() => handleStartTest(test.id)}
-                                                    disabled={!!startingTest}
+                                                    onClick={() => handleStartEntryTest(test.courseId)}
                                                 >
-                                                    {startingTest === test.id ? 'Đang bắt đầu...' : 'Bắt đầu làm bài'}
+                                                    Bắt đầu làm bài
                                                 </Button>
                                             </Stack>
                                         </Card>
@@ -330,10 +431,20 @@ const ClientPage: React.FC = () => {
                                     <ThemeIcon size="xl" variant="light" color="gray">
                                         <IconQuestionMark size={32} />
                                     </ThemeIcon>
-                                    <Title order={3} ta="center">Chưa có bài kiểm tra nào</Title>
+                                    <Title order={3} ta="center">Chưa có bài kiểm tra đầu vào</Title>
                                     <Text c="dimmed" ta="center">
-                                        Hiện tại chưa có bài kiểm tra nào khả dụng. Vui lòng quay lại sau.
+                                        {enrolledCourses && enrolledCourses.length === 0
+                                            ? 'Bạn chưa đăng ký khóa học nào. Hãy đăng ký khóa học để truy cập bài kiểm tra.'
+                                            : 'Các khóa học bạn đã đăng ký chưa có bài kiểm tra đầu vào.'
+                                        }
                                     </Text>
+                                    <Button
+                                        variant="light"
+                                        onClick={() => router.push('/courses')}
+                                        leftSection={<IconBook size={16} />}
+                                    >
+                                        Xem khóa học
+                                    </Button>
                                 </Stack>
                             </Paper>
                         )}
@@ -443,14 +554,14 @@ const ClientPage: React.FC = () => {
                                     </ThemeIcon>
                                     <Title order={3} ta="center">Chưa có lịch sử làm bài</Title>
                                     <Text c="dimmed" ta="center">
-                                        Bạn chưa hoàn thành bài kiểm tra nào. Hãy chuyển sang tab "Bài kiểm tra khả dụng" để bắt đầu.
+                                        Bạn chưa hoàn thành bài kiểm tra nào. Hãy chuyển sang tab "Bài kiểm tra đầu vào" để bắt đầu.
                                     </Text>
                                     <Button
                                         variant="light"
                                         onClick={() => setActiveTab('available')}
                                         leftSection={<IconQuestionMark size={16} />}
                                     >
-                                        Xem bài kiểm tra khả dụng
+                                        Xem bài kiểm tra đầu vào
                                     </Button>
                                 </Stack>
                             </Paper>

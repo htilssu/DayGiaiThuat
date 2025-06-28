@@ -1,5 +1,4 @@
 from functools import lru_cache
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 from app.core.config import settings
 
@@ -12,6 +11,9 @@ def get_gemini_embedding_model():
     Returns:
         GoogleGenerativeAIEmbeddings: Instance được cache của model embedding
     """
+    # Lazy import - chỉ import khi cần thiết
+    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
     return GoogleGenerativeAIEmbeddings(
         model=settings.EMBEDDING_MODEL, google_api_key=settings.GOOGLE_API_KEY
     )

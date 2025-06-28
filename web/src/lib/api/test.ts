@@ -48,8 +48,10 @@ export interface TestSession {
     id: string;
     userId: number;
     testId: number;
+    startTime?: string | null;
+    endTime?: string | null;
     timeRemainingSeconds: number;
-    status: 'in_progress' | 'completed' | 'expired';
+    status: 'pending' | 'in_progress' | 'completed' | 'expired';
     isSubmitted: boolean;
     currentQuestionIndex: number;
     score?: number | null;
@@ -76,8 +78,8 @@ export interface TestHistorySummary {
     topicId?: number;
     courseId?: number;
     testName: string;
-    startTime: string;
-    endTime?: string;
+    startTime?: string | null;
+    endTime?: string | null;
     durationMinutes: number;
     score?: number;
     correctAnswers?: number;
@@ -85,28 +87,7 @@ export interface TestHistorySummary {
     status: string;
 }
 
-export interface TestSessionDetail {
-    sessionId: string;
-    testId: number;
-    userId: number;
-    testName: string;
-    startTime: string;
-    endTime?: string;
-    durationMinutes: number;
-    timeRemainingSeconds: number;
-    status: string;
-    isSubmitted: boolean;
-    currentQuestionIndex: number;
-    score?: number;
-    correctAnswers?: number;
-    totalQuestions: number;
-    answers: Record<string, any>;
-    questions: TestQuestion[];
-    topicId?: number;
-    courseId?: number;
-    createdAt: string;
-    updatedAt: string;
-}
+
 
 export interface CreateTestSessionRequest {
     testId: number;
@@ -188,13 +169,10 @@ export const testApi = {
 
     // Get user's test history (summary only)
     getUserTestHistory: async (): Promise<TestHistorySummary[]> => {
-        return await get('/tests/sessions/history');
+        return await get('/tests/test-history');
     },
 
-    // Get detailed test session info
-    getTestSessionDetail: async (sessionId: string): Promise<TestSessionDetail> => {
-        return await get(`/tests/sessions/${sessionId}/detail`);
-    },
+
 
     // Get test results by session ID
     getTestResult: async (sessionId: string): Promise<TestResult> => {

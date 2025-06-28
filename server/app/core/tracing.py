@@ -5,43 +5,46 @@ Module này cung cấp các hàm và tiện ích để thiết lập, cấu hìn
 để theo dõi (tracing) các hoạt động của agent trong ứng dụng.
 """
 
+import functools
 import os
-import asyncio
-from functools import wraps
-from typing import Any, Callable, Optional, TypeVar, cast
+from typing import Any, Callable, Dict, List, Optional
 
 from app.core.config import settings
 
-# Định nghĩa type variable cho decorator
-F = TypeVar("F", bound=Callable[..., Any])
-
-# Lazy imports để tăng tốc startup
-_langsmith_client = None
+# Global cache cho imports
 _langchain_imports = None
+_langsmith_client = None
 
 
 def _get_langchain_imports():
-    """Lazy import LangChain components"""
-    global _langchain_imports
-    if _langchain_imports is None and settings.LANGSMITH_TRACING:
-        try:
-            from langsmith import Client, traceable
-            from langchain.callbacks.tracers.langchain import wait_for_all_tracers
-            from langchain_core.callbacks.manager import CallbackManager
-            from langchain_core.tracers import LangChainTracer
+    """
+    Import các module LangChain/LangSmith cần thiết với lazy loading.
 
-            _langchain_imports = {
-                "Client": Client,
-                "traceable": traceable,
-                "wait_for_all_tracers": wait_for_all_tracers,
-                "CallbackManager": CallbackManager,
-                "LangChainTracer": LangChainTracer,
-            }
-        except ImportError:
-            # Nếu không có LangChain, disable tracing
-            settings.LANGSMITH_TRACING = False
-            _langchain_imports = {}
-    return _langchain_imports or {}
+    Returns:
+        Dict[str, Any]: Dictionary chứa các imported classes hoặc None.
+    """
+    global _langchain_imports
+
+    if _langchain_imports is not None:
+        return _langchain_imports
+
+    if not settings.LANGSMITH_TRACING:
+        _langchain_imports = {}
+        return _langchain_imports
+
+    try:
+        # Lazy import - chỉ import khi cần thiết
+        from langsmith import Client
+        from langchain.callbacks.tracers import LangChainTracer
+
+        _langchain_imports = {"Client": Client, "LangChainTracer": LangChainTracer}
+        return _langchain_imports
+
+    except ImportError:
+        # Nếu không thể import, tắt tracing và cache kết quả rỗng
+        settings.LANGSMITH_TRACING = False
+        _langchain_imports = {}
+        return _langchain_imports
 
 
 # Cấu hình environment variables chỉ khi cần thiết
@@ -106,108 +109,116 @@ def get_tracer(project_name: Optional[str] = None):
         return None
 
 
-def get_callback_manager(project_name: Optional[str] = None):
+def get_callback_manager(project_name: str = "default"):
     """
-    Tạo và trả về một callback manager với LangSmith tracer.
+    Tạo và trả về một CallbackManager với tracer được cấu hình.
 
     Args:
-        project_name: Tên dự án trong LangSmith.
+        project_name: Tên dự án LangSmith.
 
     Returns:
-        CallbackManager: CallbackManager với tracer đã được cấu hình.
+        CallbackManager: Callback manager với tracer hoặc None nếu tracing bị tắt.
     """
     if not settings.LANGSMITH_TRACING:
-        imports = _get_langchain_imports()
-        if imports and "CallbackManager" in imports:
-            return imports["CallbackManager"]([])
         return None
 
-    tracer = get_tracer(project_name)
-    imports = _get_langchain_imports()
+    try:
+        # Lazy import - chỉ import khi cần thiết
+        from langchain.callbacks import CallbackManager
 
-    if tracer and imports and "CallbackManager" in imports:
-        return imports["CallbackManager"]([tracer])
-    elif imports and "CallbackManager" in imports:
-        return imports["CallbackManager"]([])
+        tracer = get_tracer(project_name)
+        if tracer:
+            return CallbackManager([tracer])
+        else:
+            return CallbackManager([])
 
-    return None
+    except ImportError:
+        # Nếu không thể import LangChain callbacks, trả về None
+        return None
+    except Exception:
+        # Nếu có lỗi khác, trả về None
+        return None
 
 
 def trace_agent(
-    project_name: Optional[str] = None, tags: Optional[list[str]] = None
-) -> Callable[[F], F]:
+    project_name: str = "default",
+    tags: Optional[List[str]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Callable:
     """
-    Decorator để theo dõi (trace) một hàm hoặc phương thức với LangSmith.
+    Decorator để trace hoạt động của agent với LangSmith.
 
     Args:
-        project_name: Tên dự án trong LangSmith.
-        tags: Danh sách các tag để gắn với trace.
+        project_name: Tên dự án LangSmith.
+        tags: Danh sách tags cho việc trace.
+        metadata: Metadata bổ sung cho việc trace.
 
     Returns:
-        Decorator để áp dụng tracing cho hàm hoặc phương thức.
+        Callable: Decorated function.
     """
 
-    def decorator(func: F) -> F:
-        # Nếu tracing bị tắt, trả về hàm gốc
-        if not settings.LANGSMITH_TRACING:
-            return func
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            if not settings.LANGSMITH_TRACING:
+                return await func(*args, **kwargs)
 
-        imports = _get_langchain_imports()
-        if not imports:
-            return func
+            tracer = get_tracer(project_name)
+            if not tracer:
+                return await func(*args, **kwargs)
 
-        @wraps(func)
-        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Thêm tracer vào callback manager nếu có
             try:
-                traceable = imports.get("traceable")
-                wait_for_all_tracers = imports.get("wait_for_all_tracers")
+                # Lazy import cho LangChain callbacks
+                from langchain.callbacks import CallbackManager
 
-                if not traceable or not wait_for_all_tracers:
-                    return await func(*args, **kwargs)
+                instance = args[0] if args else None
+                if hasattr(instance, "_callback_manager"):
+                    if not instance._callback_manager:
+                        instance._callback_manager = CallbackManager([tracer])
+                    else:
+                        instance._callback_manager.add_handler(tracer)
 
-                # Sử dụng @traceable của langsmith để theo dõi hàm
-                traced_func = traceable(
-                    name=func.__name__,
-                    project_name=project_name or "default",
-                    tags=tags or [],
-                )(func)
-
-                result = await traced_func(*args, **kwargs)
-                wait_for_all_tracers()
-                return result
+                return await func(*args, **kwargs)
+            except ImportError:
+                # Fallback nếu không có LangChain callbacks
+                return await func(*args, **kwargs)
             except Exception as e:
-                if "wait_for_all_tracers" in imports:
-                    imports["wait_for_all_tracers"]()
-                raise e
+                print(f"Lỗi tracing: {e}")
+                return await func(*args, **kwargs)
 
-        @wraps(func)
-        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            if not settings.LANGSMITH_TRACING:
+                return func(*args, **kwargs)
+
+            tracer = get_tracer(project_name)
+            if not tracer:
+                return func(*args, **kwargs)
+
             try:
-                traceable = imports.get("traceable")
-                wait_for_all_tracers = imports.get("wait_for_all_tracers")
+                # Lazy import cho LangChain callbacks
+                from langchain.callbacks import CallbackManager
 
-                if not traceable or not wait_for_all_tracers:
-                    return func(*args, **kwargs)
+                instance = args[0] if args else None
+                if hasattr(instance, "_callback_manager"):
+                    if not instance._callback_manager:
+                        instance._callback_manager = CallbackManager([tracer])
+                    else:
+                        instance._callback_manager.add_handler(tracer)
 
-                # Sử dụng @traceable của langsmith để theo dõi hàm
-                traced_func = traceable(
-                    name=func.__name__,
-                    project_name=project_name or "default",
-                    tags=tags or [],
-                )(func)
-
-                result = traced_func(*args, **kwargs)
-                wait_for_all_tracers()
-                return result
+                return func(*args, **kwargs)
+            except ImportError:
+                # Fallback nếu không có LangChain callbacks
+                return func(*args, **kwargs)
             except Exception as e:
-                if "wait_for_all_tracers" in imports:
-                    imports["wait_for_all_tracers"]()
-                raise e
+                print(f"Lỗi tracing: {e}")
+                return func(*args, **kwargs)
 
-        # Chọn wrapper phù hợp dựa trên loại hàm (async hoặc sync)
-        if asyncio.iscoroutinefunction(func):
-            return cast(F, async_wrapper)
+        # Kiểm tra xem function có phải async không
+        if hasattr(func, "__code__") and func.__code__.co_flags & 0x80:
+            return async_wrapper
         else:
-            return cast(F, sync_wrapper)
+            return sync_wrapper
 
     return decorator

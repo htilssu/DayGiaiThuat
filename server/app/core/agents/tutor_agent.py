@@ -1,14 +1,4 @@
-from langchain_mongodb import MongoDBChatMessageHistory
 from app.core.agents.base_agent import BaseAgent
-from langchain.agents import create_tool_calling_agent
-from langchain_core.runnables import RunnableWithMessageHistory
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-    HumanMessagePromptTemplate,
-    MessagesPlaceholder,
-)
-from langchain_core.messages import SystemMessage
-
 from app.core.config import settings
 
 
@@ -20,22 +10,45 @@ class TutorAgent(BaseAgent):
     def __init__(self):
         super().__init__()
         self.available_args = ["session_id", "context"]
+        self._prompt = None
+        self._agent = None
 
-        self.prompt = ChatPromptTemplate.from_messages(
-            [
-                SystemMessage(content=SYSTEM_PROMPT),
-                HumanMessagePromptTemplate.from_template("{input}"),
-                MessagesPlaceholder(variable_name="agent_scratchpad"),
-            ]
-        )
+    @property
+    def prompt(self):
+        """Lazy initialization của prompt template"""
+        if self._prompt is None:
+            # Lazy import - chỉ import khi cần thiết
+            from langchain_core.prompts import (
+                ChatPromptTemplate,
+                HumanMessagePromptTemplate,
+                MessagesPlaceholder,
+            )
+            from langchain_core.messages import SystemMessage
 
-        self.agent = create_tool_calling_agent(
-            tools=self.tools,
-            llm=self.base_llm,
-            verbose=True,
-            max_retries=3,
-            prompt=self.prompt,
-        )
+            self._prompt = ChatPromptTemplate.from_messages(
+                [
+                    SystemMessage(content=SYSTEM_PROMPT),
+                    HumanMessagePromptTemplate.from_template("{input}"),
+                    MessagesPlaceholder(variable_name="agent_scratchpad"),
+                ]
+            )
+        return self._prompt
+
+    @property
+    def agent(self):
+        """Lazy initialization của agent"""
+        if self._agent is None:
+            # Lazy import - chỉ import khi cần thiết
+            from langchain.agents import create_tool_calling_agent
+
+            self._agent = create_tool_calling_agent(
+                tools=self.tools,
+                llm=self.base_llm,
+                verbose=True,
+                max_retries=3,
+                prompt=self.prompt,
+            )
+        return self._agent
 
     def act(self, *args, **kwargs):
 
@@ -47,6 +60,10 @@ class TutorAgent(BaseAgent):
 
         if not session_id or not message or not topic:
             raise ValueError("Cần cung cấp 'session_id', 'message' và 'topic'.")
+
+        # Lazy import - chỉ import khi cần thiết
+        from langchain_core.runnables import RunnableWithMessageHistory
+        from langchain_mongodb import MongoDBChatMessageHistory
 
         runnable = RunnableWithMessageHistory(
             self.agent,

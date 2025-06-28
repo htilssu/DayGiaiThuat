@@ -1,5 +1,3 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
-
 from app.core.config import settings
 
 
@@ -13,6 +11,9 @@ def create_new_gemini_llm_model(thinking_budget: int = 0):
     Returns:
         ChatGoogleGenerativeAI: Instance mới của model LLM
     """
+    # Lazy import - chỉ import khi cần thiết
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
     return ChatGoogleGenerativeAI(
         model=settings.AGENT_LLM_MODEL,
         google_api_key=settings.GOOGLE_API_KEY,
@@ -28,6 +29,9 @@ def create_new_creative_llm_model():
     Returns:
         ChatGoogleGenerativeAI: Instance mới của model LLM
     """
+    # Lazy import - chỉ import khi cần thiết
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
     return ChatGoogleGenerativeAI(
         model=settings.CREATIVE_LLM_MODEL,
         google_api_key=settings.GOOGLE_API_KEY,
@@ -42,6 +46,9 @@ def get_gemini_llm_model():
     Returns:
         ChatGoogleGenerativeAI: Instance được cache của model LLM
     """
+    # Lazy import - chỉ import khi cần thiết
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
     return ChatGoogleGenerativeAI(
         model=settings.AGENT_LLM_MODEL,
         google_api_key=settings.GOOGLE_API_KEY,

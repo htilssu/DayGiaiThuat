@@ -1,18 +1,8 @@
 from app.core.agents.base_agent import BaseAgent
-from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import Tool
 from fastapi import Depends
 from app.services.course_service import CourseService, get_course_service
-from langchain.agents import create_tool_calling_agent
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import SystemMessage
-from langchain_core.prompts import HumanMessagePromptTemplate
-from langchain_core.prompts.chat import MessagesPlaceholder
-from langchain.agents import AgentExecutor
 from app.models.course_model import Course
 from app.utils.model_utils import model_to_dict
-from langchain.output_parsers import OutputFixingParser
-from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field, ValidationError
 from app.core.tracing import trace_agent
 from typing import override, Dict, Any
@@ -80,7 +70,14 @@ class InputTestAgent(BaseAgent):
         self.max_retries = 3
         self.retry_delay = 2  # seconds
 
-        # Khởi tạo tool ngay vì nó không tốn nhiều tài nguyên
+        # Khởi tạo tool với lazy import
+        self._init_tools()
+
+    def _init_tools(self):
+        """Khởi tạo tools với lazy import"""
+        # Lazy import - chỉ import khi cần thiết
+        from langchain_core.tools import Tool
+
         async def get_course_by_id(course_id: int):
             course: Course = self.course_service.get_course(course_id)
             return model_to_dict(course)
@@ -97,6 +94,9 @@ class InputTestAgent(BaseAgent):
     @property
     def output_parser(self):
         if self._output_parser is None:
+            # Lazy import - chỉ import khi cần thiết
+            from langchain_core.output_parsers import PydanticOutputParser
+
             self._output_parser = PydanticOutputParser(
                 pydantic_object=InputTestAgentOutput
             )
@@ -105,6 +105,9 @@ class InputTestAgent(BaseAgent):
     @property
     def output_fix_parser(self):
         if self._output_fix_parser is None:
+            # Lazy import - chỉ import khi cần thiết
+            from langchain.output_parsers import OutputFixingParser
+
             self._output_fix_parser = OutputFixingParser.from_llm(
                 llm=self.base_llm,
                 parser=self.output_parser,
@@ -114,6 +117,12 @@ class InputTestAgent(BaseAgent):
     @property
     def prompt(self):
         if self._prompt is None:
+            # Lazy import - chỉ import khi cần thiết
+            from langchain_core.prompts import ChatPromptTemplate
+            from langchain_core.messages import SystemMessage
+            from langchain_core.prompts import HumanMessagePromptTemplate
+            from langchain_core.prompts.chat import MessagesPlaceholder
+
             self._prompt = ChatPromptTemplate.from_messages(
                 [
                     SystemMessage(
@@ -130,6 +139,9 @@ class InputTestAgent(BaseAgent):
     @property
     def tool_calling_agent(self):
         if self._tool_calling_agent is None:
+            # Lazy import - chỉ import khi cần thiết
+            from langchain.agents import create_tool_calling_agent
+
             self._tool_calling_agent = create_tool_calling_agent(
                 llm=self.base_llm,
                 tools=self.tools,
@@ -140,6 +152,9 @@ class InputTestAgent(BaseAgent):
     @property
     def agent_executor(self):
         if self._agent_executor is None:
+            # Lazy import - chỉ import khi cần thiết
+            from langchain.agents import AgentExecutor
+
             self._agent_executor = AgentExecutor.from_agent_and_tools(
                 agent=self.tool_calling_agent,
                 tools=self.tools,
@@ -198,93 +213,74 @@ class InputTestAgent(BaseAgent):
         else:
             raise Exception(f"Không thể thực thi agent sau {self.max_retries} lần thử")
 
-    async def _parse_output(
+    async def _parse_output_with_fix(
         self, output: Dict[str, Any], course_id: int
     ) -> InputTestAgentOutput:
         """
-        Phân tích và chuyển đổi output từ agent thành đối tượng InputTestAgentOutput
+        Parse output từ agent với khả năng fix lỗi format
 
         Args:
-            output: Kết quả từ agent executor
+            output: Output từ agent
             course_id: ID của khóa học
 
         Returns:
-            InputTestAgentOutput: Đối tượng đã được phân tích
-
-        Raises:
-            ValueError: Nếu không thể phân tích output
+            InputTestAgentOutput: Kết quả đã parse
         """
+        if not output or "output" not in output:
+            raise ValueError("Output không hợp lệ từ agent")
+
+        output_text = output["output"]
+
         try:
-            # Thử phân tích trực tiếp
-            if isinstance(output, dict) and "output" in output:
-                raw_output = output["output"]
-            else:
-                raw_output = output
+            # Thử parse bằng parser chính
+            result = self.output_parser.parse(output_text)
+            result.course_id = course_id
+            return result
 
-            # Sử dụng output fixing parser để sửa lỗi nếu cần
-            parsed_output = self.output_fix_parser.parse(raw_output)
-
-            # Đảm bảo course_id được thiết lập đúng
-            if parsed_output.course_id != course_id:
-                parsed_output.course_id = course_id
-
-            return parsed_output
         except ValidationError as e:
-            logger.error(f"Lỗi validation khi phân tích output: {e}")
-            # Thử phương pháp khác nếu phân tích thất bại
+            logger.warning(f"Lỗi parse, sử dụng fixing parser: {e}")
             try:
-                # Tạo một đối tượng mới với course_id đã biết
-                return InputTestAgentOutput(
-                    questions=output.get("questions", []), course_id=course_id
-                )
-            except Exception as e2:
-                logger.error(f"Không thể khôi phục từ lỗi phân tích: {e2}")
-                raise ValueError(f"Không thể phân tích output từ agent: {e}, {e2}")
+                # Sử dụng fixing parser
+                result = self.output_fix_parser.parse(output_text)
+                result.course_id = course_id
+                return result
+            except Exception as fix_error:
+                logger.error(f"Fixing parser cũng thất bại: {fix_error}")
+                raise ValueError(f"Không thể parse output: {fix_error}")
 
     @override
     @trace_agent(project_name="default", tags=["input_test", "agent"])
     async def act(self, *args, **kwargs):
         super().act(*args, **kwargs)
+
         course_id = kwargs.get("course_id")
         if not course_id:
-            raise ValueError("course_id is required")
+            raise ValueError("Thiếu course_id")
 
-        run_config = RunnableConfig(
+        # Lazy import - chỉ import khi cần thiết
+        from langchain_core.runnables import RunnableConfig
+
+        config = RunnableConfig(
             callbacks=self._callback_manager.handlers,
-            metadata={
-                "course_id": course_id,
-                "agent_type": "input_test_generator",
-            },
-            tags=["input_test", "generator", f"course:{course_id}"],
+            metadata={"course_id": course_id, "agent_type": "input_test"},
+            tags=["input_test", "agent", f"course:{course_id}"],
         )
 
+        input_data = {"input": f"Tạo bài kiểm tra đầu vào cho khóa học ID: {course_id}"}
+
         try:
-            # Thực thi agent với retry logic
-            result = await self._execute_with_retry(
-                {"input": f"course_id: {course_id}"}, run_config
-            )
+            # Thực thi với retry
+            output = await self._execute_with_retry(input_data, config)
 
-            # Phân tích kết quả bằng output parser
-            parsed_result = await self._parse_output(result, course_id)
+            # Parse output
+            result = await self._parse_output_with_fix(output, course_id)
 
-            return parsed_result
+            logger.info(f"Tạo thành công {len(result.questions)} câu hỏi")
+            return result
 
         except Exception as e:
-            logger.error(f"Lỗi khi thực thi agent: {e}")
-
-            # Tạo thông báo lỗi thân thiện hơn
-            if "Google AI" in str(e) or "Internal" in str(e):
-                error_message = (
-                    "Dịch vụ AI tạm thời không khả dụng. Vui lòng thử lại sau vài phút."
-                )
-            elif "timeout" in str(e).lower() or "deadline" in str(e).lower():
-                error_message = (
-                    "Quá trình tạo test mất quá nhiều thời gian. Vui lòng thử lại."
-                )
-            else:
-                error_message = f"Lỗi không xác định: {e}"
-
-            raise ValueError(error_message)
+            logger.error(f"Lỗi trong InputTestAgent.act: {e}")
+            raise Exception(f"Lỗi tạo bài kiểm tra: {str(e)}")
 
 
 def get_input_test_agent(course_service: CourseService = Depends(get_course_service)):

@@ -65,7 +65,7 @@ class TestSessionUpdate(BaseModel):
 
 class TestSessionInDB(TestSessionBase):
     id: str
-    start_time: datetime
+    start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     last_activity: datetime
     time_remaining_seconds: int
@@ -121,7 +121,7 @@ class TestHistorySummary(BaseModel):
     topic_id: Optional[int] = None
     course_id: Optional[int] = None
     test_name: str  # Tên bài kiểm tra (từ topic hoặc course)
-    start_time: datetime
+    start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     duration_minutes: int  # Thời gian làm bài thực tế (phút)
     score: Optional[float] = None

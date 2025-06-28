@@ -174,7 +174,7 @@ export default function RegisterClient() {
                 setFormStep(1);
 
                 // Chuyển hướng đến trang chủ hoặc return URL sau khoảng thời gian ngắn
-                const returnUrl = searchParams.get("returnUrl") || "/";
+                const returnUrl = searchParams.get("redirect") || searchParams.get("returnUrl") || "/";
                 setTimeout(() => {
                     router.push(returnUrl);
                 }, 1500);

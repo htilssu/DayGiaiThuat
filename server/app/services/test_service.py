@@ -1,22 +1,22 @@
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-from fastapi import Depends, HTTPException, status
-from sqlalchemy import select, update, and_
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Dict, List, Optional
 
 from app.database.database import get_async_session
 from app.models.test_model import Test
 from app.models.test_session import TestSession
 from app.schemas.test_schema import (
+    QuestionFeedback,
     TestCreate,
-    TestUpdate,
+    TestHistorySummary,
+    TestResult,
     TestSessionCreate,
     TestSessionUpdate,
     TestSubmission,
-    TestResult,
-    QuestionFeedback,
-    TestHistorySummary,
+    TestUpdate,
 )
+from fastapi import Depends, HTTPException, status
+from sqlalchemy import and_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class TestService:
@@ -107,31 +107,26 @@ class TestService:
 
     async def create_test_session(self, session_data: TestSessionCreate) -> TestSession:
         """Tạo một phiên làm bài kiểm tra mới"""
+
         # Kiểm tra xem bài kiểm tra có tồn tại không
         test = await self.get_test(session_data.test_id)
         if not test:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Không tìm thấy bài kiểm tra",
+                detail=f"Không tìm thấy bài kiểm tra với ID: {session_data.test_id}",
             )
 
-        # Kiểm tra xem người dùng có phiên làm bài nào đang hoạt động không
-        # Đầu tiên, kiểm tra phiên làm bài cho cùng một bài kiểm tra
-        active_session = await self.get_active_session(
-            session_data.user_id, session_data.test_id
-        )
-        if active_session:
-            return active_session
-
-        # Kiểm tra xem người dùng có phiên làm bài nào khác đang hoạt động không
-        result = await self.session.execute(
+        # Kiểm tra xem user có phiên làm bài đang hoạt động khác không
+        other_active_sessions = await self.session.execute(
             select(TestSession).where(
-                TestSession.user_id == session_data.user_id,
-                TestSession.status == "in_progress",
-                TestSession.is_submitted == False,
+                and_(
+                    TestSession.user_id == session_data.user_id,
+                    TestSession.status.in_(["pending", "in_progress"]),
+                    TestSession.is_submitted == False,
+                )
             )
         )
-        other_active_sessions = list(result.scalars().all())
+        other_active_sessions = other_active_sessions.scalars().all()
 
         if other_active_sessions:
             raise HTTPException(
@@ -225,65 +220,45 @@ class TestService:
         return result.scalars().all()
 
     async def get_user_test_history(self, user_id: int) -> List[TestHistorySummary]:
-        """Lấy lịch sử làm bài kiểm tra của người dùng - chỉ thông tin cơ bản"""
-        from app.models.topic_model import Topic
-        from app.models.course_model import Course
-
+        # Lấy tất cả test sessions của user
         result = await self.session.execute(
-            select(TestSession, Test, Topic, Course)
-            .join(Test, TestSession.test_id == Test.id)
-            .outerjoin(Topic, Test.topic_id == Topic.id)
-            .outerjoin(Course, Test.course_id == Course.id)
-            .where(
-                and_(
-                    TestSession.user_id == user_id,
-                    TestSession.status.in_(["completed", "expired"]),
-                )
-            )
-            .order_by(TestSession.start_time.desc())
+            select(TestSession)
+            .where(TestSession.user_id == user_id)
+            .order_by(TestSession.created_at.desc())
         )
 
+        test_sessions = result.scalars().all()
+
+        # Chuyển đổi thành TestHistorySummary
         history = []
-        for test_session, test, topic, course in result.all():
-            # Tính thời gian làm bài thực tế
-            start_time = test_session.start_time
-            end_time = test_session.end_time or test_session.updated_at
-            duration_minutes = 0
+        for test_session in test_sessions:
+            try:
+                # Tính thời gian làm bài
+                duration_minutes = 0
+                if test_session.start_time and test_session.end_time:
+                    duration_delta = test_session.end_time - test_session.start_time
+                    duration_minutes = max(0, int(duration_delta.total_seconds() / 60))
 
-            if start_time and end_time:
-                duration_delta = end_time - start_time
-                duration_minutes = int(duration_delta.total_seconds() / 60)
+                summary = TestHistorySummary(
+                    session_id=test_session.id,
+                    test_id=test_session.test_id,
+                    topic_id=None,  # Không lấy từ join
+                    course_id=None,  # Không lấy từ join
+                    test_name=f"Bài kiểm tra #{test_session.test_id}",  # Tên đơn giản
+                    start_time=test_session.start_time,
+                    end_time=test_session.end_time,
+                    duration_minutes=duration_minutes,
+                    score=test_session.score,
+                    correct_answers=test_session.correct_answers,
+                    total_questions=0,  # Có thể lấy từ test nếu cần
+                    status=test_session.status,
+                )
+                history.append(summary)
 
-            # Tên bài kiểm tra từ topic hoặc course
-            test_name = "Bài kiểm tra"
-            if topic:
-                test_name = f"Kiểm tra: {topic.name}"
-            elif course:
-                test_name = f"Bài kiểm tra đầu vào: {course.title}"
-
-            # Số câu hỏi
-            total_questions = 0
-            if test.questions:
-                if isinstance(test.questions, list):
-                    total_questions = len(test.questions)
-                elif isinstance(test.questions, dict):
-                    total_questions = len(test.questions)
-
-            summary = TestHistorySummary(
-                session_id=test_session.id,
-                test_id=test_session.test_id,
-                topic_id=test.topic_id,
-                course_id=test.course_id,
-                test_name=test_name,
-                start_time=start_time,
-                end_time=end_time,
-                duration_minutes=duration_minutes,
-                score=test_session.score,
-                correct_answers=test_session.correct_answers,
-                total_questions=total_questions,
-                status=test_session.status,
-            )
-            history.append(summary)
+            except Exception as e:
+                # Log lỗi nhưng không làm fail toàn bộ request
+                print(f"Error processing test session {test_session.id}: {str(e)}")
+                continue
 
         return history
 
@@ -291,8 +266,8 @@ class TestService:
         self, session_id: str, user_id: int
     ) -> Dict[str, Any]:
         """Lấy thông tin chi tiết của một phiên làm bài"""
-        from app.models.topic_model import Topic
         from app.models.course_model import Course
+        from app.models.topic_model import Topic
 
         result = await self.session.execute(
             select(TestSession, Test, Topic, Course)
@@ -620,6 +595,39 @@ class TestService:
                 }
 
         return {"can_access": True, "session": session}
+
+    async def start_test_session(self, session_id: str, user_id: int) -> TestSession:
+        """Bắt đầu phiên làm bài thực sự - chuyển từ pending sang in_progress"""
+        session = await self.get_test_session(session_id)
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Không tìm thấy phiên làm bài",
+            )
+
+        # Kiểm tra quyền
+        if session.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Không có quyền truy cập phiên làm bài này",
+            )
+
+        # Chỉ có thể start session đang pending
+        if session.status != "pending":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Không thể bắt đầu phiên làm bài với trạng thái: {session.status}",
+            )
+
+        # Cập nhật session để bắt đầu
+        now = datetime.utcnow()
+        session.start_time = now
+        session.last_activity = now
+        session.status = "in_progress"
+
+        await self.session.commit()
+        await self.session.refresh(session)
+        return session
 
 
 def get_test_service(session: AsyncSession = Depends(get_async_session)):

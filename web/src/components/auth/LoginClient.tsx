@@ -17,7 +17,7 @@ import { useAppDispatch } from "@/lib/store";
 export default function LoginClient() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const returnUrl = searchParams.get("returnUrl") || "/";
+    const returnUrl = searchParams.get("redirect") || searchParams.get("returnUrl") || "/";
     const dispatch = useAppDispatch();
     const [isLoading, setIsLoading] = useState(false);
     const [rememberVisible, setRememberVisible] = useState(false);

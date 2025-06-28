@@ -54,6 +54,16 @@ async def get_tests_by_topic(
     return tests
 
 
+@router.get("/test-history", response_model=List[TestHistorySummary])
+async def get_user_test_history(
+    test_service: TestService = Depends(get_test_service),
+    current_user=Depends(get_current_user),
+):
+    """Lấy lịch sử làm bài kiểm tra của người dùng"""
+    sessions = await test_service.get_user_test_history(current_user.id)
+    return sessions
+
+
 @router.get("/{test_id}", response_model=TestRead)
 async def get_test(
     test_id: int,
@@ -183,35 +193,6 @@ async def get_test_session(
     return {**session.__dict__, "test": test}
 
 
-@router.get("/sessions/user/me", response_model=List[TestSessionRead])
-async def get_my_test_sessions(
-    test_service: TestService = Depends(get_test_service),
-    current_user=Depends(get_current_user),
-):
-    """Lấy danh sách các phiên làm bài của người dùng hiện tại"""
-    sessions = await test_service.get_user_sessions(current_user.id)
-    return sessions
-
-
-@router.get("/sessions/history", response_model=List[TestHistorySummary])
-async def get_test_history(
-    test_service: TestService = Depends(get_test_service),
-    current_user=Depends(get_current_user),
-):
-    """Lấy lịch sử làm bài kiểm tra của người dùng - chỉ thông tin cơ bản"""
-    return await test_service.get_user_test_history(current_user.id)
-
-
-@router.get("/sessions/{session_id}/detail", response_model=Dict[str, Any])
-async def get_test_session_detail(
-    session_id: str,
-    test_service: TestService = Depends(get_test_service),
-    current_user=Depends(get_current_user),
-):
-    """Lấy thông tin chi tiết của một phiên làm bài đã hoàn thành"""
-    return await test_service.get_test_session_detail(session_id, current_user.id)
-
-
 @router.put("/sessions/{session_id}", response_model=TestSessionRead)
 async def update_test_session(
     session_id: str,
@@ -244,83 +225,7 @@ async def start_test_session(
     current_user=Depends(get_current_user),
 ):
     """Bắt đầu phiên làm bài kiểm tra"""
-    # Kiểm tra quyền truy cập
-    session = await test_service.get_test_session(session_id)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy phiên làm bài"
-        )
-
-    if session.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Không có quyền bắt đầu phiên làm bài của người dùng khác",
-        )
-
-    # Kiểm tra trạng thái session
-    if session.status not in ["pending", "in_progress"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Phiên làm bài không thể bắt đầu ở trạng thái hiện tại",
-        )
-
-    # Nếu đã bắt đầu rồi thì chỉ trả về session hiện tại
-    if session.status == "in_progress" and session.start_time:
-        return session
-
-    # Cập nhật thời gian bắt đầu thực sự và chuyển sang trạng thái in_progress
-    now = datetime.utcnow()
-    update_data = TestSessionUpdate(
-        start_time=now,
-        last_activity=now,
-        status="in_progress",
-        current_question_index=0,
-    )
-
-    updated_session = await test_service.update_session(session_id, update_data)
-    return updated_session
-
-
-@router.post(
-    "/sessions/{session_id}/answers/{question_id}", response_model=TestSessionRead
-)
-async def submit_answer(
-    session_id: str,
-    question_id: str,
-    answer: Dict[str, Any],
-    test_service: TestService = Depends(get_test_service),
-    current_user=Depends(get_current_user),
-):
-    """Nộp câu trả lời cho một câu hỏi trong phiên làm bài"""
-    # Kiểm tra quyền truy cập
-    session = await test_service.get_test_session(session_id)
-    if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy phiên làm bài"
-        )
-
-    if session.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Không có quyền cập nhật phiên làm bài của người dùng khác",
-        )
-
-    updated_session = await test_service.update_session_answer(
-        session_id, question_id, answer
-    )
-
-    # Gửi cập nhật qua WebSocket nếu có kết nối
-    await broadcast_session_update(
-        session.user_id,
-        session_id,
-        {
-            "type": "answer_update",
-            "question_id": question_id,
-            "timestamp": datetime.utcnow().isoformat(),
-        },
-    )
-
-    return updated_session
+    return await test_service.start_test_session(session_id, current_user.id)
 
 
 @router.post("/sessions/{session_id}/submit", response_model=TestResult)

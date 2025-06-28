@@ -1,10 +1,7 @@
 from typing import Literal
 from functools import lru_cache
-from langchain_pinecone import PineconeVectorStore
 
 from app.core.agents.components.embedding_model import get_gemini_embedding_model
-from pinecone import Pinecone
-
 from app.core.config import settings
 
 
@@ -16,6 +13,9 @@ def get_pinecone_client():
     Returns:
         Pinecone: Instance được cache của Pinecone client
     """
+    # Lazy import - chỉ import khi cần thiết
+    from pinecone import Pinecone
+
     return Pinecone(api_key=settings.PINECONE_API_KEY)
 
 
@@ -44,6 +44,9 @@ def get_vector_store(index_name: index_list):
     Returns:
         PineconeVectorStore: Vector store được liên kết với index
     """
+    # Lazy import - chỉ import khi cần thiết
+    from langchain_pinecone import PineconeVectorStore
+
     pc = get_pinecone_client()
     pc_index = pc.Index(index_name)
     pc_vector_store = PineconeVectorStore(
