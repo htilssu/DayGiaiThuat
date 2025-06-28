@@ -1,9 +1,13 @@
-from typing import List
+from typing import List, TYPE_CHECKING
 
 from sqlalchemy import Boolean, Integer, String, Float, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.database import Base
+
+if TYPE_CHECKING:
+    from app.models.topic_model import Topic
+    from app.models.user_state_model import UserState
 
 
 class Course(Base):
@@ -54,6 +58,8 @@ class Course(Base):
         Text, nullable=True
     )  # Lưu dưới dạng JSON string lộ trình học tập
 
+    # Relationships
+    topics: Mapped[List["Topic"]] = relationship("Topic", back_populates="course")
     user_states: Mapped[List["UserState"]] = relationship(
         back_populates="current_course"
     )

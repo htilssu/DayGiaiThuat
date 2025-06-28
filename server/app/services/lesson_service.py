@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.models.lesson_model import Lesson, LessonSection
 from app.schemas.lesson_schema import (
     CreateLessonSchema, UpdateLessonSchema, LessonResponseSchema,
-    GenerateLessonRequestSchema
+    GenerateLessonRequestSchema, LessonSectionSchema
 )
 from app.core.agents.lesson_generating_agent import LessonGeneratingAgent
 
@@ -95,8 +95,14 @@ class LessonService:
         """
         stmt = select(Lesson).where(Lesson.topic_id == topic_id).order_by(Lesson.order)
         lessons = self.db.execute(stmt).scalars().all()
-        
-        return [LessonResponseSchema.model_validate(lesson) for lesson in lessons]
+        lesson_responses = []
+        for lesson in lessons:
+            lesson_dict = lesson.__dict__.copy()
+            lesson_dict['sections'] = [
+                LessonSectionSchema.model_validate(section, from_attributes=True) for section in lesson.sections
+            ]
+            lesson_responses.append(LessonResponseSchema.model_validate(lesson_dict))
+        return lesson_responses
     
     def update_lesson(self, lesson_id: int, lesson_data: UpdateLessonSchema) -> Optional[LessonResponseSchema]:
         """

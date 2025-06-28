@@ -2,6 +2,39 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
 
+class ExerciseBase(BaseModel):
+    """
+    Schema cơ bản cho bài tập
+    
+    Attributes:
+        name: Tên bài tập
+        description: Mô tả chi tiết về bài tập
+        difficulty: Độ khó của bài tập
+        constraint: Các ràng buộc hoặc yêu cầu của bài tập
+        suggest: Gợi ý để giải bài tập
+    """
+    name: str
+    description: str
+    difficulty: str
+    constraint: Optional[str] = None
+    suggest: Optional[str] = None
+
+
+class ExerciseResponse(ExerciseBase):
+    """
+    Schema cho response khi truy vấn thông tin bài tập
+    
+    Attributes:
+        id: ID của bài tập
+        lesson_id: ID của bài học liên quan
+    """
+    id: int
+    lesson_id: int
+
+    class Config:
+        from_attributes = True
+
+
 class LessonSectionSchema(BaseModel):
     type: str  # "text", "code", "image", "quiz"
     content: str
@@ -40,6 +73,7 @@ class LessonResponseSchema(BaseModel):
     next_lesson_id: Optional[str] = None
     prev_lesson_id: Optional[str] = None
     sections: List[LessonSectionSchema]
+    exercise: Optional[ExerciseResponse] = None
 
     class Config:
         from_attributes = True

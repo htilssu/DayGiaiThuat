@@ -7,6 +7,7 @@ from app.database.database import Base
 if TYPE_CHECKING:
     from app.models.topic_model import Topic
     from app.models.user_model import User
+    from app.models.exercise_model import Exercise
 
 
 class LessonSection(Base):
@@ -55,6 +56,7 @@ class Lesson(Base):
         "UserLesson", back_populates="lesson"
     )
     topic: Mapped["Topic"] = relationship("Topic", back_populates="lessons")
+    exercise: Mapped[Optional["Exercise"]] = relationship("Exercise", back_populates="lesson", uselist=False)
 
 
 class UserLesson(Base):

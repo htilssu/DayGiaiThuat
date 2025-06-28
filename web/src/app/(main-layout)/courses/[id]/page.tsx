@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { coursesApi } from "@/lib/api";
+import { coursesApi, topicsApi, lessonsApi } from "@/lib/api";
 import { Course } from "@/lib/api/courses";
-import { dsaCourseContent } from "@/data/courseContent";
+import { Topic } from "@/lib/api/types";
+import { Lesson } from "@/lib/api/topics";
 import Link from "next/link";
 
 /**
@@ -22,6 +23,12 @@ export default function CourseDetailPage() {
   const [activeTab, setActiveTab] = useState<
     "overview" | "content" | "reviews"
   >("overview");
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [topicsLoading, setTopicsLoading] = useState<boolean>(true);
+  const [topicsError, setTopicsError] = useState<string | null>(null);
+  const [topicLessons, setTopicLessons] = useState<Record<number, Lesson[]>>(
+    {}
+  );
 
   useEffect(() => {
     const fetchCourseDetails = async () => {
@@ -29,16 +36,48 @@ export default function CourseDetailPage() {
         setIsLoading(true);
         const data = await coursesApi.getCourseById(courseId);
         setCourse(data);
-      } catch (err) {
-        console.error("Lỗi khi tải thông tin khóa học:", err);
+      } catch {
+        console.error("Lỗi khi tải thông tin khóa học:");
         setError("Không thể tải thông tin khóa học. Vui lòng thử lại sau.");
       } finally {
         setIsLoading(false);
       }
     };
 
+    const fetchTopics = async () => {
+      try {
+        setTopicsLoading(true);
+        setTopicsError(null);
+        // Get all topics for this course
+        const topicsList = await topicsApi.getTopicsByCourse(courseId);
+        setTopics(topicsList);
+
+        // Fetch lessons for each topic
+        const lessonsMap: Record<number, Lesson[]> = {};
+        for (const topic of topicsList) {
+          try {
+            const lessons = await lessonsApi.getLessonsByTopic(topic.id);
+            lessonsMap[topic.id] = lessons;
+          } catch {
+            lessonsMap[topic.id] = [];
+          }
+        }
+        setTopicLessons(lessonsMap);
+
+        console.log("Topics:", topicsList);
+        console.log("Lessons map:", lessonsMap);
+      } catch {
+        setTopicsError(
+          "Không thể tải nội dung khóa học. Vui lòng thử lại sau."
+        );
+      } finally {
+        setTopicsLoading(false);
+      }
+    };
+
     if (courseId) {
       fetchCourseDetails();
+      fetchTopics();
     }
   }, [courseId]);
 
@@ -348,140 +387,105 @@ export default function CourseDetailPage() {
           {activeTab === "content" && (
             <div>
               <h2 className="text-2xl font-bold mb-6">Nội dung khóa học</h2>
-              <div className="space-y-4">
-                {dsaCourseContent.map((chapter) => (
-                  <details
-                    key={chapter.id}
-                    className="group bg-foreground/5 rounded-xl overflow-hidden"
-                    open={chapter.id === 1}>
-                    <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-foreground/10">
-                      <div>
-                        <h3 className="font-medium">
-                          Chương {chapter.id}: {chapter.title}
-                        </h3>
-                        <p className="text-sm text-foreground/70 mt-1">
-                          {chapter.description}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-sm text-foreground/70">
-                          {chapter.lessons.length} bài học
-                        </div>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5 transform transition-transform group-open:rotate-180"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </div>
-                    </summary>
-                    <div className="border-t border-foreground/10">
-                      {chapter.lessons.map((lesson) => (
-                        <div
-                          key={lesson.id}
-                          className="flex items-center gap-4 p-4 hover:bg-foreground/5">
-                          <div
-                            className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
-                              lesson.type === "video"
-                                ? "bg-blue-500/10 text-blue-500"
-                                : lesson.type === "quiz"
-                                ? "bg-purple-500/10 text-purple-500"
-                                : "bg-green-500/10 text-green-500"
-                            }`}>
-                            {lesson.type === "video" ? (
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-5 w-5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                              </svg>
-                            ) : lesson.type === "quiz" ? (
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-5 w-5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                                />
-                              </svg>
-                            ) : (
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-5 w-5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                />
-                              </svg>
-                            )}
-                          </div>
-                          <div className="flex-grow">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-medium">{lesson.title}</h4>
-                              {lesson.isPreview && (
-                                <span className="px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full">
-                                  Xem trước
-                                </span>
-                              )}
-                            </div>
+              {topicsLoading ? (
+                <div className="text-center py-10 text-foreground/70">
+                  Đang tải nội dung...
+                </div>
+              ) : topicsError ? (
+                <div className="text-center py-10 text-accent">
+                  {topicsError}
+                </div>
+              ) : topics.length === 0 ? (
+                <div className="text-center py-10 text-foreground/70">
+                  Chưa có chủ đề nào cho khóa học này.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {topics.map((topic) => {
+                    return (
+                      <details
+                        key={topic.id}
+                        className="group bg-foreground/5 rounded-xl overflow-hidden"
+                        open={topic.id === 1}>
+                        <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-foreground/10">
+                          <div>
+                            <h3 className="font-medium">{topic.name}</h3>
                             <p className="text-sm text-foreground/70 mt-1">
-                              {lesson.description}
+                              {topic.description}
                             </p>
                           </div>
-                          <div className="flex items-center gap-3 flex-shrink-0">
-                            <span className="text-sm text-foreground/70">
-                              {lesson.duration} phút
-                            </span>
-                            {lesson.isPreview ? (
-                              <Link
-                                href={`/lessons/${lesson.id}`}
-                                className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
-                                Xem ngay
-                              </Link>
-                            ) : (
-                              <button
-                                disabled
-                                className="px-3 py-1 text-sm border border-foreground/20 text-foreground/40 rounded cursor-not-allowed">
-                                Khóa
-                              </button>
-                            )}
+                          <div className="flex items-center gap-4">
+                            <div className="text-sm text-foreground/70">
+                              {topicLessons[topic.id]?.length || 0} bài học
+                            </div>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-5 w-5 transform transition-transform group-open:rotate-180"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
                           </div>
+                        </summary>
+                        <div className="border-t border-foreground/10">
+                          {topicLessons[topic.id]?.map((lesson) => (
+                            <div
+                              key={lesson.id}
+                              className="flex items-center gap-4 p-4 hover:bg-foreground/5">
+                              <div
+                                className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center bg-green-500/10 text-green-500`}>
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-5 w-5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                  />
+                                </svg>
+                              </div>
+                              <div className="flex-grow">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-medium">
+                                    {lesson.title}
+                                  </h4>
+                                </div>
+                                <p className="text-sm text-foreground/70 mt-1">
+                                  {lesson.description}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-3 flex-shrink-0">
+                                <span className="text-sm text-foreground/70">
+                                  {lesson.sections &&
+                                  lesson.sections.length > 0 &&
+                                  lesson.sections[0].order
+                                    ? `${lesson.sections[0].order} phút`
+                                    : ""}
+                                </span>
+                                <Link
+                                  href={`/topics/${topic.id}/lessons/${lesson.external_id}`}
+                                  className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
+                                  Xem ngay
+                                </Link>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </details>
-                ))}
-              </div>
+                      </details>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

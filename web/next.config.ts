@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       "images.unsplash.com",
       "localhost",
       "example.com",
+      "200lab.io",
     ],
   },
 };

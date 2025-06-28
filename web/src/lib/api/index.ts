@@ -5,4 +5,6 @@ export * from "./chat";
 export * from "./profile";
 export * from "./courses";
 export * from "./documents";
-
+export * from "./topics";
+export * from "./lessons";
+export * from "./types";

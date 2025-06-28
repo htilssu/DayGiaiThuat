@@ -4,6 +4,37 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
+class TopicBase(BaseModel):
+    """
+    Schema cơ bản cho chủ đề
+    
+    Attributes:
+        name: Tên chủ đề
+        description: Mô tả chi tiết về chủ đề
+        prerequisites: Danh sách các điều kiện tiên quyết
+    """
+    name: str = Field(..., min_length=1, max_length=255, description="Tên chủ đề")
+    description: Optional[str] = Field(None, description="Mô tả chi tiết về chủ đề")
+    prerequisites: Optional[List[str]] = Field(None, description="Danh sách các điều kiện tiên quyết")
+
+
+class TopicResponse(TopicBase):
+    """
+    Schema cho response khi truy vấn thông tin chủ đề
+    
+    Attributes:
+        id: ID của chủ đề
+        external_id: ID hiển thị cho người dùng
+        course_id: ID của khóa học chứa chủ đề này
+    """
+    id: int = Field(..., description="ID của chủ đề")
+    external_id: Optional[str] = Field(None, description="ID hiển thị cho người dùng")
+    course_id: int = Field(..., description="ID của khóa học chứa chủ đề này")
+
+    class Config:
+        from_attributes = True
+
+
 class CourseBase(BaseModel):
     """
     Schema cơ bản cho khóa học
@@ -69,10 +100,12 @@ class CourseResponse(CourseBase):
         id: ID của khóa học
         created_at: Thời điểm tạo khóa học
         updated_at: Thời điểm cập nhật gần nhất
+        topics: Danh sách các chủ đề trong khóa học
     """
     id: int = Field(..., description="ID của khóa học")
     created_at: datetime = Field(..., description="Thời điểm tạo khóa học")
     updated_at: datetime = Field(..., description="Thời điểm cập nhật gần nhất")
+    topics: Optional[List[TopicResponse]] = Field(None, description="Danh sách các chủ đề trong khóa học")
 
     class Config:
         """Cấu hình cho Pydantic model"""

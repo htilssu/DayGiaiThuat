@@ -8,6 +8,7 @@ from app.routers import (
     lesson_router,
     tutor_router,
     users_router,
+    topic_router,
 )
 
 
@@ -19,3 +20,4 @@ def register_router(app: FastAPI):
     app.include_router(exercise_router.router)
     app.include_router(document_router.router)
     app.include_router(lesson_router.router)
+    app.include_router(topic_router.router)

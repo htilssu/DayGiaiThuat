@@ -1,9 +1,15 @@
-from sqlalchemy import Integer, String, ARRAY
+from sqlalchemy import Integer, String, ARRAY, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 
 from app.database.database import Base
+
+if TYPE_CHECKING:
+    from app.models.course_model import Course
+    from app.models.lesson_model import Lesson
+    from app.models.user_topic_model import UserTopic
+    from app.models.test_model import Test
 
 
 class Topic(Base):
@@ -15,14 +21,15 @@ class Topic(Base):
     )
     name: Mapped[str] = mapped_column(String, index=True, nullable=False)
     description: Mapped[str] = mapped_column(String)
+    course_id: Mapped[int] = mapped_column(Integer, ForeignKey("courses.id"), nullable=False)
     prerequisites: Mapped[Optional[List[str]]] = mapped_column(
         ARRAY(String), nullable=True
     )
+
+    # Relationships
+    course: Mapped["Course"] = relationship("Course", back_populates="topics")
     lessons: Mapped[List["Lesson"]] = relationship("Lesson", back_populates="topic")
     user_topics: Mapped[List["UserTopic"]] = relationship(
         "UserTopic", back_populates="topic"
-    )
-    exercises: Mapped[List["Exercise"]] = relationship(
-        "Exercise", back_populates="topic"
     )
     tests: Mapped[List["Test"]] = relationship("Test", back_populates="topic")

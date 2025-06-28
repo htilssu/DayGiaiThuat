@@ -1,7 +1,11 @@
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING
 from app.database.database import Base
 from app.schemas.exercise_schema import ExerciseDetail
+
+if TYPE_CHECKING:
+    from app.models.lesson_model import Lesson
 
 
 class Exercise(Base):
@@ -14,11 +18,11 @@ class Exercise(Base):
         description (str): Mô tả chi tiết về bài tập
         difficulty (str): Độ khó của bài tập
         constraint (str): Các ràng buộc hoặc yêu cầu của bài tập
-        topic_id (int): ID của chủ đề liên quan, foreign key đến bảng topics
+        lesson_id (int): ID của bài học liên quan, foreign key đến bảng lessons
         suggest (str): Gợi ý để giải bài tập
 
     Relationships:
-        topic (Topic): Chủ đề liên quan đến bài tập (many-to-one)
+        lesson (Lesson): Bài học liên quan đến bài tập (one-to-one)
     """
 
     __tablename__ = "exercises"
@@ -28,10 +32,10 @@ class Exercise(Base):
     description: Mapped[str] = mapped_column(String)
     difficulty: Mapped[str] = mapped_column(String)
     constraint: Mapped[str] = mapped_column(String, nullable=True)
-    topic_id: Mapped[int] = mapped_column(ForeignKey("topics.id"))
+    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id"), unique=True)
     suggest: Mapped[str] = mapped_column(String, nullable=True)
 
-    topic: Mapped["Topic"] = relationship(back_populates="exercises")
+    lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="exercise")
 
     class Config:
         orm_mode = True
@@ -48,7 +52,7 @@ class Exercise(Base):
                 - difficulty (str): Độ khó của bài tập
                 - constraint (str): Các ràng buộc của bài tập (có thể None)
                 - suggest (str): Gợi ý để giải bài tập (có thể None)
-                - topic_id (int): ID của chủ đề liên quan
+                - lesson_id (int): ID của bài học liên quan
 
         Returns:
             Exercise: Đối tượng Exercise được tạo từ dữ liệu schema
