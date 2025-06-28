@@ -1,103 +1,54 @@
 from typing import override
 
-from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain.output_parsers import OutputFixingParser
-from langchain_core.messages import SystemMessage
-from langchain_core.output_parsers import PydanticOutputParser
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-    MessagesPlaceholder,
-    HumanMessagePromptTemplate,
-)
-from langchain_core.runnables import RunnableConfig, RunnableWithMessageHistory
-from langchain_core.tools import Tool
-from langchain_mongodb import MongoDBChatMessageHistory
-
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
-from app.core.agents.components.llm_model import (
-    create_new_creative_llm_model,
-    create_new_gemini_llm_model,
-)
+from app.core.agents.components.llm_model import create_new_creative_llm_model
 from app.core.config import settings
-from app.core.tracing import get_callback_manager, trace_agent
+from app.core.tracing import trace_agent
 from app.schemas.exercise_schema import ExerciseDetail
 
+SYSTEM_PROMPT_TEMPLATE = """
+Bạn là một AI agent thông minh chuyên tạo ra các bài tập giải thuật để rèn luyện và cải thiện kỹ năng lập trình.
+
+Nhiệm vụ chính của bạn:
+1. Sử dụng tool retriever_algo_vault để tìm kiếm và truy xuất thông tin về các giải thuật liên quan đến chủ đề được yêu cầu.
+2. Sử dụng tool retriever_exercise để kiểm tra xem bài tập với mô tả tương tự đã tồn tại trong cơ sở dữ liệu hay chưa.
+3. Dựa trên thông tin thu thập được, sử dụng tool generate_exercise để tạo ra một bài tập phù hợp với chủ đề và độ khó được yêu cầu.
+4. Kiểm tra và sửa lỗi đầu ra bằng tool output_fixing_parser để đảm bảo định dạng chính xác.
+
+Nguyên tắc khi tạo bài tập:
+- Bài tập phải có liên quan trực tiếp đến chủ đề (topic) được yêu cầu
+- Độ khó phải phù hợp với level được chỉ định (Easy, Medium, Hard)
+- Phải bao gồm đầy đủ: mô tả bài toán, input/output format, constraints, examples
+- Cung cấp gợi ý hoặc hướng dẫn giải phù hợp với độ khó
+- Đảm bảo bài tập có tính thực tiễn và giúp người học hiểu sâu về giải thuật
+
+Quy trình làm việc:
+1. Trước tiên, sử dụng retriever_algo_vault để tìm hiểu về chủ đề giải thuật
+2. Kiểm tra với retriever_exercise xem đã có bài tập tương tự chưa
+3. Tạo bài tập mới với generate_exercise
+4. Sử dụng output_fixing_parser để đảm bảo format đúng
+
+Hãy luôn đảm bảo rằng bài tập được tạo ra có chất lượng cao và mang tính giáo dục tốt.
+"""
+
 SYSTEM_PROMPT_TEMPLATE_FOR_EXERCISE_GENERATOR = """
-Bạn là chuyên gia tạo các bài tập giải thuật để người dùng luyện tập lập trình.
-Nhiệm vụ của bạn là tạo ra các đề bài rõ ràng, ngắn gọn và có ngữ cảnh đời thường,
-giúp người dùng dễ dàng liên hệ với các tình huống thực tế.
-Bài tập được tạo ra phải không trùng
-với bài tập đã tồn tại trong cơ sở dữ liệu.
-Bài tập giống như leetcode Khi tạo một bài tập, hãy tuân theo mẫu sau:
-
-Tên bài tập: [Tạo một tiêu đề mô tả cho bài tập, bao gồm ngữ cảnh đời thường nếu có thể]
-Mô tả: [Giải thích chi tiết về bài tập, bao gồm bất kỳ định nghĩa hoặc thông tin cần thiết nào để hiểu bài toán]
-Đầu vào: [Xác định định dạng của dữ liệu đầu vào]
-Đầu ra: [Xác định định dạng của dữ liệu đầu ra mong muốn]
-Ví dụ (phải có 3 ví dụ đơn giản, dễ giải thích, nhưng không được trùng trường hợp nổi bật,
-tên đầu và ra phải là tên biến bằng tiếng anh):
-Đầu vào: [Cung cấp một ví dụ đầu vào]
-Đầu ra: [Cung cấp đầu ra tương ứng]
-Giải thích: [Cung cấp giải thích chi tiết ví dụ: đầu tiên i = 0 có giá trị bé hơn 1, chuyển nó ra phía trước...]
-
-Ràng buộc: [Tùy chọn: xác định bất kỳ ràng buộc nào về dữ liệu đầu vào,
-chẳng hạn như phạm vi giá trị, giới hạn kích thước, v.v.]
-Hãy đảm bảo rằng các bài tập bạn tạo ra đều logic, có thể giải được và phù hợp để luyện tập lập trình.
-Các bài tập nên bao quát nhiều chủ đề giải thuật khác nhau như mảng,
-chuỗi, tìm kiếm, sắp xếp, lập trình động, đồ thị và cây
-Bạn cần tạo bài tập ở các mức độ khó khác nhau (dễ, trung bình, khó) theo yêu cầu của người dùng.
-
-Khi tạo ngữ cảnh đời thường, hãy chọn các tình huống quen thuộc,
-chẳng hạn như quản lý danh sech công việc, sắp xếp hàng đợi, tính toán chi phí mua sắm,
-hoặc tổ chức dữ liệu trong các hoạt động hàng ngày.
-Ví dụ cụ thể như "Thư đang cần sắp xếp các cuốn sách trên kệ theo thứ tự từ nhỏ đến lớn"
-sẽ giúp người dùng dễ hình dung bài toán.
-
-Nếu bài tập liên quan đến đồ thị hoặc cây,
-hãy mô tả rõ ràng cấu trúc bằng văn bản, bao gồm các nút, cạnh và thuộc tính liên quan.
-
-Mục tiêu là tạo ra các bài tập hấp dẫn, mang tính giáo dục và thực tế,
-giúp người dùng cải thiện kỹ năng tư duy giải thuật và lập trình.
-
-Parser đầu ra của bạn phải là một JSON object với các trường sau:
+Bạn là một chuyên gia tạo bài tập giải thuật, hãy tạo ra một bài tập hoàn chỉnh dựa trên topic và difficulty được cung cấp.
 
 {parse_instruction}
+
+Hãy đảm bảo bài tập:
+1. Phù hợp với độ khó được yêu cầu
+2. Có mô tả rõ ràng và dễ hiểu
+3. Bao gồm ví dụ input/output cụ thể
+4. Có constraints rõ ràng
+5. Cung cấp gợi ý hữu ích
+
+Hãy trả về kết quả theo đúng format JSON được yêu cầu.
 """
 
 
-# System prompt được lấy từ n8n workflow
-SYSTEM_PROMPT_TEMPLATE = """
-Bạn là 1 chuyên gia hàng đầu trong việc tạo các bài tập giải thuật để người dùng luyện tập lập trình.
-Nhiệm vụ của bạn là tạo ra các đề bài rõ ràng, ngắn gọn và có ngữ cảnh đời thường,
-giúp người dùng dễ dàng liên hệ với các tình huống thực tế. Bài tập được tạo ra phải không trùng
-với bài tập đã tồn tại trong cơ sở dữ liệu.
-
-Sử dụng dữ liệu trong cơ sở dữ liệu để tạo ra các bài tập giải thuật mới - Nếu không có dữ liệu,
-hãy tạo ra bài tập dựa trên các thông tin mà bạn đã được train.
-Sau khi tạo bài tập, hãy kiểm tra xem bài tập đã tồn tại trong cơ sở dữ liệu
-hay chưa
-(lấy description của bài tập để kiểm tra).
-Nếu tồn tại rồi thì tạo lại bài tập mới.
-Nếu 1 bài tập đã tồn tại trong cơ sở dữ liệu, hãy tạo ra bài tập mới dựa trên các thông tin đã có.
-"""
-
-
-class GenerateExerciseMetadata(type):
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        """
-        Possible changes to the value of the `__init__` argument do not affect
-        the returned instance.
-        """
-        if cls not in cls._instances:
-            instance = super().__call__(*args, **kwargs)
-            cls._instances[cls] = instance
-        return cls._instances[cls]
-
-
-class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadata):
+class GenerateExerciseQuestionAgent(BaseAgent):
     """
     Một AI agent sử dụng Langchain để tạo ra các bài tập giải thuật.
     Agent này có khả năng sử dụng Google Gemini làm mô hình ngôn ngữ,
@@ -122,6 +73,27 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
         self.exercise_retriever = get_vector_store("exercise").as_retriever(
             search_kwargs={"k": 1}
         )  # Lấy 1 kết quả
+
+        # Lazy import và setup output parser
+        self._init_parsers_and_chains()
+
+        # Lazy import và setup tools
+        self._init_tools()
+
+        # Lazy import và setup agent
+        self._init_agent()
+
+    def _init_parsers_and_chains(self):
+        """Khởi tạo parsers và chains với lazy import"""
+        # Lazy import - chỉ import khi cần thiết
+        from langchain_core.output_parsers import PydanticOutputParser
+        from langchain_core.messages import SystemMessage
+        from langchain_core.prompts import (
+            ChatPromptTemplate,
+            MessagesPlaceholder,
+            HumanMessagePromptTemplate,
+        )
+
         self.output_parser = PydanticOutputParser(pydantic_object=ExerciseDetail)
 
         self.generate_exercise_prompt = ChatPromptTemplate.from_messages(
@@ -141,8 +113,12 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             | create_new_creative_llm_model().with_structured_output(ExerciseDetail)
         )
 
-        self.llm_model = create_new_gemini_llm_model()
-        # 4. Tạo Retriever Tool
+    def _init_tools(self):
+        """Khởi tạo tools với lazy import"""
+        # Lazy import - chỉ import khi cần thiết
+        from langchain_core.tools import Tool
+        from langchain.output_parsers import OutputFixingParser
+
         self.retriever_tool = Tool(
             name="retriever_algo_vault",
             func=self.retriever.invoke,  # Sử dụng invoke cho retriever đồng bộ
@@ -173,7 +149,7 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
         )
 
         self.output_fixing_parser = OutputFixingParser.from_llm(
-            self.llm_model, self.output_parser
+            self.base_llm, self.output_parser
         )
 
         self.output_fixing_parser_tool = Tool(
@@ -191,7 +167,17 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             self.output_fixing_parser_tool,
         ]
 
-        # 6. Tạo Prompt Template
+    def _init_agent(self):
+        """Khởi tạo agent với lazy import"""
+        # Lazy import - chỉ import khi cần thiết
+        from langchain_core.messages import SystemMessage
+        from langchain_core.prompts import (
+            ChatPromptTemplate,
+            MessagesPlaceholder,
+            HumanMessagePromptTemplate,
+        )
+        from langchain.agents import AgentExecutor, create_tool_calling_agent
+
         self.prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessage(content=SYSTEM_PROMPT_TEMPLATE),
@@ -201,12 +187,8 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
             ]
         )
 
-        # Tạo callback manager với LangSmith tracer
-        self.callback_manager = get_callback_manager("default")
-
-        # Cấu hình agent với tracing
         self.agent = create_tool_calling_agent(
-            self.llm_model,
+            self.base_llm,
             self.tools,
             prompt=self.prompt,
         )
@@ -243,8 +225,12 @@ class GenerateExerciseQuestionAgent(BaseAgent, metaclass=GenerateExerciseMetadat
                 "Cần cung cấp 'topic', 'session_id' và 'difficulty' để tạo bài tập."
             )
 
+        # Lazy import - chỉ import khi cần thiết
+        from langchain_core.runnables import RunnableConfig, RunnableWithMessageHistory
+        from langchain_mongodb import MongoDBChatMessageHistory
+
         run_config = RunnableConfig(
-            callbacks=self.callback_manager.handlers,
+            callbacks=self._callback_manager.handlers,
             metadata={
                 "session_id": session_id,
                 "topic": topic,

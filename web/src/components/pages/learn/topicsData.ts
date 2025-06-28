@@ -1,5 +1,5 @@
 // Định nghĩa các kiểu dữ liệu
-export interface Topic {
+export interface UITopic {
     id: string;
     title: string;
     description: string;
@@ -20,7 +20,7 @@ export interface TopicLesson {
 }
 
 // Dữ liệu mẫu cho các chủ đề
-export const topicsData: Topic[] = [
+export const topicsData: UITopic[] = [
     {
         id: "algorithms-basics",
         title: "Cơ bản về giải thuật",
@@ -200,19 +200,71 @@ export const topicsData: Topic[] = [
             },
             {
                 id: "3",
-                title: "Bài toán ba lô",
+                title: "Bài toán cái túi",
                 isCompleted: false
             },
             {
                 id: "4",
-                title: "Bài toán chuỗi con chung dài nhất",
+                title: "Bài toán tối ưu hóa",
                 isCompleted: false
             },
             {
                 id: "5",
-                title: "Các ứng dụng nâng cao của quy hoạch động",
+                title: "Thực hành với các bài toán phức tạp",
+                isCompleted: false
+            }
+        ]
+    },
+    {
+        id: "graph-algorithms",
+        title: "Giải thuật đồ thị",
+        description: "Tìm hiểu về các thuật toán trên đồ thị như BFS, DFS, Dijkstra, Floyd-Warshall",
+        icon: "🔗",
+        color: "error",
+        progress: 0,
+        totalLessons: 6,
+        completedLessons: 0,
+        isLocked: true,
+        prerequisites: ["algorithms-basics", "data-structures"],
+        lessons: [
+            {
+                id: "1",
+                title: "Giới thiệu về Đồ thị",
+                isCompleted: false
+            },
+            {
+                id: "2",
+                title: "BFS và DFS",
+                isCompleted: false
+            },
+            {
+                id: "3",
+                title: "Thuật toán Dijkstra",
+                isCompleted: false
+            },
+            {
+                id: "4",
+                title: "Thuật toán Floyd-Warshall",
+                isCompleted: false
+            },
+            {
+                id: "5",
+                title: "Cây khung nhỏ nhất",
+                isCompleted: false
+            },
+            {
+                id: "6",
+                title: "Thuật toán dòng chảy tối đa",
                 isCompleted: false
             }
         ]
     }
-]; 
+];
+
+// Hàm tiện ích để tìm bài học
+export function getLesson(topicId: string, lessonId: string): TopicLesson | null {
+    const topic = topicsData.find(t => t.id === topicId);
+    if (!topic || !topic.lessons) return null;
+
+    return topic.lessons.find(lesson => lesson.id === lessonId) || null;
+} 

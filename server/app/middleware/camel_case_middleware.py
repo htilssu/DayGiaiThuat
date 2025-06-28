@@ -1,11 +1,11 @@
 """
 Middleware để chuyển đổi FastAPI request sang snake_case và response sang camelCase
+Hỗ trợ cả HTTP và WebSocket
 """
 
 import json
 
-from fastapi import Request, Response
-from fastapi.responses import JSONResponse
+from fastapi import Request
 from starlette.datastructures import MutableHeaders
 from starlette.types import Message, Scope, Receive, Send
 
@@ -17,6 +17,7 @@ class CamelCaseMiddleware:
     Middleware tự động chuyển đổi:
     - Request từ camelCase sang snake_case để phù hợp với backend Python
     - Response từ snake_case sang camelCase để phù hợp với frontend
+    - WebSocket messages: nhận camelCase -> snake_case, gửi snake_case -> camelCase
     """
 
     def __init__(
@@ -32,7 +33,12 @@ class CamelCaseMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # Xử lý request body từ camelCase sang snake_case
+        # Xử lý WebSocket
+        if scope["type"] == "websocket":
+            await self._handle_websocket(scope, receive, send)
+            return
+
+        # Xử lý HTTP request body từ camelCase sang snake_case
         request = Request(scope, receive)
         request = await self._process_request(request)
 
@@ -74,6 +80,43 @@ class CamelCaseMiddleware:
             await send(message)
 
         await self.app(scope, request._receive, send_wrapper)
+
+    async def _handle_websocket(self, scope: Scope, receive: Receive, send: Send):
+        """
+        Xử lý WebSocket messages với chuyển đổi case
+        """
+
+        async def receive_wrapper():
+            message = await receive()
+
+            # Chuyển đổi websocket.receive messages từ camelCase sang snake_case
+            if message["type"] == "websocket.receive":
+                if "text" in message:
+                    try:
+                        data = json.loads(message["text"])
+                        snake_case_data = convert_dict_to_snake_case(data)
+                        message["text"] = json.dumps(snake_case_data)
+                    except (json.JSONDecodeError, TypeError):
+                        # Nếu không phải JSON hợp lệ thì giữ nguyên
+                        pass
+
+            return message
+
+        async def send_wrapper(message: Message):
+            # Chuyển đổi websocket.send messages từ snake_case sang camelCase
+            if message["type"] == "websocket.send":
+                if "text" in message:
+                    try:
+                        data = json.loads(message["text"])
+                        camel_case_data = convert_dict_to_camel_case(data)
+                        message["text"] = json.dumps(camel_case_data)
+                    except (json.JSONDecodeError, TypeError):
+                        # Nếu không phải JSON hợp lệ thì giữ nguyên
+                        pass
+
+            await send(message)
+
+        await self.app(scope, receive_wrapper, send_wrapper)
 
     async def _process_request(self, request: Request) -> Request:
         """

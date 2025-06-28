@@ -13,7 +13,7 @@ export interface Exercise {
   difficulty: string;
   constraint?: string;
   suggest?: string;
-  lesson_id: number;
+  lessonId: number;
 }
 
 /**
@@ -33,13 +33,13 @@ export interface LessonSection {
  */
 export interface Lesson {
   id: number;
-  external_id: string;
+  externalId: string;
   title: string;
   description: string;
-  topic_id: number;
+  topicId: number;
   order: number;
-  next_lesson_id?: string | null;
-  prev_lesson_id?: string | null;
+  nextLessonId?: string | null;
+  prevLessonId?: string | null;
   sections: LessonSection[];
   exercise?: Exercise | null;
 }
@@ -47,18 +47,4 @@ export interface Lesson {
 /**
  * Kiểu dữ liệu cho chủ đề
  */
-export interface Topic {
-  id: number;
-  name: string;
-  description?: string | null;
-  prerequisites?: string[] | null;
-  external_id?: string | null;
-  course_id: number;
-}
 
-/**
- * Kiểu dữ liệu cho chủ đề bao gồm danh sách bài học
- */
-export interface TopicWithLessons extends Topic {
-  lessons: Lesson[];
-}

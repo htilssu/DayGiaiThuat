@@ -12,7 +12,6 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const dispatch = useAppDispatch()
   const userState = useAppSelector((state) => state.user)
-
   useEffect(() => {
     // Chỉ gọi API khi ứng dụng được khởi tạo lần đầu
     if (userState.isInitial) {

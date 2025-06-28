@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 
-from app.database.session import get_db
 from app.models.topic_model import Topic
 from app.schemas.topic_schema import (
     CreateTopicSchema,
@@ -12,6 +11,8 @@ from app.schemas.topic_schema import (
 )
 from app.schemas.lesson_schema import LessonResponseSchema
 from app.models.lesson_model import Lesson
+from app.database.database import get_db
+from app.schemas.lesson_schema import LessonResponse
 
 router = APIRouter(prefix="/topics", tags=["topics"])
 
@@ -35,7 +36,9 @@ async def create_topic(
 
 @router.get("/course/{course_id}", response_model=List[TopicResponse])
 def list_topics_for_course(course_id: int, db: Session = Depends(get_db)):
-    topics = db.query(Topic).filter(Topic.course_id == course_id).order_by(Topic.id).all()
+    topics = (
+        db.query(Topic).filter(Topic.course_id == course_id).order_by(Topic.id).all()
+    )
     return topics
 
 
@@ -52,8 +55,15 @@ def get_topic_with_lessons(topic_id: int, db: Session = Depends(get_db)):
     topic = db.query(Topic).filter(Topic.id == topic_id).first()
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
-    lessons = db.query(Lesson).filter(Lesson.topic_id == topic_id).order_by(Lesson.order).all()
-    lessons_response = [LessonResponseSchema.model_validate(lesson) for lesson in lessons]
+    lessons = (
+        db.query(Lesson)
+        .filter(Lesson.topic_id == topic_id)
+        .order_by(Lesson.order)
+        .all()
+    )
+    lessons_response = [
+        LessonResponseSchema.model_validate(lesson) for lesson in lessons
+    ]
     topic_data = TopicWithLessonsResponse.model_validate(topic)
     topic_data.lessons = lessons_response
     return topic_data
@@ -83,3 +93,42 @@ async def delete_topic(topic_id: int, db: Session = Depends(get_db)):
     db.delete(topic)
     db.commit()
     return None
+
+
+@router.get("/", response_model=List[TopicResponse])
+async def get_topics_by_course(
+    course_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Lấy danh sách các chủ đề của một khóa học.
+    """
+    topics = db.query(Topic).filter(Topic.course_id == course_id).all()
+    return topics
+
+
+@router.get("/{topic_id}/lessons", response_model=List[LessonResponse])
+async def get_lessons_by_topic(
+    topic_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Lấy danh sách bài học của một chủ đề.
+    """
+    # Kiểm tra topic có tồn tại không
+    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy topic với ID {topic_id}",
+        )
+
+    # Lấy tất cả lessons của topic, sắp xếp theo order
+    lessons = (
+        db.query(Lesson)
+        .filter(Lesson.topic_id == topic_id)
+        .order_by(Lesson.order)
+        .all()
+    )
+
+    return lessons

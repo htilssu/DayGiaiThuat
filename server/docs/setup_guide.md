@@ -113,3 +113,103 @@ Ví dụ:
 - `badge_seeder.py`: Tùy chỉnh dữ liệu huy hiệu mẫu
 
 Sau khi chỉnh sửa, bạn có thể chạy lại script seeder để cập nhật dữ liệu mẫu.
+
+## Cấu hình Cloudflare R2 cho File Storage
+
+Ứng dụng hỗ trợ sử dụng Cloudflare R2 để lưu trữ files (ảnh khóa học, avatar người dùng). R2 sử dụng S3-compatible API nên có thể dễ dàng tích hợp.
+
+### 1. Tạo R2 Bucket
+
+1. Đăng nhập vào Cloudflare Dashboard
+2. Chọn **R2 Object Storage** từ sidebar
+3. Tạo bucket mới với tên tùy ý (ví dụ: `giaithuat-storage`)
+4. Cấu hình bucket settings theo nhu cầu
+
+### 2. Cấu hình Public Access
+
+**Quan trọng**: Để ảnh có thể hiển thị trên web, bạn cần cấu hình public access cho bucket:
+
+1. Trong bucket settings, chọn **Settings** tab
+2. Tìm section **Public access**
+3. Bật **Allow public access** hoặc cấu hình **Custom domain**
+
+**Lưu ý**: Nếu không cấu hình public access, ảnh sẽ upload thành công nhưng không thể truy cập từ web.
+
+### 3. Cấu hình CORS (tuỳ chọn)
+
+Để tránh lỗi CORS khi load ảnh từ frontend, thêm CORS policy:
+
+```json
+[
+  {
+    "AllowedOrigins": ["*"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "MaxAgeSeconds": 3000
+  }
+]
+```
+
+### 4. Tạo API Token
+
+1. Trong R2 dashboard, chọn **Manage R2 API tokens**
+2. Tạo API token mới với quyền:
+   - **Object Read & Write** cho bucket vừa tạo
+3. Lưu lại `Access Key ID` và `Secret Access Key`
+
+### 5. Lấy Account ID
+
+1. Trong Cloudflare Dashboard, account ID được hiển thị ở sidebar phải
+2. Endpoint URL sẽ có format: `https://[account-id].r2.cloudflarestorage.com`
+
+### 6. Cấu hình Environment Variables
+
+Thêm các biến sau vào file `.env`:
+
+```env
+# Cloudflare R2 Settings
+S3_ACCESS_KEY_ID=your_r2_access_key_id_here
+S3_SECRET_ACCESS_KEY=your_r2_secret_access_key_here
+S3_REGION=auto
+S3_BUCKET_NAME=your_r2_bucket_name_here
+S3_ENDPOINT_URL=https://your-account-id.r2.cloudflarestorage.com
+
+# Tuỳ chọn: URL public custom (nếu có)
+S3_PUBLIC_URL=
+
+# Prefixes cho file
+S3_COURSE_IMAGE_PREFIX=course-images/
+S3_USER_AVATAR_PREFIX=user-avatars/
+```
+
+### 7. Test Upload
+
+Sau khi cấu hình xong:
+
+1. Restart backend server
+2. Thử upload ảnh khóa học từ admin panel
+3. Kiểm tra URL response có đúng format không
+4. Verify ảnh có hiển thị trên web không
+
+### Troubleshooting
+
+#### Ảnh upload thành công nhưng không hiển thị:
+
+1. **Kiểm tra Public Access**: Đảm bảo bucket đã bật public access
+2. **Kiểm tra URL format**: URL phải có format `https://[bucket].r2.dev/[file-path]`
+3. **Kiểm tra CORS**: Nếu có lỗi CORS, cần cấu hình CORS policy
+4. **Restart frontend**: Next.js cần restart để áp dụng thay đổi cấu hình
+
+#### Lỗi upload:
+
+1. **Kiểm tra credentials**: Access key và secret key đúng chưa
+2. **Kiểm tra permissions**: Token có quyền write vào bucket không
+3. **Kiểm tra endpoint URL**: Account ID trong URL đúng chưa
+
+## Cấu hình Database
+
+[Existing database setup content...]
+
+## Cấu hình AI/LLM
+
+[Existing AI setup content...]

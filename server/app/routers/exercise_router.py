@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.schemas.exercise_schema import CreateExerciseSchema
-from app.services.exercise_service import ExerciseService
+from app.services.exercise_service import ExerciseService, get_exercise_service
 
 router = APIRouter(prefix="/exercise", tags=["exercise"])
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/exercise", tags=["exercise"])
 )
 async def create_exercise(
     data: CreateExerciseSchema,
-    exercise_service: ExerciseService = Depends(ExerciseService),
+    exercise_service: ExerciseService = Depends(get_exercise_service),
 ):
     """
     Tạo bài tập mới sử dụng AI agent
@@ -41,7 +41,7 @@ async def create_exercise(
 )
 async def get_exercise(
     exercise_id: int,
-    exercise_service: ExerciseService = Depends(ExerciseService),
+    exercise_service: ExerciseService = Depends(get_exercise_service),
 ):
     """
     Lấy thông tin bài tập theo ID

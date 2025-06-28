@@ -9,4 +9,10 @@ export * from "./topics";
 export * from "./lessons";
 export * from "./exercises";
 export * from "./quizzes";
-export * from "./types";
+export * from "./test";
+export * from "./upload";
+
+// Admin APIs
+export * from "./admin-courses";
+export * from "./admin-topics";
+export * from "./admin-upload";

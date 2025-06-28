@@ -1,34 +1,48 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.docs import (
-    get_redoc_html,
-    get_swagger_ui_html,
-    get_swagger_ui_oauth2_redirect_html,
-)
+from fastapi.openapi.docs import get_redoc_html
 
 from app.core.config import settings
 from app.exceptions.exception_handler import add_exception_handlers
+from app.routers.router import register_router
 from app.middleware.camel_case_middleware import CamelCaseMiddleware
-from app.routers.router_router import register_router
+
 
 # Khởi tạo logger
 logger = logging.getLogger(__name__)
 
 
-# Khởi tạo FastAPI app với lifespan manager
+# Background task for monitoring test sessions has been removed
+# as per new requirements - session expiry is now checked on-demand, not auto-cleaned
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("Starting up...")
+    # Note: Removed auto monitor task for test sessions as per new requirements
+    # Session expiry is now checked on-demand, not auto-cleaned
+
+    yield
+
+    # Shutdown
+    print("Shutting down...")
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="""
-
+    ## API Documentation
     ## Tài liệu API
 
     * **/docs** - Swagger UI (hiện tại)
     * **/redoc** - ReDoc UI
     """,
     version="1.0.0",
-    openapi_url=f"/openapi.json",
+    openapi_url="/openapi.json",
     contact={
         "name": "AI Agent Giải Thuật Team",
         "url": "https://github.com/yourusername/your-repo",
@@ -38,17 +52,8 @@ app = FastAPI(
         "name": "MIT License",
         "url": "https://opensource.org/licenses/MIT",
     },
-    # lifespan=lifespan,
+    lifespan=lifespan,
 )
-
-
-# Custom Swagger UI với theme và các tùy chỉnh
-@app.get("/docs", include_in_schema=False)
-async def custom_swagger_ui_html():
-    return get_swagger_ui_html(
-        openapi_url=app.openapi_url,
-        title=f"{settings.PROJECT_NAME} - Swagger UI",
-    )
 
 
 @app.get("/redoc", include_in_schema=False)
@@ -57,11 +62,6 @@ async def redoc_html():
         openapi_url=app.openapi_url,
         title=f"{settings.PROJECT_NAME} - ReDoc",
     )
-
-
-@app.get("/docs/oauth2-redirect", include_in_schema=False)
-async def swagger_ui_redirect():
-    return get_swagger_ui_oauth2_redirect_html()
 
 
 # Cấu hình CORS
@@ -76,7 +76,7 @@ app.add_middleware(
 # Thêm middleware để chuyển đổi response sang camelCase
 app.add_middleware(CamelCaseMiddleware)
 
+# Register routes and exception handlers
 register_router(app)
-
 add_exception_handlers(app)
 

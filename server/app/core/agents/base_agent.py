@@ -1,4 +1,5 @@
-from typing import overload
+from ..agents.components.llm_model import create_new_gemini_llm_model
+from app.core.tracing import get_callback_manager
 
 
 class BaseAgent(object):
@@ -9,6 +10,20 @@ class BaseAgent(object):
     def __init__(self):
         self.available_args = []
         self.tools = []
+        self._base_llm = None
+        self._callback_manager = get_callback_manager("default")
+
+    @property
+    def base_llm(self):
+        """
+        Lazy loading cho base_llm
+
+        Returns:
+            ChatGoogleGenerativeAI: Instance của model LLM
+        """
+        if self._base_llm is None:
+            self._base_llm = create_new_gemini_llm_model()
+        return self._base_llm
 
     def act(self, *args, **kwargs):
         self.check_available_args(*args, **kwargs)

@@ -38,7 +38,7 @@ class Exercise(Base):
     lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="exercise")
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
     @staticmethod
     def exercise_from_schema(data: ExerciseDetail):
