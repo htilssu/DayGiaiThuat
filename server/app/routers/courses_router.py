@@ -14,7 +14,7 @@ from app.schemas.topic_schema import (
     TopicWithUserState,
     TopicWithLessonsResponse,
 )
-from app.schemas.lesson_schema import LessonResponse
+from app.schemas.lesson_schema import LessonResponseSchema
 from app.schemas.user_course_schema import (
     CourseEnrollmentResponse,
 )
@@ -25,16 +25,15 @@ from app.services.topic_service import TopicService, get_topic_service
 from app.services.test_service import TestService, get_test_service
 from app.utils.utils import get_current_user, get_current_user_optional
 
-# Rebuild models để resolve forward references
-rebuild_lesson_models()
-rebuild_models()
-rebuild_course_models()
 
 router = APIRouter(
     prefix="/courses",
     tags=["courses"],
     responses={404: {"description": "Không tìm thấy khóa học"}},
 )
+
+# Rebuild models để resolve forward references
+rebuild_course_models()
 
 
 @router.get("", response_model=CourseListResponse)
@@ -143,19 +142,19 @@ async def get_course_by_id(
     topics_response = []
     for topic in topics:
         lessons_response = [
-            LessonResponse.model_validate(lesson)
+            LessonResponseSchema.model_validate(lesson)
             for lesson in sorted(topic.lessons, key=lambda x: x.created_at)
         ]
         topic_response = TopicWithLessonsResponse.model_validate(topic)
         topic_response.lessons = lessons_response
         topics_response.append(topic_response)
 
-    # Tạo response
-    course_dict = CourseDetailResponse.model_validate(course).model_dump()
-    course_dict["is_enrolled"] = is_enrolled
-    course_dict["topics"] = [topic.model_dump() for topic in topics_response]
+    # Tạo response object trực tiếp
+    course_response = CourseDetailResponse.model_validate(course)
+    course_response.is_enrolled = is_enrolled
+    course_response.topics = topics_response
 
-    return course_dict
+    return course_response
 
 
 @router.post(

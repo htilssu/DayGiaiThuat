@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from app.models.course_model import Course
     from app.models.lesson_model import Lesson
     from app.models.user_topic_model import UserTopic
-    from app.models.exercise_model import Exercise
     from app.models.test_model import Test
 
 
@@ -26,9 +25,6 @@ class Topic(Base):
     )
     name: Mapped[str] = mapped_column(String, index=True, nullable=False)
     description: Mapped[str] = mapped_column(String)
-    course_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("courses.id"), nullable=False
-    )
     prerequisites: Mapped[Optional[List[str]]] = mapped_column(
         ARRAY(String), nullable=True
     )
@@ -37,5 +33,4 @@ class Topic(Base):
     user_topics: Mapped[List[UserTopic]] = relationship(
         "UserTopic", back_populates="topic"
     )
-    exercises: Mapped[List[Exercise]] = relationship("Exercise", back_populates="topic")
     tests: Mapped[List[Test]] = relationship("Test", back_populates="topic")
