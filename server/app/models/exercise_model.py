@@ -32,10 +32,10 @@ class Exercise(Base):
     description: Mapped[str] = mapped_column(String)
     difficulty: Mapped[str] = mapped_column(String)
     constraint: Mapped[str] = mapped_column(String, nullable=True)
-    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id"), unique=True)
+    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id"))
     suggest: Mapped[str] = mapped_column(String, nullable=True)
 
-    lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="exercise")
+    lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="exercises")
 
     class Config:
         from_attributes = True

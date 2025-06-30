@@ -66,7 +66,8 @@ class GenerateExerciseQuestionAgent(BaseAgent):
         self.mongodb_collection_name = mongodb_collection_name
         self.mongodb_db_name = mongodb_db_name
 
-        self.retriever = get_vector_store("giaithuat").as_retriever(
+        # self.retriever = get_vector_store("giaithuat").as_retriever(
+        self.retriever = get_vector_store("document").as_retriever(
             search_kwargs={"k": 3}
         )  # Lấy top 3 kết quả
 

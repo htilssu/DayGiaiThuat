@@ -62,6 +62,7 @@ class CreateExerciseSchema(BaseModel):
     lesson_id: int
     session_id: str
     difficulty: str
+    topic_id: int
 
 
 class ExerciseResponse(BaseModel):

@@ -89,7 +89,7 @@ class LessonResponseSchema(BaseModel):
     next_lesson_id: Optional[str] = None
     prev_lesson_id: Optional[str] = None
     sections: List[LessonSectionSchema]
-    exercise: Optional[ExerciseResponse] = None
+    exercises: List[ExerciseResponse] = []
 
     class Config:
         from_attributes = True

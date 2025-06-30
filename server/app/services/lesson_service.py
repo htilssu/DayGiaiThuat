@@ -79,8 +79,7 @@ class LessonService:
         lesson_dict['sections'] = [
             LessonSectionSchema.model_validate(section, from_attributes=True) for section in lesson.sections
         ]
-        if lesson.exercise:
-            lesson_dict['exercise'] = lesson.exercise
+        lesson_dict['exercises'] = [ex for ex in lesson.exercises]
         return LessonResponseSchema.model_validate(lesson_dict)
     
     def get_lesson_by_external_id(self, external_id: str) -> Optional[LessonResponseSchema]:
@@ -97,8 +96,7 @@ class LessonService:
         lesson_dict['sections'] = [
             LessonSectionSchema.model_validate(section, from_attributes=True) for section in lesson.sections
         ]
-        if lesson.exercise:
-            lesson_dict['exercise'] = lesson.exercise
+        lesson_dict['exercises'] = [ex for ex in lesson.exercises]
         return LessonResponseSchema.model_validate(lesson_dict)
     
     def get_lessons_by_topic(self, topic_id: int) -> List[LessonResponseSchema]:
@@ -113,6 +111,7 @@ class LessonService:
             lesson_dict['sections'] = [
                 LessonSectionSchema.model_validate(section, from_attributes=True) for section in lesson.sections
             ]
+            lesson_dict['exercises'] = [ex for ex in lesson.exercises]
             lesson_responses.append(LessonResponseSchema.model_validate(lesson_dict))
         return lesson_responses
     

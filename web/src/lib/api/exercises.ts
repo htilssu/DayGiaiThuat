@@ -13,6 +13,7 @@ export interface CreateExerciseRequest {
   lesson_id: number;
   session_id: string;
   difficulty: string;
+  topic_id: number;
 }
 
 /**

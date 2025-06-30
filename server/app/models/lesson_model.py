@@ -56,7 +56,7 @@ class Lesson(Base):
         "UserLesson", back_populates="lesson"
     )
     topic: Mapped["Topic"] = relationship("Topic", back_populates="lessons")
-    exercise: Mapped[Optional["Exercise"]] = relationship("Exercise", back_populates="lesson", uselist=False)
+    exercises: Mapped[List["Exercise"]] = relationship("Exercise", back_populates="lesson", cascade="all, delete-orphan")
 
 
 class UserLesson(Base):
