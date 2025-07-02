@@ -26,7 +26,7 @@ class ThumbnailUpdateRequest(BaseModel):
     thumbnail_url: str
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "thumbnail_url": "https://example.com/images/course-thumbnail.jpg"
             }

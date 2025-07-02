@@ -41,26 +41,12 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
     const courseIdNumber = parseInt(courseId);
     const isCourseIdValid = !isNaN(courseIdNumber) && courseIdNumber > 0 && courseId.trim() !== '';
 
-    // Debug logging
-    console.log('🔍 EntryTestConfirmClient Debug:', {
-        courseId,
-        courseIdNumber,
-        isCourseIdValid,
-        userState: {
-            isLoading: userState.isLoading,
-            isInitial: userState.isInitial,
-            user: userState.user ? 'exists' : 'null'
-        }
-    });
 
     // Fetch course information
     const { data: course, isLoading: courseLoading, error: courseError } = useQuery({
         queryKey: ['course', courseId],
         queryFn: async () => {
-            console.log('🚀 Fetching course:', courseId);
-            const result = await coursesApi.getCourseById(courseIdNumber);
-            console.log('✅ Course result:', result);
-            return result;
+            return await coursesApi.getCourseById(courseIdNumber);
         },
         enabled: !!courseId && isCourseIdValid,
     });
@@ -69,28 +55,16 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
     const { data: entryTest, isLoading: testLoading, error: testError } = useQuery({
         queryKey: ['courseEntryTest', courseId],
         queryFn: async () => {
-            console.log('🚀 Fetching entry test for course:', courseId);
-            const result = await coursesApi.getCourseEntryTest(courseIdNumber);
-            console.log('✅ Entry test result:', result);
-            return result;
+            return await coursesApi.getCourseEntryTest(courseIdNumber);
         },
         enabled: !!courseId && isCourseIdValid && !!userState.user,
         retry: false, // Don't retry on error to see the actual error
     });
 
-    console.log('🔍 Query states:', {
-        courseLoading,
-        testLoading,
-        courseError: courseError ? 'exists' : 'null',
-        testError: testError ? 'exists' : 'null',
-        course: course ? 'exists' : 'null',
-        entryTest: entryTest ? 'exists' : 'null'
-    });
+
 
     useEffect(() => {
-        // Kiểm tra đăng nhập
         if (!userState.isLoading && !userState.isInitial && !userState.user) {
-            console.log('🚫 User not logged in, redirecting to login');
             router.push('/auth/login');
         }
     }, [userState, router]);
@@ -102,16 +76,11 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
             setIsStarting(true);
             setError(null);
 
-            // Gọi API để tạo test session
             const testSession = await coursesApi.startCourseEntryTest(courseIdNumber);
-            console.log('✅ Created test session:', testSession.id);
-            console.log('🔄 Redirecting to:', `/tests/${testSession.id}`);
 
-            // Chuyển hướng đến trang làm bài với session ID
             router.push(`/tests/${testSession.id}`);
         } catch (err: any) {
-            console.error('Error starting entry test:', err);
-            setError(err.response?.data?.detail || 'Có lỗi xảy ra khi bắt đầu bài kiểm tra');
+            setError(err.message || 'Có lỗi xảy ra khi bắt đầu bài kiểm tra');
             setIsStarting(false);
         }
     };
@@ -124,7 +93,6 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
         }
     };
 
-    // Handle invalid courseId
     if (!isCourseIdValid) {
         return (
             <Container size="md" py="xl">
@@ -146,7 +114,7 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
     }
 
     if (!userState.user && !userState.isLoading) {
-        return null; // Will redirect to login
+        return null;
     }
 
     const isLoading = courseLoading || testLoading;
@@ -166,7 +134,6 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
     }
 
     if (hasError || !course) {
-        console.error('🚨 Error or no course:', { courseError, testError, course });
         return (
             <Container size="md" py="xl">
                 <Paper p="xl" radius="md" withBorder>
@@ -180,7 +147,7 @@ const EntryTestConfirmClient: React.FC<EntryTestConfirmClientProps> = ({ courseI
                             courseError ? `Không thể tải thông tin khóa học: ${JSON.stringify(courseError)}` :
                                 'Vui lòng thử lại sau.'}
                     </Alert>
-                    <Button onClick={() => router.push('/courses')}>
+                    <Button variant='outline' onClick={() => router.push('/courses')}>
                         Quay về danh sách khóa học
                     </Button>
                 </Paper>

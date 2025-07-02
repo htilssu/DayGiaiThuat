@@ -1,13 +1,11 @@
 from typing import Literal
-from pinecone import Pinecone, ServerlessSpec
+from pinecone import ServerlessSpec
 
 from app.core.config import settings
 
 from functools import lru_cache
 
-from app.core.agents.components.embedding_model import get_gemini_embedding_model
-
-pc = Pinecone(api_key=settings.PINECONE_API_KEY)
+from app.core.agents.components.embedding_model import get_embedding_model
 
 
 @lru_cache(maxsize=1)
@@ -49,18 +47,17 @@ def get_vector_store(index_name: index_list):
     Returns:
         PineconeVectorStore: Vector store được liên kết với index
     """
-    # Lazy import - chỉ import khi cần thiết
     from langchain_pinecone import PineconeVectorStore
 
-    pc = get_pinecone_client()
-    pc_index = pc.Index(index_name)
+    pc_index = get_index(index_name)
     pc_vector_store = PineconeVectorStore(
-        index=pc_index, embedding=get_gemini_embedding_model()
+        index=pc_index, embedding=get_embedding_model()
     )
     return pc_vector_store
 
 
 def get_index(index_name: index_list):
+    pc = get_pinecone_client()
     if index_name not in [index.name for index in pc.list_indexes().indexes]:
         pc.create_index(
             name=index_name,

@@ -359,7 +359,7 @@ async def websocket_endpoint(
                             {
                                 "type": "questionIndexUpdated",
                                 "questionIndex": new_index,
-                                "timestamp": datetime.utcnow().isoformat(),
+                                "timestamp": datetime.now().isoformat(),
                             }
                         )
 
@@ -414,7 +414,7 @@ async def monitor_session_timer(session_id: str, test_service: TestService):
                 break
 
             # Tính thời gian còn lại
-            elapsed_seconds = (datetime.utcnow() - session.start_time).total_seconds()
+            elapsed_seconds = (datetime.now() - session.start_time).total_seconds()
             remaining_time = max(
                 0, session.time_remaining_seconds - int(elapsed_seconds)
             )
@@ -431,7 +431,7 @@ async def monitor_session_timer(session_id: str, test_service: TestService):
                         {
                             "type": "timer_update",
                             "time_remaining_seconds": remaining_time,
-                            "timestamp": datetime.utcnow().isoformat(),
+                            "timestamp": datetime.now().isoformat(),
                         }
                     )
                 except Exception:

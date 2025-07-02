@@ -36,18 +36,14 @@ export const handleApiError = (error: AxiosError) => {
     let errorMessage = "Lỗi phản hồi từ server";
 
     if (responseData) {
-      console.log(responseData);
       if (responseData.detail) {
-        // FastAPI thường trả về lỗi trong trường 'detail'
         errorMessage =
           typeof responseData.detail === "string"
             ? responseData.detail
             : JSON.stringify(responseData.detail);
       } else if (responseData.message) {
-        // Hoặc trường 'message'
         errorMessage = responseData.message;
       } else if (typeof responseData === "string") {
-        // Nếu responseData là string
         errorMessage = responseData;
       }
     }
@@ -58,14 +54,12 @@ export const handleApiError = (error: AxiosError) => {
       message: errorMessage,
     };
   } else if (error.request) {
-    // Yêu cầu đã được thực hiện nhưng không nhận được phản hồi
     return {
       status: 0,
       data: null,
       message: "Không nhận được phản hồi từ server",
     };
   } else {
-    // Có lỗi khi thiết lập yêu cầu
     return {
       status: 0,
       data: null,

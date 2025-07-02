@@ -173,6 +173,15 @@ export async function startCourseEntryTest(courseId: number): Promise<TestSessio
   return post<TestSession>(`/courses/${courseId}/entry-test/start`, {});
 }
 
+/**
+ * Kiểm tra trạng thái đăng ký khóa học
+ * @param courseId - ID của khóa học
+ * @returns Trạng thái đăng ký khóa học
+ */
+export async function checkEnrollmentStatus(courseId: number): Promise<{ isEnrolled: boolean }> {
+  return get<{ isEnrolled: boolean }>(`/courses/${courseId}/check-enrollment`);
+}
+
 export const coursesApi = {
   getCourses,
   getCourseById,

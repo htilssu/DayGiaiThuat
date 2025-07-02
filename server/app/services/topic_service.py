@@ -44,6 +44,34 @@ class TopicService:
         )
         return topics
 
+    async def get_topics_with_lessons_by_course_id(
+        self, course_id: int
+    ) -> List[Dict[str, Any]]:
+        """Lấy danh sách topics kèm lessons theo course ID"""
+        topics = (
+            self.db.query(Topic)
+            .filter(Topic.course_id == course_id)
+            .order_by(Topic.id)
+            .all()
+        )
+
+        topics_with_lessons = []
+        for topic in topics:
+            # Lấy lessons của topic
+            lessons = (
+                self.db.query(Lesson)
+                .filter(Lesson.topic_id == topic.id)
+                .order_by(Lesson.order)
+                .all()
+            )
+            lessons_response = [
+                LessonResponseSchema.model_validate(lesson) for lesson in lessons
+            ]
+
+            topics_with_lessons.append({"topic": topic, "lessons": lessons_response})
+
+        return topics_with_lessons
+
     async def get_topic_with_lessons(self, topic_id: int) -> Dict[str, Any]:
         """Lấy topic với lessons"""
         topic = await self.get_topic_by_id(topic_id)

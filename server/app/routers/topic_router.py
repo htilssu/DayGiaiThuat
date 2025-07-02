@@ -23,13 +23,38 @@ async def create_topic(
     return topic
 
 
-@router.get("/course/{course_id}", response_model=List[TopicResponse])
+@router.get("/course/{course_id}", response_model=List[TopicWithLessonsResponse])
 async def list_topics_for_course(
     course_id: int, topic_service: TopicService = Depends(get_topic_service)
 ):
-    """Lấy danh sách topics theo course ID"""
-    topics = await topic_service.get_topics_by_course_id(course_id)
-    return topics
+    """Lấy danh sách topics kèm lessons theo course ID"""
+    topics_with_lessons = await topic_service.get_topics_with_lessons_by_course_id(
+        course_id
+    )
+
+    # Convert to response format
+    result = []
+    for item in topics_with_lessons:
+        topic = item["topic"]
+        lessons = item["lessons"]
+
+        # Tạo dict với tất cả fields cần thiết
+        topic_dict = {
+            "id": topic.id,
+            "name": topic.name,
+            "description": topic.description,
+            "prerequisites": topic.prerequisites,
+            "external_id": topic.external_id,
+            "course_id": topic.course_id,
+            "created_at": topic.created_at,
+            "updated_at": topic.updated_at,
+            "lessons": lessons,
+        }
+
+        topic_response = TopicWithLessonsResponse.model_validate(topic_dict)
+        result.append(topic_response)
+
+    return result
 
 
 @router.get("/{topic_id}", response_model=TopicResponse)
@@ -94,3 +119,22 @@ async def get_lessons_by_topic(
     """
     lessons = await topic_service.get_lessons_by_topic_id(topic_id)
     return lessons
+
+
+@router.get("/debug/course/{course_id}")
+async def debug_topics_for_course(
+    course_id: int, topic_service: TopicService = Depends(get_topic_service)
+):
+    """DEBUG: Test endpoint để kiểm tra topics với lessons"""
+    try:
+        topics_with_lessons = await topic_service.get_topics_with_lessons_by_course_id(
+            course_id
+        )
+        return {
+            "success": True,
+            "course_id": course_id,
+            "topics_count": len(topics_with_lessons),
+            "data": topics_with_lessons,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}

@@ -1,7 +1,8 @@
 from app.core.config import settings
+from functools import lru_cache
 
 
-def create_new_gemini_llm_model(thinking_budget: int = 0):
+def create_new_llm_model(thinking_budget: int = 0):
     """
     Tạo một instance mới của model LLM Gemini với thinking_budget được chỉ định
 
@@ -39,7 +40,8 @@ def create_new_creative_llm_model():
     )
 
 
-def get_gemini_llm_model():
+@lru_cache(maxsize=1)
+def get_llm_model():
     """
     Trả về một instance được cache của model LLM Gemini
 

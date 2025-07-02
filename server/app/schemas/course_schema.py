@@ -1,11 +1,9 @@
 from datetime import datetime
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 from app.models.course_model import TestGenerationStatus
-
-if TYPE_CHECKING:
-    from app.schemas.topic_schema import TopicWithLessonsResponse
+from app.schemas.topic_schema import TopicWithLessonsResponse
 
 
 class TopicBase(BaseModel):

@@ -17,13 +17,17 @@ export interface Topic {
   updatedAt?: string;
 }
 
+export interface TopicWithLessons extends Topic {
+  lessons: Lesson[];
+}
+
 /**
- * Lấy danh sách chủ đề theo khóa học
+ * Lấy danh sách chủ đề kèm theo lessons theo khóa học
  * @param courseId - ID của khóa học
- * @returns Danh sách chủ đề
+ * @returns Danh sách chủ đề kèm lessons
  */
 async function getTopicsByCourse(courseId: number) {
-  return get<Topic[]>(`/topics/course/${courseId}`);
+  return get<TopicWithLessons[]>(`/topics/course/${courseId}`);
 }
 
 /**
@@ -90,22 +94,11 @@ export async function getTopicLessons(topicId: number): Promise<Lesson[]> {
  * Lấy danh sách topics của khóa học kèm theo lessons
  * @param courseId ID của khóa học
  * @returns Danh sách topics với lessons
+ * @deprecated Sử dụng getTopicsByCourse thay thế - API đã được cập nhật để trả về topics kèm lessons
  */
-export async function getTopicsWithLessons(courseId: number): Promise<Array<Topic & { lessons: Lesson[] }>> {
-  const topics = await getTopicsByCourse(courseId);
-
-  // Lấy lessons cho từng topic
-  const topicsWithLessons = await Promise.all(
-    topics.map(async (topic) => {
-      const lessons = await getTopicLessons(topic.id);
-      return {
-        ...topic,
-        lessons
-      };
-    })
-  );
-
-  return topicsWithLessons;
+export async function getTopicsWithLessons(courseId: number): Promise<TopicWithLessons[]> {
+  // Bây giờ getTopicsByCourse đã trả về topics kèm lessons
+  return getTopicsByCourse(courseId);
 }
 
 export async function getLessonById(lessonId: number): Promise<Lesson> {

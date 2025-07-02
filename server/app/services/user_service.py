@@ -1,4 +1,5 @@
 import random
+from functools import lru_cache
 from datetime import datetime
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
@@ -13,7 +14,10 @@ from ..models.user_model import User
 from ..schemas.auth_schema import UserRegister
 from ..schemas.user_profile_schema import UserUpdate
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+@lru_cache(maxsize=1)
+def get_password_context():
+    return CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def get_user_service(db: Session = Depends(get_db)):
@@ -84,6 +88,7 @@ class UserService:
         Returns:
             bool: True nếu mật khẩu đúng, ngược lại là False
         """
+        pwd_context = get_password_context()
         return pwd_context.verify(plain_password, hashed_password)
 
     def get_password_hash(self, password: str) -> str:
@@ -96,6 +101,7 @@ class UserService:
         Returns:
             str: Mật khẩu đã mã hóa
         """
+        pwd_context = get_password_context()
         return pwd_context.hash(password)
 
     async def create_user(self, user_data: UserRegister) -> User:
