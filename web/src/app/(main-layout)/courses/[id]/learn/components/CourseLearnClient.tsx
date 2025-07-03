@@ -2,35 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { getCourseById } from "@/lib/api/courses";
-import { getTopicLessons, Topic, Lesson } from "@/lib/api/topics";
+import { getTopicsWithLessons, Topic, Lesson } from "@/lib/api/topics";
 import Link from "next/link";
 import { Container, Title, Text, Card, Group, Button, Loader, Alert, List, ThemeIcon, Paper, Grid, Divider, Badge } from "@mantine/core";
 import { IconAlertCircle, IconCircleCheck, IconCircleDashed, IconBook } from "@tabler/icons-react";
 
-// Mock data cho các chủ đề khi API chưa sẵn sàng
-const mockTopics = (courseId: number): Topic[] => [
-    {
-        id: 1,
-        title: "Giới thiệu về khóa học",
-        description: "Tổng quan về nội dung và mục tiêu của khóa học",
-        order: 1,
-        course_id: courseId,
-        progress: 75,
-        lessons_count: 3
-    },
-    {
-        id: 2,
-        title: "Cấu trúc dữ liệu cơ bản",
-        description: "Tìm hiểu về các cấu trúc dữ liệu thông dụng",
-        order: 2,
-        course_id: courseId,
-        progress: 0,
-        lessons_count: 2
-    },
-];
-
 interface TopicWithLessons extends Topic {
     lessons: Lesson[];
+    progress: number;
+    lessonsCount: number;
 }
 
 interface CourseLearnClientProps {
@@ -50,23 +30,23 @@ export default function CourseLearnClient({ courseId }: CourseLearnClientProps) 
                 const courseData = await getCourseById(courseId);
                 setCourse(courseData);
 
-                // Sử dụng mock data cho topics vì API chưa sẵn sàng
-                const topicsData = mockTopics(courseId);
+                // Lấy topics và lessons từ API
+                const topicsData = await getTopicsWithLessons(courseId);
 
-                // Lấy bài học cho mỗi chủ đề
-                const topicsWithLessons = await Promise.all(
-                    topicsData.map(async (topic) => {
-                        try {
-                            const lessons = await getTopicLessons(topic.id);
-                            return { ...topic, lessons };
-                        } catch (err) {
-                            console.error(`Error fetching lessons for topic ${topic.id}:`, err);
-                            return { ...topic, lessons: [] };
-                        }
-                    })
-                );
+                // Tính toán progress và lessons count cho mỗi topic
+                const enrichedTopics: TopicWithLessons[] = topicsData.map((topic) => {
+                    const completedLessons = topic.lessons.filter(lesson => lesson.is_completed).length;
+                    const totalLessons = topic.lessons.length;
+                    const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
-                setTopics(topicsWithLessons);
+                    return {
+                        ...topic,
+                        progress,
+                        lessonsCount: totalLessons
+                    };
+                });
+
+                setTopics(enrichedTopics);
             } catch (err) {
                 if (err instanceof Error) {
                     setError(err.message);
@@ -125,9 +105,9 @@ export default function CourseLearnClient({ courseId }: CourseLearnClientProps) 
                             <Paper shadow="xs" p="md" mb="md" withBorder>
                                 <Group justify="space-between" mb="md">
                                     <div>
-                                        <Title order={3}>{topic.title}</Title>
+                                        <Title order={3}>{topic.name}</Title>
                                         <Text size="sm" c="dimmed">
-                                            {topic.lessons_count} bài học
+                                            {topic.lessonsCount} bài học
                                         </Text>
                                     </div>
                                     <Badge color="blue" size="lg">
