@@ -124,7 +124,7 @@ def get_callback_manager(project_name: str = "default"):
 
     try:
         # Lazy import - chỉ import khi cần thiết
-        from langchain.callbacks import CallbackManager
+        from langchain_core.callbacks.manager import CallbackManager
 
         tracer = get_tracer(project_name)
         if tracer:

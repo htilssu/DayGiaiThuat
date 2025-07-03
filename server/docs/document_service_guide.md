@@ -2,15 +2,16 @@
 
 ## Tổng quan
 
-Document Service là một service mới được thiết kế để xử lý việc upload, chunking và lưu trữ tài liệu vào vector database. Service này sử dụng DocLing để đọc file và Semantic Chunking để chia nhỏ tài liệu một cách thông minh.
+Document Service là một service mới được thiết kế để xử lý việc upload, chunking và lưu trữ tài liệu vào vector database. Service này sử dụng Google Cloud Document AI để đọc file và Semantic Chunking để chia nhỏ tài liệu một cách thông minh.
 
 ## Tính năng chính
 
-### 1. Document Processing với DocLing
+### 1. Document Processing với Google Cloud Document AI
 
-- Hỗ trợ đọc nhiều loại file format (PDF, Word, PowerPoint, etc.)
-- Trích xuất nội dung text và metadata từ documents
+- Hỗ trợ đọc nhiều loại file format (PDF, Word, PowerPoint, images, etc.)
+- Trích xuất nội dung text và metadata từ documents với độ chính xác cao
 - Xử lý bất đồng bộ để không block API calls
+- Sử dụng AI model được train sẵn để nhận dạng text từ images và documents
 
 ### 2. Semantic Chunking
 
@@ -152,7 +153,7 @@ Mỗi chunk được lưu với metadata sau:
 
 Service xử lý các lỗi thường gặp:
 
-1. **File không thể đọc**: DocLing không hỗ trợ format
+1. **File không thể đọc**: Document AI không hỗ trợ format hoặc file bị lỗi
 2. **Chunking thất bại**: Không thể tạo chunks meaningful
 3. **Vector DB lỗi**: Kết nối hoặc storage issue
 
@@ -216,7 +217,7 @@ Service này thay thế code cũ trong `document_router.py` và cung cấp:
 Service yêu cầu các packages sau:
 
 ```
-langchain-docling>=0.1.0
+google-cloud-documentai
 langchain-experimental>=0.3.0
 langchain-openai>=0.2.0
 ```

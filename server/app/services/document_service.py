@@ -3,13 +3,16 @@ from datetime import datetime
 import os
 import shutil
 from pathlib import Path
-
-from langchain_docling import DoclingLoader
+import httpx
+import logging
 
 from app.core.agents.components.document_store import get_vector_store
+from app.services.document_ai_service import get_document_ai_service
 from app.core.config import settings
 
 from app.schemas.document_schema import DocumentStatus
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentService:
@@ -18,6 +21,7 @@ class DocumentService:
         # Initialize embeddings for semantic chunking
         from app.core.agents.components.embedding_model import get_embedding_model
 
+        self.document_ai_service = get_document_ai_service()
         self.embeddings = get_embedding_model()
 
     async def process_document(
@@ -37,9 +41,8 @@ class DocumentService:
                 createdAt=datetime.now().isoformat(),
             )
 
-            # Load document using DocLing
-            loader = DoclingLoader(temp_path)
-            documents = loader.load()
+            # Load document using Document AI
+            documents = self.document_ai_service.load_documents(temp_path)
 
             if not documents:
                 raise ValueError("No content could be extracted from the document")
@@ -254,6 +257,107 @@ class DocumentService:
             ),
         }
 
+    async def call_external_document_processing_api(
+        self, document_url: str, document_id: str, filename: str
+    ) -> Dict:
+        """
+        Gọi external API để xử lý document với URL đã upload lên object storage
 
-# Create singleton instance
-document_service = DocumentService()
+        Args:
+            document_url (str): URL của document đã upload
+            document_id (str): ID của document
+            filename (str): Tên file gốc
+
+        Returns:
+            Dict: Response từ external API
+
+        Raises:
+            Exception: Nếu có lỗi khi gọi API
+        """
+        if not settings.DOCUMENT_PROCESSING_ENDPOINT:
+            raise Exception("DOCUMENT_PROCESSING_ENDPOINT chưa được cấu hình")
+
+        try:
+            # Update status to processing
+            self.document_status[document_id] = DocumentStatus(
+                id=document_id,
+                filename=filename,
+                status="processing",
+                createdAt=datetime.now().isoformat(),
+            )
+
+            # Payload theo yêu cầu
+            payload = {"input": {"url": document_url}}
+
+            logger.info(
+                f"Calling external API for document {document_id}: {settings.DOCUMENT_PROCESSING_ENDPOINT}"
+            )
+            logger.info(f"Payload: {payload}")
+
+            async with httpx.AsyncClient(
+                timeout=settings.DOCUMENT_PROCESSING_TIMEOUT
+            ) as client:
+                response = await client.post(
+                    settings.DOCUMENT_PROCESSING_ENDPOINT,
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                )
+
+                response.raise_for_status()
+                result = response.json()
+
+                logger.info(f"External API response: {result}")
+
+                # Update status to completed
+                self.document_status[document_id] = DocumentStatus(
+                    id=document_id,
+                    filename=filename,
+                    status="completed",
+                    createdAt=datetime.now().isoformat(),
+                    external_response=result,
+                )
+
+                return result
+
+        except httpx.TimeoutException:
+            error_msg = f"Timeout khi gọi external API sau {settings.DOCUMENT_PROCESSING_TIMEOUT}s"
+            logger.error(error_msg)
+            self.document_status[document_id] = DocumentStatus(
+                id=document_id,
+                filename=filename,
+                status="failed",
+                createdAt=datetime.now().isoformat(),
+                error=error_msg,
+            )
+            raise Exception(error_msg)
+
+        except httpx.HTTPStatusError as e:
+            error_msg = f"HTTP error {e.response.status_code}: {e.response.text}"
+            logger.error(error_msg)
+            self.document_status[document_id] = DocumentStatus(
+                id=document_id,
+                filename=filename,
+                status="failed",
+                createdAt=datetime.now().isoformat(),
+                error=error_msg,
+            )
+            raise Exception(error_msg)
+
+        except Exception as e:
+            error_msg = f"Lỗi khi gọi external API: {str(e)}"
+            logger.error(error_msg)
+            self.document_status[document_id] = DocumentStatus(
+                id=document_id,
+                filename=filename,
+                status="failed",
+                createdAt=datetime.now().isoformat(),
+                error=error_msg,
+            )
+            raise Exception(error_msg)
+
+
+def get_document_service() -> DocumentService:
+    """
+    Dependency để inject DocumentService
+    """
+    return DocumentService()

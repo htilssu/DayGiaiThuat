@@ -50,7 +50,7 @@ class Settings(BaseSettings):
         UVICORN_RELOAD (bool): Auto reload cho uvicorn
     """
 
-    PROJECT_NAME: str
+    PROJECT_NAME: str = "default"
     DEV_MODE: Optional[bool] = True
 
     # Uvicorn settings
@@ -119,6 +119,13 @@ class Settings(BaseSettings):
 
     # File Upload Settings
     UPLOAD_DIR: str = "uploads"  # Thư mục lưu file tạm thời
+
+    # Document Processing Settings
+    DOCUMENT_PROCESSING_ENDPOINT: Optional[str] = (
+        None  # External API endpoint for document processing
+    )
+    DOCUMENT_PROCESSING_TIMEOUT: int = 300  # Timeout cho API call (seconds)
+    S3_DOCUMENT_PREFIX: str = "documents/"  # Prefix cho documents trong S3
 
     # AWS/S3 Boto3 Settings (fix for MissingContentLength error)
     AWS_REQUEST_CHECKSUM_CALCULATION: str = "when_required"

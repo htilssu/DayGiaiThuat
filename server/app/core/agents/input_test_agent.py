@@ -1,6 +1,4 @@
 from app.core.agents.base_agent import BaseAgent
-from fastapi import Depends
-from app.services.course_service import CourseService, get_course_service
 from app.models.course_model import Course
 from app.utils.model_utils import model_to_dict
 from pydantic import BaseModel, Field, ValidationError
@@ -56,9 +54,8 @@ class InputTestAgentOutput(BaseModel):
 
 
 class InputTestAgent(BaseAgent):
-    def __init__(self, course_service: CourseService):
+    def __init__(self):
         super().__init__()
-        self.course_service = course_service
         self.available_args = ["course_id"]
         self._output_parser = None
         self._output_fix_parser = None
@@ -283,5 +280,5 @@ class InputTestAgent(BaseAgent):
             raise Exception(f"Lỗi tạo bài kiểm tra: {str(e)}")
 
 
-def get_input_test_agent(course_service: CourseService = Depends(get_course_service)):
-    return InputTestAgent(course_service)
+def get_input_test_agent():
+    return InputTestAgent()

@@ -2,16 +2,23 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from app.services.test_generation_service import (
+    TestGenerationService,
+    get_test_generation_service,
+)
+
 
 from app.database.database import get_db
 from app.models.course_model import Course, TestGenerationStatus
 from app.models.user_course_model import UserCourse
 from app.models.user_model import User
+from app.schemas.course_schema import CourseCreate
 
 
 class CourseService:
-    def __init__(self, db: Session = Depends(get_db)):
+    def __init__(self, db: Session, test_generation_service: TestGenerationService):
         self.db = db
+        self.test_generation_service = test_generation_service
 
     def get_courses(self, skip: int = 0, limit: int = 10):
         """
@@ -38,7 +45,7 @@ class CourseService:
         """
         return self.db.query(Course).filter(Course.id == course_id).first()
 
-    def create_course(self, course_data):
+    def create_course(self, course_data: CourseCreate):
         """
         Tạo một khóa học mới
 
@@ -50,7 +57,7 @@ class CourseService:
         """
         try:
             # Tạo đối tượng Course từ dữ liệu đầu vào
-            new_course = Course(**course_data.dict())
+            new_course = Course(**course_data.model_dump())
 
             # Thêm vào database
             self.db.add(new_course)
@@ -340,9 +347,8 @@ class CourseService:
 
         Sử dụng TestGenerationService thay thế
         """
-        from app.services.test_generation_service import TestGenerationService
 
-        test_gen_service = TestGenerationService(self.db)
+        test_gen_service = TestGenerationService(self.db, self.test_generation_service)
         return await test_gen_service.generate_input_test_async(course_id)
 
     def _create_test_from_agent_sync(self, agent, course_id: int):
@@ -603,5 +609,10 @@ class CourseService:
             )
 
 
-def get_course_service(db: Session = Depends(get_db)):
-    return CourseService(db)
+def get_course_service(
+    db: Session = Depends(get_db),
+    test_generation_service: TestGenerationService = Depends(
+        get_test_generation_service
+    ),
+):
+    return CourseService(db, test_generation_service)

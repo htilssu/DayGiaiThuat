@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 
 class DocumentStatus(BaseModel):
@@ -9,6 +9,7 @@ class DocumentStatus(BaseModel):
     createdAt: str
     error: Optional[str] = None
     chunks_count: Optional[int] = None
+    external_response: Optional[Dict[str, Any]] = None  # Response từ external API
 
 
 class DocumentResponse(BaseModel):

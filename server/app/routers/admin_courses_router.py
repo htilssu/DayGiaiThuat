@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+import os
+import shutil
+from fastapi import APIRouter, HTTPException, Depends, status, UploadFile, File
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -20,6 +22,8 @@ router = APIRouter(
     tags=["admin-courses"],
     responses={404: {"description": "Không tìm thấy khóa học"}},
 )
+
+UPLOAD_DIRECTORY = "./uploads/images"
 
 
 class ThumbnailUpdateRequest(BaseModel):
@@ -58,6 +62,7 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
 async def create_course(
     course_data: CourseCreate,
     db: Session = Depends(get_db),
+    course_service: CourseService = Depends(get_course_service),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
@@ -75,16 +80,9 @@ async def create_course(
         HTTPException: Nếu có lỗi khi tạo khóa học
     """
     try:
-        # Tạo đối tượng Course từ dữ liệu đầu vào
-        new_course = Course(**course_data.dict())
-
-        # Thêm vào database
-        db.add(new_course)
-        db.commit()
-        db.refresh(new_course)
+        new_course = course_service.create_course(course_data)
 
         # Tạo bài test đầu vào async
-        course_service = CourseService(db)
         await course_service.generate_input_test_async(new_course.id)
 
         return new_course
