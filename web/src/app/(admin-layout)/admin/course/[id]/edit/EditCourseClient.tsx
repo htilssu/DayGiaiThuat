@@ -121,20 +121,17 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
                 try {
                     const uploadResult: AdminFileUploadResponse = await uploadCourseImageAdmin(courseId, selectedImage);
 
-                    if (uploadResult.success) {
-                        // Update form with new image URL
-                        finalValues.thumbnailUrl = uploadResult.url;
-                        setImagePreview(uploadResult.url);
+                    // Backend trả về response trực tiếp nếu thành công
+                    // Update form with new image URL
+                    finalValues.thumbnailUrl = uploadResult.url;
+                    setImagePreview(uploadResult.url);
 
-                        // Show success notification
-                        notifications.show({
-                            title: "Thành công",
-                            message: "Đã tải lên ảnh khóa học thành công",
-                            color: "green",
-                        });
-                    } else {
-                        throw new Error(uploadResult.message || "Upload failed");
-                    }
+                    // Show success notification
+                    notifications.show({
+                        title: "Thành công",
+                        message: "Đã tải lên ảnh khóa học thành công",
+                        color: "green",
+                    });
                 } catch (error) {
                     notifications.show({
                         title: 'Lỗi upload ảnh',
