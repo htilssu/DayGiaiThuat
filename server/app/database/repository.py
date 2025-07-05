@@ -1,20 +1,17 @@
 from http.client import HTTPException
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
-
-from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel
-
-from app.database.database import Base
-from app.database.database import SessionLocal
+from typing import Any, Generic, List, Optional, Type, TypeVar
+from sqlalchemy.orm import Session
 from app.core.config import settings
+from app.database.database import Base, get_db
+from fastapi import Depends
 
 ModelType = TypeVar("ModelType", bound=Base)
 
 
 class BaseRepository(Generic[ModelType]):
-    def __init__(self, model: Type[ModelType]):
+    def __init__(self, model: Type[ModelType], db: Session = Depends(get_db)):
         self.model = model
-        self.db = SessionLocal()
+        self.db = db
         self.setting = settings
 
     def get(self, id: Any) -> Optional[ModelType]:
@@ -82,17 +79,14 @@ class Repository(BaseRepository[ModelType], Generic[ModelType]):
         model (Type[ModelType]): SQLAlchemy model class
     """
 
-    def __init__(
-        self,
-        model: Type[ModelType],
-    ):
+    def __init__(self, model: Type[ModelType], db: Session):
         """
         Khởi tạo CRUD object với model
 
         Args:
             model (Type[ModelType]): SQLAlchemy model class
         """
-        super().__init__(model)
+        super().__init__(model, db)
 
     def create(self, data: ModelType) -> ModelType:
         try:

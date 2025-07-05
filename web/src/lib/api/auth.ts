@@ -1,4 +1,4 @@
-import { get, post } from "./client";
+import { post } from "./client";
 
 /**
  * Interface cho dữ liệu đăng ký
@@ -26,6 +26,8 @@ export interface UserData {
   id: number;
   email: string;
   username: string;
+  avatar: string;
+  fullName: string;
 }
 
 /**

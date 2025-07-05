@@ -132,7 +132,7 @@ class UserService:
             hashed_password=hashed_password,
             first_name=user_data.first_name,
             last_name=user_data.last_name,
-            avatar_url="/avatars/default.png",
+            avatar="/avatars/default.png",
         )
 
         # Lưu vào database

@@ -21,8 +21,7 @@ import {
   IconMessageCircle,
   IconCalendar,
 } from "@tabler/icons-react";
-import { discussionsApi } from "@/lib/api/discussions";
-import type { Discussion } from "@/lib/api/discussions/types";
+import { discussionsApi, type Discussion } from "@/lib/api/discussions";
 import { useRouter } from "next/navigation";
 import { discussions as mockDiscussions } from "@/data/discussions";
 import Link from "next/link";

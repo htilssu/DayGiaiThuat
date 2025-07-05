@@ -14,7 +14,6 @@ from app.database.database import SessionLocal
 
 from passlib.context import CryptContext
 from app.models.badge_model import Badge
-from app.models.user_badge_model import UserBadge
 from app.models.course_model import Course
 from app.models.exercise_model import Exercise
 from app.models.topic_model import Topic
@@ -532,6 +531,7 @@ def create_users(badges: List[Badge], courses: List[Course]) -> List[User]:
             "last_name": "User",
             "bio": "Quản trị viên hệ thống",
             "avatar": "https://example.com/avatars/admin.jpg",
+            "is_admin": True,
         },
         {
             "email": "user1@example.com",

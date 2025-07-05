@@ -1,38 +1,31 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React from "react";
 import { Tabs } from "@mantine/core";
 import Image from "next/image";
 import { Skeleton } from "@mantine/core";
-import { Activity, Badge } from "@/services/profile.service";
-import { useAppSelector } from "@/lib/store";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { profileApi, CourseProgress, Badge, Activity } from "@/lib/api/profile";
 
 /**
  * Trang hồ sơ người dùng
  * Hiển thị thông tin cá nhân, tiến độ học tập, thành tích, lịch sử hoạt động
- *
- * Lưu ý: Trang này sử dụng dữ liệu trực tiếp từ AuthContext thay vì gọi API
- * để tối ưu hiệu suất và giảm số lượng request.
- * Dữ liệu người dùng đã được chuyển đổi từ định dạng API sang định dạng thân thiện với frontend.
  */
 const ProfilePage = () => {
-  // Lấy thông tin người dùng từ AuthContext
+  // Sử dụng React Query để lấy và cache dữ liệu profile
   const {
-    user,
-    isLoading: authLoading,
-    isInitial,
-  } = useAppSelector((state) => state.user);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
+    data: profile,
+    isLoading,
+    error
+  } = useQuery({
+    queryKey: ['profile'],
+    queryFn: profileApi.getProfile,
+    staleTime: 5 * 60 * 1000, // 5 phút
+    retry: 1,
+  });
 
-  useEffect(() => {
-    if (!authLoading) {
-      setIsLoading(false);
-    }
-  }, [authLoading]);
-
-  if (authLoading || isLoading) {
+  if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="bg-background rounded-xl shadow-sm p-6 mb-6 border border-foreground/10 flex flex-col md:flex-row gap-6 items-center md:items-start">
@@ -56,8 +49,22 @@ const ProfilePage = () => {
     );
   }
 
-  if (!user && !authLoading && !isInitial) {
-    router.push("/");
+  if (error || !profile) {
+    return (
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="bg-background rounded-xl shadow-sm p-6 text-center">
+          <h1 className="text-2xl font-bold mb-4">Không thể tải thông tin hồ sơ</h1>
+          <p className="mb-6 text-foreground/70">
+            Đã xảy ra lỗi khi tải thông tin hồ sơ của bạn. Vui lòng thử lại sau.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition">
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -67,30 +74,30 @@ const ProfilePage = () => {
         {/* Avatar */}
         <div className="relative">
           <div className="w-28 h-28 rounded-full overflow-hidden bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border-4 border-background shadow-lg">
-            {user.avatar ? (
+            {profile.avatar ? (
               <Image
-                src={user.avatar}
-                alt={user.fullName}
+                src={profile.avatar}
+                alt={profile.fullName}
                 width={100}
                 height={100}
                 className="object-cover"
               />
             ) : (
-              <span className="text-4xl">{user.fullName.charAt(0)}</span>
+              <span className="text-4xl">{profile.fullName.charAt(0)}</span>
             )}
           </div>
           <span className="absolute -bottom-2 -right-2 bg-primary text-white text-xs font-bold rounded-full w-8 h-8 flex items-center justify-center shadow-md">
-            Lv{user.stats.level}
+            Lv{profile.stats.level}
           </span>
         </div>
 
         {/* Thông tin cơ bản */}
         <div className="flex-1 text-center md:text-left">
           <h1 className="text-2xl font-bold text-foreground">
-            {user.fullName}
+            {profile.fullName}
           </h1>
-          <p className="text-foreground/60 mb-3">@{user.username}</p>
-          <p className="text-foreground/80 mb-4 max-w-2xl">{user.bio}</p>
+          <p className="text-foreground/60 mb-3">@{profile.username}</p>
+          <p className="text-foreground/80 mb-4 max-w-2xl">{profile.bio}</p>
 
           {/* Stats grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-2">
@@ -99,7 +106,7 @@ const ProfilePage = () => {
                 Bài tập đã hoàn thành
               </p>
               <p className="text-xl font-semibold">
-                {user.stats.completedExercises}
+                {profile.stats.completedExercises}
               </p>
             </div>
             <div className="bg-background/50 p-3 rounded-lg border border-foreground/10 theme-transition">
@@ -107,17 +114,17 @@ const ProfilePage = () => {
                 Khóa học đã hoàn thành
               </p>
               <p className="text-xl font-semibold">
-                {user.stats.completedCourses}
+                {profile.stats.completedCourses}
               </p>
             </div>
             <div className="bg-background/50 p-3 rounded-lg border border-foreground/10 theme-transition">
               <p className="text-foreground/60 text-xs">Tổng điểm</p>
-              <p className="text-xl font-semibold">{user.stats.totalPoints}</p>
+              <p className="text-xl font-semibold">{profile.stats.totalPoints}</p>
             </div>
             <div className="bg-background/50 p-3 rounded-lg border border-foreground/10 theme-transition">
               <p className="text-foreground/60 text-xs">Chuỗi hoạt động</p>
               <p className="text-xl font-semibold flex items-center gap-1">
-                {user.stats.streak} <span className="text-amber-500">🔥</span>
+                {profile.stats.streak} <span className="text-amber-500">🔥</span>
               </p>
             </div>
           </div>
@@ -159,14 +166,14 @@ const ProfilePage = () => {
                     Thuật toán cơ bản
                   </span>
                   <span className="text-sm font-medium text-foreground/80">
-                    {user.learningProgress.algorithms}%
+                    {profile.learningProgress.algorithms}%
                   </span>
                 </div>
                 <div className="w-full bg-foreground/10 rounded-full h-2.5">
                   <div
                     className="bg-primary h-2.5 rounded-full"
                     style={{
-                      width: `${user.learningProgress.algorithms}%`,
+                      width: `${profile.learningProgress.algorithms}%`,
                     }}></div>
                 </div>
               </div>
@@ -176,14 +183,14 @@ const ProfilePage = () => {
                     Cấu trúc dữ liệu
                   </span>
                   <span className="text-sm font-medium text-foreground/80">
-                    {user.learningProgress.dataStructures}%
+                    {profile.learningProgress.dataStructures}%
                   </span>
                 </div>
                 <div className="w-full bg-foreground/10 rounded-full h-2.5">
                   <div
                     className="bg-primary h-2.5 rounded-full"
                     style={{
-                      width: `${user.learningProgress.dataStructures}%`,
+                      width: `${profile.learningProgress.dataStructures}%`,
                     }}></div>
                 </div>
               </div>
@@ -193,14 +200,14 @@ const ProfilePage = () => {
                     Lập trình động
                   </span>
                   <span className="text-sm font-medium text-foreground/80">
-                    {user.learningProgress.dynamicProgramming}%
+                    {profile.learningProgress.dynamicProgramming}%
                   </span>
                 </div>
                 <div className="w-full bg-foreground/10 rounded-full h-2.5">
                   <div
                     className="bg-primary h-2.5 rounded-full"
                     style={{
-                      width: `${user.learningProgress.dynamicProgramming}%`,
+                      width: `${profile.learningProgress.dynamicProgramming}%`,
                     }}></div>
                 </div>
               </div>
@@ -209,12 +216,20 @@ const ProfilePage = () => {
 
           {/* Khóa học đang tham gia */}
           <div className="bg-background rounded-xl shadow-sm p-6 border border-foreground/10 theme-transition">
-            <h2 className="text-xl font-semibold mb-4 text-foreground">
-              Khóa học đang tham gia
-            </h2>
-            {user.courses.length > 0 ? (
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-foreground">
+                Khóa học đang tham gia
+              </h2>
+              <Link
+                href="/profile/enrolled-courses"
+                className="text-primary hover:underline text-sm font-medium"
+              >
+                Xem tất cả
+              </Link>
+            </div>
+            {profile.courses.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {user.courses.map((course: CourseProgress) => (
+                {profile.courses.map((course: CourseProgress) => (
                   <div
                     key={course.id}
                     className="border border-foreground/10 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-background/50 theme-transition">
@@ -245,11 +260,16 @@ const ProfilePage = () => {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-foreground/60">
-                <p>Bạn chưa tham gia khóa học nào.</p>
-                <button className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+              <div className="text-center py-8">
+                <p className="text-foreground/60 mb-4">
+                  Bạn chưa tham gia khóa học nào
+                </p>
+                <Link
+                  href="/courses"
+                  className="bg-primary text-white px-4 py-2 rounded-lg hover:opacity-90 transition"
+                >
                   Khám phá khóa học
-                </button>
+                </Link>
               </div>
             )}
           </div>
@@ -262,16 +282,15 @@ const ProfilePage = () => {
               Huy hiệu và thành tích
             </h2>
 
-            {user.badges.length > 0 ? (
+            {profile.badges.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {user.badges.map((badge: Badge) => (
+                {profile.badges.map((badge: Badge) => (
                   <div
                     key={badge.id}
-                    className={`border ${
-                      badge.unlocked
-                        ? "border-amber-200 bg-amber-50/50"
-                        : "border-foreground/10 bg-background/50 opacity-50"
-                    } rounded-lg p-4 text-center transition-all hover:shadow-md flex flex-col items-center justify-center gap-2`}>
+                    className={`border ${badge.unlocked
+                      ? "border-amber-200 bg-amber-50/50"
+                      : "border-foreground/10 bg-background/50 opacity-50"
+                      } rounded-lg p-4 text-center transition-all hover:shadow-md flex flex-col items-center justify-center gap-2`}>
                     <div className="text-4xl mb-2">{badge.icon}</div>
                     <h3 className="font-semibold">{badge.name}</h3>
                     <p className="text-xs text-foreground/70">
@@ -303,9 +322,9 @@ const ProfilePage = () => {
               Lịch sử hoạt động
             </h2>
 
-            {user.activities.length > 0 ? (
+            {profile.activities.length > 0 ? (
               <div className="space-y-4">
-                {user.activities.map((activity: Activity) => (
+                {profile.activities.map((activity: Activity) => (
                   <div
                     key={activity.id}
                     className="border-l-4 border-primary pl-4 py-2">
@@ -316,8 +335,8 @@ const ProfilePage = () => {
                           {activity.type === "exercise"
                             ? "Bài tập"
                             : activity.type === "course"
-                            ? "Khóa học"
-                            : "Thảo luận"}
+                              ? "Khóa học"
+                              : "Thảo luận"}
                         </p>
                       </div>
                       <div className="text-right">
@@ -366,7 +385,7 @@ const ProfilePage = () => {
                     <input
                       type="text"
                       className="w-full p-2 border border-foreground/10 rounded-lg bg-background theme-transition"
-                      defaultValue={user.fullName}
+                      defaultValue={profile.fullName}
                     />
                   </div>
                   <div>
@@ -376,7 +395,7 @@ const ProfilePage = () => {
                     <textarea
                       className="w-full p-2 border border-foreground/10 rounded-lg bg-background theme-transition"
                       rows={3}
-                      defaultValue={user.bio}></textarea>
+                      defaultValue={profile.bio}></textarea>
                   </div>
                 </div>
               </div>

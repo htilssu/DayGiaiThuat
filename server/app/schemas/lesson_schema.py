@@ -1,11 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 
 
 class ExerciseBase(BaseModel):
     """
     Schema cơ bản cho bài tập
-    
+
     Attributes:
         name: Tên bài tập
         description: Mô tả chi tiết về bài tập
@@ -13,6 +13,7 @@ class ExerciseBase(BaseModel):
         constraint: Các ràng buộc hoặc yêu cầu của bài tập
         suggest: Gợi ý để giải bài tập
     """
+
     name: str
     description: str
     difficulty: str
@@ -23,13 +24,28 @@ class ExerciseBase(BaseModel):
 class ExerciseResponse(ExerciseBase):
     """
     Schema cho response khi truy vấn thông tin bài tập
-    
+
     Attributes:
         id: ID của bài tập
         lesson_id: ID của bài học liên quan
     """
+
     id: int
     lesson_id: int
+
+
+class LessonSectionResponse(BaseModel):
+    """
+    Schema cho phản hồi thông tin section của lesson
+    """
+
+    id: int
+    type: str = Field(..., description="Loại section: text, code, image, quiz")
+    content: str = Field(..., description="Nội dung của section")
+    order: int = Field(..., description="Thứ tự section trong lesson")
+    options: Optional[Dict[str, Any]] = Field(None, description="Tùy chọn cho quiz")
+    answer: Optional[int] = Field(None, description="Đáp án đúng cho quiz")
+    explanation: Optional[str] = Field(None, description="Giải thích cho quiz")
 
     class Config:
         from_attributes = True

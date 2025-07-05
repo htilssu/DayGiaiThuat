@@ -1,0 +1,936 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+TITLE: Installing Dependencies for Tailwind CSS Documentation (Bash)
+DESCRIPTION: This command uses pnpm to install all required dependencies for the Tailwind CSS documentation project. It is the initial step to prepare the project for local development.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/README.md#_snippet_0
+
+LANGUAGE: bash
+CODE:
+```
+pnpm install
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS Typography Plugin
+DESCRIPTION: This snippet provides the command to install the latest version of the Tailwind CSS Typography plugin using npm, which is a prerequisite for utilizing its features in a Tailwind CSS v3.0 project.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-typography-v0-5/index.mdx#_snippet_0
+
+LANGUAGE: sh
+CODE:
+```
+npm install -D @tailwindcss/typography@latest
+```
+
+----------------------------------------
+
+TITLE: Installing Prettier Plugin for Tailwind CSS via npm
+DESCRIPTION: This command installs `prettier` and `prettier-plugin-tailwindcss` as development dependencies using npm. This is the first step to integrate the class sorting functionality into a project's development workflow.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/automatic-class-sorting-with-prettier/index.mdx#_snippet_1
+
+LANGUAGE: sh
+CODE:
+```
+npm install -D prettier prettier-plugin-tailwindcss
+```
+
+----------------------------------------
+
+TITLE: Installing @tailwindcss/line-clamp Plugin - Shell
+DESCRIPTION: This command installs the @tailwindcss/line-clamp plugin using npm, making it available for use in your project. It's the first step to integrate the plugin into a Tailwind CSS project.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/multi-line-truncation-with-tailwindcss-line-clamp/index.mdx#_snippet_0
+
+LANGUAGE: Shell
+CODE:
+```
+npm install @tailwindcss/line-clamp
+```
+
+----------------------------------------
+
+TITLE: Installing Headless UI for React
+DESCRIPTION: This command line snippet shows how to install the latest version of `@headlessui/react` using npm. This is the standard way to upgrade or add the Headless UI library to a React project.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/headless-ui-v1-4/index.mdx#_snippet_8
+
+LANGUAGE: sh
+CODE:
+```
+# For React
+npm install @headlessui/react
+```
+
+----------------------------------------
+
+TITLE: Installing Headless UI v2.0 for React
+DESCRIPTION: This command installs the latest version of the `@headlessui/react` package from npm, adding Headless UI v2.0 to your project. It is the first step to integrate the library and access its new features.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/headless-ui-v2/index.mdx#_snippet_0
+
+LANGUAGE: sh
+CODE:
+```
+npm install @headlessui/react@latest
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS JIT and Dependencies (npm)
+DESCRIPTION: This command installs the `@tailwindcss/jit` package along with `tailwindcss`, `postcss`, and `autoprefixer` as development dependencies using npm. These packages are essential for setting up the Just-In-Time compiler in a project.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/just-in-time-the-next-generation-of-tailwind-css/index.mdx#_snippet_0
+
+LANGUAGE: sh
+CODE:
+```
+npm install -D @tailwindcss/jit tailwindcss postcss autoprefixer
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS v3.0 with npm
+DESCRIPTION: This shell command installs the latest version of Tailwind CSS (v3.0), PostCSS, and Autoprefixer as development dependencies using npm. These packages are crucial for compiling and processing Tailwind CSS in a project, enabling the use of its utility-first classes.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v3/index.mdx#_snippet_1
+
+LANGUAGE: Shell
+CODE:
+```
+npm install -D tailwindcss@latest postcss autoprefixer
+```
+
+----------------------------------------
+
+TITLE: Installing prettier-plugin-tailwindcss
+DESCRIPTION: This command installs the latest version of `prettier-plugin-tailwindcss`, enabling new features like automatic whitespace cleanup and duplicate class removal. It's a prerequisite for using the plugin's enhanced sorting capabilities.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/2024-05-30-prettier-plugin-collapse-whitespace/index.mdx#_snippet_0
+
+LANGUAGE: sh
+CODE:
+```
+npm i prettier-plugin-tailwindcss@latest
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS v4 Alpha for PostCSS - npm
+DESCRIPTION: This npm command installs the alpha version of Tailwind CSS and its PostCSS plugin, which are essential dependencies for integrating Tailwind CSS into a PostCSS build pipeline.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v4-alpha/index.mdx#_snippet_14
+
+LANGUAGE: sh
+CODE:
+```
+npm install tailwindcss@next @tailwindcss/postcss@next
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS v4.1 with PostCSS via npm
+DESCRIPTION: This shell command installs the latest versions of `tailwindcss` and `@tailwindcss/postcss` using npm. This setup is for projects that use PostCSS as their CSS preprocessor, enabling Tailwind CSS to be processed as a PostCSS plugin, which is a common and flexible way to integrate it into various build workflows.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v4-1/index.mdx#_snippet_32
+
+LANGUAGE: Shell
+CODE:
+```
+npm install tailwindcss@latest @tailwindcss/postcss@latest
+```
+
+----------------------------------------
+
+TITLE: Installing Headless UI Latest Version (Shell)
+DESCRIPTION: This command installs the most recent stable version of the `@headlessui/react` package using npm. It is a necessary prerequisite to access and utilize the new features discussed, such as rendering multiple sibling dialogs.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/2024-06-21-headless-ui-v2-1/index.mdx#_snippet_3
+
+LANGUAGE: sh
+CODE:
+```
+npm i @headlessui/react@latest
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS with PostCSS
+DESCRIPTION: This command installs the latest versions of Tailwind CSS and its PostCSS plugin using npm. This setup allows Tailwind CSS to be used as a PostCSS plugin within your build pipeline, compatible with various PostCSS-enabled environments.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v4-1/index.mdx#_snippet_2
+
+LANGUAGE: sh
+CODE:
+```
+npm install tailwindcss@latest @tailwindcss/postcss@latest
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS v3.4
+DESCRIPTION: Installs the latest version of Tailwind CSS using npm, providing access to all new features introduced in v3.4.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v3-4/index.mdx#_snippet_0
+
+LANGUAGE: sh
+CODE:
+```
+npm install tailwindcss@latest
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS v3.1 via npm
+DESCRIPTION: This command installs the latest version of Tailwind CSS using npm, updating an existing project or setting up a new one with the most recent features and bug fixes.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v3-1/index.mdx#_snippet_0
+
+LANGUAGE: sh
+CODE:
+```
+npm install tailwindcss@latest
+```
+
+----------------------------------------
+
+TITLE: Install Tailwind CSS v3.3
+DESCRIPTION: Upgrade your project to the latest version of Tailwind CSS using npm. This command installs the `tailwindcss` package as a development dependency, providing access to all the new features and improvements.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v3-3/index.mdx#_snippet_0
+
+LANGUAGE: sh
+CODE:
+```
+npm install -D tailwindcss@latest
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS with Vite
+DESCRIPTION: This command installs the latest versions of Tailwind CSS and its dedicated Vite plugin via npm. This integration is optimized for projects built with Vite, providing a seamless development experience.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v4-1/index.mdx#_snippet_1
+
+LANGUAGE: sh
+CODE:
+```
+npm install tailwindcss@latest @tailwindcss/vite@latest
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS v4.0 with PostCSS
+DESCRIPTION: This shell command installs Tailwind CSS v4.0 along with its PostCSS plugin using npm. It's the first step in setting up Tailwind CSS for a project, providing the core framework and the necessary PostCSS integration for build processes.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v4/index.mdx#_snippet_4
+
+LANGUAGE: Shell
+CODE:
+```
+npm i tailwindcss @tailwindcss/postcss;
+```
+
+----------------------------------------
+
+TITLE: Installing Headless UI for Vue.js
+DESCRIPTION: This command installs the `@headlessui/vue` package, which provides unstyled, accessible UI components designed to integrate seamlessly with Vue.js applications. It is a prerequisite for using Headless UI components in your Vue project.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/headless-ui-v1-4/index.mdx#_snippet_9
+
+LANGUAGE: bash
+CODE:
+```
+npm install @headlessui/vue
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS v4.1 with Vite via npm
+DESCRIPTION: This shell command installs the latest versions of `tailwindcss` and `@tailwindcss/vite` using npm. This integration is specifically designed for projects using Vite as their build tool, providing optimized and seamless integration of Tailwind CSS within the Vite development server and build process.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v4-1/index.mdx#_snippet_31
+
+LANGUAGE: Shell
+CODE:
+```
+npm install tailwindcss@latest @tailwindcss/vite@latest
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS v4.1 with CLI via npm
+DESCRIPTION: This shell command installs the latest versions of `tailwindcss` and `@tailwindcss/cli` using npm. This setup is suitable for projects where Tailwind CSS is managed directly via its command-line interface, allowing for standalone compilation and other CLI-specific features.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v4-1/index.mdx#_snippet_30
+
+LANGUAGE: Shell
+CODE:
+```
+npm install tailwindcss@latest @tailwindcss/cli@latest
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS with CLI
+DESCRIPTION: This command installs the latest versions of Tailwind CSS and its command-line interface (CLI) tool using npm. This setup is ideal for projects that use the Tailwind CLI directly for processing CSS.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v4-1/index.mdx#_snippet_0
+
+LANGUAGE: sh
+CODE:
+```
+npm install tailwindcss@latest @tailwindcss/cli@latest
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS Latest Version
+DESCRIPTION: This command installs the latest version of Tailwind CSS as a development dependency using npm. It's the recommended first step for upgrading your project to Tailwind CSS v2.2, ensuring you have access to all the new features and performance enhancements.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-2-2/index.mdx#_snippet_0
+
+LANGUAGE: sh
+CODE:
+```
+npm install -D tailwindcss@latest
+```
+
+----------------------------------------
+
+TITLE: Installing Headless UI Combobox Component
+DESCRIPTION: This snippet provides commands to install the Headless UI Combobox component for both React and Vue projects. It's a minor update to v1.5 with no breaking changes, enabling the use of the new `Combobox` component.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/headless-ui-v1-5/index.mdx#_snippet_2
+
+LANGUAGE: sh
+CODE:
+```
+# For React
+npm install @headlessui/react
+
+# For Vue
+npm install @headlessui/vue
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS v4 Alpha for CLI - npm
+DESCRIPTION: This npm command installs the alpha version of Tailwind CSS and its CLI package, providing the necessary tools for direct command-line compilation of your CSS.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v4-alpha/index.mdx#_snippet_17
+
+LANGUAGE: sh
+CODE:
+```
+npm install tailwindcss@next @tailwindcss/cli@next
+```
+
+----------------------------------------
+
+TITLE: Upgrading Tailwind CSS to Latest Version via npm
+DESCRIPTION: Provides the command-line instruction to upgrade Tailwind CSS to its latest version using npm. This command installs the package as a development dependency, ensuring the project uses the most recent features and bug fixes.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-2-2/index.mdx#_snippet_30
+
+LANGUAGE: bash
+CODE:
+```
+npm install -D tailwindcss@latest
+```
+
+----------------------------------------
+
+TITLE: Update Tailwind CSS to Latest Version
+DESCRIPTION: Provides the command-line instruction to update an existing Tailwind CSS installation to its latest version using npm. This ensures access to the newest features and bug fixes.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v3-3/index.mdx#_snippet_30
+
+LANGUAGE: sh
+CODE:
+```
+npm install -D tailwindcss@latest
+```
+
+----------------------------------------
+
+TITLE: Using Heroicons with React Components
+DESCRIPTION: This snippet demonstrates how to integrate Heroicons into a React component. It shows importing a specific icon (BeakerIcon) from the `@heroicons/react/solid` library and rendering it within a functional component, applying Tailwind CSS utility classes for styling. This requires the `@heroicons/react` package to be installed.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/heroicons-v1/index.mdx#_snippet_0
+
+LANGUAGE: jsx
+CODE:
+```
+import { BeakerIcon } from "@heroicons/react/solid";
+
+function MyComponent() {
+  return (
+    <div>
+      <BeakerIcon className="h-5 w-5 text-blue-500" />
+      <p>...</p>
+    </div>
+  );
+}
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS Standalone CLI (macOS arm64)
+DESCRIPTION: This snippet demonstrates how to download the standalone Tailwind CSS CLI executable for macOS arm64, grant it executable permissions, and rename it for convenient use. This process allows users to get started without Node.js or npm.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/standalone-cli/index.mdx#_snippet_0
+
+LANGUAGE: sh
+CODE:
+```
+# Example for macOS arm64
+curl -sLO https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-macos-arm64
+chmod +x tailwindcss-macos-arm64
+mv tailwindcss-macos-arm64 tailwindcss
+```
+
+----------------------------------------
+
+TITLE: Installing Tailwind CSS v4 Alpha with Vite
+DESCRIPTION: This command installs the alpha version of Tailwind CSS v4 and its new Vite plugin. It's the first step to integrate the new engine into a Vite-based project.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v4-alpha/index.mdx#_snippet_11
+
+LANGUAGE: Shell
+CODE:
+```
+npm install tailwindcss@next @tailwindcss/vite@next
+```
+
+----------------------------------------
+
+TITLE: Upgrading Tailwind CSS to Latest Version (Bash)
+DESCRIPTION: This bash command demonstrates how to upgrade your Tailwind CSS installation to the latest version using npm. Running `npm install tailwindcss@latest` will update the `tailwindcss` package in your project, allowing you to access new features and improvements like those introduced in v2.1. This is a standard procedure for incremental upgrades.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-2-1/index.mdx#_snippet_5
+
+LANGUAGE: bash
+CODE:
+```
+npm install tailwindcss@latest
+```
+
+----------------------------------------
+
+TITLE: Updating Tailwind CSS Dependency via npm
+DESCRIPTION: This shell command provides instructions for updating the Tailwind CSS dependency in a project. Running npm install -D tailwindcss@latest installs the latest version of Tailwind CSS as a development dependency, ensuring users can access new features and improvements like container queries without breaking changes.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v3-2/index.mdx#_snippet_36
+
+LANGUAGE: Shell
+CODE:
+```
+npm install -D tailwindcss@latest
+```
+
+----------------------------------------
+
+TITLE: Upgrading Tailwind CSS to Latest Version (npm)
+DESCRIPTION: This command upgrades the `tailwindcss` package to its latest version using npm. It installs `tailwindcss` as a development dependency, ensuring you have access to the newest features and bug fixes.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v3-2/index.mdx#_snippet_0
+
+LANGUAGE: sh
+CODE:
+```
+npm install -D tailwindcss@latest
+```
+
+----------------------------------------
+
+TITLE: Importing Dependencies for Blog Post in Next.js
+DESCRIPTION: This snippet imports various modules and components required for a blog post page. It includes author data, an Image component for media, a Link component from Next.js for navigation, and local image assets used within the post.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/welcoming-james-mcdonald-to-tailwind-labs/index.mdx#_snippet_0
+
+LANGUAGE: JavaScript
+CODE:
+```
+import { adamwathan } from "@/app/blog/authors";
+import { Image } from "@/components/media";
+import Link from "next/link";
+import card from "./card.jpg";
+import jamesWorkExamples from "./james-work.jpg";
+import tailwindUiExamples from "./tailwindui-work.jpg";
+```
+
+----------------------------------------
+
+TITLE: Configuring Webpack Loader for Post Previews - JavaScript
+DESCRIPTION: This Webpack loader configuration uses `resourceQuery` to process blog post files differently when a `?preview` query is appended to their import path. It extracts a preview excerpt from the source content, either by splitting at `<!--​more​-->` or by removing `<!--​excerpt​-->` tags, optimizing bundle size for homepage previews.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/building-the-tailwind-blog/index.mdx#_snippet_6
+
+LANGUAGE: js
+CODE:
+```
+{
+  resourceQuery: /preview/,
+  use: [
+    ...mdx,
+    createLoader(function (src) {
+      if (src.includes('<!--​more​-->')) {
+        const [preview] = src.split('<!--​more​-->')
+        return this.callback(null, preview)
+      }
+
+      const [preview] = src.split('<!--​/excerpt​-->')
+      return this.callback(null, preview.replace('<!--​excerpt​-->', ''))
+    }),
+  ],
+}
+```
+
+----------------------------------------
+
+TITLE: Configuring MDX Loader for Post Links in Next.js
+DESCRIPTION: This Webpack loader configuration prepends necessary imports and exports (e.g., `Post` component, `getStaticProps` function) to MDX files. This approach ensures consistent post rendering and static props handling, bypassing MDX's direct `getStaticProps` export limitations. It also includes logic for content splitting based on `<!--more-->` and `<!--excerpt-->` markers.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/building-the-tailwind-blog/index.mdx#_snippet_8
+
+LANGUAGE: JavaScript
+CODE:
+```
+{
+  use: [
+    ...mdx,
+    createLoader(function (src) {
+      const content = [
+        'import Post from "@/components/Post"',
+        'export { getStaticProps } from "@/getStaticProps"',
+        src,
+        'export default (props) => <Post meta={meta} {...props} />',
+      ].join('\n')
+
+      if (content.includes('<!--\u200bmore-->')) {
+        return this.callback(null, content.split('<!--\u200bmore-->').join('\n'))
+      }
+
+      return this.callback(null, content.replace(/<!--\u200bexcerpt-->.*<!--\/excerpt-->/s, ''))
+    }),
+  ],
+}
+```
+
+----------------------------------------
+
+TITLE: Importing Dependencies for Heroicons Micro in React
+DESCRIPTION: This snippet imports necessary modules and components for a React application. It includes authors, an image, Heroicons from @heroicons/react/16/solid, Next.js Link, and a custom Image component. These imports set up the environment for defining metadata and rendering UI elements.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/heroicons-micro/index.mdx#_snippet_0
+
+LANGUAGE: javascript
+CODE:
+```
+import { adamwathan } from "@/app/blog/authors";
+import card from "./card.jpg";
+import * as icons from "@heroicons/react/16/solid";
+import Link from "next/link";
+import { Image } from "@/components/media";
+import miniVsMicroDetails from "./mini-vs-micro-details.jpg";
+import miniVsMicroDropdown from "./mini-vs-micro-dropdown.jpg";
+```
+
+----------------------------------------
+
+TITLE: Importing Dependencies for Blog Post Metadata (JavaScript)
+DESCRIPTION: This snippet imports various modules and assets required for a blog post's metadata and content. It includes an author, image assets, and UI components like 'Image' and 'Link' from Next.js and custom paths, setting up the necessary dependencies for the page.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/2022-06-23-tailwind-templates-and-all-access/index.mdx#_snippet_0
+
+LANGUAGE: JavaScript
+CODE:
+```
+import { adamwathan } from "@/app/blog/authors";
+import card from "./card.jpg";
+import allAccess from "./all-access.jpg";
+import codeStructure from "./code-structure.jpg";
+import templates from "./templates.jpg";
+import { Image } from "@/components/media";
+import Link from "next/link";
+```
+
+----------------------------------------
+
+TITLE: Update Shadow, Radius, and Blur Utilities to v4
+DESCRIPTION: Demonstrates how to update `shadow`, `rounded`, and `blur` utilities from their v3 'bare' or `-sm` versions to the new v4 `-xs` or `-sm` equivalents. This ensures consistency with the updated named value scales.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/docs/upgrade-guide.mdx#_snippet_7
+
+LANGUAGE: HTML
+CODE:
+```
+- <input class="shadow-sm" />
++ <input class="shadow-xs" />
+
+- <input class="shadow" />
++ <input class="shadow-sm" />
+```
+
+----------------------------------------
+
+TITLE: Update PostCSS Configuration for Tailwind CSS v4
+DESCRIPTION: Migrate your PostCSS configuration to use the new dedicated `@tailwindcss/postcss` package in v4. In v4, imports and vendor prefixing are handled automatically, allowing you to remove `postcss-import` and `autoprefixer`.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/docs/upgrade-guide.mdx#_snippet_1
+
+LANGUAGE: js
+CODE:
+```
+export default {
+  plugins: {
+    "@tailwindcss/postcss": {}
+  }
+};
+```
+
+----------------------------------------
+
+TITLE: Importing Dependencies for Blog Post Metadata
+DESCRIPTION: This snippet imports various modules and assets required for defining the metadata of a blog post. It includes authors, image assets, and components like `Image` and `Link` from Next.js, which are used within the `meta` object or other parts of the application.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/hiring-a-design-engineer-and-staff-engineer/index.mdx#_snippet_0
+
+LANGUAGE: JavaScript
+CODE:
+```
+import { adamwathan } from "@/app/blog/authors";
+import card from "./card.jpg";
+import { Image } from "@/components/media";
+import Link from "next/link";
+import designEngineer from "./design-engineer.jpg";
+import staffEngineer from "./staff-engineer.jpg";
+```
+
+----------------------------------------
+
+TITLE: Fetching All Post Previews with getStaticProps in Next.js
+DESCRIPTION: This `getStaticProps` function is responsible for fetching all available post previews at build time. It maps the full post data to lightweight objects, extracting only the title and a cleaned link. This optimized data is then passed as props to the page component, enabling efficient client-side determination of next and previous posts.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/building-the-tailwind-blog/index.mdx#_snippet_9
+
+LANGUAGE: JavaScript
+CODE:
+```
+import getAllPostPreviews from "@/getAllPostPreviews";
+
+export async function getStaticProps() {
+  return {
+    props: {
+      posts: getAllPostPreviews().map((post) => ({
+        title: post.module.meta.title,
+        link: post.link.substr(1),
+      })),
+    },
+  };
+}
+```
+
+----------------------------------------
+
+TITLE: Importing Dependencies for Blog Post Metadata
+DESCRIPTION: This snippet imports necessary modules and assets for a blog post, including author data, UI components like `Figure` and `Image`, `Link` from Next.js, and local image assets for the post's metadata. These imports set up the environment for defining the blog post's content and presentation.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/2022-08-17-tailwind-framer-motion-template-and-tailwind-jobs/index.mdx#_snippet_0
+
+LANGUAGE: TypeScript
+CODE:
+```
+import { adamwathan } from "@/app/blog/authors";
+import { Figure } from "@/components/figure.tsx";
+import { Image } from "@/components/media";
+import Link from "next/link";
+
+import tailwindJobs from "./tailwind-jobs.jpg";
+import card from "./card.jpg";
+import pocketPreview from "./pocket-preview.png";
+```
+
+----------------------------------------
+
+TITLE: Importing Tailwind CSS in Main CSS File
+DESCRIPTION: This CSS snippet imports the Tailwind CSS framework into your main stylesheet. It's a crucial step to make Tailwind's utilities available for use in your project after installation and configuration.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v4-alpha/index.mdx#_snippet_13
+
+LANGUAGE: CSS
+CODE:
+```
+@import "tailwindcss";
+```
+
+----------------------------------------
+
+TITLE: Importing Dependencies for Radiant Template
+DESCRIPTION: This snippet imports necessary modules and assets for the Radiant marketing site template. It includes authors, various image assets (like twitterCard, template, savvycalRadiant, sanityStudio, blog), and media components (Image, Video) from internal application paths.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/2024-09-12-radiant-a-beautiful-new-marketing-site-template/index.mdx#_snippet_0
+
+LANGUAGE: JavaScript
+CODE:
+```
+import { danhollick } from "@/app/blog/authors";
+import twitterCard from "./twitter-card.png";
+import template from "./template.png";
+import { Image, Video } from "@/components/media";
+import savvycalRadiant from "./savvycal-radiant.jpg";
+import sanityStudio from "./sanity-studio.png";
+import blog from "./blog.png";
+```
+
+----------------------------------------
+
+TITLE: Importing Dependencies for Blog Post Metadata (JavaScript)
+DESCRIPTION: This snippet imports necessary modules and assets for defining blog post metadata. It includes an author object, an image, media components (Image, Video), and a Next.js Link component, which are used to structure the 'meta' export for the blog post.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/introducing-linting-for-tailwindcss-intellisense/index.mdx#_snippet_0
+
+LANGUAGE: JavaScript
+CODE:
+```
+import { bradlc } from "@/app/blog/authors";
+import image from "./card.jpg";
+import { Image, Video } from "@/components/media";
+import Link from "next/link";
+```
+
+----------------------------------------
+
+TITLE: Importing Dependencies for Blog Post Metadata - JavaScript
+DESCRIPTION: This snippet imports necessary modules and assets for defining the blog post's metadata. It includes an author object, an image, a media component, and a Next.js Link component, which are prerequisites for structuring the blog post's front matter.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/welcoming-brad-cornes-to-the-tailwind-team/index.mdx#_snippet_0
+
+LANGUAGE: JavaScript
+CODE:
+```
+import { adamwathan } from "@/app/blog/authors";
+import card from "./card.jpg";
+import { Image } from "@/components/media";
+import Link from "next/link";
+import image from "../introducing-linting-for-tailwindcss-intellisense/card.jpg";
+```
+
+----------------------------------------
+
+TITLE: Run Tailwind CSS Upgrade Tool
+DESCRIPTION: Use the official upgrade tool to automate the migration process from Tailwind CSS v3 to v4. This tool handles dependencies, configuration file migration, and template file changes. Requires Node.js 20 or higher.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/docs/upgrade-guide.mdx#_snippet_0
+
+LANGUAGE: sh
+CODE:
+```
+$ npx @tailwindcss/upgrade
+```
+
+----------------------------------------
+
+TITLE: Upgrading Tailwind CSS using npm (Bash)
+DESCRIPTION: This command provides the instructions for upgrading Tailwind CSS to version 1.9 using npm. As v1.9 is a non-breaking minor release, this command simplifies the update process for projects managed with npm.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-1-9/index.mdx#_snippet_7
+
+LANGUAGE: Bash
+CODE:
+```
+# npm
+npm install tailwindcss@^1.9
+```
+
+----------------------------------------
+
+TITLE: Adjust Ring Utility Width in Tailwind CSS v4
+DESCRIPTION: Explains how to update the `ring` utility from its v3 default `3px` width to the v4 `1px` default. To retain the v3 behavior, users must now explicitly use `ring-3`.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/docs/upgrade-guide.mdx#_snippet_10
+
+LANGUAGE: HTML
+CODE:
+```
+- <input class="ring ring-blue-500" />
++ <input class="ring-3 ring-blue-500" />
+```
+
+----------------------------------------
+
+TITLE: Updating Tailwind CSS to Latest Version (Shell)
+DESCRIPTION: This command line snippet shows how to update the Tailwind CSS package to its latest stable version using npm, the Node.js package manager. This ensures access to the newest features and bug fixes without breaking changes for minor version updates.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v3-1/index.mdx#_snippet_27
+
+LANGUAGE: Shell
+CODE:
+```
+npm install tailwindcss@latest
+```
+
+----------------------------------------
+
+TITLE: Configure Vite for Tailwind CSS v4
+DESCRIPTION: If you're using Vite, migrate from the PostCSS plugin to the new dedicated `@tailwindcss/vite` plugin for improved performance and developer experience.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/docs/upgrade-guide.mdx#_snippet_2
+
+LANGUAGE: ts
+CODE:
+```
+import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
+
+export default defineConfig({
+  plugins: [
+    tailwindcss()
+  ]
+});
+```
+
+----------------------------------------
+
+TITLE: Importing Dependencies and Assets in Next.js
+DESCRIPTION: This snippet demonstrates how to import various modules, components, and image assets in a Next.js application. It includes imports for authors, social media cards, Next.js Link component, a custom Image component, and multiple image assets related to Tailwind UI templates.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/2023-04-24-new-changelog-template-and-the-biggest-tailwind-ui-update-ever/index.mdx#_snippet_0
+
+LANGUAGE: JavaScript
+CODE:
+```
+import { adamwathan } from "@/app/blog/authors";
+import twitterCard from "./twitter-card.png";
+import Link from "next/link";
+import { Image } from "@/components/media";
+import commitTemplate from "./commit-template.png";
+import commitTemplateDarkMode from "./commit-template-dark-mode.png";
+import commitTemplateForMotionOne from "./commit-template-for-motion-one.png";
+import tailwindUiRefresh from "./tailwind-ui-refresh.png";
+import tailwindUiRedesignedComponents from "./tailwind-ui-redesigned-components.png";
+import tailwindUiSubtleImprovements from "./tailwind-ui-subtle-improvements.png";
+import tailwindUiNewComponents from "./tailwind-ui-new-components.png";
+import tailwindUiNewPageExamples from "./tailwind-ui-new-page-examples.png";
+import tailwindUiDarkComponents from "./tailwind-ui-dark-components.png";
+```
+
+----------------------------------------
+
+TITLE: Importing Module Dependencies in JavaScript
+DESCRIPTION: This JavaScript snippet demonstrates importing various modules and assets, including author data, image files, and components from 'next/link' and a custom 'media' library. These imports are essential for setting up the page's content and metadata.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwind-ui-ecommerce/index.mdx#_snippet_0
+
+LANGUAGE: JavaScript
+CODE:
+```
+import { adamwathan } from "@/app/blog/authors";
+import card from "./card.jpg";
+import productPagePreview from "./product-page-preview.jpg";
+import Link from "next/link";
+import { Image } from "@/components/media";
+```
+
+----------------------------------------
+
+TITLE: JavaScript for Three-Way Theme Toggling (Light, Dark, System)
+DESCRIPTION: This JavaScript snippet provides logic for a three-way theme toggle, supporting light, dark, and system-preferred modes. It checks `localStorage` for a saved theme preference and falls back to `window.matchMedia` for system preference if no explicit theme is set. It then applies or removes the `dark` class on the `<html>` element, and includes examples for explicitly setting light, dark, or system themes via `localStorage`.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/docs/dark-mode.mdx#_snippet_5
+
+LANGUAGE: javascript
+CODE:
+```
+document.documentElement.classList.toggle(
+  "dark",
+  localStorage.theme === "dark" ||
+    (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)
+);
+
+// Whenever the user explicitly chooses light mode
+localStorage.theme = "light";
+
+// Whenever the user explicitly chooses dark mode
+localStorage.theme = "dark";
+
+// Whenever the user explicitly chooses to respect the OS preference
+localStorage.removeItem("theme");
+```
+
+----------------------------------------
+
+TITLE: Configuring PostCSS for Tailwind CSS v4.0 - JavaScript
+DESCRIPTION: This JavaScript snippet for `postcss.config.js` demonstrates the simplified configuration for Tailwind CSS v4.0. It shows that the `postcss-import` plugin is no longer needed, as Tailwind CSS now provides built-in `@import` support, streamlining the PostCSS setup.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v4/index.mdx#_snippet_10
+
+LANGUAGE: JavaScript
+CODE:
+```
+export default {
+  plugins: [
+    "@tailwindcss/postcss"
+  ]
+};
+```
+
+----------------------------------------
+
+TITLE: Defining Blog Post Metadata in JavaScript/TypeScript
+DESCRIPTION: This snippet defines the metadata for a blog post, including its title, description, publication date, authors, image, and an excerpt. It's used to provide structured information about the content for display and SEO purposes within a Next.js application.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/2022-09-09-new-personal-website-heroicons-2-headless-ui-v17/index.mdx#_snippet_0
+
+LANGUAGE: javascript
+CODE:
+```
+export const meta = {
+  title: "We built you a new personal website + Heroicons v2.0, Headless UI v1.7, and more",
+  description: `We just released a stunning new personal website template for Tailwind UI, redesigned Heroicons from scratch, tagged a new version of Headless UI with some exciting new features, and more.`,
+  date: "2022-09-09T16:24:00.000Z",
+  authors: [adamwathan],
+  image: card,
+  excerpt: (
+    <>
+      We just released a stunning new personal website template for Tailwind UI, redesigned Heroicons from scratch,
+      tagged a new version of Headless UI with some exciting new features, and more.
+    </>
+  ),
+};
+```
+
+----------------------------------------
+
+TITLE: Creating Message: cURL Request
+DESCRIPTION: This cURL command demonstrates how to publish a new message to a specific conversation via a POST request to /v1/messages. It requires an Authorization bearer token, conversation_id, and message content as form data.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/2022-12-15-protocol-api-documentation-template/index.mdx#_snippet_0
+
+LANGUAGE: bash
+CODE:
+```
+curl https://api.protocol.chat/v1/messages \
+  -H "Authorization: Bearer {token}" \
+  -d conversation_id="xgQQXg3hrtjh7AvZ" \
+  -d message="You're what the French call 'les incompetents.'"
+```
+
+----------------------------------------
+
+TITLE: Markdown Image Placeholder for Dynamic Dark Mode
+DESCRIPTION: This Markdown example demonstrates a custom approach to serving different images based on the user's color scheme. By embedding {scheme} as a placeholder in the image URL, the system can automatically load either a 'light' or 'dark' version of the image, maintaining content consistency across themes.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/2025-05-14-compass-course-starter-kit/index.mdx#_snippet_3
+
+LANGUAGE: md
+CODE:
+```
+## The Myth of Free Will
+
+![Neurological Proof](mdc:img/neuro-proof.{scheme}.png) <!-- [!code highlight:1] -->
+
+Your brain makes decisions before you are even aware of them.
+```
+
+----------------------------------------
+
+TITLE: Importing Dependencies in Next.js
+DESCRIPTION: This snippet imports necessary components and assets for a Next.js page, including a custom YouTube video component, the Next.js Link component for navigation, author data, and an image asset. These imports are crucial for the page's functionality and content display.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-from-zero-to-production/index.mdx#_snippet_0
+
+LANGUAGE: JavaScript
+CODE:
+```
+import { YouTubeVideo } from "@/components/media";
+import Link from "next/link";
+
+import { simonswiss } from "@/app/blog/authors";
+import card from "./card.jpg";
+```
+
+----------------------------------------
+
+TITLE: Updating Tailwind CSS to Latest Version via npm
+DESCRIPTION: This Bash command updates the Tailwind CSS package to its latest stable version using npm. It is a prerequisite for accessing new features and improvements introduced in recent releases, such as the `forced-color-adjust` utilities in v3.4.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v3-4/index.mdx#_snippet_16
+
+LANGUAGE: Bash
+CODE:
+```
+$ npm install tailwindcss@latest
+```
+
+----------------------------------------
+
+TITLE: Starting from Scratch by Importing Specific Tailwind Layers
+DESCRIPTION: This snippet demonstrates how to bypass the default Tailwind theme by importing tailwindcss/preflight and tailwindcss/utilities directly, rather than the full tailwindcss import. This approach is useful when a project requires a completely custom theme without any default values, often combined with clearing variables using --color-*: initial.
+SOURCE: https://github.com/tailwindlabs/tailwindcss.com/blob/main/src/blog/tailwindcss-v4-alpha/index.mdx#_snippet_7
+
+LANGUAGE: css
+CODE:
+```
+/* [!code filename:main.css] */
+@import "tailwindcss"; /* [!code --] */
+@import "tailwindcss/preflight" layer(base); /* [!code ++] */
+@import "tailwindcss/utilities" layer(utilities); /* [!code ++] */
+
+@theme {
+  --color-*: initial; /* [!code --] */
+  --color-gray-50: #f8fafc;
+  --color-gray-100: #f1f5f9;
+  --color-gray-200: #e2e8f0;
+  /* ... */
+  --color-green-800: #3f6212;
+  --color-green-900: #365314;
+  --color-green-950: #1a2e05;
+}
+
+```

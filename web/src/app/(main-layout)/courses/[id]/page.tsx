@@ -4,10 +4,15 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { coursesApi, topicsApi, lessonsApi } from "@/lib/api";
-import { Course } from "@/lib/api/courses";
-import { Topic } from "@/lib/api/types";
-import { Lesson } from "@/lib/api/topics";
+import { UserCourseDetail } from "@/lib/api/courses";
+import { Topic } from "@/lib/api/topics";
+import { Lesson } from "@/lib/api/types";
 import Link from "next/link";
+import { useAppDispatch, useAppSelector } from "@/lib/store";
+import { addModal } from "@/lib/store/modalStore";
+import { reloadUser } from "@/lib/store/userStore";
+import { v4 as uuidv4 } from "uuid";
+import { useQuery } from "@tanstack/react-query";
 
 /**
  * Component hiển thị chi tiết khóa học
@@ -15,68 +20,69 @@ import Link from "next/link";
 export default function CourseDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const courseId = Number(params.id);
+  const userState = useAppSelector((state) => state.user);
 
-  const [course, setCourse] = useState<Course | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "content" | "reviews"
-  >("overview");
+  const [course, setCourse] = useState<UserCourseDetail | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "content" | "reviews">("overview");
   const [topics, setTopics] = useState<Topic[]>([]);
   const [topicsLoading, setTopicsLoading] = useState<boolean>(true);
   const [topicsError, setTopicsError] = useState<string | null>(null);
-  const [topicLessons, setTopicLessons] = useState<Record<number, Lesson[]>>(
-    {}
-  );
+  const [topicLessons, setTopicLessons] = useState<Record<number, Lesson[]>>({});
+  const [isUnregistering, setIsUnregistering] = useState<boolean>(false);
+  const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
+  const [isRegistering, setIsRegistering] = useState<boolean>(false);
 
+  // Fetch course data with React Query v5 syntax
+  const { data: courseData, isLoading, error } = useQuery({
+    queryKey: ["course", courseId],
+    queryFn: () => coursesApi.getCourseById(courseId),
+    enabled: !!courseId,
+  });
+
+  // Update course state when data changes
   useEffect(() => {
-    const fetchCourseDetails = async () => {
-      try {
-        setIsLoading(true);
-        const data = await coursesApi.getCourseById(courseId);
-        setCourse(data);
-      } catch {
-        console.error("Lỗi khi tải thông tin khóa học:");
-        setError("Không thể tải thông tin khóa học. Vui lòng thử lại sau.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    if (courseData) {
+      setCourse(courseData);
+      setIsEnrolled(!!courseData.isEnrolled);
+    }
+  }, [courseData]);
 
-    const fetchTopics = async () => {
-      try {
-        setTopicsLoading(true);
-        setTopicsError(null);
-        // Get all topics for this course
-        const topicsList = await topicsApi.getTopicsByCourse(courseId);
-        setTopics(topicsList);
+  // Fetch topics and lessons
+  const fetchTopics = async () => {
+    try {
+      setTopicsLoading(true);
+      setTopicsError(null);
 
-        // Fetch lessons for each topic
-        const lessonsMap: Record<number, Lesson[]> = {};
-        for (const topic of topicsList) {
-          try {
-            const lessons = await lessonsApi.getLessonsByTopic(topic.id);
-            lessonsMap[topic.id] = lessons;
-          } catch {
-            lessonsMap[topic.id] = [];
-          }
+      // Get all topics for this course
+      const topicsList = await topicsApi.getTopicsByCourse(courseId);
+      setTopics(topicsList);
+
+      // Fetch lessons for each topic
+      const lessonsMap: Record<number, Lesson[]> = {};
+      for (const topic of topicsList) {
+        try {
+          const lessons = await lessonsApi.getLessonsByTopic(topic.id);
+          lessonsMap[topic.id] = lessons;
+        } catch {
+          lessonsMap[topic.id] = [];
         }
-        setTopicLessons(lessonsMap);
-
-        console.log("Topics:", topicsList);
-        console.log("Lessons map:", lessonsMap);
-      } catch {
-        setTopicsError(
-          "Không thể tải nội dung khóa học. Vui lòng thử lại sau."
-        );
-      } finally {
-        setTopicsLoading(false);
       }
-    };
+      setTopicLessons(lessonsMap);
 
+      console.log("Topics:", topicsList);
+      console.log("Lessons map:", lessonsMap);
+    } catch {
+      setTopicsError("Không thể tải nội dung khóa học. Vui lòng thử lại sau.");
+    } finally {
+      setTopicsLoading(false);
+    }
+  };
+
+  // Fetch topics when courseId changes
+  useEffect(() => {
     if (courseId) {
-      fetchCourseDetails();
       fetchTopics();
     }
   }, [courseId]);
@@ -85,9 +91,7 @@ export default function CourseDetailPage() {
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return `${hours > 0 ? `${hours} giờ ` : ""}${
-      mins > 0 ? `${mins} phút` : ""
-    }`;
+    return `${hours > 0 ? `${hours} giờ ` : ""}${mins > 0 ? `${mins} phút` : ""}`;
   };
 
   // Tạo mảng từ chuỗi phân cách bằng dấu phẩy
@@ -106,6 +110,144 @@ export default function CourseDetailPage() {
     }
   };
 
+  // Xử lý đăng ký khóa học
+  const handleRegisterCourse = () => {
+    if (!userState.user) {
+      // Nếu chưa đăng nhập, chuyển hướng đến trang đăng nhập với returnUrl
+      const returnUrl = `/courses/${courseId}`;
+      router.push(`/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+      return;
+    }
+
+    // Hiển thị modal xác nhận đăng ký
+    dispatch(addModal({
+      id: uuidv4(),
+      title: "Xác nhận đăng ký khóa học",
+      description: (
+        <div>
+          <p>Bạn có chắc chắn muốn đăng ký khóa học <strong>{course?.title}</strong>?</p>
+          {course?.price && course.price > 0 ? (
+            <p className="mt-2">Giá: <strong>{course.price.toLocaleString('vi-VN')}₫</strong></p>
+          ) : (
+            <p className="mt-2">Khóa học này <strong>miễn phí</strong>.</p>
+          )}
+        </div>
+      ),
+      onConfirm: () => confirmEnrollCourse(),
+      onCancel: () => { },
+    }));
+  };
+
+  // Xác nhận đăng ký khóa học
+  const confirmEnrollCourse = async () => {
+    try {
+      setIsRegistering(true);
+      const response = await coursesApi.enrollCourse(courseId);
+
+      // Cập nhật trạng thái đăng ký
+      setIsEnrolled(true);
+
+      // Reload course data để có topics mới
+      const updatedCourse = await coursesApi.getCourseById(courseId);
+      setCourse(updatedCourse);
+
+      // Đặt lại isInitial thành true để load lại thông tin người dùng
+      dispatch(reloadUser());
+
+      // Kiểm tra xem có test đầu vào từ response
+      if (response.hasEntryTest && response.entryTestId) {
+        dispatch(addModal({
+          id: uuidv4(),
+          title: "Đăng ký thành công",
+          description: "Bạn sẽ được chuyển đến bài kiểm tra đầu vào để đánh giá trình độ.",
+          onConfirm: () => handleStartEntranceTest(),
+          onCancel: () => { },
+          confirmText: "Bắt đầu kiểm tra",
+        }));
+      } else {
+        // Hiển thị thông báo đăng ký thành công
+        dispatch(addModal({
+          id: uuidv4(),
+          title: "Đăng ký thành công",
+          description: "Bạn đã đăng ký khóa học thành công!",
+          onConfirm: () => { },
+          onCancel: () => { },
+        }));
+      }
+    } catch (err) {
+      console.error("Lỗi khi đăng ký khóa học:", err);
+      // Hiển thị thông báo lỗi
+      dispatch(addModal({
+        id: uuidv4(),
+        title: "Đăng ký thất bại",
+        description: "Có lỗi xảy ra khi đăng ký khóa học. Vui lòng thử lại sau.",
+        onConfirm: () => { },
+        onCancel: () => { },
+      }));
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  // Xử lý bắt đầu làm bài kiểm tra đầu vào  
+  const handleStartEntranceTest = async () => {
+    try {
+      if (!userState.user) {
+        // Nếu không có thông tin người dùng, chuyển hướng đến trang đăng nhập
+        router.push(`/auth/login?returnUrl=${encodeURIComponent(`/courses/${courseId}`)}`);
+        return;
+      }
+
+      // Chuyển đến trang xác nhận trước khi bắt đầu test
+      router.push(`/tests/entry/${courseId}`);
+    } catch (error: any) {
+      console.error("Lỗi khi chuyển hướng:", error);
+    }
+  };
+
+  // Xử lý hủy đăng ký khóa học
+  const handleUnregisterCourse = async () => {
+    try {
+      setIsUnregistering(true);
+      const response = await coursesApi.unregisterCourse(courseId);
+
+      if (response.success) {
+        // Cập nhật trạng thái đăng ký
+        setIsEnrolled(false);
+
+        // Hiển thị thông báo hủy đăng ký thành công
+        dispatch(addModal({
+          id: uuidv4(),
+          title: "Hủy đăng ký thành công",
+          description: "Bạn đã hủy đăng ký khóa học thành công!",
+          onConfirm: () => { },
+          onCancel: () => { },
+        }));
+      } else {
+        // Hiển thị thông báo lỗi
+        dispatch(addModal({
+          id: uuidv4(),
+          title: "Hủy đăng ký thất bại",
+          description: response.message || "Có lỗi xảy ra khi hủy đăng ký khóa học. Vui lòng thử lại sau.",
+          onConfirm: () => { },
+          onCancel: () => { },
+        }));
+      }
+    } catch (err) {
+      console.error("Lỗi khi hủy đăng ký khóa học:", err);
+      // Hiển thị thông báo lỗi
+      dispatch(addModal({
+        id: uuidv4(),
+        title: "Hủy đăng ký thất bại",
+        description: "Có lỗi xảy ra khi hủy đăng ký khóa học. Vui lòng thử lại sau.",
+        onConfirm: () => { },
+        onCancel: () => { },
+      }));
+    } finally {
+      setIsUnregistering(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="py-16 px-4 max-w-6xl mx-auto">
@@ -121,7 +263,7 @@ export default function CourseDetailPage() {
       <div className="py-16 px-4 max-w-6xl mx-auto text-center">
         <div className="bg-foreground/5 rounded-xl p-10">
           <h1 className="text-2xl font-bold mb-4 text-accent">
-            {error || "Không tìm thấy khóa học"}
+            {error?.message || "Không tìm thấy khóa học"}
           </h1>
           <p className="mb-6 text-foreground/70">
             Khóa học bạn đang tìm kiếm không tồn tại hoặc đã bị xóa.
@@ -205,11 +347,32 @@ export default function CourseDetailPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <button className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium">
-                  {course.price > 0
-                    ? `Đăng ký - ${course.price.toLocaleString("vi-VN")}₫`
-                    : "Đăng ký miễn phí"}
-                </button>
+                {isEnrolled ? (
+                  <>
+                    <Link
+                      href={`/topics/${courseId}`}
+                      className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium text-center">
+                      Tiếp tục học
+                    </Link>
+                    <button
+                      onClick={handleUnregisterCourse}
+                      disabled={isUnregistering}
+                      className="px-8 py-3 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive/20 transition font-medium disabled:opacity-70 disabled:cursor-not-allowed">
+                      {isUnregistering ? "Đang xử lý..." : "Hủy đăng ký"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleRegisterCourse}
+                    disabled={isRegistering}
+                    className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium disabled:opacity-70 disabled:cursor-not-allowed">
+                    {isRegistering
+                      ? "Đang xử lý..."
+                      : course.price > 0
+                        ? `Đăng ký - ${course.price.toLocaleString("vi-VN")}₫`
+                        : "Đăng ký miễn phí"}
+                  </button>
+                )}
                 <button
                   onClick={() => setActiveTab("content")}
                   className="px-8 py-3 border border-foreground/20 rounded-lg hover:bg-foreground/5 transition font-medium">
@@ -244,29 +407,26 @@ export default function CourseDetailPage() {
           <div className="flex flex-wrap -mb-px">
             <button
               onClick={() => setActiveTab("overview")}
-              className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "overview"
-                  ? "border-primary text-primary"
-                  : "border-transparent hover:text-primary/80 hover:border-foreground/20"
-              }`}>
+              className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "overview"
+                ? "border-primary text-primary"
+                : "border-transparent hover:text-primary/80 hover:border-foreground/20"
+                }`}>
               Tổng quan
             </button>
             <button
               onClick={() => setActiveTab("content")}
-              className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "content"
-                  ? "border-primary text-primary"
-                  : "border-transparent hover:text-primary/80 hover:border-foreground/20"
-              }`}>
+              className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "content"
+                ? "border-primary text-primary"
+                : "border-transparent hover:text-primary/80 hover:border-foreground/20"
+                }`}>
               Nội dung khóa học
             </button>
             <button
               onClick={() => setActiveTab("reviews")}
-              className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "reviews"
-                  ? "border-primary text-primary"
-                  : "border-transparent hover:text-primary/80 hover:border-foreground/20"
-              }`}>
+              className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${activeTab === "reviews"
+                ? "border-primary text-primary"
+                : "border-transparent hover:text-primary/80 hover:border-foreground/20"
+                }`}>
               Đánh giá
             </button>
           </div>
@@ -387,103 +547,111 @@ export default function CourseDetailPage() {
           {activeTab === "content" && (
             <div>
               <h2 className="text-2xl font-bold mb-6">Nội dung khóa học</h2>
-              {topicsLoading ? (
-                <div className="text-center py-10 text-foreground/70">
-                  Đang tải nội dung...
-                </div>
-              ) : topicsError ? (
-                <div className="text-center py-10 text-accent">
-                  {topicsError}
-                </div>
-              ) : topics.length === 0 ? (
-                <div className="text-center py-10 text-foreground/70">
-                  Chưa có chủ đề nào cho khóa học này.
+
+              {!isEnrolled ? (
+                <div className="p-6 bg-foreground/5 rounded-xl text-center">
+                  <h3 className="text-lg font-medium mb-2">Đăng ký để xem nội dung</h3>
+                  <p className="text-foreground/70 mb-4">
+                    Bạn cần đăng ký khóa học để có thể xem chi tiết nội dung và bài học.
+                  </p>
+                  <button
+                    onClick={handleRegisterCourse}
+                    disabled={isRegistering}
+                    className="px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition disabled:opacity-50">
+                    {isRegistering ? "Đang đăng ký..." : "Đăng ký ngay"}
+                  </button>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {topics.map((topic) => {
-                    return (
-                      <details
-                        key={topic.id}
-                        className="group bg-foreground/5 rounded-xl overflow-hidden"
-                        open={topic.id === 1}>
-                        <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-foreground/10">
-                          <div>
-                            <h3 className="font-medium">{topic.name}</h3>
-                            <p className="text-sm text-foreground/70 mt-1">
-                              {topic.description}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-sm text-foreground/70">
-                              {topicLessons[topic.id]?.length || 0} bài học
+                <div>
+                  {topicsLoading ? (
+                    <div className="text-center py-10 text-foreground/70">
+                      Đang tải nội dung...
+                    </div>
+                  ) : topicsError ? (
+                    <div className="text-center py-10 text-accent">
+                      {topicsError}
+                    </div>
+                  ) : topics.length === 0 ? (
+                    <div className="text-center py-10 text-foreground/70">
+                      Chưa có chủ đề nào cho khóa học này.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {topics.map((topic) => (
+                        <details
+                          key={topic.id}
+                          className="group bg-foreground/5 rounded-xl overflow-hidden"
+                          open={topic.id === topics[0]?.id}>
+                          <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-foreground/10">
+                            <div>
+                              <h3 className="font-medium">
+                                Chủ đề {topic.id}: {topic.name}
+                              </h3>
+                              <p className="text-sm text-foreground/70 mt-1">
+                                {topic.description}
+                              </p>
                             </div>
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-5 w-5 transform transition-transform group-open:rotate-180"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 9l-7 7-7-7"
-                              />
-                            </svg>
-                          </div>
-                        </summary>
-                        <div className="border-t border-foreground/10">
-                          {topicLessons[topic.id]?.map((lesson) => (
-                            <div
-                              key={lesson.id}
-                              className="flex items-center gap-4 p-4 hover:bg-foreground/5">
+                            <div className="flex items-center gap-4">
+                              <div className="text-sm text-foreground/70">
+                                {topicLessons[topic.id]?.length || 0} bài học
+                              </div>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5 transform transition-transform group-open:rotate-180"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 9l-7 7-7-7"
+                                />
+                              </svg>
+                            </div>
+                          </summary>
+                          <div className="border-t border-foreground/10">
+                            {topicLessons[topic.id]?.map((lesson) => (
                               <div
-                                className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center bg-green-500/10 text-green-500`}>
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  className="h-5 w-5"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor">
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                  />
-                                </svg>
-                              </div>
-                              <div className="flex-grow">
-                                <div className="flex items-center gap-2">
-                                  <h4 className="font-medium">
-                                    {lesson.title}
-                                  </h4>
+                                key={lesson.id}
+                                className="flex items-center gap-4 p-4 hover:bg-foreground/5">
+                                <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center bg-blue-500/10 text-blue-500">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-5 w-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                    />
+                                  </svg>
                                 </div>
-                                <p className="text-sm text-foreground/70 mt-1">
-                                  {lesson.description}
-                                </p>
+                                <div className="flex-grow">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-medium">{lesson.title}</h4>
+                                  </div>
+                                  <p className="text-sm text-foreground/70 mt-1">
+                                    {lesson.description}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                  <Link
+                                    href={`/topics/${topic.id}/lessons/${lesson.externalId || lesson.id}`}
+                                    className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
+                                    Học ngay
+                                  </Link>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-3 flex-shrink-0">
-                                <span className="text-sm text-foreground/70">
-                                  {lesson.sections &&
-                                  lesson.sections.length > 0 &&
-                                  lesson.sections[0].order
-                                    ? `${lesson.sections[0].order} phút`
-                                    : ""}
-                                </span>
-                                <Link
-                                  href={`/lessons/${lesson.id}`}
-                                  className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
-                                  Xem ngay
-                                </Link>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </details>
-                    );
-                  })}
+                            ))}
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
