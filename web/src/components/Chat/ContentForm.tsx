@@ -99,10 +99,14 @@ export function ContentForm({
           if (res && res.length > 0 && !selectedTopicId) {
             setSelectedTopicId(res[0].id);
           }
+          // Auto-set topic order to topics.length + 1
+          if (contentType === "topic") {
+            updateTopicData("order", (res?.length || 0) + 1);
+          }
         });
     }
     // eslint-disable-next-line
-  }, [selectedCourseId]);
+  }, [selectedCourseId, contentType]);
 
   // Fetch lessons when selectedTopicId changes
   useEffect(() => {
@@ -114,10 +118,14 @@ export function ContentForm({
           if (res && res.length > 0 && !formData.exercise.lessonId) {
             updateExerciseData("lessonId", res[0].id);
           }
+          // Auto-set lesson order to lessons.length + 1
+          if (contentType === "lesson") {
+            updateLessonData("order", (res?.length || 0) + 1);
+          }
         });
     }
     // eslint-disable-next-line
-  }, [selectedTopicId]);
+  }, [selectedTopicId, contentType]);
 
   // Auto-generate sessionId when lesson changes or on mount
   useEffect(() => {
@@ -166,11 +174,10 @@ export function ContentForm({
           />
           <NumberInput
             label="Order"
-            placeholder="Enter order"
+            placeholder="Order will be set automatically"
             value={formData.topic.order}
-            onChange={(value) =>
-              updateTopicData("order", typeof value === "number" ? value : 1)
-            }
+            readOnly
+            disabled
             required
           />
           <TextInput
@@ -228,16 +235,16 @@ export function ContentForm({
             onChange={(value) => {
               const id = value ? parseInt(value) : 0;
               updateLessonData("topicId", id);
+              setSelectedTopicId(id);
             }}
             required
           />
           <NumberInput
             label="Order"
-            placeholder="Enter order"
+            placeholder="Order will be set automatically"
             value={formData.lesson.order}
-            onChange={(value) =>
-              updateLessonData("order", typeof value === "number" ? value : 1)
-            }
+            readOnly
+            disabled
             required
           />
           <TextInput
