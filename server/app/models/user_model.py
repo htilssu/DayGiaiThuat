@@ -9,6 +9,8 @@ if TYPE_CHECKING:
     from app.models.lesson_model import UserLesson
     from app.models.user_state_model import UserState
     from app.models.test_session import TestSession
+    from app.models.discussion_model import Discussion
+    from app.models.reply_model import Reply
 
 
 class User(Base):
@@ -38,4 +40,10 @@ class User(Base):
     state: Mapped["UserState"] = relationship(back_populates="user")
     test_sessions: Mapped[List["TestSession"]] = relationship(
         "TestSession", back_populates="user"
+    )
+    discussions: Mapped[List["Discussion"]] = relationship(
+        "Discussion", back_populates="user"
+    )
+    replies: Mapped[List["Reply"]] = relationship(
+        "Reply", back_populates="user"
     )

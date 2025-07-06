@@ -20,6 +20,8 @@ def register_router(app: FastAPI):
         admin_upload_router,
         test_generation_router,
         assessment_router,
+        discussions_router,
+        replies_router,
     )
 
     # User routes (không có prefix admin)
@@ -33,6 +35,8 @@ def register_router(app: FastAPI):
     app.include_router(topic_router.router)
     app.include_router(upload_router.router)
     app.include_router(assessment_router.router)
+    app.include_router(discussions_router.router)
+    app.include_router(replies_router.router)
 
     # Admin routes (có prefix /admin)
     app.include_router(admin_courses_router.router)
