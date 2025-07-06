@@ -1,15 +1,17 @@
-from typing import List, Dict
+from typing import List, Dict, Optional, Any
 from datetime import datetime
 import os
 import shutil
 from pathlib import Path
 import httpx
 import logging
+import json
+from sqlalchemy import select
 
 from app.core.agents.components.document_store import get_vector_store
-from app.services.document_ai_service import get_document_ai_service
 from app.core.config import settings
-
+from app.database.database import get_db
+from app.models.document_processing_job_model import DocumentProcessingJob
 from app.schemas.document_schema import DocumentStatus
 
 logger = logging.getLogger(__name__)
@@ -21,8 +23,186 @@ class DocumentService:
         # Initialize embeddings for semantic chunking
         from app.core.agents.components.embedding_model import get_embedding_model
 
-        self.document_ai_service = get_document_ai_service()
         self.embeddings = get_embedding_model()
+
+    async def create_document_processing_job(
+        self,
+        document_id: str,
+        job_id: str,
+        filename: str,
+        document_url: str,
+        course_id: Optional[int] = None,
+    ) -> DocumentProcessingJob:
+        """
+        Tạo record DocumentProcessingJob trong database
+        """
+        db = next(get_db())
+        try:
+            job = DocumentProcessingJob(
+                id=document_id,
+                job_id=job_id,
+                filename=filename,
+                document_url=document_url,
+                course_id=course_id,
+                status="IN_QUEUE",
+            )
+            db.add(job)
+            db.commit()
+            db.refresh(job)
+            return job
+        except Exception as e:
+            db.rollback()
+            raise Exception(f"Failed to create document processing job: {str(e)}")
+        finally:
+            db.close()
+
+    async def update_job_status(
+        self,
+        job_id: str,
+        status: str,
+        result: Optional[Dict[str, Any]] = None,
+        error_message: Optional[str] = None,
+    ) -> Optional[DocumentProcessingJob]:
+        """
+        Cập nhật trạng thái job từ webhook
+        """
+        db = next(get_db())
+        try:
+            job = db.execute(
+                select(DocumentProcessingJob).where(
+                    DocumentProcessingJob.job_id == job_id
+                )
+            ).scalar_one_or_none()
+
+            if not job:
+                return None
+
+            job.status = status
+            if result:
+                job.result = json.dumps(result)
+            if error_message:
+                job.error_message = error_message
+            if status == "COMPLETED":
+                job.processed_at = datetime.utcnow()
+
+            db.commit()
+            db.refresh(job)
+            return job
+        except Exception as e:
+            db.rollback()
+            raise Exception(f"Failed to update job status: {str(e)}")
+        finally:
+            db.close()
+
+    async def process_completed_document(
+        self, job_id: str, result: Dict[str, Any]
+    ) -> None:
+        """
+        Xử lý tài liệu đã hoàn thành: semantic chunking và lưu vào RAG
+        """
+        db = next(get_db())
+        try:
+            job = db.execute(
+                select(DocumentProcessingJob).where(
+                    DocumentProcessingJob.job_id == job_id
+                )
+            ).scalar_one_or_none()
+
+            if not job:
+                raise Exception(f"Job {job_id} not found")
+
+            # Xử lý kết quả từ Docling
+            await self._process_docling_result(job, result)
+
+            # Nếu thuộc về course, gọi agent tạo topic và lesson
+            if job.course_id:
+                await self._trigger_course_content_generation(job.course_id)
+
+            logger.info(f"Document processing completed for job {job_id}")
+
+        except Exception as e:
+            logger.error(f"Error processing completed document {job_id}: {str(e)}")
+            raise e
+        finally:
+            db.close()
+
+    async def _process_docling_result(
+        self, job: DocumentProcessingJob, result: Dict[str, Any]
+    ) -> None:
+        """
+        Xử lý kết quả từ Docling và lưu vào vector database
+        """
+        from langchain_experimental.text_splitter import SemanticChunker
+        from langchain_core.documents import Document
+
+        try:
+            # Lấy content từ result (tùy thuộc vào format của Docling)
+            content = result.get("content", "")
+            if not content:
+                raise ValueError("No content found in processing result")
+
+            # Tạo document object
+            doc = Document(
+                page_content=content,
+                metadata={
+                    "source": job.filename,
+                    "document_id": job.id,
+                    "document_url": job.document_url,
+                    "course_id": job.course_id,
+                    "processed_at": datetime.now().isoformat(),
+                },
+            )
+
+            # Semantic chunking
+            semantic_chunker = SemanticChunker(
+                embeddings=self.embeddings,
+                breakpoint_threshold_type="percentile",
+                breakpoint_threshold_amount=85,
+            )
+
+            chunks = semantic_chunker.split_documents([doc])
+
+            if not chunks:
+                raise ValueError("No meaningful chunks could be created")
+
+            # Thêm metadata cho chunks
+            for i, chunk in enumerate(chunks):
+                chunk.metadata.update(
+                    {
+                        "chunk_index": i,
+                        "chunk_type": "semantic",
+                        "total_chunks": len(chunks),
+                    }
+                )
+
+            # Lưu vào vector database
+            await self._store_chunks_in_vector_db(chunks)
+
+            logger.info(f"Processed {len(chunks)} chunks for document {job.id}")
+
+        except Exception as e:
+            raise Exception(f"Failed to process docling result: {str(e)}")
+
+    async def _trigger_course_content_generation(self, course_id: int) -> None:
+        """
+        Gọi agent tạo topic và lesson cho course
+        """
+        try:
+            # Import ở đây để tránh circular import
+            from app.services.course_composition_service import (
+                get_course_composition_service,
+            )
+
+            course_service = get_course_composition_service()
+            await course_service.generate_course_content(str(course_id))
+
+            logger.info(f"Triggered course content generation for course {course_id}")
+
+        except Exception as e:
+            logger.error(
+                f"Error triggering course content generation for course {course_id}: {str(e)}"
+            )
+            # Không raise exception để không làm fail quá trình xử lý document chính
 
     async def process_document(
         self, temp_path: str, document_id: str, filename: str
@@ -149,6 +329,9 @@ class DocumentService:
             "total_chunks",
             "page",
             "bbox",
+            "course_id",
+            "document_url",
+            "processed_at",
         }
 
         for key, value in metadata.items():
@@ -187,13 +370,33 @@ class DocumentService:
 
     def get_document_status(self, document_ids: List[str]) -> List[DocumentStatus]:
         """
-        Get status of documents by IDs
+        Get status of documents by IDs from database
         """
-        statuses = []
-        for doc_id in document_ids:
-            if doc_id in self.document_status:
-                statuses.append(self.document_status[doc_id])
-        return statuses
+        db = next(get_db())
+        try:
+            jobs = (
+                db.execute(
+                    select(DocumentProcessingJob).where(
+                        DocumentProcessingJob.id.in_(document_ids)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+            return [
+                DocumentStatus(
+                    id=job.id,
+                    filename=job.filename,
+                    status=job.status,
+                    createdAt=job.created_at.isoformat(),
+                    error=job.error_message,
+                    chunks_count=None,  # TODO: Calculate from vector DB if needed
+                )
+                for job in jobs
+            ]
+        finally:
+            db.close()
 
     async def search_documents(
         self, query: str, limit: int = 5, filter_metadata: Dict = None
@@ -230,38 +433,34 @@ class DocumentService:
 
     def get_document_statistics(self) -> Dict:
         """
-        Get statistics about processed documents
+        Get statistics about processed documents from database
         """
-        total_docs = len(self.document_status)
-        completed_docs = sum(
-            1
-            for status in self.document_status.values()
-            if status.status == "completed"
-        )
-        failed_docs = sum(
-            1 for status in self.document_status.values() if status.status == "failed"
-        )
-        processing_docs = sum(
-            1
-            for status in self.document_status.values()
-            if status.status == "processing"
-        )
+        db = next(get_db())
+        try:
+            total_docs = db.execute(select(DocumentProcessingJob)).scalars().all()
 
-        return {
-            "total_documents": total_docs,
-            "completed": completed_docs,
-            "failed": failed_docs,
-            "processing": processing_docs,
-            "success_rate": (
-                (completed_docs / total_docs * 100) if total_docs > 0 else 0
-            ),
-        }
+            total_count = len(total_docs)
+            processing_count = len([j for j in total_docs if j.status == "IN_PROGRESS"])
+            completed_count = len([j for j in total_docs if j.status == "COMPLETED"])
+            failed_count = len([j for j in total_docs if j.status == "FAILED"])
 
-    async def call_external_document_processing_api(
-        self, document_url: str, document_id: str, filename: str
-    ) -> Dict:
+            # TODO: Calculate total chunks from vector DB
+            total_chunks = 0
+
+            return {
+                "total_documents": total_count,
+                "processing_documents": processing_count,
+                "completed_documents": completed_count,
+                "failed_documents": failed_count,
+                "total_chunks": total_chunks,
+            }
+        finally:
+            db.close()
+
+    async def call_external_document_processing_api(self, document_url: str) -> str:
         """
         Gọi external API để xử lý document với URL đã upload lên object storage
+        Cập nhật để include webhook URL và return job_id
 
         Args:
             document_url (str): URL của document đã upload
@@ -269,7 +468,7 @@ class DocumentService:
             filename (str): Tên file gốc
 
         Returns:
-            Dict: Response từ external API
+            str: Job ID từ Runpod
 
         Raises:
             Exception: Nếu có lỗi khi gọi API
@@ -278,21 +477,12 @@ class DocumentService:
             raise Exception("DOCUMENT_PROCESSING_ENDPOINT chưa được cấu hình")
 
         try:
-            # Update status to processing
-            self.document_status[document_id] = DocumentStatus(
-                id=document_id,
-                filename=filename,
-                status="processing",
-                createdAt=datetime.now().isoformat(),
-            )
-
-            # Payload theo yêu cầu
-            payload = {"input": {"url": document_url}}
-
-            logger.info(
-                f"Calling external API for document {document_id}: {settings.DOCUMENT_PROCESSING_ENDPOINT}"
-            )
-            logger.info(f"Payload: {payload}")
+            # Payload với webhook URL
+            webhook_url = f"{settings.BASE_URL}/document/webhook"
+            payload = {
+                "input": {"url": document_url},
+                "webhook": webhook_url,
+            }
 
             async with httpx.AsyncClient(
                 timeout=settings.DOCUMENT_PROCESSING_TIMEOUT
@@ -306,53 +496,26 @@ class DocumentService:
                 response.raise_for_status()
                 result = response.json()
 
-                logger.info(f"External API response: {result}")
+                # Return job ID
+                job_id = result.get("id")
+                if not job_id:
+                    raise Exception("No job ID returned from external API")
 
-                # Update status to completed
-                self.document_status[document_id] = DocumentStatus(
-                    id=document_id,
-                    filename=filename,
-                    status="completed",
-                    createdAt=datetime.now().isoformat(),
-                    external_response=result,
-                )
-
-                return result
+                return job_id
 
         except httpx.TimeoutException:
             error_msg = f"Timeout khi gọi external API sau {settings.DOCUMENT_PROCESSING_TIMEOUT}s"
             logger.error(error_msg)
-            self.document_status[document_id] = DocumentStatus(
-                id=document_id,
-                filename=filename,
-                status="failed",
-                createdAt=datetime.now().isoformat(),
-                error=error_msg,
-            )
             raise Exception(error_msg)
 
         except httpx.HTTPStatusError as e:
             error_msg = f"HTTP error {e.response.status_code}: {e.response.text}"
             logger.error(error_msg)
-            self.document_status[document_id] = DocumentStatus(
-                id=document_id,
-                filename=filename,
-                status="failed",
-                createdAt=datetime.now().isoformat(),
-                error=error_msg,
-            )
             raise Exception(error_msg)
 
         except Exception as e:
             error_msg = f"Lỗi khi gọi external API: {str(e)}"
             logger.error(error_msg)
-            self.document_status[document_id] = DocumentStatus(
-                id=document_id,
-                filename=filename,
-                status="failed",
-                createdAt=datetime.now().isoformat(),
-                error=error_msg,
-            )
             raise Exception(error_msg)
 
 

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from app.database.database import get_async_session
+from app.database.database import get_async_db
 from app.models.test_model import Test
 from app.models.test_session import TestSession
 from app.schemas.test_schema import (
@@ -727,5 +727,5 @@ class TestService:
         return False  # Không có session nào thực sự đang hoạt động
 
 
-def get_test_service(session: AsyncSession = Depends(get_async_session)):
+def get_test_service(session: AsyncSession = Depends(get_async_db)):
     return TestService(session)

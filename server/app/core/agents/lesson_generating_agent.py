@@ -1,70 +1,37 @@
-from typing import List, Dict, Any
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from langchain.retrievers import ContextualCompressionRetriever
-from pydantic import BaseModel, Field
-from langchain.retrievers.document_compressors import LLMChainExtractor
 import json
-import re
+from typing import override
 
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
-from app.core.agents.components.llm_model import create_new_creative_llm_model
-from app.schemas.lesson_schema import (
-    GenerateLessonRequestSchema,
-    CreateLessonSchema,
-    LessonSectionSchema,
-)
+from app.core.config import settings
+from app.core.tracing import trace_agent
+from app.schemas.lesson_schema import CreateLessonSchema, LessonSectionSchema
 
-SYSTEM_PROMPT = """
-        Bạn là một gia sư dạy lập trình và giải thuật. hãy tạo bài giảng để sinh viên có thể dễ dàng hiểu và học được.
-        Bài giảng sẽ gồm lý thuyết
-        Chủ đề: {topic_name}
-        Tiêu đề bài học: {lesson_title}
-        Mô tả: {lesson_description}
-        Độ khó: {difficulty_level}
-        Loại bài học: {lesson_type}
-        Số phần tối đa: {max_sections}
+SYSTEM_PROMPT_TEMPLATE = """
+Bạn là một AI agent chuyên nghiệp, có nhiệm vụ tạo ra các bài giảng lập trình và giải thuật chất lượng cao.
 
-        Thông tin tham khảo từ cơ sở dữ liệu:
-        {context}
+Quy trình làm việc của bạn như sau:
+1. **Nghiên cứu tài liệu:** Sử dụng `retriever_document_tool` để tìm kiếm và thu thập thông tin liên quan đến chủ đề được yêu cầu từ kho tài liệu.
+2. **Tạo cấu trúc bài giảng:** Dựa trên thông tin đã thu thập, sử dụng `generate_lesson_structure_tool` để phác thảo cấu trúc bài giảng, bao gồm các phần chính và tiêu đề.
+3. **Soạn nội dung chi tiết:** Với mỗi phần trong cấu trúc, sử dụng `generate_section_content_tool` để tạo ra nội dung chi tiết, bao gồm lý thuyết, ví dụ code, hoặc câu hỏi trắc nghiệm.
+4. **Hoàn thiện và kiểm tra:** Cuối cùng, sử dụng `output_fixing_parser_tool` để đảm bảo toàn bộ bài giảng được định dạng chính xác theo cấu trúc JSON yêu cầu trước khi trả về kết quả.
 
-        Hãy tạo cấu trúc bài học với các phần sau (trả về JSON):
-        {{
-            "sections": [
-                {{
-                    "type": "text|code|quiz",
-                    "title": "Tiêu đề phần",
-                    "description": "Mô tả ngắn về nội dung",
-                    "order": 1
-                }}
-            ]
-        }}
-
-        Lưu ý:
-        - Bắt đầu với phần giới thiệu (type: "text")
-        - Bao gồm các ví dụ code nếu cần thiết (type: "code")
-        - Kết thúc với bài tập hoặc câu hỏi (type: "quiz")
-        - Đảm bảo logic và thứ tự hợp lý
+Hãy tuân thủ nghiêm ngặt quy trình trên để tạo ra những bài giảng tốt nhất.
 """
-
-
-class LessonGeneratingAgentRequestSchema(BaseModel):
-    topic_name: str = Field(..., description="Tên chủ đề bài học")
-    lesson_title: str = Field(..., description="Tiêu đề bài học")
-    lesson_description: str = Field(..., description="Mô tả bài học")
-    difficulty_level: str = Field(..., description="Độ khó của bài học")
-    lesson_type: str = Field(..., description="Loại bài học")
-    include_examples: bool = Field(..., description="Bao gồm ví dụ code")
-    include_exercises: bool = Field(..., description="Bao gồm bài tập")
 
 
 class LessonGeneratingAgent(BaseAgent):
     """
-    RAG AI agent that retrieves data from Pinecone and generates lesson content.
+    Một AI agent sử dụng Langchain để tạo ra nội dung bài giảng.
+    Agent này có khả năng sử dụng các tool để truy vấn kiến thức,
+    tạo cấu trúc, soạn nội dung và đảm bảo định dạng đầu ra.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        mongodb_db_name: str = "chat_history",
+        mongodb_collection_name: str = "lesson_chat_history",
+    ):
         super().__init__()
         self.available_args = [
             "topic_name",
@@ -72,262 +39,180 @@ class LessonGeneratingAgent(BaseAgent):
             "lesson_description",
             "difficulty_level",
             "lesson_type",
-            "include_examples",
-            "include_exercises",
             "max_sections",
+            "session_id",
         ]
+        self.mongodb_collection_name = mongodb_collection_name
+        self.mongodb_db_name = mongodb_db_name
+
         self.vector_store = get_vector_store("document")
-        self.llm = create_new_creative_llm_model()
-        self.setup_prompts()
+        self.retriever = self.vector_store.as_retriever(search_kwargs={"k": 5})
 
-    def setup_prompts(self):
-        """Setup prompt templates for lesson generation."""
+        self._init_parsers_and_chains()
+        self._init_tools()
+        self._init_agent()
 
-        self.lesson_structure_prompt = PromptTemplate(
-            input_variables=[
-                "topic_name",
-                "lesson_title",
-                "lesson_description",
-                "difficulty_level",
-                "lesson_type",
-                "context",
-                "max_sections",
-            ],
-            template="""
-            Bạn là một chuyên gia giáo dục về lập trình và giải thuật. Dựa trên thông tin sau, hãy tạo cấu trúc bài học:
-
-            Chủ đề: {topic_name}
-            Tiêu đề bài học: {lesson_title}
-            Mô tả: {lesson_description}
-            Độ khó: {difficulty_level}
-            Loại bài học: {lesson_type}
-            Số phần tối đa: {max_sections}
-
-            Thông tin tham khảo từ cơ sở dữ liệu:
-            {context}
-
-            Hãy tạo cấu trúc bài học với các phần sau (trả về JSON):
-            {{
-                "sections": [
-                    {{
-                        "type": "text|code|quiz",
-                        "title": "Tiêu đề phần",
-                        "description": "Mô tả ngắn về nội dung",
-                        "order": 1
-                    }}
-                ]
-            }}
-
-            Lưu ý:
-            - Bắt đầu với phần giới thiệu (type: "text")
-            - Bao gồm các ví dụ code nếu cần thiết (type: "code")
-            - Kết thúc với bài tập hoặc câu hỏi (type: "quiz")
-            - Đảm bảo logic và thứ tự hợp lý
-            """,
+    def _init_parsers_and_chains(self):
+        """Khởi tạo parsers và chains."""
+        from langchain_core.output_parsers import PydanticOutputParser
+        from langchain_core.messages import SystemMessage
+        from langchain_core.prompts import (
+            ChatPromptTemplate,
+            HumanMessagePromptTemplate,
         )
 
-        self.content_generation_prompt = PromptTemplate(
-            input_variables=["section_info", "context", "difficulty_level"],
-            template="""
-            Dựa trên thông tin phần bài học và ngữ cảnh, hãy tạo nội dung chi tiết:
+        self.structure_parser = PydanticOutputParser(pydantic_object=CreateLessonSchema)
+        self.content_parser = PydanticOutputParser(pydantic_object=LessonSectionSchema)
 
-            Thông tin phần: {section_info}
-            Độ khó: {difficulty_level}
-            Ngữ cảnh tham khảo: {context}
-
-            Tạo nội dung phù hợp với loại phần:
-            - text: Nội dung lý thuyết rõ ràng, dễ hiểu
-            - code: Ví dụ code với giải thích chi tiết
-            - quiz: Câu hỏi trắc nghiệm với 4 lựa chọn và giải thích
-
-            Trả về JSON:
-            {{
-                "content": "Nội dung chi tiết",
-                "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}} (chỉ cho quiz),
-                "answer": 0-3 (chỉ cho quiz, 0=A, 1=B, 2=C, 3=D),
-                "explanation": "Giải thích đáp án" (chỉ cho quiz)
-            }}
-            """,
-        )
-
-    def retrieve_relevant_context(self, query: str, k: int = 5) -> str:
-        """
-        Retrieve relevant documents from Pinecone vector store.
-        """
-        try:
-            # Use contextual compression for better retrieval
-            compressor = LLMChainExtractor.from_llm(self.llm)
-            compression_retriever = ContextualCompressionRetriever(
-                base_retriever=self.vector_store.as_retriever(search_kwargs={"k": k}),
-                base_compressor=compressor,
-            )
-
-            docs = compression_retriever.get_relevant_documents(query)
-
-            # Combine all retrieved content
-            context_parts = []
-            for doc in docs:
-                if hasattr(doc, "page_content"):
-                    context_parts.append(doc.page_content)
-                elif isinstance(doc, dict) and "page_content" in doc:
-                    context_parts.append(doc["page_content"])
-
-            return (
-                "\n\n".join(context_parts)
-                if context_parts
-                else "Không tìm thấy thông tin liên quan."
-            )
-
-        except Exception as e:
-            print(f"Error retrieving context: {e}")
-            return "Không thể truy xuất thông tin từ cơ sở dữ liệu."
-
-    def generate_lesson_structure(
-        self, request: GenerateLessonRequestSchema, context: str
-    ) -> List[Dict[str, Any]]:
-        """
-        Generate lesson structure based on retrieved context.
-        """
-        try:
-            chain = LLMChain(llm=self.llm, prompt=self.lesson_structure_prompt)
-
-            response = chain.run(
-                topic_name=request.topic_name,
-                lesson_title=request.lesson_title,
-                lesson_description=request.lesson_description,
-                difficulty_level=request.difficulty_level,
-                lesson_type=request.lesson_type,
-                context=context,
-                max_sections=request.max_sections,
-            )
-
-            # Extract JSON from response
-            json_match = re.search(r"\{.*\}", response, re.DOTALL)
-            if json_match:
-                structure_data = json.loads(json_match.group())
-                return structure_data.get("sections", [])
-            else:
-                # Fallback: create basic structure
-                return [
-                    {
-                        "type": "text",
-                        "title": "Giới thiệu",
-                        "description": "Phần mở đầu",
-                        "order": 1,
-                    },
-                    {
-                        "type": "text",
-                        "title": "Nội dung chính",
-                        "description": "Nội dung bài học",
-                        "order": 2,
-                    },
-                    {
-                        "type": "quiz",
-                        "title": "Bài tập",
-                        "description": "Câu hỏi kiểm tra",
-                        "order": 3,
-                    },
-                ]
-
-        except Exception as e:
-            print(f"Error generating lesson structure: {e}")
-            return []
-
-    def generate_section_content(
-        self, section_info: Dict[str, Any], context: str, difficulty_level: str
-    ) -> Dict[str, Any]:
-        """
-        Generate detailed content for a lesson section.
-        """
-        try:
-            chain = LLMChain(llm=self.llm, prompt=self.content_generation_prompt)
-
-            response = chain.run(
-                section_info=json.dumps(section_info, ensure_ascii=False),
-                context=context,
-                difficulty_level=difficulty_level,
-            )
-
-            # Extract JSON from response
-            json_match = re.search(r"\{.*\}", response, re.DOTALL)
-            if json_match:
-                content_data = json.loads(json_match.group())
-                return content_data
-            else:
-                # Fallback content
-                return {
-                    "content": (
-                        f"Nội dung cho phần: "
-                        f"{section_info.get('title', 'Không có tiêu đề')}"
-                    ),
-                    "options": None,
-                    "answer": None,
-                    "explanation": None,
-                }
-
-        except Exception as e:
-            print(f"Error generating section content: {e}")
-            return {
-                "content": (
-                    f"Lỗi khi tạo nội dung cho phần: "
-                    f"{section_info.get('title', 'Không có tiêu đề')}"
+        # Chain for generating lesson structure
+        self.generate_structure_prompt = ChatPromptTemplate.from_messages(
+            [
+                SystemMessage(
+                    content="Bạn là một chuyên gia thiết kế chương trình học. Hãy tạo cấu trúc cho một bài giảng."
                 ),
-                "options": None,
-                "answer": None,
-                "explanation": None,
-            }
-
-    def generate_lesson(
-        self, request: GenerateLessonRequestSchema
-    ) -> CreateLessonSchema:
-        """
-        Main method to generate a complete lesson using RAG.
-        """
-        # Validate input
-        self.check_available_args(**request.dict())
-
-        # Retrieve relevant context from Pinecone
-        query = (
-            f"{request.topic_name} {request.lesson_title} {request.lesson_description}"
+                HumanMessagePromptTemplate.from_template(
+                    "Chủ đề: {topic_name}\nTiêu đề: {lesson_title}\nĐộ khó: {difficulty_level}\nThông tin tham khảo:\n{context}"
+                ),
+            ]
         )
-        context = self.retrieve_relevant_context(query)
+        self.generate_structure_chain = (
+            self.generate_structure_prompt
+            | self.base_llm.with_structured_output(CreateLessonSchema)
+        )
 
-        # Generate lesson structure
-        structure = self.generate_lesson_structure(request, context)
+        # Chain for generating section content
+        self.generate_content_prompt = ChatPromptTemplate.from_messages(
+            [
+                SystemMessage(
+                    content="Bạn là một người viết nội dung giáo dục. Hãy soạn nội dung chi tiết cho phần này của bài giảng."
+                ),
+                HumanMessagePromptTemplate.from_template(
+                    "Thông tin phần: {section_info}\nĐộ khó: {difficulty_level}\nNgữ cảnh tham khảo:\n{context}"
+                ),
+            ]
+        )
+        self.generate_content_chain = (
+            self.generate_content_prompt
+            | self.base_llm.with_structured_output(LessonSectionSchema)
+        )
 
-        # Generate content for each section
-        sections = []
-        for section_info in structure:
-            content_data = self.generate_section_content(
-                section_info, context, request.difficulty_level
-            )
+    def _init_tools(self):
+        """Khởi tạo tools."""
+        from langchain.output_parsers import OutputFixingParser
+        from langchain_core.tools import Tool
 
-            section = LessonSectionSchema(
-                type=section_info.get("type", "text"),
-                content=content_data.get("content", ""),
-                order=section_info.get("order", len(sections) + 1),
-                options=content_data.get("options"),
-                answer=content_data.get("answer"),
-                explanation=content_data.get("explanation"),
-            )
-            sections.append(section)
+        self.retriever_document_tool = Tool(
+            name="retriever_document_tool",
+            func=self.retriever.invoke,
+            coroutine=self.retriever.ainvoke,
+            description="Truy xuất tài liệu và kiến thức từ kho vector để hỗ trợ việc tạo bài giảng.",
+        )
 
-        # Create lesson schema
-        lesson = CreateLessonSchema(
-            external_id=(
-                f"lesson_{request.topic_name.lower().replace(' ', '_')}_{len(sections)}"
+        self.generate_lesson_structure_tool = Tool(
+            name="generate_lesson_structure_tool",
+            func=lambda x: self.generate_structure_chain.invoke(x),
+            coroutine=lambda x: self.generate_structure_chain.ainvoke(x),
+            description="Tạo cấu trúc bài giảng (các phần, tiêu đề) dựa trên chủ đề và thông tin tham khảo.",
+        )
+
+        self.generate_section_content_tool = Tool(
+            name="generate_section_content_tool",
+            func=lambda x: self.generate_content_chain.invoke(x),
+            coroutine=lambda x: self.generate_content_chain.ainvoke(x),
+            description="Tạo nội dung chi tiết cho một phần cụ thể của bài giảng.",
+        )
+
+        self.output_fixing_parser = OutputFixingParser.from_llm(
+            self.base_llm, self.structure_parser
+        )
+        self.output_fixing_parser_tool = Tool(
+            name="output_fixing_parser_tool",
+            func=self.output_fixing_parser.invoke,
+            coroutine=self.output_fixing_parser.ainvoke,
+            description="Sửa lỗi định dạng đầu ra để đảm bảo kết quả cuối cùng là một JSON hoàn chỉnh.",
+        )
+
+        self.tools = [
+            self.retriever_document_tool,
+            self.generate_lesson_structure_tool,
+            self.generate_section_content_tool,
+            self.output_fixing_parser_tool,
+        ]
+
+    def _init_agent(self):
+        """Khởi tạo agent."""
+        from langchain.agents import AgentExecutor, create_tool_calling_agent
+        from langchain_core.messages import SystemMessage
+        from langchain_core.prompts import (
+            ChatPromptTemplate,
+            HumanMessagePromptTemplate,
+            MessagesPlaceholder,
+        )
+
+        self.prompt = ChatPromptTemplate.from_messages(
+            [
+                SystemMessage(content=SYSTEM_PROMPT_TEMPLATE),
+                MessagesPlaceholder(variable_name="history", optional=True),
+                HumanMessagePromptTemplate.from_template("{input}"),
+                MessagesPlaceholder(variable_name="agent_scratchpad"),
+            ]
+        )
+
+        agent = create_tool_calling_agent(self.base_llm, self.tools, self.prompt)
+        self.agent_executor = AgentExecutor(
+            agent=agent, tools=self.tools, verbose=True, handle_parsing_errors=True
+        )
+
+    @override
+    @trace_agent(project_name="default", tags=["lesson", "generator"])
+    async def act(self, *args, **kwargs) -> CreateLessonSchema:
+        """
+        Thực thi quy trình tạo bài giảng bằng agent.
+        """
+        super().act(*args, **kwargs)
+        from langchain_core.runnables import RunnableConfig, RunnableWithMessageHistory
+        from langchain_mongodb import MongoDBChatMessageHistory
+
+        session_id = kwargs.get("session_id")
+        if not session_id:
+            raise ValueError("Cần cung cấp 'session_id' để tạo bài giảng.")
+
+        run_config = RunnableConfig(
+            callbacks=self._callback_manager.handlers,
+            metadata={"session_id": session_id, "agent_type": "lesson_generator"},
+            tags=["lesson", "generator", f"session:{session_id}"],
+        )
+
+        agent_with_chat_history = RunnableWithMessageHistory(
+            self.agent_executor,
+            history_messages_key="history",
+            get_session_history=lambda: MongoDBChatMessageHistory(
+                settings.MONGO_URI,
+                session_id,
+                self.mongodb_db_name,
+                self.mongodb_collection_name,
             ),
-            title=request.lesson_title,
-            description=request.lesson_description,
-            topic_id=0,  # This should be set by the caller
-            order=1,  # This should be set by the caller
-            sections=sections,
         )
 
-        return lesson
+        input_data = {k: v for k, v in kwargs.items() if k in self.available_args}
 
-    def act(self, request: GenerateLessonRequestSchema) -> CreateLessonSchema:
-        """
-        Execute the lesson generation process.
-        """
-        return self.generate_lesson(request)
+        try:
+            response = await agent_with_chat_history.ainvoke(
+                {"input": json.dumps(input_data, ensure_ascii=False)},
+                config=run_config,
+            )
+
+            if isinstance(response, dict) and response.get("output"):
+                # Agent sẽ trả về một chuỗi JSON, cần parse nó
+                final_lesson = self.structure_parser.parse(response["output"])
+                return final_lesson
+            else:
+                raise ValueError("Agent không trả về kết quả hợp lệ.")
+
+        except Exception as e:
+            print(f"Lỗi trong quá trình t\u1ea1o bài giảng: {e}")
+            raise Exception(f"Không thể tạo bài giảng: {str(e)}")
+
+
+def get_lesson_generating_agent():
+    return LessonGeneratingAgent()

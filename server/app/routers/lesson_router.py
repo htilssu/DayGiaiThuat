@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.database import get_db
-from app.services.lesson_service import LessonService
+from app.database.database import get_async_db
+from app.services.lesson_service import LessonService, get_lesson_service
 from app.schemas.lesson_schema import (
     CreateLessonSchema,
     UpdateLessonSchema,
@@ -18,14 +18,13 @@ async def generate_lesson(
     request: GenerateLessonRequestSchema,
     topic_id: int,
     order: int,
-    db: Session = Depends(get_db),
+    lesson_service: LessonService = Depends(get_lesson_service),
 ):
     """
     Generate a lesson using AI with RAG from Pinecone data.
     """
     try:
-        lesson_service = LessonService(db)
-        lesson = lesson_service.generate_lesson(request, topic_id, order)
+        lesson = await lesson_service.generate_lesson(request, topic_id, order)
         return lesson
     except Exception as e:
         raise HTTPException(
@@ -35,13 +34,15 @@ async def generate_lesson(
 
 
 @router.post("/", response_model=LessonResponseSchema)
-async def create_lesson(lesson_data: CreateLessonSchema, db: Session = Depends(get_db)):
+async def create_lesson(
+    lesson_data: CreateLessonSchema,
+    lesson_service: LessonService = Depends(get_lesson_service),
+):
     """
     Create a new lesson manually.
     """
     try:
-        lesson_service = LessonService(db)
-        lesson = lesson_service.create_lesson(lesson_data)
+        lesson = await lesson_service.create_lesson(lesson_data)
         return lesson
     except Exception as e:
         raise HTTPException(
@@ -51,12 +52,13 @@ async def create_lesson(lesson_data: CreateLessonSchema, db: Session = Depends(g
 
 
 @router.get("/{lesson_id}", response_model=LessonResponseSchema)
-async def get_lesson(lesson_id: int, db: Session = Depends(get_db)):
+async def get_lesson(
+    lesson_id: int, lesson_service: LessonService = Depends(get_lesson_service)
+):
     """
     Get a lesson by ID.
     """
-    lesson_service = LessonService(db)
-    lesson = lesson_service.get_lesson_by_id(lesson_id)
+    lesson = await lesson_service.get_lesson_by_id(lesson_id)
 
     if not lesson:
         raise HTTPException(
@@ -67,12 +69,13 @@ async def get_lesson(lesson_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/external/{external_id}", response_model=LessonResponseSchema)
-async def get_lesson_by_external_id(external_id: str, db: Session = Depends(get_db)):
+async def get_lesson_by_external_id(
+    external_id: str, lesson_service: LessonService = Depends(get_lesson_service)
+):
     """
     Get a lesson by external ID.
     """
-    lesson_service = LessonService(db)
-    lesson = lesson_service.get_lesson_by_external_id(external_id)
+    lesson = await lesson_service.get_lesson_by_external_id(external_id)
 
     if not lesson:
         raise HTTPException(
@@ -83,24 +86,26 @@ async def get_lesson_by_external_id(external_id: str, db: Session = Depends(get_
 
 
 @router.get("/topic/{topic_id}", response_model=list[LessonResponseSchema])
-async def get_lessons_by_topic(topic_id: int, db: Session = Depends(get_db)):
+async def get_lessons_by_topic(
+    topic_id: int, lesson_service: LessonService = Depends(get_lesson_service)
+):
     """
     Get all lessons for a topic.
     """
-    lesson_service = LessonService(db)
-    lessons = lesson_service.get_lessons_by_topic(topic_id)
+    lessons = await lesson_service.get_lessons_by_topic(topic_id)
     return lessons
 
 
 @router.put("/{lesson_id}", response_model=LessonResponseSchema)
 async def update_lesson(
-    lesson_id: int, lesson_data: UpdateLessonSchema, db: Session = Depends(get_db)
+    lesson_id: int,
+    lesson_data: UpdateLessonSchema,
+    lesson_service: LessonService = Depends(get_lesson_service),
 ):
     """
     Update a lesson.
     """
-    lesson_service = LessonService(db)
-    lesson = lesson_service.update_lesson(lesson_id, lesson_data)
+    lesson = await lesson_service.update_lesson(lesson_id, lesson_data)
 
     if not lesson:
         raise HTTPException(
@@ -111,12 +116,13 @@ async def update_lesson(
 
 
 @router.delete("/{lesson_id}")
-async def delete_lesson(lesson_id: int, db: Session = Depends(get_db)):
+async def delete_lesson(
+    lesson_id: int, lesson_service: LessonService = Depends(get_lesson_service)
+):
     """
     Delete a lesson.
     """
-    lesson_service = LessonService(db)
-    success = lesson_service.delete_lesson(lesson_id)
+    success = await lesson_service.delete_lesson(lesson_id)
 
     if not success:
         raise HTTPException(

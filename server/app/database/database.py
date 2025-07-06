@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Mapped, mapped_column
@@ -72,7 +73,7 @@ def get_db():
         db.close()
 
 
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Tạo và trả về một database session bất đồng bộ mới cho mỗi request
     và đảm bảo đóng kết nối sau khi xử lý xong.
@@ -81,10 +82,17 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         AsyncSession: Async database session
     """
     async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+        yield session
+
+
+@asynccontextmanager
+async def get_independent_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Tạo một session DB độc lập, không phụ thuộc vào request,
+    dành cho các background task.
+    """
+    async with AsyncSessionLocal() as session:
+        yield session
 
 
 def check_db_connection() -> bool:

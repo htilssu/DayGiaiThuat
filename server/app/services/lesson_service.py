@@ -1,35 +1,86 @@
 from typing import List, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from fastapi import Depends
+from sqlalchemy.orm import selectinload
+import uuid
+from fastapi import HTTPException, status
 
+from app.database.database import get_async_db
 from app.models.lesson_model import Lesson, LessonSection
+from app.models.lesson_generation_state_model import LessonGenerationState
 from app.schemas.lesson_schema import (
-    CreateLessonSchema, UpdateLessonSchema, LessonResponseSchema,
-    GenerateLessonRequestSchema, LessonSectionSchema
+    CreateLessonSchema,
+    UpdateLessonSchema,
+    LessonResponseSchema,
+    GenerateLessonRequestSchema,
 )
-from app.core.agents.lesson_generating_agent import LessonGeneratingAgent
+from app.core.agents.lesson_generating_agent import get_lesson_generating_agent
+
+
+from app.services.topic_service import get_topic_service, TopicService
 
 
 class LessonService:
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession, topic_service: TopicService):
         self.db = db
-        self.agent = LessonGeneratingAgent()
-    
-    def generate_lesson(self, request: GenerateLessonRequestSchema, topic_id: int, order: int) -> LessonResponseSchema:
+        self.agent = get_lesson_generating_agent()
+        self.topic_service = topic_service
+
+    async def generate_lesson(
+        self, request: GenerateLessonRequestSchema, topic_id: int, order: int
+    ) -> LessonResponseSchema:
         """
-        Generate a lesson using the RAG AI agent.
+        Generate a lesson using the RAG AI agent and log the state.
         """
-        # Generate lesson using the agent
-        lesson_data = self.agent.act(request)
-        
-        # Update the generated lesson with proper topic_id and order
-        lesson_data.topic_id = topic_id
-        lesson_data.order = order
-        
-        # Create the lesson in database
-        return self.create_lesson(lesson_data)
-    
-    def create_lesson(self, lesson_data: CreateLessonSchema) -> LessonResponseSchema:
+        # Validate topic
+        topic = await self.topic_service.get_topic_by_id(topic_id)
+        if not topic:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Topic not found"
+            )
+        if not request.session_id:
+            request.session_id = str(uuid.uuid4())
+
+        # Create initial state
+        generation_state = LessonGenerationState(
+            session_id=request.session_id,
+            topic_id=topic_id,
+            status="in_progress",
+            request_data=request.model_dump_json(),
+        )
+        self.db.add(generation_state)
+        await self.db.commit()
+        await self.db.refresh(generation_state)
+
+        try:
+            # Generate lesson using the agent
+            lesson_data = await self.agent.act(**request.model_dump())
+
+            # Update the generated lesson with proper topic_id and order
+            lesson_data.topic_id = topic_id
+            lesson_data.order = order
+
+            # Create the lesson in database
+            lesson = await self.create_lesson(lesson_data)
+
+            # Update state to completed
+            generation_state.status = "completed"
+            generation_state.lesson_id = lesson.id
+            await self.db.commit()
+
+            return lesson
+
+        except Exception as e:
+            # Update state to failed
+            generation_state.status = "failed"
+            await self.db.commit()
+            # Re-raise the exception
+            raise e
+
+    async def create_lesson(
+        self, lesson_data: CreateLessonSchema
+    ) -> LessonResponseSchema:
         """
         Create a new lesson with sections.
         """
@@ -41,12 +92,12 @@ class LessonService:
             topic_id=lesson_data.topic_id,
             order=lesson_data.order,
             next_lesson_id=lesson_data.next_lesson_id,
-            prev_lesson_id=lesson_data.prev_lesson_id
+            prev_lesson_id=lesson_data.prev_lesson_id,
         )
-        
+
         self.db.add(lesson)
-        self.db.flush()  # Get the lesson ID
-        
+        await self.db.flush()  # Get the lesson ID
+
         # Create lesson sections
         for section_data in lesson_data.sections:
             section = LessonSection(
@@ -56,95 +107,116 @@ class LessonService:
                 order=section_data.order,
                 options=section_data.options,
                 answer=section_data.answer,
-                explanation=section_data.explanation
+                explanation=section_data.explanation,
             )
             self.db.add(section)
-        
-        self.db.commit()
-        self.db.refresh(lesson)
-        
+
+        await self.db.commit()
+        await self.db.refresh(lesson)
+
         return LessonResponseSchema.model_validate(lesson)
-    
-    def get_lesson_by_id(self, lesson_id: int) -> Optional[LessonResponseSchema]:
+
+    async def get_lesson_by_id(self, lesson_id: int) -> Optional[LessonResponseSchema]:
         """
         Get a lesson by ID.
         """
-        stmt = select(Lesson).where(Lesson.id == lesson_id)
-        lesson = self.db.execute(stmt).scalar_one_or_none()
-        
+        stmt = (
+            select(Lesson)
+            .where(Lesson.id == lesson_id)
+            .options(selectinload(Lesson.sections), selectinload(Lesson.exercises))
+        )
+        result = await self.db.execute(stmt)
+        lesson = result.scalar_one_or_none()
+
         if not lesson:
             return None
-        
-        lesson_dict = lesson.__dict__.copy()
-        lesson_dict['sections'] = [
-            LessonSectionSchema.model_validate(section, from_attributes=True) for section in lesson.sections
-        ]
-        lesson_dict['exercises'] = [ex for ex in lesson.exercises]
-        return LessonResponseSchema.model_validate(lesson_dict)
-    
-    def get_lesson_by_external_id(self, external_id: str) -> Optional[LessonResponseSchema]:
+
+        return LessonResponseSchema.model_validate(lesson)
+
+    async def get_lesson_by_external_id(
+        self, external_id: str
+    ) -> Optional[LessonResponseSchema]:
         """
         Get a lesson by external ID.
         """
-        stmt = select(Lesson).where(Lesson.external_id == external_id)
-        lesson = self.db.execute(stmt).scalar_one_or_none()
-        
+        stmt = (
+            select(Lesson)
+            .where(Lesson.external_id == external_id)
+            .options(selectinload(Lesson.sections), selectinload(Lesson.exercises))
+        )
+        result = await self.db.execute(stmt)
+        lesson = result.scalar_one_or_none()
+
         if not lesson:
             return None
-        
-        lesson_dict = lesson.__dict__.copy()
-        lesson_dict['sections'] = [
-            LessonSectionSchema.model_validate(section, from_attributes=True) for section in lesson.sections
-        ]
-        lesson_dict['exercises'] = [ex for ex in lesson.exercises]
-        return LessonResponseSchema.model_validate(lesson_dict)
-    
-    def get_lessons_by_topic(self, topic_id: int) -> List[LessonResponseSchema]:
+
+        return LessonResponseSchema.model_validate(lesson)
+
+    async def get_lessons_by_topic(self, topic_id: int) -> List[LessonResponseSchema]:
         """
         Get all lessons for a topic.
         """
-        stmt = select(Lesson).where(Lesson.topic_id == topic_id).order_by(Lesson.order)
-        lessons = self.db.execute(stmt).scalars().all()
-        lesson_responses = []
-        for lesson in lessons:
-            lesson_dict = lesson.__dict__.copy()
-            lesson_dict['sections'] = [
-                LessonSectionSchema.model_validate(section, from_attributes=True) for section in lesson.sections
-            ]
-            lesson_dict['exercises'] = [ex for ex in lesson.exercises]
-            lesson_responses.append(LessonResponseSchema.model_validate(lesson_dict))
-        return lesson_responses
-    
-    def update_lesson(self, lesson_id: int, lesson_data: UpdateLessonSchema) -> Optional[LessonResponseSchema]:
+        stmt = (
+            select(Lesson)
+            .where(Lesson.topic_id == topic_id)
+            .order_by(Lesson.order)
+            .options(selectinload(Lesson.sections), selectinload(Lesson.exercises))
+        )
+        result = await self.db.execute(stmt)
+        lessons = result.scalars().all()
+        return [LessonResponseSchema.model_validate(lesson) for lesson in lessons]
+
+    async def update_lesson(
+        self, lesson_id: int, lesson_data: UpdateLessonSchema
+    ) -> Optional[LessonResponseSchema]:
         """
         Update a lesson.
         """
         stmt = select(Lesson).where(Lesson.id == lesson_id)
-        lesson = self.db.execute(stmt).scalar_one_or_none()
-        
+        result = await self.db.execute(stmt)
+        lesson = result.scalar_one_or_none()
+
         if not lesson:
             return None
-        
+
         # Update fields
-        for field, value in lesson_data.dict(exclude_unset=True).items():
+        for field, value in lesson_data.model_dump(exclude_unset=True).items():
             setattr(lesson, field, value)
-        
-        self.db.commit()
-        self.db.refresh(lesson)
-        
+
+        await self.db.commit()
+        await self.db.refresh(lesson)
+
         return LessonResponseSchema.model_validate(lesson)
-    
-    def delete_lesson(self, lesson_id: int) -> bool:
+
+    async def delete_lesson(self, lesson_id: int) -> bool:
         """
         Delete a lesson.
         """
         stmt = select(Lesson).where(Lesson.id == lesson_id)
-        lesson = self.db.execute(stmt).scalar_one_or_none()
-        
+        result = await self.db.execute(stmt)
+        lesson = result.scalar_one_or_none()
+
         if not lesson:
             return False
-        
-        self.db.delete(lesson)
-        self.db.commit()
-        
-        return True 
+
+        await self.db.delete(lesson)
+        await self.db.commit()
+
+        return True
+
+
+def get_lesson_service(
+    db: AsyncSession = Depends(get_async_db),
+    topic_service: TopicService = Depends(get_topic_service),
+) -> LessonService:
+    """
+    Dependency injection for LessonService
+
+    Args:
+        db: Async database session
+        topic_service: Topic service instance
+
+    Returns:
+        LessonService: Service instance
+    """
+    return LessonService(db=db, topic_service=topic_service)

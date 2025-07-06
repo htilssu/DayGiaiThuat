@@ -1,5 +1,6 @@
+from typing import Optional, Any, Dict, List
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from datetime import datetime
 
 
 class DocumentStatus(BaseModel):
@@ -9,7 +10,6 @@ class DocumentStatus(BaseModel):
     createdAt: str
     error: Optional[str] = None
     chunks_count: Optional[int] = None
-    external_response: Optional[Dict[str, Any]] = None  # Response từ external API
 
 
 class DocumentResponse(BaseModel):
@@ -17,25 +17,53 @@ class DocumentResponse(BaseModel):
     filename: str
     status: str
     createdAt: str
-    chunks_count: Optional[int] = None
+    job_id: Optional[str] = None
+    course_id: Optional[int] = None
 
 
-class SearchResult(BaseModel):
+class DocumentProcessingJobResponse(BaseModel):
+    id: str
+    job_id: str
+    filename: str
+    status: str
+    course_id: Optional[int] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    processed_at: Optional[datetime] = None
+
+
+class RunpodWebhookRequest(BaseModel):
+    """Schema for Runpod webhook request"""
+
+    id: str  # Job ID
+    status: str  # COMPLETED, FAILED, etc.
+    output: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    executionTime: Optional[int] = None
+    delayTime: Optional[int] = None
+
+
+class DocumentSearchResult(BaseModel):
     content: str
-    metadata: dict
-    source: str
-    chunk_index: int
+    metadata: Dict[str, Any]
+    score: float
 
 
-class SearchResponse(BaseModel):
+class DocumentSearchResponse(BaseModel):
+    results: List[DocumentSearchResult]
+    total: int
     query: str
-    total_results: int
-    results: List[SearchResult]
 
 
 class DocumentStatistics(BaseModel):
     total_documents: int
-    completed: int
-    failed: int
-    processing: int
-    success_rate: float
+    processing_documents: int
+    completed_documents: int
+    failed_documents: int
+    total_chunks: int
+
+
+class StoreByTextRequest(BaseModel):
+    text: str
+    course_id: Optional[int] = None

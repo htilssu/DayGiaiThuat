@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.agents.assessment_agent import get_assessment_agent, AssessmentAgent
-from app.database.database import get_async_session
+from app.database.database import get_async_db
 from app.schemas.assessment_schema import AssessmentRequest, AssessmentResultResponse
 from app.services.test_service import TestService, get_test_service
 from app.utils.utils import get_current_user
@@ -43,7 +43,7 @@ async def analyze_test_session(
     current_user: User = Depends(get_current_user),
     test_service: TestService = Depends(get_test_service),
     assessment_agent: AssessmentAgent = Depends(get_assessment_agent),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_async_db),
 ) -> AssessmentResultResponse:
     """
     Phân tích kết quả bài kiểm tra đầu vào và tạo lộ trình học tập cá nhân hóa

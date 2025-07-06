@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.agents.base_agent import BaseAgent
 from app.core.tracing import trace_agent
-from app.database.database import get_async_session
+from app.database.database import get_async_db
 from app.services.course_service import CourseService, get_course_service
 from app.services.test_service import TestService, get_test_service
 from app.utils.model_utils import model_to_dict
@@ -427,7 +427,7 @@ class AssessmentAgent(BaseAgent):
 def get_assessment_agent(
     test_service: TestService = Depends(get_test_service),
     course_service: CourseService = Depends(get_course_service),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_async_db),
 ):
     """Dependency injection cho AssessmentAgent"""
     return AssessmentAgent(test_service, course_service, session)

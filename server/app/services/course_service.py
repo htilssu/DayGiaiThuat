@@ -6,7 +6,10 @@ from app.services.test_generation_service import (
     TestGenerationService,
     get_test_generation_service,
 )
-
+from app.services.course_composition_service import (
+    CourseCompositionService,
+    get_course_composition_service,
+)
 
 from app.database.database import get_db
 from app.models.course_model import Course, TestGenerationStatus
@@ -16,9 +19,15 @@ from app.schemas.course_schema import CourseCreate
 
 
 class CourseService:
-    def __init__(self, db: Session, test_generation_service: TestGenerationService):
+    def __init__(
+        self,
+        db: Session,
+        test_generation_service: TestGenerationService,
+        course_composition_service: CourseCompositionService,
+    ):
         self.db = db
         self.test_generation_service = test_generation_service
+        self.course_composition_service = course_composition_service
 
     def get_courses(self, skip: int = 0, limit: int = 10):
         """
@@ -63,6 +72,29 @@ class CourseService:
             self.db.add(new_course)
             self.db.commit()
             self.db.refresh(new_course)
+
+            # Trigger background task để soạn bài giảng
+            from threading import Thread
+
+            async def run_background_composition():
+                """Chạy background task trong thread riêng"""
+                try:
+                    await self.course_composition_service.compose_course_content(
+                        new_course.id
+                    )
+
+                except Exception as e:
+                    import logging
+
+                    logger = logging.getLogger(__name__)
+                    logger.error(
+                        f"Lỗi khi soạn bài giảng cho khóa học {new_course.id}: {e}",
+                        exc_info=True,
+                    )
+
+            # Khởi chạy background thread
+            background_thread = Thread(target=run_background_composition, daemon=True)
+            background_thread.start()
 
             return new_course
         except SQLAlchemyError as e:
@@ -614,5 +646,8 @@ def get_course_service(
     test_generation_service: TestGenerationService = Depends(
         get_test_generation_service
     ),
+    course_composition_service: CourseCompositionService = Depends(
+        get_course_composition_service
+    ),
 ):
-    return CourseService(db, test_generation_service)
+    return CourseService(db, test_generation_service, course_composition_service)

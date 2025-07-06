@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.user_state_model import UserState
     from app.models.topic_model import Topic
     from app.models.test_model import Test
+    from app.models.document_processing_job_model import DocumentProcessingJob
 
 
 class TestGenerationStatus(str, Enum):
@@ -81,5 +82,7 @@ class Course(Base):
     user_states: Mapped[List["UserState"]] = relationship(
         back_populates="current_course"
     )
-    topics: Mapped[List["Topic"]] = relationship("Topic", back_populates="course")
     tests: Mapped[List["Test"]] = relationship("Test", back_populates="course")
+    document_processing_jobs: Mapped[List["DocumentProcessingJob"]] = relationship(
+        back_populates="course"
+    )

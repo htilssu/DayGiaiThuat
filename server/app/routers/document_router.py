@@ -1,15 +1,24 @@
-from typing import List
+from typing import List, Optional
 from uuid import uuid4
 from datetime import datetime
 from fastapi import APIRouter, UploadFile, HTTPException, BackgroundTasks, Depends
 
 from app.services.document_service import get_document_service, DocumentService
 from app.services.storage_service import get_storage_service, StorageService
-from app.schemas.document_schema import DocumentResponse
+from app.schemas.document_schema import (
+    DocumentResponse,
+    RunpodWebhookRequest,
+    StoreByTextRequest,
+)
 from app.utils.utils import get_current_user
 from app.schemas.user_profile_schema import UserExcludeSecret
+from app.models.document_processing_job_model import DocumentProcessingJob
 
+# Router cho admin (cần authentication)
 router = APIRouter(prefix="/admin/document", tags=["document"])
+
+# Router cho webhook (không cần authentication)
+webhook_router = APIRouter(prefix="/document", tags=["document-webhook"])
 
 
 def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
@@ -26,6 +35,7 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
 async def store_document(
     files: List[UploadFile],
     background_tasks: BackgroundTasks,
+    course_id: Optional[int] = None,
     document_service: DocumentService = Depends(get_document_service),
     storage_service: StorageService = Depends(get_storage_service),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
@@ -46,20 +56,28 @@ async def store_document(
             upload_result = await storage_service.upload_document(file, document_id)
             document_url = upload_result["url"]
 
-            # Create initial response
-            document_response = DocumentResponse(
-                id=document_id,
-                filename=file.filename,
-                status="processing",
-                createdAt=datetime.now().isoformat(),
+            # 2. Call external document processing API and get job_id
+            job_id = await document_service.call_external_document_processing_api(
+                document_url
             )
 
-            # 2. Add background task for calling external API
-            background_tasks.add_task(
-                document_service.call_external_document_processing_api,
-                document_url,
-                document_id,
-                file.filename,
+            # 3. Create document processing job record
+            await document_service.create_document_processing_job(
+                document_id=document_id,
+                job_id=job_id,
+                filename=file.filename or "",
+                document_url=document_url or "",
+                course_id=course_id,
+            )
+
+            # Create response
+            document_response = DocumentResponse(
+                id=document_id,
+                filename=file.filename or "",
+                status="IN_QUEUE",
+                createdAt=datetime.now().isoformat(),
+                job_id=job_id,
+                course_id=course_id,
             )
 
             document_responses.append(document_response)
@@ -71,6 +89,82 @@ async def store_document(
             )
 
     return {"documents": document_responses}
+
+
+@router.post("/store-by-text")
+async def store_document_by_text(
+    req: StoreByTextRequest,
+    document_service: DocumentService = Depends(get_document_service),
+    admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
+    """
+    Lưu text trực tiếp vào RAG để test nhanh (chỉ cho admin)
+    """
+    from uuid import uuid4
+
+    document_id = str(uuid4())
+    filename = f"text_{document_id}.txt"
+    created_at = datetime.now().isoformat()
+    # Tạo job giả lập đúng kiểu DocumentProcessingJob
+    job = DocumentProcessingJob(
+        id=document_id,
+        job_id=document_id,
+        filename=filename,
+        document_url="",
+        course_id=req.course_id,
+        status="COMPLETED",
+    )
+    # Gọi xử lý lưu vào RAG
+    await document_service._process_docling_result(job, {"content": req.text})
+    # Trả về thông tin document đã lưu
+    return DocumentResponse(
+        id=document_id,
+        filename=filename,
+        status="completed",
+        createdAt=created_at,
+        job_id=None,
+        course_id=req.course_id,
+    )
+
+
+@webhook_router.post("/webhook")
+async def handle_runpod_webhook(
+    webhook_data: RunpodWebhookRequest,
+    background_tasks: BackgroundTasks,
+    document_service: DocumentService = Depends(get_document_service),
+):
+    """
+    Webhook endpoint để nhận kết quả từ Runpod
+    Không cần authentication vì được gọi từ external service
+    """
+    try:
+        # Cập nhật trạng thái job
+        job = await document_service.update_job_status(
+            job_id=webhook_data.id,
+            status=webhook_data.status,
+            result=webhook_data.output,
+            error_message=webhook_data.error,
+        )
+
+        if not job:
+            raise HTTPException(
+                status_code=404, detail=f"Job {webhook_data.id} not found"
+            )
+
+        # Nếu job completed successfully, xử lý semantic và lưu vào RAG
+        if webhook_data.status == "COMPLETED" and webhook_data.output:
+            background_tasks.add_task(
+                document_service.process_completed_document,
+                job_id=webhook_data.id,
+                result=webhook_data.output,
+            )
+
+        return {"status": "success", "message": "Webhook processed successfully"}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to process webhook: {str(e)}"
+        )
 
 
 @router.get("/status")
@@ -89,8 +183,8 @@ async def get_document_status(
 async def search_documents(
     query: str,
     limit: int = 5,
-    source: str = None,
-    document_id: str = None,
+    source: str = "",
+    document_id: str = "",
     document_service: DocumentService = Depends(get_document_service),
 ):
     """
@@ -106,7 +200,7 @@ async def search_documents(
             filter_metadata["document_id"] = document_id
 
         # Use filter if any filters are provided
-        filter_to_use = filter_metadata if filter_metadata else None
+        filter_to_use = filter_metadata if filter_metadata else {}
 
         result = await document_service.search_documents(
             query=query, limit=limit, filter_metadata=filter_to_use

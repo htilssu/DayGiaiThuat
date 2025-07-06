@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from pydantic import BaseModel, Field
 from app.models.course_model import TestGenerationStatus
@@ -201,3 +201,32 @@ def rebuild_course_models():
         CourseDetailResponse.model_rebuild()
     except Exception:
         pass
+
+
+class CourseCompositionRequestSchema(BaseModel):
+    """Schema cho request tạo khóa học tự động"""
+
+    course_id: int = Field(..., description="ID của khóa học")
+    course_title: str = Field(..., description="Tiêu đề khóa học")
+    course_description: str = Field(..., description="Mô tả khóa học")
+    course_level: str = Field(..., description="Cấp độ khóa học")
+    max_topics: int = Field(default=10, description="Số lượng topic tối đa")
+    lessons_per_topic: int = Field(default=5, description="Số lessons cho mỗi topic")
+
+
+class TopicGenerationResult(BaseModel):
+    """Kết quả tạo topic"""
+
+    name: str
+    description: str
+    prerequisites: Optional[List[str]] = None
+    order: int
+
+
+class CourseCompositionResponseSchema(BaseModel):
+    """Schema cho response của CourseCompositionAgent"""
+
+    course_id: int
+    topics: List[Dict[str, Any]]
+    status: str
+    errors: List[str]

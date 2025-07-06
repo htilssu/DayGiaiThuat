@@ -1,18 +1,18 @@
-import os
-import shutil
-from fastapi import APIRouter, HTTPException, Depends, status, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from app.database.database import get_db
+from app.database.database import get_db, get_independent_db_session
 from app.models.course_model import Course
 from app.schemas.course_schema import (
     CourseCreate,
     CourseResponse,
     CourseUpdate,
+    CourseCompositionRequestSchema,
 )
 from app.schemas.user_profile_schema import UserExcludeSecret
+from app.core.agents.course_composition_agent import CourseCompositionAgent
 
 from app.services.course_service import CourseService, get_course_service
 from app.utils.utils import get_current_user
@@ -22,8 +22,6 @@ router = APIRouter(
     tags=["admin-courses"],
     responses={404: {"description": "Không tìm thấy khóa học"}},
 )
-
-UPLOAD_DIRECTORY = "./uploads/images"
 
 
 class ThumbnailUpdateRequest(BaseModel):
@@ -47,6 +45,16 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
     return current_user
 
 
+async def run_course_composition_background(request: CourseCompositionRequestSchema):
+    """
+    Hàm chạy trong background để tạo nội dung khóa học.
+    Sử dụng một session DB độc lập.
+    """
+    async with get_independent_db_session() as db_session:
+        agent = CourseCompositionAgent(db_session)
+        await agent.act(request)
+
+
 @router.post(
     "",
     response_model=CourseResponse,
@@ -61,6 +69,7 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
 )
 async def create_course(
     course_data: CourseCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     course_service: CourseService = Depends(get_course_service),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
@@ -82,8 +91,16 @@ async def create_course(
     try:
         new_course = course_service.create_course(course_data)
 
-        # Tạo bài test đầu vào async
-        await course_service.generate_input_test_async(new_course.id)
+        # Run course composition in the background
+        composition_request = CourseCompositionRequestSchema(
+            course_id=new_course.id,
+            course_title=new_course.title,
+            course_description=new_course.description,
+            course_level=new_course.level,
+        )
+        background_tasks.add_task(
+            run_course_composition_background, composition_request
+        )
 
         return new_course
     except SQLAlchemyError as e:

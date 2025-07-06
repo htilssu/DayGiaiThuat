@@ -126,6 +126,7 @@ class Settings(BaseSettings):
     )
     DOCUMENT_PROCESSING_TIMEOUT: int = 300  # Timeout cho API call (seconds)
     S3_DOCUMENT_PREFIX: str = "documents/"  # Prefix cho documents trong S3
+    BASE_URL: str = "http://localhost:8000"  # Base URL for webhook callbacks
 
     # AWS/S3 Boto3 Settings (fix for MissingContentLength error)
     AWS_REQUEST_CHECKSUM_CALCULATION: str = "when_required"

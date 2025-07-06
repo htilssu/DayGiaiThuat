@@ -104,3 +104,4 @@ class GenerateLessonRequestSchema(BaseModel):
     include_examples: bool = True
     include_exercises: bool = True
     max_sections: int = 10
+    session_id: Optional[str] = None
