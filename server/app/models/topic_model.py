@@ -34,3 +34,4 @@ class Topic(Base):
         "UserTopic", back_populates="topic"
     )
     tests: Mapped[List[Test]] = relationship("Test", back_populates="topic")
+    order: Mapped[int] = mapped_column(Integer, nullable=True)
