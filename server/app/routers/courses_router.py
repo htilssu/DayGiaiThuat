@@ -94,6 +94,7 @@ async def get_course_by_id(
     course_id: int,
     db: Session = Depends(get_db),
     current_user: UserExcludeSecret = Depends(get_current_user_optional),
+    course_service: CourseService = Depends(get_course_service),
 ):
     """
     Lấy thông tin chi tiết của một khóa học bao gồm topics và lessons
@@ -126,7 +127,6 @@ async def get_course_by_id(
     # Kiểm tra trạng thái đăng ký nếu người dùng đã đăng nhập
     is_enrolled = False
     if current_user:
-        course_service = CourseService(db)
         is_enrolled = course_service.is_enrolled(current_user.id, course_id)
 
     # Lấy topics với lessons
@@ -288,6 +288,7 @@ async def check_enrollment(
 async def get_user_topics(
     course_id: int,
     topic_service: TopicService = Depends(get_topic_service),
+    course_service: CourseService = Depends(get_course_service),
     current_user: UserExcludeSecret = Depends(get_current_user),
 ):
     """
@@ -301,7 +302,15 @@ async def get_user_topics(
     Returns:
         List[TopicWithUserState]: Danh sách topic kèm trạng thái
     """
-    topics = topic_service.get_user_topics(course_id, current_user.id)
+    course = course_service.get_course(course_id)
+    if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy khóa học với ID {course_id}",
+        )
+    topics = course.topics
+    if not topics:
+        return []
     return topics
 
 

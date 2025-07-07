@@ -1,9 +1,9 @@
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field
 from app.models.course_model import TestGenerationStatus
 from app.schemas.topic_schema import TopicWithLessonsResponse
+from pydantic import BaseModel, Field
 
 
 class TopicBase(BaseModel):
@@ -18,7 +18,7 @@ class TopicBase(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=255, description="Tên chủ đề")
     description: Optional[str] = Field(None, description="Mô tả chi tiết về chủ đề")
-    prerequisites: Optional[List[str]] = Field(
+    prerequisites: Optional[list[str]] = Field(
         None, description="Danh sách các điều kiện tiên quyết"
     )
 
@@ -146,7 +146,7 @@ class CourseResponse(CourseBase):
     id: int = Field(..., description="ID của khóa học")
     created_at: datetime = Field(..., description="Thời điểm tạo khóa học")
     updated_at: datetime = Field(..., description="Thời điểm cập nhật gần nhất")
-    topics: Optional[List[TopicResponse]] = Field(
+    topics: Optional[list[TopicResponse]] = Field(
         None, description="Danh sách các chủ đề trong khóa học"
     )
     test_generation_status: str = Field(
@@ -167,7 +167,7 @@ class CourseDetailResponse(CourseResponse):
     Schema cho response chi tiết khóa học bao gồm cả topics và lessons
     """
 
-    topics: List["TopicWithLessonsResponse"] = Field(
+    topics: list["TopicWithLessonsResponse"] = Field(
         default_factory=list, description="Danh sách topics và lessons"
     )
 
@@ -187,7 +187,7 @@ class CourseListResponse(BaseModel):
         totalPages: Tổng số trang
     """
 
-    items: List[CourseResponse]
+    items: list[CourseResponse]
     total: int
     page: int
     limit: int
@@ -219,7 +219,7 @@ class TopicGenerationResult(BaseModel):
 
     name: str
     description: str
-    prerequisites: Optional[List[str]] = None
+    prerequisites: Optional[list[str]] = None
     order: int
 
 
@@ -227,6 +227,32 @@ class CourseCompositionResponseSchema(BaseModel):
     """Schema cho response của CourseCompositionAgent"""
 
     course_id: int
-    topics: List[Dict[str, Any]]
+    topics: list[dict[str, Any]]
     status: str
-    errors: List[str]
+    errors: list[str]
+
+
+class BulkDeleteCoursesRequest(BaseModel):
+    """Schema cho request xóa nhiều khóa học"""
+
+    course_ids: list[int] = Field(..., description="Danh sách ID các khóa học cần xóa")
+
+    @classmethod
+    def validate_course_ids(cls, v):
+        if not v or len(v) == 0:
+            raise ValueError("Danh sách course_ids không được rỗng")
+        return v
+
+
+class BulkDeleteCoursesResponse(BaseModel):
+    """Schema cho response xóa nhiều khóa học"""
+
+    deleted_count: int = Field(..., description="Số lượng khóa học đã xóa thành công")
+    failed_count: int = Field(..., description="Số lượng khóa học không thể xóa")
+    errors: list[str] = Field(default_factory=list, description="Danh sách lỗi nếu có")
+    deleted_courses: list[int] = Field(
+        default_factory=list, description="Danh sách ID các khóa học đã xóa"
+    )
+    failed_courses: list[int] = Field(
+        default_factory=list, description="Danh sách ID các khóa học không thể xóa"
+    )

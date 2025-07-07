@@ -31,30 +31,7 @@ async def list_topics_for_course(
     topics_with_lessons = await topic_service.get_topics_with_lessons_by_course_id(
         course_id
     )
-
-    # Convert to response format
-    result = []
-    for item in topics_with_lessons:
-        topic = item["topic"]
-        lessons = item["lessons"]
-
-        # Tạo dict với tất cả fields cần thiết
-        topic_dict = {
-            "id": topic.id,
-            "name": topic.name,
-            "description": topic.description,
-            "prerequisites": topic.prerequisites,
-            "external_id": topic.external_id,
-            "course_id": topic.course_id,
-            "created_at": topic.created_at,
-            "updated_at": topic.updated_at,
-            "lessons": lessons,
-        }
-
-        topic_response = TopicWithLessonsResponse.model_validate(topic_dict)
-        result.append(topic_response)
-
-    return result
+    return topics_with_lessons
 
 
 @router.get("/{topic_id}", response_model=TopicResponse)
@@ -72,9 +49,13 @@ async def get_topic_with_lessons(
 ):
     """Lấy topic với lessons"""
     result = await topic_service.get_topic_with_lessons(topic_id)
-    topic_data = TopicWithLessonsResponse.model_validate(result["topic"])
-    topic_data.lessons = result["lessons"]
-    return topic_data
+
+    if result is None:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="Topic not found")
+
+    return result
 
 
 @router.put("/{topic_id}", response_model=TopicResponse)
@@ -119,22 +100,3 @@ async def get_lessons_by_topic(
     """
     lessons = await topic_service.get_lessons_by_topic_id(topic_id)
     return lessons
-
-
-@router.get("/debug/course/{course_id}")
-async def debug_topics_for_course(
-    course_id: int, topic_service: TopicService = Depends(get_topic_service)
-):
-    """DEBUG: Test endpoint để kiểm tra topics với lessons"""
-    try:
-        topics_with_lessons = await topic_service.get_topics_with_lessons_by_course_id(
-            course_id
-        )
-        return {
-            "success": True,
-            "course_id": course_id,
-            "topics_count": len(topics_with_lessons),
-            "data": topics_with_lessons,
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e)}

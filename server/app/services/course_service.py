@@ -171,6 +171,82 @@ class CourseService:
                 detail=f"Lỗi khi xóa khóa học: {str(e)}",
             )
 
+    def bulk_delete_courses(self, course_ids: list[int]):
+        """
+        Xóa nhiều khóa học cùng lúc
+
+        Args:
+            course_ids: Danh sách ID các khóa học cần xóa
+
+        Returns:
+            dict: Thông tin về quá trình xóa bao gồm:
+                - deleted_count: Số lượng khóa học đã xóa thành công
+                - failed_count: Số lượng khóa học không thể xóa
+                - deleted_courses: Danh sách ID các khóa học đã xóa
+                - failed_courses: Danh sách ID các khóa học không thể xóa
+                - errors: Danh sách lỗi chi tiết
+        """
+        deleted_courses = []
+        failed_courses = []
+        errors = []
+
+        for course_id in course_ids:
+            try:
+                # Tìm khóa học cần xóa
+                course = self.get_course(course_id)
+                if not course:
+                    failed_courses.append(course_id)
+                    errors.append(f"Không tìm thấy khóa học với ID {course_id}")
+                    continue
+
+                # Kiểm tra xem khóa học có đang được sử dụng không
+                enrollment_count = (
+                    self.db.query(UserCourse)
+                    .filter(UserCourse.course_id == course_id)
+                    .count()
+                )
+
+                if enrollment_count > 0:
+                    failed_courses.append(course_id)
+                    errors.append(
+                        f"Khóa học {course_id} đang có {enrollment_count} học viên đăng ký, không thể xóa"
+                    )
+                    continue
+
+                # Xóa khóa học
+                self.db.delete(course)
+                deleted_courses.append(course_id)
+
+            except SQLAlchemyError as e:
+                failed_courses.append(course_id)
+                errors.append(f"Lỗi khi xóa khóa học {course_id}: {str(e)}")
+                continue
+            except Exception as e:
+                failed_courses.append(course_id)
+                errors.append(
+                    f"Lỗi không xác định khi xóa khóa học {course_id}: {str(e)}"
+                )
+                continue
+
+        try:
+            # Commit tất cả các thay đổi
+            if deleted_courses:
+                self.db.commit()
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            # Nếu commit thất bại, tất cả courses đều failed
+            failed_courses.extend(deleted_courses)
+            deleted_courses = []
+            errors.append(f"Lỗi khi commit transaction: {str(e)}")
+
+        return {
+            "deleted_count": len(deleted_courses),
+            "failed_count": len(failed_courses),
+            "deleted_courses": deleted_courses,
+            "failed_courses": failed_courses,
+            "errors": errors,
+        }
+
     def enroll_course(self, user_id: int, course_id: int):
         """
         Đăng ký khóa học cho người dùng

@@ -10,6 +10,8 @@ from app.schemas.course_schema import (
     CourseResponse,
     CourseUpdate,
     CourseCompositionRequestSchema,
+    BulkDeleteCoursesRequest,
+    BulkDeleteCoursesResponse,
 )
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.core.agents.course_composition_agent import CourseCompositionAgent
@@ -168,6 +170,65 @@ async def update_course(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi cập nhật khóa học: {str(e)}",
+        )
+
+
+@router.delete(
+    "/bulk",
+    response_model=BulkDeleteCoursesResponse,
+    summary="Xóa nhiều khóa học cùng lúc (Admin)",
+    responses={
+        200: {"description": "Xóa thành công"},
+        400: {"description": "Dữ liệu không hợp lệ"},
+        403: {"description": "Không có quyền truy cập"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def bulk_delete_courses(
+    request: BulkDeleteCoursesRequest,
+    course_service: CourseService = Depends(get_course_service),
+    admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
+    """
+    Xóa nhiều khóa học cùng lúc (chỉ admin)
+
+    Args:
+        request: Danh sách ID các khóa học cần xóa
+        course_service: Service xử lý khóa học
+        admin_user: Thông tin admin đã xác thực
+
+    Returns:
+        BulkDeleteCoursesResponse: Thông tin về quá trình xóa
+
+    Raises:
+        HTTPException: Nếu có lỗi trong quá trình xóa
+    """
+    try:
+        # Validate danh sách course_ids
+        if not request.course_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Danh sách course_ids không được rỗng",
+            )
+
+        # Thực hiện bulk delete
+        result = course_service.bulk_delete_courses(request.course_ids)
+
+        return BulkDeleteCoursesResponse(
+            deleted_count=result["deleted_count"],
+            failed_count=result["failed_count"],
+            errors=result["errors"],
+            deleted_courses=result["deleted_courses"],
+            failed_courses=result["failed_courses"],
+        )
+
+    except HTTPException:
+        # Re-raise HTTPException từ validation
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi không xác định khi xóa khóa học: {str(e)}",
         )
 
 
