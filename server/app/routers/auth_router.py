@@ -16,7 +16,7 @@ from app.services.user_service import UserService, get_user_service
 
 router = APIRouter(
     prefix="/auth",
-    tags=["authentication"],
+    tags=["Xác thực"],
     responses={
         404: {"description": "Not found"},
         500: {"description": "Internal server error"},

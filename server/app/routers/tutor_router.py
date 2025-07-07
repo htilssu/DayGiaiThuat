@@ -4,7 +4,7 @@ import httpx
 from app.schemas.tutor_schema import AskTutorSchema
 from app.utils.utils import get_current_user
 
-router = APIRouter(prefix="/tutor", tags=["tutor"])
+router = APIRouter(prefix="/tutor", tags=["Giáo viên"])
 
 
 @router.post("/ask", response_model=None)

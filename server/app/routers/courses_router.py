@@ -28,7 +28,7 @@ from app.utils.utils import get_current_user, get_current_user_optional
 
 router = APIRouter(
     prefix="/courses",
-    tags=["courses"],
+    tags=["Khóa học"],
     responses={404: {"description": "Không tìm thấy khóa học"}},
 )
 

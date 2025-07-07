@@ -15,10 +15,10 @@ from app.schemas.user_profile_schema import UserExcludeSecret
 from app.models.document_processing_job_model import DocumentProcessingJob
 
 # Router cho admin (cần authentication)
-router = APIRouter(prefix="/admin/document", tags=["document"])
+router = APIRouter(prefix="/admin/document", tags=["Tài liệu"])
 
 # Router cho webhook (không cần authentication)
-webhook_router = APIRouter(prefix="/document", tags=["document-webhook"])
+webhook_router = APIRouter(prefix="/document", tags=["Tài liệu - Webhook"])
 
 
 def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):

@@ -74,7 +74,7 @@ async def create_topic(
     },
 )
 async def get_topics_admin(
-    course_id: int = None,
+    course_id: int | None = None,
     db: Session = Depends(get_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):

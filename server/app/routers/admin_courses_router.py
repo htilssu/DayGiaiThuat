@@ -21,7 +21,7 @@ from app.utils.utils import get_current_user
 
 router = APIRouter(
     prefix="/admin/courses",
-    tags=["admin-courses"],
+    tags=["Khóa học - Admin"],
     responses={404: {"description": "Không tìm thấy khóa học"}},
 )
 

@@ -8,7 +8,7 @@ from app.schemas.user_profile_schema import UserExcludeSecret
 
 router = APIRouter(
     prefix="/admin/upload",
-    tags=["admin-upload"],
+    tags=["Upload - Admin"],
     responses={404: {"description": "Not found"}},
 )
 

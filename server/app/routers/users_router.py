@@ -8,7 +8,7 @@ from ..services.user_service import UserService, get_user_service
 from ..services.profile_service import ProfileService, get_profile_service
 from ..utils.utils import get_current_user, verify_password
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(prefix="/users", tags=["Người dùng"])
 
 
 @router.get("", response_model=UserResponse)

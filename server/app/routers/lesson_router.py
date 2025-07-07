@@ -1,16 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.database.database import get_async_db
-from app.services.lesson_service import LessonService, get_lesson_service
 from app.schemas.lesson_schema import (
     CreateLessonSchema,
-    UpdateLessonSchema,
-    LessonResponseSchema,
     GenerateLessonRequestSchema,
+    LessonResponseSchema,
+    UpdateLessonSchema,
 )
+from app.services.lesson_service import LessonService, get_lesson_service
+from fastapi import APIRouter, Depends, HTTPException, status
 
-router = APIRouter(prefix="/lessons", tags=["lessons"])
+router = APIRouter(prefix="/lessons", tags=["Bài học"])
 
 
 @router.post("/generate", response_model=LessonResponseSchema)

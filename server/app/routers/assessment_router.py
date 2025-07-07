@@ -13,7 +13,7 @@ from app.models.user_model import User
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/assessment", tags=["assessment"])
+router = APIRouter(prefix="/assessment", tags=["Đánh giá"])
 
 
 @router.post(

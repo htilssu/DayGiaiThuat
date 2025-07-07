@@ -26,7 +26,7 @@ from app.schemas.test_schema import (
 from app.utils.utils import get_current_user
 
 
-router = APIRouter(prefix="/tests", tags=["tests"])
+router = APIRouter(prefix="/tests", tags=["Kiểm tra"])
 
 # Kết nối WebSocket để theo dõi và cập nhật phiên làm bài
 active_connections: Dict[str, WebSocket] = {}  # {session_id: websocket}

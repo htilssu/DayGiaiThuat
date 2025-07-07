@@ -5,7 +5,7 @@ from app.schemas.lesson_schema import (
     GenerateLessonRequestSchema,
 )
 
-router = APIRouter(prefix="/lesson-plans", tags=["lesson-plans"])
+router = APIRouter(prefix="/lesson-plans", tags=["Lộ trình học"])
 
 
 @router.post("/generate-test", response_model=LessonResponseSchema)

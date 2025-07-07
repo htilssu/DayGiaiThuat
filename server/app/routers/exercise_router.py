@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.schemas.exercise_schema import CreateExerciseSchema
 from app.services.exercise_service import ExerciseService, get_exercise_service
 
-router = APIRouter(prefix="/exercise", tags=["exercise"])
+router = APIRouter(prefix="/exercise", tags=["Bài tập"])
 
 
 @router.post(

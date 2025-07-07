@@ -10,7 +10,7 @@ from app.schemas.topic_schema import (
 from app.schemas.lesson_schema import LessonResponseSchema
 from app.services.topic_service import TopicService, get_topic_service
 
-router = APIRouter(prefix="/topics", tags=["topics"])
+router = APIRouter(prefix="/topics", tags=["Chủ đề"])
 
 
 @router.post("/", response_model=TopicResponse, status_code=status.HTTP_201_CREATED)
