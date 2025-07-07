@@ -173,15 +173,21 @@ export const patch = async <T>(
 /**
  * Thực hiện yêu cầu DELETE
  * @param endpoint - Endpoint API
+ * @param data - Dữ liệu gửi trong body (tùy chọn)
  * @param config - Cấu hình tùy chọn Axios
  * @returns Promise chứa dữ liệu phản hồi
  */
 export const del = async <T>(
   endpoint: string,
+  data?: any,
   config?: AxiosRequestConfig
 ): Promise<T> => {
   try {
-    const response: AxiosResponse<T> = await client.delete(endpoint, config);
+    const requestConfig = { ...config };
+    if (data) {
+      requestConfig.data = data;
+    }
+    const response: AxiosResponse<T> = await client.delete(endpoint, requestConfig);
     return response.data;
   } catch (error) {
     throw handleApiError(error as AxiosError);

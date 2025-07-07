@@ -8,7 +8,7 @@ import { get, post, del, put } from "./client";
 /**
  * Kiểu dữ liệu cho khóa học
  */
-interface Course {
+export interface Course {
     id: number;
     title: string;
     description: string | null;
@@ -27,6 +27,24 @@ interface Course {
 
 export type CourseCreatePayload = Omit<Course, "id" | "createdAt" | "updatedAt" | "thumbnailUrl" | "testGenerationStatus"> & { thumbnailUrl?: string };
 export type CourseUpdatePayload = Partial<CourseCreatePayload>;
+
+/**
+ * Kiểu dữ liệu cho request xóa nhiều khóa học
+ */
+export interface BulkDeleteCoursesRequest {
+    courseIds: number[];
+}
+
+/**
+ * Kiểu dữ liệu cho response xóa nhiều khóa học
+ */
+export interface BulkDeleteCoursesResponse {
+    deletedCount: number;
+    failedCount: number;
+    errors: string[];
+    deletedCourses: number[];
+    failedCourses: number[];
+}
 
 /**
  * Lấy tất cả khóa học (admin) - bao gồm cả chưa published
@@ -73,6 +91,16 @@ export async function deleteCourseAdmin(id: number): Promise<void> {
 }
 
 /**
+ * Xóa nhiều khóa học cùng lúc (admin)
+ * @param courseIds Danh sách ID các khóa học cần xóa
+ * @returns Kết quả xóa nhiều khóa học
+ */
+export async function bulkDeleteCoursesAdmin(courseIds: number[]): Promise<BulkDeleteCoursesResponse> {
+    const request: BulkDeleteCoursesRequest = { courseIds };
+    return del<BulkDeleteCoursesResponse>("/admin/courses/bulk", request);
+}
+
+/**
  * Tạo bài kiểm tra đầu vào cho khóa học (admin)
  * @param courseId ID của khóa học
  * @returns Kết quả tạo test
@@ -87,5 +115,6 @@ export const adminCoursesApi = {
     createCourseAdmin,
     updateCourseAdmin,
     deleteCourseAdmin,
+    bulkDeleteCoursesAdmin,
     createCourseTestAdmin,
 }; 
