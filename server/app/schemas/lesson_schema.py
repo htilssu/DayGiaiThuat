@@ -51,13 +51,26 @@ class LessonSectionResponse(BaseModel):
         from_attributes = True
 
 
+class Options(BaseModel):
+    A: str
+    B: str
+    C: str
+    D: str
+
+
 class LessonSectionSchema(BaseModel):
     type: str  # "text", "code", "image", "quiz"
     content: str
-    order: int
-    options: Optional[Dict[str, Any]] = None
-    answer: Optional[int] = None
-    explanation: Optional[str] = None
+    order: int = Field(..., description="Thứ tự section trong lesson")
+    options: Optional[Options] = Field(description="Tùy chọn cho quiz")
+    answer: Optional[int] = Field(
+        None,
+        description="Đáp án đúng cho quiz nếu type là quiz",
+    )
+    explanation: Optional[str] = Field(
+        None,
+        description="Giải thích cho quiz nếu type là quiz",
+    )
 
 
 class CreateLessonSchema(BaseModel):

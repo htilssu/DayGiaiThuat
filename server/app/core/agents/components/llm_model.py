@@ -1,5 +1,4 @@
 from app.core.config import settings
-from functools import lru_cache
 
 
 def create_new_llm_model(thinking_budget: int = 0):
@@ -19,6 +18,7 @@ def create_new_llm_model(thinking_budget: int = 0):
         model=settings.AGENT_LLM_MODEL,
         google_api_key=settings.GOOGLE_API_KEY,
         thinking_budget=thinking_budget,
+        temperature=0.1,  # Thêm temperature để model ít random hơn
     )
 
 
@@ -37,10 +37,10 @@ def create_new_creative_llm_model():
         model=settings.CREATIVE_LLM_MODEL,
         google_api_key=settings.GOOGLE_API_KEY,
         thinking_budget=1000,
+        temperature=0.7,  # Temperature cao hơn cho creativity
     )
 
 
-@lru_cache(maxsize=1)
 def get_llm_model():
     """
     Trả về một instance được cache của model LLM Gemini
@@ -48,11 +48,4 @@ def get_llm_model():
     Returns:
         ChatGoogleGenerativeAI: Instance được cache của model LLM
     """
-    # Lazy import - chỉ import khi cần thiết
-    from langchain_google_genai import ChatGoogleGenerativeAI
-
-    return ChatGoogleGenerativeAI(
-        model=settings.AGENT_LLM_MODEL,
-        google_api_key=settings.GOOGLE_API_KEY,
-        thinking_budget=0,
-    )
+    return create_new_llm_model()

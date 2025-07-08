@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import List, Optional
 
 from app.models.course_model import TestGenerationStatus
 from app.schemas.topic_schema import TopicWithLessonsResponse
@@ -18,7 +18,7 @@ class TopicBase(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=255, description="Tên chủ đề")
     description: Optional[str] = Field(None, description="Mô tả chi tiết về chủ đề")
-    prerequisites: Optional[list[str]] = Field(
+    prerequisites: Optional[List[str]] = Field(
         None, description="Danh sách các điều kiện tiên quyết"
     )
 
@@ -219,7 +219,7 @@ class TopicGenerationResult(BaseModel):
 
     name: str
     description: str
-    prerequisites: Optional[list[str]] = None
+    prerequisites: Optional[List[str]] = None
     order: int
 
 
@@ -227,9 +227,9 @@ class CourseCompositionResponseSchema(BaseModel):
     """Schema cho response của CourseCompositionAgent"""
 
     course_id: int
-    topics: list[dict[str, Any]]
+    topics: List[TopicResponse]
     status: str
-    errors: list[str]
+    errors: List[str]
 
 
 class BulkDeleteCoursesRequest(BaseModel):

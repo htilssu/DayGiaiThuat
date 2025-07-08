@@ -2,6 +2,7 @@ import json
 from typing import override
 
 from app.core.agents.base_agent import BaseAgent
+from app.core.agents.components.llm_model import create_new_creative_llm_model
 from app.core.agents.components.document_store import get_vector_store
 from app.core.config import settings
 from app.core.tracing import trace_agent
@@ -10,13 +11,22 @@ from app.schemas.lesson_schema import CreateLessonSchema, LessonSectionSchema
 SYSTEM_PROMPT_TEMPLATE = """
 Bạn là một AI agent chuyên nghiệp, có nhiệm vụ tạo ra các bài giảng lập trình và giải thuật chất lượng cao.
 
-Quy trình làm việc của bạn như sau:
+QUAN TRỌNG: Bạn PHẢI làm theo đúng quy trình từng bước như sau và KHÔNG ĐƯỢC DỪNG CHO ĐẾN KHI HOÀN THÀNH:
+
 1. **Nghiên cứu tài liệu:** Sử dụng `retriever_document_tool` để tìm kiếm và thu thập thông tin liên quan đến chủ đề được yêu cầu từ kho tài liệu.
 2. **Tạo cấu trúc bài giảng:** Dựa trên thông tin đã thu thập, sử dụng `generate_lesson_structure_tool` để phác thảo cấu trúc bài giảng, bao gồm các phần chính và tiêu đề.
 3. **Soạn nội dung chi tiết:** Với mỗi phần trong cấu trúc, sử dụng `generate_section_content_tool` để tạo ra nội dung chi tiết, bao gồm lý thuyết, ví dụ code, hoặc câu hỏi trắc nghiệm.
 4. **Hoàn thiện và kiểm tra:** Cuối cùng, sử dụng `output_fixing_parser_tool` để đảm bảo toàn bộ bài giảng được định dạng chính xác theo cấu trúc JSON yêu cầu trước khi trả về kết quả.
 
-Hãy tuân thủ nghiêm ngặt quy trình trên để tạo ra những bài giảng tốt nhất.
+LƯU Ý QUAN TRỌNG:
+- BẠN PHẢI THỰC HIỆN TẤT CẢ CÁC BƯỚC TRÊN. KHÔNG ĐƯỢC BỎ QUA BƯỚC NÀO.
+- BẠN PHẢI TRẢ VỀ MỘT JSON HOÀN CHỈNH THEO ĐÚNG SCHEMA CreateLessonSchema
+- KHÔNG ĐƯỢC DỪNG CHO ĐẾN KHI CÓ KẾT QUẢ CUỐI CÙNG
+- NẾU BẠN DỪNG MÀ CHƯA HOÀN THÀNH, NGƯỜI DÙNG SẼ KHÔNG NHẬN ĐƯỢC GÌ
+
+Hãy bắt đầu ngay với việc sử dụng retriever_document_tool để tìm kiếm thông tin về chủ đề được yêu cầu.
+
+BƯỚC ĐẦU TIÊN BẮT BUỘC: Gọi retriever_document_tool với chủ đề được cung cấp để tìm hiểu nội dung liên quan.
 """
 
 
@@ -68,16 +78,31 @@ class LessonGeneratingAgent(BaseAgent):
         self.generate_structure_prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessage(
-                    content="Bạn là một chuyên gia thiết kế chương trình học. Hãy tạo cấu trúc cho một bài giảng."
+                    content="""Bạn là một chuyên gia thiết kế chương trình học. Hãy tạo cấu trúc cho một bài giảng.
+
+                    Trong đó bài quiz phải có:
+                    - "options" phải là một object có các key là A, B, C, D (không bọc bằng dấu nháy).
+                    - Không được trả về "options" là string chỉ có 1 ngoại lệ là section đó không phải là quiz thì sẽ trả về null.
+
+                    Ví dụ đúng:
+                    {
+                    "type": "quiz",
+                    "content": "Thuật toán nào tối ưu nhất về thời gian?",
+                    "options": {
+                        "A": "Thuật toán A",
+                        "B": "Thuật toán B",
+                        "C": "Thuật toán C",
+                        "D": "Thuật toán D"
+                    },
+                    "answer": 0
+                    }
+                    """
                 ),
-                HumanMessagePromptTemplate.from_template(
-                    "Chủ đề: {topic_name}\nTiêu đề: {lesson_title}\nĐộ khó: {difficulty_level}\nThông tin tham khảo:\n{context}"
-                ),
+                HumanMessagePromptTemplate.from_template("{input}"),
             ]
         )
         self.generate_structure_chain = (
-            self.generate_structure_prompt
-            | self.base_llm.with_structured_output(CreateLessonSchema)
+            self.generate_structure_prompt | create_new_creative_llm_model()
         )
 
         # Chain for generating section content
@@ -86,9 +111,7 @@ class LessonGeneratingAgent(BaseAgent):
                 SystemMessage(
                     content="Bạn là một người viết nội dung giáo dục. Hãy soạn nội dung chi tiết cho phần này của bài giảng."
                 ),
-                HumanMessagePromptTemplate.from_template(
-                    "Thông tin phần: {section_info}\nĐộ khó: {difficulty_level}\nNgữ cảnh tham khảo:\n{context}"
-                ),
+                HumanMessagePromptTemplate.from_template("{input}"),
             ]
         )
         self.generate_content_chain = (
@@ -105,21 +128,21 @@ class LessonGeneratingAgent(BaseAgent):
             name="retriever_document_tool",
             func=self.retriever.invoke,
             coroutine=self.retriever.ainvoke,
-            description="Truy xuất tài liệu và kiến thức từ kho vector để hỗ trợ việc tạo bài giảng.",
+            description="Truy xuất tài liệu và kiến thức từ kho vector để hỗ trợ việc tạo bài giảng. BẮT BUỘC phải sử dụng tool này đầu tiên để tìm hiểu về chủ đề.",
         )
 
         self.generate_lesson_structure_tool = Tool(
             name="generate_lesson_structure_tool",
-            func=lambda x: self.generate_structure_chain.invoke(x),
-            coroutine=lambda x: self.generate_structure_chain.ainvoke(x),
-            description="Tạo cấu trúc bài giảng (các phần, tiêu đề) dựa trên chủ đề và thông tin tham khảo.",
+            func=lambda x: self.generate_structure_chain.invoke({"input": x}),
+            coroutine=lambda x: self.generate_structure_chain.ainvoke({"input": x}),
+            description="Tạo cấu trúc bài giảng (các phần, tiêu đề) dựa trên chủ đề và thông tin tham khảo. PHẢI sử dụng sau khi đã tìm hiểu tài liệu.",
         )
 
         self.generate_section_content_tool = Tool(
             name="generate_section_content_tool",
-            func=lambda x: self.generate_content_chain.invoke(x),
-            coroutine=lambda x: self.generate_content_chain.ainvoke(x),
-            description="Tạo nội dung chi tiết cho một phần cụ thể của bài giảng.",
+            func=lambda x: self.generate_content_chain.invoke({"input": x}),
+            coroutine=lambda x: self.generate_content_chain.ainvoke({"input": x}),
+            description="Tạo nội dung chi tiết cho một phần cụ thể của bài giảng. Sử dụng cho từng section trong cấu trúc đã tạo.",
         )
 
         self.output_fixing_parser = OutputFixingParser.from_llm(
@@ -129,7 +152,7 @@ class LessonGeneratingAgent(BaseAgent):
             name="output_fixing_parser_tool",
             func=self.output_fixing_parser.invoke,
             coroutine=self.output_fixing_parser.ainvoke,
-            description="Sửa lỗi định dạng đầu ra để đảm bảo kết quả cuối cùng là một JSON hoàn chỉnh.",
+            description="Sửa lỗi định dạng đầu ra để đảm bảo kết quả cuối cùng là một JSON hoàn chỉnh. PHẢI sử dụng cuối cùng để hoàn thiện output.",
         )
 
         self.tools = [
@@ -210,7 +233,7 @@ class LessonGeneratingAgent(BaseAgent):
                 raise ValueError("Agent không trả về kết quả hợp lệ.")
 
         except Exception as e:
-            print(f"Lỗi trong quá trình t\u1ea1o bài giảng: {e}")
+            print(f"Lỗi trong quá trình tạo bài giảng: {e}")
             raise Exception(f"Không thể tạo bài giảng: {str(e)}")
 
 

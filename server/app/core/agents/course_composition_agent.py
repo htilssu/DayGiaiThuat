@@ -3,13 +3,14 @@ from app.core.agents.components.document_store import get_vector_store
 from app.schemas.course_schema import (
     CourseCompositionRequestSchema,
     CourseCompositionResponseSchema,
-    TopicGenerationResult,
 )
+from app.core.agents.lesson_generating_agent import LessonGeneratingAgent
 from app.models.topic_model import Topic
 from sqlalchemy.ext.asyncio import AsyncSession
 from langchain_core.tools import Tool
 from app.core.tracing import trace_agent
 import json
+import uuid
 
 
 SYSTEM_PROMPT = """
@@ -20,10 +21,9 @@ SYSTEM_PROMPT = """
             2. Mô tả chi tiết nội dung sẽ học
             3. Liệt kê các kiến thức tiên quyết (nếu có)
             4. Sắp xếp theo thứ tự học tập hợp lý
-            
             # Danh sách tools:
             - course_context_retriever: Truy vấn RAG để lấy nội dung liên quan đến khóa học.
-            - save_topics_to_db: Lưu danh sách các topic đã được tạo vào cơ sở dữ liệu. đối số là json string của danh sách topic có dạng:
+            - save_topics_to_db: Lưu danh sách các topic đã được tạo vào cơ sở dữ liệu. đối số là json array string của danh sách topic bắt buộc phải có dạng:
                 ```json
                     [
                         {
@@ -55,6 +55,7 @@ SYSTEM_PROMPT = """
             - Đảm bảo tính logic và liên kết giữa các topics
             - Phù hợp với cấp độ khóa học
             - Không vượt quá số lượng topics tối đa
+            - Phải luôn tuân thủ đầu ra, không được trả lời lan man, không được yêu cầu thêm thông tin
             """
 
 
@@ -67,6 +68,7 @@ class CourseCompositionAgent(BaseAgent):
         super().__init__()
         self.db_session = db_session
         self.vector_store = get_vector_store("document")
+        self.lesson_generation_agent = LessonGeneratingAgent()
         self._setup_tools()
         self._init_agent()
 
@@ -124,7 +126,7 @@ class CourseCompositionAgent(BaseAgent):
             return False
         return True
 
-    async def _get_topics_by_course_id(self, course_id: int):
+    async def _get_topics_by_course_id(self, course_id: int) -> list[Topic]:
         """Lấy danh sách topics theo course_id từ database"""
         from sqlalchemy import select
         from app.models.topic_model import Topic
@@ -133,7 +135,7 @@ class CourseCompositionAgent(BaseAgent):
             result = await self.db_session.execute(
                 select(Topic).where(Topic.course_id == course_id)
             )
-            return result.scalars().all()
+            return [topic for topic in result.scalars().all()]
         except Exception as e:
             print(f"Lỗi khi lấy topics từ database: {e}")
             return []
@@ -177,9 +179,6 @@ class CourseCompositionAgent(BaseAgent):
 
         errors = []
         try:
-            print(f"🔄 Bắt đầu tạo topics cho khóa học: {request.course_title}")
-
-            # Lưu course_id để sử dụng khi lưu topics
             self.current_course_id = request.course_id
 
             run_config = RunnableConfig(
@@ -212,25 +211,24 @@ class CourseCompositionAgent(BaseAgent):
                     errors=errors,
                 )
 
-                # Lấy topics từ database sau khi đã lưu
             topics_from_db = await self._get_topics_by_course_id(request.course_id)
 
-            # Chuyển đổi topics thành dictionary an toàn
-            topics_dict = []
             for topic in topics_from_db:
-                topic_dict = {
-                    "id": topic.id,
-                    "name": topic.name,
-                    "description": topic.description,
-                    "prerequisites": topic.prerequisites or [],
-                    "course_id": topic.course_id,
-                    "external_id": topic.external_id,
-                }
-                topics_dict.append(topic_dict)
+                session_id = str(uuid.uuid4())
+
+                lesson = await self.lesson_generation_agent.act(
+                    topic_name=topic.name,
+                    lesson_title=f"Bài giảng {topic.name}",
+                    lesson_description=topic.description,
+                    difficulty_level=request.course_level,
+                    lesson_type="video",
+                    max_sections=5,
+                    session_id=session_id,
+                )
 
             return CourseCompositionResponseSchema(
                 course_id=request.course_id,
-                topics=topics_dict,
+                topics=topics_from_db,
                 status="success",
                 errors=errors,
             )
