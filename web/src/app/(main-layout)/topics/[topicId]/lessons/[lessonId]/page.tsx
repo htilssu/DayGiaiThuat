@@ -33,13 +33,6 @@ const getLessonData = (lessonId: string) => {
 
 export default async function LessonPageRoute({ params }: LessonPageProps) {
     const { lessonId, topicId } = await params;
-
-    // Trong thực tế, bạn sẽ fetch data từ API
-    const lesson = getLessonData(lessonId);
-
-    if (!lesson) {
-        notFound();
-    }
-
-    return <LessonPage lesson={lesson} />;
-} 
+    // LessonPage sẽ tự fetch dữ liệu từ API
+    return <LessonPage topicId={topicId} lessonId={lessonId} />;
+}

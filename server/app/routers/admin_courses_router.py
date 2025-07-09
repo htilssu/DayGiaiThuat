@@ -220,6 +220,7 @@ async def bulk_delete_courses(
             errors=result["errors"],
             deleted_courses=result["deleted_courses"],
             failed_courses=result["failed_courses"],
+            deleted_items=result["deleted_items"],
         )
 
     except HTTPException:
@@ -234,10 +235,11 @@ async def bulk_delete_courses(
 
 @router.delete(
     "/{course_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
     summary="Xóa khóa học (Admin)",
     responses={
-        204: {"description": "Xóa thành công"},
+        200: {"description": "Xóa thành công"},
+        400: {"description": "Khóa học đang được sử dụng"},
         403: {"description": "Không có quyền truy cập"},
         404: {"description": "Không tìm thấy khóa học"},
         500: {"description": "Internal server error"},
@@ -249,7 +251,7 @@ async def delete_course(
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
-    Xóa khóa học (chỉ admin)
+    Xóa khóa học và tất cả dữ liệu liên quan (chỉ admin)
 
     Args:
         course_id: ID của khóa học cần xóa
@@ -258,7 +260,14 @@ async def delete_course(
 
     Raises:
         HTTPException: Nếu không tìm thấy khóa học hoặc có lỗi khi xóa
+        
+    Returns:
+        dict: Thông tin về quá trình xóa bao gồm số lượng items đã xóa
     """
+    from app.models.topic_model import Topic
+    from app.models.lesson_model import Lesson, LessonSection
+    from app.models.user_course_model import UserCourse
+    
     # Tìm khóa học cần xóa
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
@@ -267,10 +276,38 @@ async def delete_course(
             detail=f"Không tìm thấy khóa học với ID {course_id}",
         )
 
+    # Kiểm tra xem khóa học có đang được sử dụng không
+    enrollment_count = (
+        db.query(UserCourse)
+        .filter(UserCourse.course_id == course_id)
+        .count()
+    )
+
+    if enrollment_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Khóa học đang có {enrollment_count} học viên đăng ký, không thể xóa"
+        )
+
     try:
-        # Xóa khóa học
+        # Đếm số lượng items sẽ bị xóa để logging
+        topics_count = db.query(Topic).filter(Topic.course_id == course_id).count()
+        lessons_count = db.query(Lesson).join(Topic).filter(Topic.course_id == course_id).count()
+        sections_count = db.query(LessonSection).join(Lesson).join(Topic).filter(Topic.course_id == course_id).count()
+
+        # Xóa khóa học (cascade sẽ tự động xóa topics, lessons, sections)
         db.delete(course)
         db.commit()
+        
+        return {
+            "message": f"Đã xóa thành công khóa học '{course.title}' và tất cả dữ liệu liên quan",
+            "deleted_items": {
+                "courses": 1,
+                "topics": topics_count,
+                "lessons": lessons_count,
+                "lesson_sections": sections_count
+            }
+        }
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(

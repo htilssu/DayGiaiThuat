@@ -17,7 +17,7 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
-    const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+    const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
     const [showExplanation, setShowExplanation] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);
 
@@ -103,8 +103,8 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
         }
     };
 
-    const handleAnswerSelect = (index: number) => {
-        setSelectedAnswer(index);
+    const handleAnswerSelect = (answerKey: string) => {
+        setSelectedAnswer(answerKey);
         if (isQuiz) {
             setShowExplanation(true);
         }
@@ -115,6 +115,18 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
             case "text":
                 return (
                     <div className="prose max-w-none">
+                        <div dangerouslySetInnerHTML={{ __html: section.content }} />
+                    </div>
+                );
+            case "teaching":
+                return (
+                    <div className="prose max-w-none bg-blue-50 p-6 rounded-lg border border-blue-200">
+                        <div className="flex items-center mb-4">
+                            <svg className="w-6 h-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                            <h3 className="text-lg font-semibold text-blue-800">Bài giảng</h3>
+                        </div>
                         <div dangerouslySetInnerHTML={{ __html: section.content }} />
                     </div>
                 );
@@ -136,61 +148,43 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                         <h3 className="text-xl font-semibold mb-4">Câu hỏi:</h3>
                         <p className="mb-6">{section.content}</p>
                         <div className="space-y-3">
-                            {Array.isArray(section.options)
-                                ? section.options.map(function(option: any, index: number) {
+                            {section.options && typeof section.options === 'object'
+                                ? Object.entries(section.options).map(([key, value]: [string, any]) => {
+                                    const isSelected = selectedAnswer === key;
+                                    const isCorrect = key === section.answer;
+                                    const isIncorrect = isSelected && !isCorrect;
+                                    
                                     return (
                                         <div
-                                            key={index}
-                                            onClick={() => handleAnswerSelect(index)}
-                                            className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedAnswer === index
-                                                ? selectedAnswer === section.answer
-                                                    ? "border-green-500 bg-green-50"
-                                                    : "border-red-500 bg-red-50"
-                                                : "border-gray-200 hover:border-primary/50"
-                                                }`}
+                                            key={key}
+                                            onClick={() => handleAnswerSelect(key)}
+                                            className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                                                isSelected
+                                                    ? isCorrect
+                                                        ? "border-green-500 bg-green-50"
+                                                        : "border-red-500 bg-red-50"
+                                                    : "border-gray-200 hover:border-primary/50"
+                                            }`}
                                         >
                                             <div className="flex items-center">
                                                 <div
-                                                    className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${selectedAnswer === index
-                                                        ? selectedAnswer === section.answer
-                                                            ? "bg-green-500 text-white"
-                                                            : "bg-red-500 text-white"
-                                                        : "bg-foreground/10"
-                                                        }`}
+                                                    className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
+                                                        isSelected
+                                                            ? isCorrect
+                                                                ? "bg-green-500 text-white"
+                                                                : "bg-red-500 text-white"
+                                                            : "bg-foreground/10"
+                                                    }`}
                                                 >
-                                                    {String.fromCharCode(65 + index)}
+                                                    {key}
                                                 </div>
-                                                <span>{option}</span>
+                                                <span>{value}</span>
                                             </div>
                                         </div>
                                     );
                                 })
-                                : null}
-                                <div
-                                    key={index}
-                                    onClick={() => handleAnswerSelect(index)}
-                                    className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedAnswer === index
-                                        ? selectedAnswer === section.answer
-                                            ? "border-green-500 bg-green-50"
-                                            : "border-red-500 bg-red-50"
-                                        : "border-gray-200 hover:border-primary/50"
-                                        }`}
-                                >
-                                    <div className="flex items-center">
-                                        <div
-                                            className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${selectedAnswer === index
-                                                ? selectedAnswer === section.answer
-                                                    ? "bg-green-500 text-white"
-                                                    : "bg-red-500 text-white"
-                                                : "bg-foreground/10"
-                                                }`}
-                                        >
-                                            {String.fromCharCode(65 + index)}
-                                        </div>
-                                        <span>{option}</span>
-                                    </div>
-                                </div>
-                            ))}
+                                : <p className="text-red-500">Không có lựa chọn nào được cung cấp cho câu hỏi này.</p>
+                            }
                         </div>
 
                         {showExplanation && (
@@ -222,7 +216,7 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                                 <p>{section.explanation}</p>
                                 {selectedAnswer !== section.answer && (
                                     <p className="mt-2 font-semibold">
-                                        Đáp án đúng là: {String.fromCharCode(65 + (section.answer || 0))}
+                                        Đáp án đúng là: {section.answer}
                                     </p>
                                 )}
                             </motion.div>

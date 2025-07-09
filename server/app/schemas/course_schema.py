@@ -256,3 +256,6 @@ class BulkDeleteCoursesResponse(BaseModel):
     failed_courses: list[int] = Field(
         default_factory=list, description="Danh sách ID các khóa học không thể xóa"
     )
+    deleted_items: dict[str, int] = Field(
+        default_factory=dict, description="Thống kê chi tiết số lượng items đã xóa (courses, topics, lessons, lesson_sections)"
+    )

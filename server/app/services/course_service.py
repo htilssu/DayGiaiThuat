@@ -144,7 +144,7 @@ class CourseService:
 
     def bulk_delete_courses(self, course_ids: list[int]):
         """
-        Xóa nhiều khóa học cùng lúc
+        Xóa nhiều khóa học cùng lúc, bao gồm tất cả topics, lessons, và lesson sections
 
         Args:
             course_ids: Danh sách ID các khóa học cần xóa
@@ -156,10 +156,20 @@ class CourseService:
                 - deleted_courses: Danh sách ID các khóa học đã xóa
                 - failed_courses: Danh sách ID các khóa học không thể xóa
                 - errors: Danh sách lỗi chi tiết
+                - deleted_items: Thống kê chi tiết số lượng items đã xóa
         """
+        from app.models.topic_model import Topic
+        from app.models.lesson_model import Lesson, LessonSection
+        
         deleted_courses = []
         failed_courses = []
         errors = []
+        deleted_items = {
+            "courses": 0,
+            "topics": 0,
+            "lessons": 0,
+            "lesson_sections": 0
+        }
 
         for course_id in course_ids:
             try:
@@ -184,9 +194,20 @@ class CourseService:
                     )
                     continue
 
-                # Xóa khóa học
+                # Đếm số lượng items sẽ bị xóa để logging
+                topics_count = self.db.query(Topic).filter(Topic.course_id == course_id).count()
+                lessons_count = self.db.query(Lesson).join(Topic).filter(Topic.course_id == course_id).count()
+                sections_count = self.db.query(LessonSection).join(Lesson).join(Topic).filter(Topic.course_id == course_id).count()
+
+                # Xóa khóa học (cascade sẽ tự động xóa topics, lessons, sections)
                 self.db.delete(course)
                 deleted_courses.append(course_id)
+                
+                # Cập nhật thống kê
+                deleted_items["courses"] += 1
+                deleted_items["topics"] += topics_count
+                deleted_items["lessons"] += lessons_count
+                deleted_items["lesson_sections"] += sections_count
 
             except SQLAlchemyError as e:
                 failed_courses.append(course_id)
@@ -208,6 +229,7 @@ class CourseService:
             # Nếu commit thất bại, tất cả courses đều failed
             failed_courses.extend(deleted_courses)
             deleted_courses = []
+            deleted_items = {"courses": 0, "topics": 0, "lessons": 0, "lesson_sections": 0}
             errors.append(f"Lỗi khi commit transaction: {str(e)}")
 
         return {
@@ -216,6 +238,7 @@ class CourseService:
             "deleted_courses": deleted_courses,
             "failed_courses": failed_courses,
             "errors": errors,
+            "deleted_items": deleted_items,
         }
 
     def enroll_course(self, user_id: int, course_id: int):

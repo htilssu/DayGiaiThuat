@@ -1,4 +1,6 @@
 import json
+from typing import override
+
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.llm_model import create_new_creative_llm_model
 from app.core.agents.components.document_store import get_vector_store
@@ -23,6 +25,7 @@ LƯU Ý QUAN TRỌNG:
     ,dựa vào tài liệu đã thu thập. 1 đoạn văn bản string, không phải json.
 
 """
+
 STRUCTURE_PROMPT_TEMPLATE = """Bạn là một chuyên gia thiết kế chương trình học. Hãy tạo cấu trúc cho nhiều bài giảng (lesson) dựa vào đầu vào.
 
 Hướng dẫn về từng loại section:
@@ -39,11 +42,10 @@ Hướng dẫn về từng loại section:
 
 Đối với các section khác (teaching, text, code, image):
 - "options" phải là null
-- "answer" phải là null
+- "answer" phải là null  
 - "explanation" phải là null
 
 # QUAN TRỌNG:
-- Mỗi bài giảng phải có phần ví dụ dễ hiểu, giúp học viên nắm vững kiến thức.
 - type của section phải là một trong các giá trị sau: "text", "code", "quiz", "teaching", "image".
 {format_instructions}
 """
@@ -193,6 +195,7 @@ class LessonGeneratingAgent(BaseAgent):
             # handle_parsing_errors=True,
         )
 
+    @override
     @trace_agent(project_name="default", tags=["lesson", "generator"])
     async def act(self, *args, **kwargs) -> list[CreateLessonSchema]:
         """

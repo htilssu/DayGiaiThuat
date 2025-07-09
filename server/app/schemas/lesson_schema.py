@@ -40,11 +40,11 @@ class LessonSectionResponse(BaseModel):
     """
 
     id: int
-    type: str = Field(..., description="Loại section: text, code, image, quiz")
+    type: str = Field(..., description="Loại section: text, code, image, quiz, teaching")
     content: str = Field(..., description="Nội dung của section")
     order: int = Field(..., description="Thứ tự section trong lesson")
     options: Optional[Dict[str, Any]] = Field(None, description="Tùy chọn cho quiz")
-    answer: Optional[int] = Field(None, description="Đáp án đúng cho quiz")
+    answer: Optional[str] = Field(None, description="Đáp án đúng cho quiz (A, B, C, D)")
     explanation: Optional[str] = Field(None, description="Giải thích cho quiz")
 
     class Config:
@@ -59,10 +59,10 @@ class Options(BaseModel):
 
 
 class LessonSectionSchema(BaseModel):
-    type: str  # "text", "code", "image", "quiz"
+    type: str  # "text", "code", "image", "quiz", "teaching"
     content: str
     order: int = Field(..., description="Thứ tự section trong lesson")
-    options: Optional[Options] = Field(description="Tùy chọn cho quiz")
+    options: Optional[Options] = Field(None, description="Tùy chọn cho quiz")
     answer: Optional[str] = Field(
         None,
         description="Đáp án đúng cho quiz nếu type là quiz",

@@ -24,7 +24,7 @@ export interface LessonSection {
   content: string;
   order: number;
   options?: Record<string, unknown> | null;
-  answer?: number | null;
+  answer?: string | null;
   explanation?: string | null;
 }
 

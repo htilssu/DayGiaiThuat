@@ -246,9 +246,9 @@ class CourseCompositionAgent(BaseAgent):
                 )
 
                 # Lưu lesson vào database
-                lesson_data.topic_id = topic.id
-                # Tạo lesson trong database
-                await lesson_service.create_lesson(lesson_data)
+                for lesson in lesson_data:
+                    lesson.topic_id = topic.id
+                    await lesson_service.create_lesson(lesson)
 
             # Chuyển đổi topics_from_db thành danh sách TopicResponse từ course_schema
             from typing import List

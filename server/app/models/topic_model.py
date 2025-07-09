@@ -29,9 +29,9 @@ class Topic(Base):
         ARRAY(String), nullable=True
     )
     course: Mapped[Optional["Course"]] = relationship("Course", back_populates="topics")
-    lessons: Mapped[List[Lesson]] = relationship("Lesson", back_populates="topic")
+    lessons: Mapped[List[Lesson]] = relationship("Lesson", back_populates="topic", cascade="all, delete-orphan")
     user_topics: Mapped[List[UserTopic]] = relationship(
         "UserTopic", back_populates="topic"
     )
-    tests: Mapped[List[Test]] = relationship("Test", back_populates="topic")
+    tests: Mapped[List[Test]] = relationship("Test", back_populates="topic", cascade="all, delete-orphan")
     order: Mapped[int] = mapped_column(Integer, nullable=True)

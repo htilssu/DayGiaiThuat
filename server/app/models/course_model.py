@@ -78,11 +78,11 @@ class Course(Base):
     )  # Lưu dưới dạng JSON string lộ trình học tập
 
     # Relationships
-    topics: Mapped[List["Topic"]] = relationship("Topic", back_populates="course")
+    topics: Mapped[List["Topic"]] = relationship("Topic", back_populates="course", cascade="all, delete-orphan")
     user_states: Mapped[List["UserState"]] = relationship(
         back_populates="current_course"
     )
-    tests: Mapped[List["Test"]] = relationship("Test", back_populates="course")
+    tests: Mapped[List["Test"]] = relationship("Test", back_populates="course", cascade="all, delete-orphan")
     document_processing_jobs: Mapped[List["DocumentProcessingJob"]] = relationship(
         back_populates="course"
     )
