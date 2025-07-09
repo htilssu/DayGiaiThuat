@@ -14,7 +14,9 @@ from app.schemas.topic_schema import (
     TopicWithUserState,
     TopicWithLessonsResponse,
 )
-from app.schemas.lesson_schema import LessonResponseSchema
+from app.schemas.lesson_schema import (
+    LessonResponseSchema,
+)
 from app.schemas.user_course_schema import (
     CourseEnrollmentResponse,
 )
@@ -24,6 +26,7 @@ from app.services.course_service import CourseService, get_course_service
 from app.services.topic_service import TopicService, get_topic_service
 from app.services.test_service import TestService, get_test_service
 from app.utils.utils import get_current_user, get_current_user_optional
+from app.utils.model_utils import convert_lesson_to_schema
 
 
 router = APIRouter(
@@ -141,10 +144,12 @@ async def get_course_by_id(
     # Convert topics to response format
     topics_response = []
     for topic in topics:
-        lessons_response = [
-            LessonResponseSchema.model_validate(lesson)
-            for lesson in sorted(topic.lessons, key=lambda x: x.created_at)
-        ]
+        lessons_response = []
+        for lesson in sorted(topic.lessons, key=lambda x: x.created_at):
+            # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
+            lesson_response = convert_lesson_to_schema(lesson)
+            lessons_response.append(lesson_response)
+
         topic_response = TopicWithLessonsResponse.model_validate(topic)
         topic_response.lessons = lessons_response
         topics_response.append(topic_response)

@@ -67,7 +67,7 @@ async def redoc_html():
 # Cấu hình CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -79,4 +79,3 @@ app.add_middleware(CamelCaseMiddleware)
 # Register routes and exception handlers
 register_router(app)
 add_exception_handlers(app)
-

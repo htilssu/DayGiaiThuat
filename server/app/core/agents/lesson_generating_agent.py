@@ -21,7 +21,8 @@ LƯU Ý QUAN TRỌNG:
 - BẠN PHẢI THỰC HIỆN TẤT CẢ CÁC BƯỚC TRÊN. KHÔNG ĐƯỢC BỎ QUA BƯỚC NÀO.
 - Cho dù không đủ thông tin yêu cầu vẫn phải đi theo luồng của quy trình. KHÔNG ĐƯỢC YÊU CẦU BỔ SUNG THÊM THÔNG TIN.
 - KHÔNG ĐƯỢC DỪNG CHO ĐẾN KHI CÓ KẾT QUẢ CUỐI CÙNG
-- đối số của `generate_lesson_tool` là miêu tả kịch bản học. 1 đoạn văn bản string, không phải json.
+- Đối số của `generate_lesson_tool` là miêu tả kịch bản học chi tiết, section này có những gì, bổ sung kiến thức nào, có thể có các câu hỏi, lời giải thích, lời giảng dạy như một người giáo viên
+    ,dựa vào tài liệu đã thu thập. 1 đoạn văn bản string, không phải json.
 
 """
 

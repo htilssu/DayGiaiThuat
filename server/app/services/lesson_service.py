@@ -14,11 +14,9 @@ from app.schemas.lesson_schema import (
     UpdateLessonSchema,
     LessonResponseSchema,
     GenerateLessonRequestSchema,
-    LessonSectionSchema,
-    Options,
-    ExerciseResponse,
 )
 from app.core.agents.lesson_generating_agent import get_lesson_generating_agent
+from app.utils.model_utils import convert_lesson_to_schema
 
 
 from app.services.topic_service import get_topic_service, TopicService
@@ -123,50 +121,10 @@ class LessonService:
         await self.db.refresh(lesson)
 
         # Tải rõ ràng các mối quan hệ trước khi chuyển đổi
-        sections = await self.db.execute(
-            select(LessonSection).where(LessonSection.lesson_id == lesson.id)
-        )
-        sections_list = sections.scalars().all()
+        await self.db.refresh(lesson, ["sections", "exercises"])
 
-        # Tạo sections data
-        sections_data = []
-        for section in sections_list:
-            section_data = {
-                "type": section.type,
-                "content": section.content,
-                "order": section.order,
-                "options": None,
-                "answer": section.answer,
-                "explanation": section.explanation,
-            }
-
-            # Xử lý options nếu có
-            if section.options and isinstance(section.options, dict):
-                if all(key in section.options for key in ["A", "B", "C", "D"]):
-                    section_data["options"] = Options(
-                        A=section.options["A"],
-                        B=section.options["B"],
-                        C=section.options["C"],
-                        D=section.options["D"],
-                    )
-
-            sections_data.append(LessonSectionSchema(**section_data))
-
-        # Tạo một đối tượng response thủ công thay vì dùng model_validate trực tiếp
-        response = LessonResponseSchema(
-            id=lesson.id,
-            external_id=lesson.external_id,
-            title=lesson.title,
-            description=lesson.description,
-            topic_id=lesson.topic_id,
-            order=lesson.order,
-            next_lesson_id=lesson.next_lesson_id,
-            prev_lesson_id=lesson.prev_lesson_id,
-            sections=sections_data,
-            exercises=[],  # Ban đầu không có exercises
-        )
-
-        return response
+        # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
+        return convert_lesson_to_schema(lesson)
 
     async def get_lesson_by_id(self, lesson_id: int) -> Optional[LessonResponseSchema]:
         """
@@ -183,55 +141,8 @@ class LessonService:
         if not lesson:
             return None
 
-        # Tạo đối tượng response thủ công thay vì dùng model_validate
-        sections_data = []
-        for section in lesson.sections:
-            section_data = {
-                "type": section.type,
-                "content": section.content,
-                "order": section.order,
-                "options": None,
-                "answer": section.answer,
-                "explanation": section.explanation,
-            }
-
-            # Xử lý options nếu có
-            if section.options and isinstance(section.options, dict):
-                if all(key in section.options for key in ["A", "B", "C", "D"]):
-                    section_data["options"] = Options(
-                        A=section.options["A"],
-                        B=section.options["B"],
-                        C=section.options["C"],
-                        D=section.options["D"],
-                    )
-
-            sections_data.append(LessonSectionSchema(**section_data))
-
-        response = LessonResponseSchema(
-            id=lesson.id,
-            external_id=lesson.external_id,
-            title=lesson.title,
-            description=lesson.description,
-            topic_id=lesson.topic_id,
-            order=lesson.order,
-            next_lesson_id=lesson.next_lesson_id,
-            prev_lesson_id=lesson.prev_lesson_id,
-            sections=sections_data,
-            exercises=[
-                ExerciseResponse(
-                    id=exercise.id,
-                    name=exercise.name,
-                    description=exercise.description,
-                    difficulty=exercise.difficulty,
-                    constraint=exercise.constraint,
-                    suggest=exercise.suggest,
-                    lesson_id=exercise.lesson_id,
-                )
-                for exercise in lesson.exercises
-            ],
-        )
-
-        return response
+        # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
+        return convert_lesson_to_schema(lesson)
 
     async def get_lesson_by_external_id(
         self, external_id: str
@@ -250,55 +161,8 @@ class LessonService:
         if not lesson:
             return None
 
-        # Tạo đối tượng response thủ công thay vì dùng model_validate
-        sections_data = []
-        for section in lesson.sections:
-            section_data = {
-                "type": section.type,
-                "content": section.content,
-                "order": section.order,
-                "options": None,
-                "answer": section.answer,
-                "explanation": section.explanation,
-            }
-
-            # Xử lý options nếu có
-            if section.options and isinstance(section.options, dict):
-                if all(key in section.options for key in ["A", "B", "C", "D"]):
-                    section_data["options"] = Options(
-                        A=section.options["A"],
-                        B=section.options["B"],
-                        C=section.options["C"],
-                        D=section.options["D"],
-                    )
-
-            sections_data.append(LessonSectionSchema(**section_data))
-
-        response = LessonResponseSchema(
-            id=lesson.id,
-            external_id=lesson.external_id,
-            title=lesson.title,
-            description=lesson.description,
-            topic_id=lesson.topic_id,
-            order=lesson.order,
-            next_lesson_id=lesson.next_lesson_id,
-            prev_lesson_id=lesson.prev_lesson_id,
-            sections=sections_data,
-            exercises=[
-                ExerciseResponse(
-                    id=exercise.id,
-                    name=exercise.name,
-                    description=exercise.description,
-                    difficulty=exercise.difficulty,
-                    constraint=exercise.constraint,
-                    suggest=exercise.suggest,
-                    lesson_id=exercise.lesson_id,
-                )
-                for exercise in lesson.exercises
-            ],
-        )
-
-        return response
+        # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
+        return convert_lesson_to_schema(lesson)
 
     async def get_lessons_by_topic(self, topic_id: int) -> List[LessonResponseSchema]:
         """
@@ -313,59 +177,8 @@ class LessonService:
         result = await self.db.execute(stmt)
         lessons = result.scalars().all()
 
-        lesson_responses = []
-
-        for lesson in lessons:
-            # Tạo đối tượng response thủ công thay vì dùng model_validate
-            sections_data = []
-            for section in lesson.sections:
-                section_data = {
-                    "type": section.type,
-                    "content": section.content,
-                    "order": section.order,
-                    "options": None,
-                    "answer": section.answer,
-                    "explanation": section.explanation,
-                }
-
-                # Xử lý options nếu có
-                if section.options and isinstance(section.options, dict):
-                    if all(key in section.options for key in ["A", "B", "C", "D"]):
-                        section_data["options"] = Options(
-                            A=section.options["A"],
-                            B=section.options["B"],
-                            C=section.options["C"],
-                            D=section.options["D"],
-                        )
-
-                sections_data.append(LessonSectionSchema(**section_data))
-
-            response = LessonResponseSchema(
-                id=lesson.id,
-                external_id=lesson.external_id,
-                title=lesson.title,
-                description=lesson.description,
-                topic_id=lesson.topic_id,
-                order=lesson.order,
-                next_lesson_id=lesson.next_lesson_id,
-                prev_lesson_id=lesson.prev_lesson_id,
-                sections=sections_data,
-                exercises=[
-                    ExerciseResponse(
-                        id=exercise.id,
-                        name=exercise.name,
-                        description=exercise.description,
-                        difficulty=exercise.difficulty,
-                        constraint=exercise.constraint,
-                        suggest=exercise.suggest,
-                        lesson_id=exercise.lesson_id,
-                    )
-                    for exercise in lesson.exercises
-                ],
-            )
-            lesson_responses.append(response)
-
-        return lesson_responses
+        # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
+        return [convert_lesson_to_schema(lesson) for lesson in lessons]
 
     async def update_lesson(
         self, lesson_id: int, lesson_data: UpdateLessonSchema
@@ -390,55 +203,8 @@ class LessonService:
         # Tải rõ ràng các mối quan hệ
         await self.db.refresh(lesson, ["sections", "exercises"])
 
-        # Tạo đối tượng response thủ công thay vì dùng model_validate
-        sections_data = []
-        for section in lesson.sections:
-            section_data = {
-                "type": section.type,
-                "content": section.content,
-                "order": section.order,
-                "options": None,
-                "answer": section.answer,
-                "explanation": section.explanation,
-            }
-
-            # Xử lý options nếu có
-            if section.options and isinstance(section.options, dict):
-                if all(key in section.options for key in ["A", "B", "C", "D"]):
-                    section_data["options"] = Options(
-                        A=section.options["A"],
-                        B=section.options["B"],
-                        C=section.options["C"],
-                        D=section.options["D"],
-                    )
-
-            sections_data.append(LessonSectionSchema(**section_data))
-
-        response = LessonResponseSchema(
-            id=lesson.id,
-            external_id=lesson.external_id,
-            title=lesson.title,
-            description=lesson.description,
-            topic_id=lesson.topic_id,
-            order=lesson.order,
-            next_lesson_id=lesson.next_lesson_id,
-            prev_lesson_id=lesson.prev_lesson_id,
-            sections=sections_data,
-            exercises=[
-                ExerciseResponse(
-                    id=exercise.id,
-                    name=exercise.name,
-                    description=exercise.description,
-                    difficulty=exercise.difficulty,
-                    constraint=exercise.constraint,
-                    suggest=exercise.suggest,
-                    lesson_id=exercise.lesson_id,
-                )
-                for exercise in lesson.exercises
-            ],
-        )
-
-        return response
+        # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
+        return convert_lesson_to_schema(lesson)
 
     async def delete_lesson(self, lesson_id: int) -> bool:
         """
