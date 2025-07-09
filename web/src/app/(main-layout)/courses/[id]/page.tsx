@@ -5,8 +5,6 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { coursesApi, topicsApi, lessonsApi } from "@/lib/api";
 import { UserCourseDetail } from "@/lib/api/courses";
-import { Topic } from "@/lib/api/topics";
-import { Lesson } from "@/lib/api/types";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/lib/store";
 import { addModal } from "@/lib/store/modalStore";
@@ -26,10 +24,7 @@ export default function CourseDetailPage() {
 
   const [course, setCourse] = useState<UserCourseDetail | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "content" | "reviews">("overview");
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [topicsLoading, setTopicsLoading] = useState<boolean>(true);
-  const [topicsError, setTopicsError] = useState<string | null>(null);
-  const [topicLessons, setTopicLessons] = useState<Record<number, Lesson[]>>({});
+  // Đã có course.topics từ API, không cần state topics/topicsLoading/topicsError/topicLessons
   const [isUnregistering, setIsUnregistering] = useState<boolean>(false);
   const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
@@ -49,43 +44,7 @@ export default function CourseDetailPage() {
     }
   }, [courseData]);
 
-  // Fetch topics and lessons
-  const fetchTopics = async () => {
-    try {
-      setTopicsLoading(true);
-      setTopicsError(null);
-
-      // Get all topics for this course
-      const topicsList = await topicsApi.getTopicsByCourse(courseId);
-      setTopics(topicsList);
-
-      // Fetch lessons for each topic
-      const lessonsMap: Record<number, Lesson[]> = {};
-      for (const topic of topicsList) {
-        try {
-          const lessons = await lessonsApi.getLessonsByTopic(topic.id);
-          lessonsMap[topic.id] = lessons;
-        } catch {
-          lessonsMap[topic.id] = [];
-        }
-      }
-      setTopicLessons(lessonsMap);
-
-      console.log("Topics:", topicsList);
-      console.log("Lessons map:", lessonsMap);
-    } catch {
-      setTopicsError("Không thể tải nội dung khóa học. Vui lòng thử lại sau.");
-    } finally {
-      setTopicsLoading(false);
-    }
-  };
-
-  // Fetch topics when courseId changes
-  useEffect(() => {
-    if (courseId) {
-      fetchTopics();
-    }
-  }, [courseId]);
+  // Không fetch topics/lessons riêng nữa
 
   // Chuyển đổi phút thành định dạng giờ:phút
   const formatDuration = (minutes: number) => {
@@ -547,7 +506,6 @@ export default function CourseDetailPage() {
           {activeTab === "content" && (
             <div>
               <h2 className="text-2xl font-bold mb-6">Nội dung khóa học</h2>
-
               {!isEnrolled ? (
                 <div className="p-6 bg-foreground/5 rounded-xl text-center">
                   <h3 className="text-lg font-medium mb-2">Đăng ký để xem nội dung</h3>
@@ -563,25 +521,17 @@ export default function CourseDetailPage() {
                 </div>
               ) : (
                 <div>
-                  {topicsLoading ? (
-                    <div className="text-center py-10 text-foreground/70">
-                      Đang tải nội dung...
-                    </div>
-                  ) : topicsError ? (
-                    <div className="text-center py-10 text-accent">
-                      {topicsError}
-                    </div>
-                  ) : topics.length === 0 ? (
+                  {(!course.topics || course.topics.length === 0) ? (
                     <div className="text-center py-10 text-foreground/70">
                       Chưa có chủ đề nào cho khóa học này.
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {topics.map((topic) => (
+                      {course.topics.map((topic: any, idx: number) => (
                         <details
                           key={topic.id}
                           className="group bg-foreground/5 rounded-xl overflow-hidden"
-                          open={topic.id === topics[0]?.id}>
+                          open={idx === 0}>
                           <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-foreground/10">
                             <div>
                               <h3 className="font-medium">
@@ -593,7 +543,7 @@ export default function CourseDetailPage() {
                             </div>
                             <div className="flex items-center gap-4">
                               <div className="text-sm text-foreground/70">
-                                {topicLessons[topic.id]?.length || 0} bài học
+                                {topic.lessons?.length || 0} bài học
                               </div>
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -611,7 +561,7 @@ export default function CourseDetailPage() {
                             </div>
                           </summary>
                           <div className="border-t border-foreground/10">
-                            {topicLessons[topic.id]?.map((lesson) => (
+                            {topic.lessons?.map((lesson: any) => (
                               <div
                                 key={lesson.id}
                                 className="flex items-center gap-4 p-4 hover:bg-foreground/5">

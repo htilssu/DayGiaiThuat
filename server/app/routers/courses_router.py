@@ -132,33 +132,60 @@ async def get_course_by_id(
     if current_user:
         is_enrolled = course_service.is_enrolled(current_user.id, course_id)
 
-    # Lấy topics với lessons
-    topics = (
-        db.query(Topic)
-        .filter(Topic.course_id == course_id)
-        .options(joinedload(Topic.lessons))
-        .order_by(Topic.created_at)
-        .all()
-    )
+    # Chuyển đổi course ORM sang schema bằng hàm tiện ích
+    course_response = convert_course_to_schema(course, is_enrolled)
+    return course_response
 
-    # Convert topics to response format
+
+# Hàm tiện ích chuyển đổi Course ORM sang CourseDetailResponse schema
+
+
+def convert_course_to_schema(course, is_enrolled=False):
+    """
+    Chuyển đổi đối tượng Course ORM sang CourseDetailResponse schema, bao gồm cả topics và lessons
+    """
+    topics = course.topics if hasattr(course, "topics") else []
     topics_response = []
     for topic in topics:
         lessons_response = []
-        for lesson in sorted(topic.lessons, key=lambda x: x.created_at):
-            # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
+        for lesson in sorted(
+            getattr(topic, "lessons", []), key=lambda x: getattr(x, "created_at", 0)
+        ):
             lesson_response = convert_lesson_to_schema(lesson)
             lessons_response.append(lesson_response)
-
-        topic_response = TopicWithLessonsResponse.model_validate(topic)
-        topic_response.lessons = lessons_response
+        topic_response = TopicWithLessonsResponse(
+            id=topic.id,
+            external_id=getattr(topic, "external_id", None),
+            course_id=topic.course_id,
+            name=topic.name,
+            description=topic.description,
+            prerequisites=getattr(topic, "prerequisites", None),
+            created_at=topic.created_at,
+            updated_at=topic.updated_at,
+            lessons=lessons_response,
+        )
         topics_response.append(topic_response)
-
-    # Tạo response object trực tiếp
-    course_response = CourseDetailResponse.model_validate(course)
-    course_response.is_enrolled = is_enrolled
-    course_response.topics = topics_response
-
+    test_generation_status = getattr(course, "test_generation_status", None)
+    if not isinstance(test_generation_status, str) or not test_generation_status:
+        test_generation_status = "NOT_STARTED"
+    course_response = CourseDetailResponse(
+        id=course.id,
+        title=course.title,
+        description=course.description,
+        thumbnail_url=getattr(course, "thumbnail_url", None),
+        level=getattr(course, "level", None),
+        duration=getattr(course, "duration", None),
+        price=getattr(course, "price", None),
+        is_published=getattr(course, "is_published", None),
+        tags=getattr(course, "tags", None),
+        requirements=getattr(course, "requirements", None),
+        what_you_will_learn=getattr(course, "what_you_will_learn", None),
+        created_at=course.created_at,
+        updated_at=course.updated_at,
+        topics=topics_response,
+        test_generation_status=test_generation_status,
+        is_enrolled=is_enrolled,
+    )
     return course_response
 
 

@@ -1,37 +1,83 @@
 "use client";
 
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-
-interface LessonSection {
-    type: "text" | "code" | "image" | "quiz";
-    content: string;
-    options?: string[];
-    answer?: number;
-    explanation?: string;
-}
-
-interface Lesson {
-    id: string;
-    title: string;
-    description: string;
-    topicId: string;
-    topicTitle: string;
-    sections: LessonSection[];
-    nextLessonId?: string;
-    prevLessonId?: string;
-}
+import { lessonsApi } from "@/lib/api";
+import type { Lesson as ApiLesson, LessonSection as ApiLessonSection } from "@/lib/api/types";
 
 interface LessonPageProps {
-    lesson: Lesson;
+    topicId: string;
+    lessonId: string;
 }
 
-export function LessonPage({ lesson }: LessonPageProps) {
+export function LessonPage({ topicId, lessonId }: LessonPageProps) {
+    const [lesson, setLesson] = useState<ApiLesson | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
     const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
     const [showExplanation, setShowExplanation] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);
+
+    useEffect(() => {
+        async function fetchLesson() {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const data = await lessonsApi.getLessonByExternalId(lessonId);
+                setLesson(data);
+            } catch (err: any) {
+                setError("Không thể tải thông tin bài học. Vui lòng thử lại sau.");
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchLesson();
+    }, [lessonId]);
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="h-8 w-1/2 mx-auto bg-foreground/10 rounded mb-4 animate-pulse"></div>
+                    <div className="h-6 w-1/3 mx-auto bg-foreground/10 rounded mb-2 animate-pulse"></div>
+                    <div className="h-4 w-1/4 mx-auto bg-foreground/10 rounded mb-6 animate-pulse"></div>
+                    <div className="h-40 w-full bg-foreground/10 rounded mb-6 animate-pulse"></div>
+                </div>
+            </div>
+        );
+    }
+
+
+    if (error || !lesson) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold mb-4 text-accent">{error || "Bài học không tồn tại"}</h2>
+                    <p className="text-foreground/70 mb-6">Không tìm thấy bài học hoặc bài học đã bị xóa.</p>
+                    <Link href={topicId ? `/topics/${topicId}` : "/learn"} className="px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition">
+                        Quay lại chủ đề
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    if (!lesson.sections || !Array.isArray(lesson.sections) || lesson.sections.length === 0) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold mb-4 text-accent">Bài học không có nội dung</h2>
+                    <p className="text-foreground/70 mb-6">Hiện tại bài học này chưa có nội dung hoặc đã bị xóa.</p>
+                    <Link href={topicId ? `/topics/${topicId}` : "/learn"} className="px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition">
+                        Quay lại chủ đề
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     const currentSection = lesson.sections[currentSectionIndex];
     const isLastSection = currentSectionIndex === lesson.sections.length - 1;
@@ -64,7 +110,7 @@ export function LessonPage({ lesson }: LessonPageProps) {
         }
     };
 
-    const renderSection = (section: LessonSection) => {
+    const renderSection = (section: ApiLessonSection) => {
         switch (section.type) {
             case "text":
                 return (
@@ -90,7 +136,36 @@ export function LessonPage({ lesson }: LessonPageProps) {
                         <h3 className="text-xl font-semibold mb-4">Câu hỏi:</h3>
                         <p className="mb-6">{section.content}</p>
                         <div className="space-y-3">
-                            {section.options?.map((option, index) => (
+                            {Array.isArray(section.options)
+                                ? section.options.map(function(option: any, index: number) {
+                                    return (
+                                        <div
+                                            key={index}
+                                            onClick={() => handleAnswerSelect(index)}
+                                            className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedAnswer === index
+                                                ? selectedAnswer === section.answer
+                                                    ? "border-green-500 bg-green-50"
+                                                    : "border-red-500 bg-red-50"
+                                                : "border-gray-200 hover:border-primary/50"
+                                                }`}
+                                        >
+                                            <div className="flex items-center">
+                                                <div
+                                                    className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${selectedAnswer === index
+                                                        ? selectedAnswer === section.answer
+                                                            ? "bg-green-500 text-white"
+                                                            : "bg-red-500 text-white"
+                                                        : "bg-foreground/10"
+                                                        }`}
+                                                >
+                                                    {String.fromCharCode(65 + index)}
+                                                </div>
+                                                <span>{option}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                                : null}
                                 <div
                                     key={index}
                                     onClick={() => handleAnswerSelect(index)}
@@ -166,7 +241,7 @@ export function LessonPage({ lesson }: LessonPageProps) {
                 <div className="mb-8">
                     <div className="flex items-center mb-2">
                         <Link href={`/topics/${lesson.topicId}`} className="text-primary hover:underline">
-                            {lesson.topicTitle}
+                            {`Chủ đề ${lesson.topicId}`}
                         </Link>
                         <span className="mx-2">•</span>
                         <span>Bài {lesson.id}</span>
@@ -231,7 +306,7 @@ export function LessonPage({ lesson }: LessonPageProps) {
                         exit={{ opacity: 0, x: -20 }}
                         className="bg-white rounded-xl p-6 md:p-8 shadow-sm border border-foreground/10"
                     >
-                        {renderSection(currentSection)}
+                        {renderSection(currentSection as any)}
 
                         <div className="flex justify-between mt-8">
                             <button
@@ -260,7 +335,7 @@ export function LessonPage({ lesson }: LessonPageProps) {
 
                 {/* Section indicators */}
                 <div className="flex justify-center mt-8">
-                    {lesson.sections.map((_, index) => (
+                    {lesson.sections.map((_, index: number) => (
                         <div
                             key={index}
                             className={`w-3 h-3 rounded-full mx-1 ${index === currentSectionIndex
