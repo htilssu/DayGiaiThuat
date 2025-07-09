@@ -63,7 +63,7 @@ class LessonSectionSchema(BaseModel):
     content: str
     order: int = Field(..., description="Thứ tự section trong lesson")
     options: Optional[Options] = Field(description="Tùy chọn cho quiz")
-    answer: Optional[int] = Field(
+    answer: Optional[str] = Field(
         None,
         description="Đáp án đúng cho quiz nếu type là quiz",
     )

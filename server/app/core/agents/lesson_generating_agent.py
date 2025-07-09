@@ -6,28 +6,32 @@ from app.core.agents.components.llm_model import create_new_creative_llm_model
 from app.core.agents.components.document_store import get_vector_store
 from app.core.config import settings
 from app.core.tracing import trace_agent
-from app.schemas.lesson_schema import CreateLessonSchema, LessonSectionSchema
+from app.schemas.lesson_schema import CreateLessonSchema
 
 SYSTEM_PROMPT_TEMPLATE = """
 Bạn là một AI agent chuyên nghiệp, có nhiệm vụ tạo ra các bài giảng lập trình và giải thuật chất lượng cao.
 
 QUAN TRỌNG: Bạn PHẢI làm theo đúng quy trình từng bước như sau và KHÔNG ĐƯỢC DỪNG CHO ĐẾN KHI HOÀN THÀNH:
 
-1. **Nghiên cứu tài liệu:** Sử dụng `retriever_document_tool` để tìm kiếm và thu thập thông tin liên quan đến chủ đề được yêu cầu từ kho tài liệu.
-2. **Tạo cấu trúc bài giảng:** Dựa trên thông tin đã thu thập, sử dụng `generate_lesson_structure_tool` để phác thảo cấu trúc bài giảng, bao gồm các phần chính và tiêu đề.
-3. **Soạn nội dung chi tiết:** Với mỗi phần trong cấu trúc, sử dụng `generate_section_content_tool` để tạo ra nội dung chi tiết, bao gồm lý thuyết, ví dụ code, hoặc câu hỏi trắc nghiệm.
-4. **Hoàn thiện và kiểm tra:** Cuối cùng, sử dụng `output_fixing_parser_tool` để đảm bảo toàn bộ bài giảng được định dạng chính xác theo cấu trúc JSON yêu cầu trước khi trả về kết quả.
+1. **Nghiên cứu tài liệu:** Sử dụng `retriever_document_tool` để tìm kiếm và thu thập thông tin liên quan đến chủ đề được yêu cầu từ kho tài liệu (có thể gọi nhiều lần để truy vấn dữ liệu đầy đủ nhất).
+2. **Tạo bài giảng:** Dựa trên thông tin đã thu thập, phác thảo bài giảng và sử dụng `generate_lesson_tool` để tạo bài giảng chi tiết,
+đối số là miêu tả kịch bản học. 1 đoạn văn bản.
 
 LƯU Ý QUAN TRỌNG:
 - BẠN PHẢI THỰC HIỆN TẤT CẢ CÁC BƯỚC TRÊN. KHÔNG ĐƯỢC BỎ QUA BƯỚC NÀO.
-- BẠN PHẢI TRẢ VỀ MỘT JSON HOÀN CHỈNH THEO ĐÚNG SCHEMA CreateLessonSchema
+- Cho dù không đủ thông tin yêu cầu vẫn phải đi theo luồng của quy trình. KHÔNG ĐƯỢC YÊU CẦU BỔ SUNG THÊM THÔNG TIN.
 - KHÔNG ĐƯỢC DỪNG CHO ĐẾN KHI CÓ KẾT QUẢ CUỐI CÙNG
-- NẾU BẠN DỪNG MÀ CHƯA HOÀN THÀNH, NGƯỜI DÙNG SẼ KHÔNG NHẬN ĐƯỢC GÌ
+- đối số của `generate_lesson_tool` là miêu tả kịch bản học. 1 đoạn văn bản string, không phải json.
 
-Hãy bắt đầu ngay với việc sử dụng retriever_document_tool để tìm kiếm thông tin về chủ đề được yêu cầu.
-
-BƯỚC ĐẦU TIÊN BẮT BUỘC: Gọi retriever_document_tool với chủ đề được cung cấp để tìm hiểu nội dung liên quan.
 """
+
+STRUCTURE_PROMPT_TEMPLATE = """Bạn là một chuyên gia thiết kế chương trình học. Hãy tạo cấu trúc cho một bài giảng.
+
+                    Trong đó bài quiz phải có:
+                    - "options" phải là một object có các key là A, B, C, D (không bọc bằng dấu nháy).
+                    - Không được trả về "options" là string chỉ có 1 ngoại lệ là section đó không phải là quiz thì sẽ trả về null.
+                    {format_instructions}
+                    """
 
 
 class LessonGeneratingAgent(BaseAgent):
@@ -55,8 +59,9 @@ class LessonGeneratingAgent(BaseAgent):
         self.mongodb_collection_name = mongodb_collection_name
         self.mongodb_db_name = mongodb_db_name
 
-        self.vector_store = get_vector_store("document")
-        self.retriever = self.vector_store.as_retriever(search_kwargs={"k": 5})
+        self.retriever = get_vector_store("document").as_retriever(
+            search_kwargs={"k": 5}
+        )
 
         self._init_parsers_and_chains()
         self._init_tools()
@@ -72,31 +77,14 @@ class LessonGeneratingAgent(BaseAgent):
         )
 
         self.structure_parser = PydanticOutputParser(pydantic_object=CreateLessonSchema)
-        self.content_parser = PydanticOutputParser(pydantic_object=LessonSectionSchema)
 
         # Chain for generating lesson structure
         self.generate_structure_prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessage(
-                    content="""Bạn là một chuyên gia thiết kế chương trình học. Hãy tạo cấu trúc cho một bài giảng.
-
-                    Trong đó bài quiz phải có:
-                    - "options" phải là một object có các key là A, B, C, D (không bọc bằng dấu nháy).
-                    - Không được trả về "options" là string chỉ có 1 ngoại lệ là section đó không phải là quiz thì sẽ trả về null.
-
-                    Ví dụ đúng:
-                    {
-                    "type": "quiz",
-                    "content": "Thuật toán nào tối ưu nhất về thời gian?",
-                    "options": {
-                        "A": "Thuật toán A",
-                        "B": "Thuật toán B",
-                        "C": "Thuật toán C",
-                        "D": "Thuật toán D"
-                    },
-                    "answer": 0
-                    }
-                    """
+                    content=STRUCTURE_PROMPT_TEMPLATE.format(
+                        format_instructions=self.structure_parser.get_format_instructions()
+                    )
                 ),
                 HumanMessagePromptTemplate.from_template("{input}"),
             ]
@@ -114,10 +102,6 @@ class LessonGeneratingAgent(BaseAgent):
                 HumanMessagePromptTemplate.from_template("{input}"),
             ]
         )
-        self.generate_content_chain = (
-            self.generate_content_prompt
-            | self.base_llm.with_structured_output(LessonSectionSchema)
-        )
 
     def _init_tools(self):
         """Khởi tạo tools."""
@@ -132,22 +116,16 @@ class LessonGeneratingAgent(BaseAgent):
         )
 
         self.generate_lesson_structure_tool = Tool(
-            name="generate_lesson_structure_tool",
+            name="generate_lesson_tool",
             func=lambda x: self.generate_structure_chain.invoke({"input": x}),
             coroutine=lambda x: self.generate_structure_chain.ainvoke({"input": x}),
             description="Tạo cấu trúc bài giảng (các phần, tiêu đề) dựa trên chủ đề và thông tin tham khảo. PHẢI sử dụng sau khi đã tìm hiểu tài liệu.",
         )
 
-        self.generate_section_content_tool = Tool(
-            name="generate_section_content_tool",
-            func=lambda x: self.generate_content_chain.invoke({"input": x}),
-            coroutine=lambda x: self.generate_content_chain.ainvoke({"input": x}),
-            description="Tạo nội dung chi tiết cho một phần cụ thể của bài giảng. Sử dụng cho từng section trong cấu trúc đã tạo.",
-        )
-
         self.output_fixing_parser = OutputFixingParser.from_llm(
             self.base_llm, self.structure_parser
         )
+
         self.output_fixing_parser_tool = Tool(
             name="output_fixing_parser_tool",
             func=self.output_fixing_parser.invoke,
@@ -158,8 +136,7 @@ class LessonGeneratingAgent(BaseAgent):
         self.tools = [
             self.retriever_document_tool,
             self.generate_lesson_structure_tool,
-            self.generate_section_content_tool,
-            self.output_fixing_parser_tool,
+            # self.output_fixing_parser_tool,
         ]
 
     def _init_agent(self):
@@ -183,7 +160,10 @@ class LessonGeneratingAgent(BaseAgent):
 
         agent = create_tool_calling_agent(self.base_llm, self.tools, self.prompt)
         self.agent_executor = AgentExecutor(
-            agent=agent, tools=self.tools, verbose=True, handle_parsing_errors=True
+            agent=agent.with_retry(),
+            tools=self.tools,
+            verbose=True,
+            # handle_parsing_errors=True,
         )
 
     @override

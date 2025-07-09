@@ -3,9 +3,11 @@ from app.core.agents.components.document_store import get_vector_store
 from app.schemas.course_schema import (
     CourseCompositionRequestSchema,
     CourseCompositionResponseSchema,
+    TopicResponse,
 )
 from app.core.agents.lesson_generating_agent import LessonGeneratingAgent
 from app.models.topic_model import Topic
+from app.services.lesson_service import LessonService
 from sqlalchemy.ext.asyncio import AsyncSession
 from langchain_core.tools import Tool
 from app.core.tracing import trace_agent
@@ -68,7 +70,6 @@ class CourseCompositionAgent(BaseAgent):
         super().__init__()
         self.db_session = db_session
         self.vector_store = get_vector_store("document")
-        self.lesson_generation_agent = LessonGeneratingAgent()
         self._setup_tools()
         self._init_agent()
 
@@ -104,7 +105,17 @@ class CourseCompositionAgent(BaseAgent):
 
     def _store_topic(self, t: str):
         """Lưu topic vào cơ sở dữ liệu (đồng bộ wrapper)"""
-        return self._astore_topic(t)
+        import asyncio
+
+        # Tạo một event loop mới nếu không có sẵn
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        # Chạy phương thức bất đồng bộ trong event loop
+        return loop.run_until_complete(self._astore_topic(t))
 
     async def _astore_topic(self, t: str):
         """Lưu topic vào cơ sở dữ liệu (bất đồng bộ)"""
@@ -166,6 +177,7 @@ class CourseCompositionAgent(BaseAgent):
 
         self.agent_executor = AgentExecutor(
             agent=self.agent,
+            max_iterations=40,
             tools=self.tools,
             verbose=True,
         )
@@ -213,10 +225,17 @@ class CourseCompositionAgent(BaseAgent):
 
             topics_from_db = await self._get_topics_by_course_id(request.course_id)
 
+            # Khởi tạo LessonService
+            from app.services.topic_service import TopicService
+
+            # Tạo topic_service trực tiếp vì không thể dùng Depends
+            topic_service = TopicService(self.db_session)
+            lesson_service = LessonService(self.db_session, topic_service)
+
             for topic in topics_from_db:
                 session_id = str(uuid.uuid4())
 
-                lesson = await self.lesson_generation_agent.act(
+                lesson_data = await LessonGeneratingAgent().act(
                     topic_name=topic.name,
                     lesson_title=f"Bài giảng {topic.name}",
                     lesson_description=topic.description,
@@ -226,9 +245,34 @@ class CourseCompositionAgent(BaseAgent):
                     session_id=session_id,
                 )
 
+                # Lưu lesson vào database
+                lesson_data.topic_id = topic.id
+                # Tạo lesson trong database
+                await lesson_service.create_lesson(lesson_data)
+
+            # Chuyển đổi topics_from_db thành danh sách TopicResponse từ course_schema
+            from typing import List
+
+            topic_responses: List[TopicResponse] = []
+            for topic in topics_from_db:
+                topic_responses.append(
+                    TopicResponse(
+                        id=topic.id,
+                        name=topic.name,
+                        description=topic.description,
+                        prerequisites=topic.prerequisites,
+                        external_id=topic.external_id,
+                        course_id=(
+                            topic.course_id
+                            if topic.course_id is not None
+                            else request.course_id
+                        ),
+                    )
+                )
+
             return CourseCompositionResponseSchema(
                 course_id=request.course_id,
-                topics=topics_from_db,
+                topics=topic_responses,
                 status="success",
                 errors=errors,
             )

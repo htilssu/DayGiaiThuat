@@ -18,6 +18,7 @@ def create_new_llm_model(thinking_budget: int = 0):
         model=settings.AGENT_LLM_MODEL,
         google_api_key=settings.GOOGLE_API_KEY,
         thinking_budget=thinking_budget,
+        max_retries=6,
         temperature=0.1,  # Thêm temperature để model ít random hơn
     )
 
@@ -37,6 +38,7 @@ def create_new_creative_llm_model():
         model=settings.CREATIVE_LLM_MODEL,
         google_api_key=settings.GOOGLE_API_KEY,
         thinking_budget=1000,
+        max_retries=6,
         temperature=0.7,  # Temperature cao hơn cho creativity
     )
 

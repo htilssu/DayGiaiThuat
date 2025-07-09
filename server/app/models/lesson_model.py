@@ -3,6 +3,7 @@ from sqlalchemy import DateTime, Integer, String, Boolean, ForeignKey, Text, JSO
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from app.database.database import Base
+from app.schemas.lesson_schema import Options
 
 if TYPE_CHECKING:
     from app.models.topic_model import Topic
@@ -20,11 +21,11 @@ class LessonSection(Base):
     )  # "text", "code", "image", "quiz"
     content: Mapped[str] = mapped_column(Text)
     order: Mapped[int] = mapped_column(Integer)
-    options: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+    options: Mapped[Optional[Options]] = mapped_column(
         JSON, nullable=True
     )  # Cho câu hỏi quiz
-    answer: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True
+    answer: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True
     )  # Đáp án đúng cho quiz
     explanation: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True
@@ -56,7 +57,9 @@ class Lesson(Base):
         "UserLesson", back_populates="lesson"
     )
     topic: Mapped["Topic"] = relationship("Topic", back_populates="lessons")
-    exercises: Mapped[List["Exercise"]] = relationship("Exercise", back_populates="lesson", cascade="all, delete-orphan")
+    exercises: Mapped[List["Exercise"]] = relationship(
+        "Exercise", back_populates="lesson", cascade="all, delete-orphan"
+    )
 
 
 class UserLesson(Base):
