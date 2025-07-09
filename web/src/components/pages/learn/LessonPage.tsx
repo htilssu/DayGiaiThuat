@@ -6,6 +6,9 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { lessonsApi } from "@/lib/api";
 import type { Lesson as ApiLesson, LessonSection as ApiLessonSection } from "@/lib/api/types";
+import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { CodeBlock } from "@/components/ui/CodeBlock";
+import { processLessonContent } from "@/lib/contentUtils";
 
 interface LessonPageProps {
     topicId: string;
@@ -111,42 +114,97 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
     };
 
     const renderSection = (section: ApiLessonSection) => {
+        const { content, isMarkdown, isHtml, language } = processLessonContent(section.content, section.type);
+        
         switch (section.type) {
             case "text":
-                return (
-                    <div className="prose max-w-none">
-                        <div dangerouslySetInnerHTML={{ __html: section.content }} />
-                    </div>
-                );
+                if (isMarkdown) {
+                    return (
+                        <MarkdownRenderer 
+                            content={content}
+                            className="prose-lg"
+                        />
+                    );
+                } else if (isHtml) {
+                    return (
+                        <div className="prose prose-slate max-w-none prose-lg">
+                            <div dangerouslySetInnerHTML={{ __html: content }} />
+                        </div>
+                    );
+                } else {
+                    return (
+                        <div className="prose prose-slate max-w-none prose-lg">
+                            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{content}</p>
+                        </div>
+                    );
+                }
             case "teaching":
                 return (
-                    <div className="prose max-w-none bg-blue-50 p-6 rounded-lg border border-blue-200">
+                    <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
                         <div className="flex items-center mb-4">
                             <svg className="w-6 h-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                             </svg>
                             <h3 className="text-lg font-semibold text-blue-800">Bài giảng</h3>
                         </div>
-                        <div dangerouslySetInnerHTML={{ __html: section.content }} />
+                        {isMarkdown ? (
+                            <MarkdownRenderer 
+                                content={content}
+                                className="prose-blue"
+                            />
+                        ) : isHtml ? (
+                            <div className="prose prose-blue max-w-none">
+                                <div dangerouslySetInnerHTML={{ __html: content }} />
+                            </div>
+                        ) : (
+                            <div className="prose prose-blue max-w-none">
+                                <p className="text-blue-900 leading-relaxed whitespace-pre-wrap">{content}</p>
+                            </div>
+                        )}
                     </div>
                 );
             case "code":
                 return (
-                    <pre className="bg-foreground/5 p-4 rounded-lg overflow-x-auto">
-                        <code>{section.content}</code>
-                    </pre>
+                    <div className="space-y-4">
+                        <div className="flex items-center mb-4">
+                            <svg className="w-5 h-5 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                            </svg>
+                            <h4 className="text-lg font-semibold text-gray-700">Ví dụ Code</h4>
+                        </div>
+                        <CodeBlock 
+                            code={content}
+                            language={language}
+                            showLineNumbers={true}
+                            className="max-w-full"
+                        />
+                    </div>
                 );
             case "image":
                 return (
                     <div className="flex justify-center">
-                        <img src={section.content} alt="Lesson illustration" className="max-w-full rounded-lg" />
+                        <img src={section.content} alt="Lesson illustration" className="max-w-full rounded-lg shadow-md" />
                     </div>
                 );
             case "quiz":
                 return (
-                    <div>
-                        <h3 className="text-xl font-semibold mb-4">Câu hỏi:</h3>
-                        <p className="mb-6">{section.content}</p>
+                    <div className="bg-amber-50 p-6 rounded-lg border border-amber-200">
+                        <div className="flex items-center mb-4">
+                            <svg className="w-6 h-6 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <h3 className="text-lg font-semibold text-amber-800">Câu hỏi kiểm tra</h3>
+                        </div>
+                        <div className="mb-6">
+                            {isMarkdown ? (
+                                <MarkdownRenderer 
+                                    content={content}
+                                    className="prose-amber mb-4"
+                                />
+                            ) : (
+                                <p className="text-amber-900 leading-relaxed whitespace-pre-wrap">{content}</p>
+                            )}
+                        </div>
                         <div className="space-y-3">
                             {section.options && typeof section.options === 'object'
                                 ? Object.entries(section.options).map(([key, value]: [string, any]) => {
@@ -163,22 +221,27 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                                                     ? isCorrect
                                                         ? "border-green-500 bg-green-50"
                                                         : "border-red-500 bg-red-50"
-                                                    : "border-gray-200 hover:border-primary/50"
+                                                    : "border-gray-200 hover:border-primary/50 hover:bg-gray-50"
                                             }`}
                                         >
                                             <div className="flex items-center">
                                                 <div
-                                                    className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
+                                                    className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 text-sm font-semibold ${
                                                         isSelected
                                                             ? isCorrect
                                                                 ? "bg-green-500 text-white"
                                                                 : "bg-red-500 text-white"
-                                                            : "bg-foreground/10"
+                                                            : "bg-gray-200 text-gray-700"
                                                     }`}
                                                 >
                                                     {key}
                                                 </div>
-                                                <span>{value}</span>
+                                                <div className="flex-1">
+                                                    <MarkdownRenderer 
+                                                        content={String(value)}
+                                                        className="prose-sm mb-0"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     );
@@ -202,21 +265,24 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 mr-2" viewBox="0 0 20 20" fill="currentColor">
                                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                             </svg>
-                                            <span className="font-semibold">Chính xác!</span>
+                                            <span className="font-semibold text-green-800">Chính xác!</span>
                                         </>
                                     ) : (
                                         <>
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600 mr-2" viewBox="0 0 20 20" fill="currentColor">
                                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                                             </svg>
-                                            <span className="font-semibold">Chưa chính xác!</span>
+                                            <span className="font-semibold text-red-800">Chưa chính xác!</span>
                                         </>
                                     )}
                                 </div>
-                                <p>{section.explanation}</p>
+                                <MarkdownRenderer 
+                                    content={section.explanation || "Không có giải thích."}
+                                    className="prose-sm"
+                                />
                                 {selectedAnswer !== section.answer && (
-                                    <p className="mt-2 font-semibold">
-                                        Đáp án đúng là: {section.answer}
+                                    <p className="mt-2 font-semibold text-gray-700">
+                                        Đáp án đúng là: <span className="text-green-600">{section.answer}</span>
                                     </p>
                                 )}
                             </motion.div>
@@ -224,7 +290,11 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                     </div>
                 );
             default:
-                return <p>Không hỗ trợ loại nội dung này</p>;
+                return (
+                    <div className="bg-gray-100 p-4 rounded-lg border border-gray-300 text-center">
+                        <p className="text-gray-600">Không hỗ trợ loại nội dung: <span className="font-mono">{section.type}</span></p>
+                    </div>
+                );
         }
     };
 

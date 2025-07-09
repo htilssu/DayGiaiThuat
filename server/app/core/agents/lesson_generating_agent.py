@@ -42,8 +42,16 @@ Hướng dẫn về từng loại section:
 - "answer" phải là null
 - "explanation" phải là null
 
-# QUAN TRỌNG:
+# QUAN TRỌNG VỀ NỘI DUNG:
 - Mỗi bài giảng phải có phần ví dụ dễ hiểu, giúp học viên nắm vững kiến thức.
+- Nội dung có thể sử dụng Markdown formatting để tăng tính đọc hiểu:
+  * Sử dụng **bold** cho từ khóa quan trọng
+  * Sử dụng *italic* cho nhấn mạnh
+  * Sử dụng `code` cho thuật ngữ kỹ thuật
+  * Sử dụng ### cho tiêu đề phụ
+  * Sử dụng - hoặc 1. cho danh sách
+  * Sử dụng > cho blockquote khi trích dẫn
+  * Sử dụng ```language cho code blocks trong section "code"
 - type của section phải là một trong các giá trị sau: "text", "code", "quiz", "teaching", "image".
 {format_instructions}
 """
