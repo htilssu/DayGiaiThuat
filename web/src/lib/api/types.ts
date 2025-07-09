@@ -42,6 +42,7 @@ export interface Lesson {
   prevLessonId?: string | null;
   sections: LessonSection[];
   exercise?: Exercise | null;
+  is_completed?: boolean;
 }
 
 /**

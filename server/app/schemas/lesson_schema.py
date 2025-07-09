@@ -40,7 +40,9 @@ class LessonSectionResponse(BaseModel):
     """
 
     id: int
-    type: str = Field(..., description="Loại section: text, code, image, quiz, teaching")
+    type: str = Field(
+        ..., description="Loại section: text, code, image, quiz, teaching"
+    )
     content: str = Field(..., description="Nội dung của section")
     order: int = Field(..., description="Thứ tự section trong lesson")
     options: Optional[Dict[str, Any]] = Field(None, description="Tùy chọn cho quiz")

@@ -6,6 +6,9 @@
 import { get, post, put, del } from "./client";
 import type { Lesson } from "./types";
 
+// Re-export Lesson type for convenience
+export type { Lesson } from "./types";
+
 export interface Topic {
   id: number;
   name: string;

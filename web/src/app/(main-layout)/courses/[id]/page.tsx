@@ -529,7 +529,7 @@ export default function CourseDetailPage() {
                     <div className="space-y-4">
                       {course.topics.map((topic: any, idx: number) => (
                         <details
-                          key={topic.id}
+                          key={topic.order}
                           className="group bg-foreground/5 rounded-xl overflow-hidden"
                           open={idx === 0}>
                           <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-foreground/10">

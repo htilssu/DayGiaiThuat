@@ -231,10 +231,9 @@ class CourseCompositionAgent(BaseAgent):
             # Tạo topic_service trực tiếp vì không thể dùng Depends
             topic_service = TopicService(self.db_session)
             lesson_service = LessonService(self.db_session, topic_service)
+            session_id = str(uuid.uuid4())
 
             for topic in topics_from_db:
-                session_id = str(uuid.uuid4())
-
                 lesson_data = await LessonGeneratingAgent().act(
                     topic_name=topic.name,
                     lesson_title=f"Bài giảng {topic.name}",

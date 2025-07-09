@@ -20,7 +20,7 @@ LƯU Ý QUAN TRỌNG:
 - Cho dù không đủ thông tin yêu cầu vẫn phải đi theo luồng của quy trình. KHÔNG ĐƯỢC YÊU CẦU BỔ SUNG THÊM THÔNG TIN.
 - KHÔNG ĐƯỢC DỪNG CHO ĐẾN KHI CÓ KẾT QUẢ CUỐI CÙNG
 - Đối số của `generate_lesson_tool` là miêu tả kịch bản học chi tiết có đưa dữ liệu lấy từ retriever_document_tool để tham chiếu,lesson này học gì, section này có những gì, bổ sung kiến thức nào, có thể có các câu hỏi, lời giải thích, lời giảng dạy như một người giáo viên
-    ,dựa vào tài liệu đã thu thập. 1 đoạn văn bản string, không phải json.
+  layout tạo ra phải không được có lesson trùng với các topic khác ,dựa vào tài liệu đã thu thập. 1 đoạn văn bản string, không phải json.
 
 """
 STRUCTURE_PROMPT_TEMPLATE = """Bạn là một chuyên gia thiết kế chương trình học. Hãy tạo cấu trúc cho nhiều bài giảng (lesson) dựa vào đầu vào.
@@ -52,7 +52,11 @@ Hướng dẫn về từng loại section:
   * Sử dụng - hoặc 1. cho danh sách
   * Sử dụng > cho blockquote khi trích dẫn
   * Sử dụng ```language cho code blocks trong section "code"
-- type của section phải là một trong các giá trị sau: "text", "code", "quiz", "teaching", "image".
+# Quan trọng:
+- Phải dựa vào layout của bài giảng từ đầu vào, không được tự ý thay đổi cấu trúc.
+- Dưới mỗi bài giảng, cần có phần tóm tắt ngắn gọn các điểm chính đã học,phải thêm ví dụ và phần triển khai để người dùng hiểu rõ hơn.
+- Phải có phần bài tập ví dụ (bài tập này phải được giải thích kỹ),sau bài tập ví dụ đó có 1 bài tập vận dụng để học viên thực hành.
+- Type của section phải là một trong các giá trị sau: "text", "code", "quiz", "manipulate","teaching", "image".
 {format_instructions}
 """
 

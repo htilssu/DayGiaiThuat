@@ -34,6 +34,8 @@ export interface Lesson {
 export interface TopicWithLessons {
   id: number;
   name: string;
+  order: number;
+  prerequisites?: string[] | null;
   description?: string;
   courseId?: number;
   lessons: Lesson[];
@@ -60,6 +62,7 @@ export interface UserCourseDetail {
   updatedAt: string;
   testGenerationStatus?: string;
   isEnrolled?: boolean;
+  topics: TopicWithLessons[];
 }
 
 

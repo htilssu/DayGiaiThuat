@@ -6,11 +6,12 @@ import ReactMarkdown from "react-markdown";
 import ReplySection from "@/components/discussions/Reply";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-export default function DiscussionDetailPage({ params }: Props) {
-  const id = Number(params.id);
+export default async function DiscussionDetailPage({ params }: Props) {
+  const { id: idParam } = await params;
+  const id = Number(idParam);
   const discussion = discussions.find((d) => d.id === id);
 
   if (!discussion) return notFound();
