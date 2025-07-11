@@ -7,6 +7,7 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useAppDispatch, useAppSelector } from "@/lib/store";
 import { removeUser } from "@/lib/store/userStore";
 import { authApi } from "@/lib/api";
+import WebSocketStatus from "./WebSocketStatus";
 /**
  * Component Navbar chứa menu điều hướng và các tùy chọn người dùng
  * @returns {React.ReactNode} Navbar component
@@ -91,9 +92,8 @@ export default function Navbar() {
           ? `0 4px 10px -2px rgba(0, 0, 0, ${shadowOpacity})`
           : "none",
       }}
-      className={`w-full py-4 sticky top-0 z-50 transition-all duration-500 bg-background/95 border-b theme-transition ${
-        scrollY > 10
-      }`}>
+      className={`w-full py-4 sticky top-0 z-50 transition-all duration-500 bg-background/95 border-b theme-transition ${scrollY > 10
+        }`}>
       <div className="container mx-auto flex items-center justify-between px-4">
         {/* Logo */}
         <Link
@@ -104,7 +104,7 @@ export default function Navbar() {
             <span
               className={`absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full border-2  animate-pulse-slow theme-transition`}></span>
           </div>
-          <span className="font-bold text-xl text-gradient-theme theme-transition">
+          <span className="font-bold text-xl theme-transition">
             {appName}
           </span>
         </Link>
@@ -151,6 +151,9 @@ export default function Navbar() {
         {/* Actions */}
         <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-3">
+            {/* WebSocket Status */}
+            <WebSocketStatus showText={false} className="mr-2" />
+
             {/* Theme Toggle */}
             <ThemeToggle />
 
@@ -385,9 +388,8 @@ function NavItem({
       <Link
         href={href}
         aria-current={isActive ? "page" : undefined}
-        className={`relative px-1 py-2 font-medium theme-transition flex items-center ${
-          isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
-        } transition-colors`}>
+        className={`relative px-1 py-2 font-medium theme-transition flex items-center ${isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
+          } transition-colors`}>
         {label}
 
         {/* Indicator thanh dưới chân - active */}
@@ -430,11 +432,10 @@ function MobileNavItem({
     <Link
       href={href}
       aria-current={isActive ? "page" : undefined}
-      className={`relative px-4 py-2.5 rounded-lg theme-transition overflow-hidden group ${
-        isActive
-          ? "text-primary font-medium"
-          : "text-foreground/80 hover:bg-foreground/10 hover:text-primary"
-      } transition-all duration-300 hover:pl-6`}
+      className={`relative px-4 py-2.5 rounded-lg theme-transition overflow-hidden group ${isActive
+        ? "text-primary font-medium"
+        : "text-foreground/80 hover:bg-foreground/10 hover:text-primary"
+        } transition-all duration-300 hover:pl-6`}
       onClick={onClick}>
       {/* Thanh indicator bên trái */}
       <span className="absolute left-0 top-0 bottom-0 w-0 bg-primary/20 transition-all duration-300 group-hover:w-1"></span>

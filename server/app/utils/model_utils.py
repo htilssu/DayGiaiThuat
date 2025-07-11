@@ -1,17 +1,21 @@
-from app.models.lesson_model import Lesson
+from app.models.lesson_model import Lesson, UserLesson
 from app.schemas.lesson_schema import (
     LessonResponseSchema,
     LessonSectionSchema,
     ExerciseResponse,
     Options,
 )
+from sqlalchemy.orm import Session
+from typing import Optional
 
 
 def model_to_dict(instance):
     return {c.name: getattr(instance, c.name) for c in instance.__table__.columns}
 
 
-def convert_lesson_to_schema(lesson: Lesson) -> LessonResponseSchema:
+def convert_lesson_to_schema(
+    lesson: Lesson, user_id: Optional[int] = None, db: Optional[Session] = None
+) -> LessonResponseSchema:
     """
     Chuyển đổi từ model Lesson sang LessonResponseSchema
 
@@ -60,6 +64,17 @@ def convert_lesson_to_schema(lesson: Lesson) -> LessonResponseSchema:
             )
         )
 
+    # Kiểm tra trạng thái completed nếu có user_id và db
+    is_completed = False
+    if user_id and db:
+        user_lesson = (
+            db.query(UserLesson)
+            .filter(UserLesson.user_id == user_id, UserLesson.lesson_id == lesson.id)
+            .first()
+        )
+        if user_lesson:
+            is_completed = user_lesson.is_completed
+
     # Tạo lesson response
     return LessonResponseSchema(
         id=lesson.id,
@@ -72,4 +87,5 @@ def convert_lesson_to_schema(lesson: Lesson) -> LessonResponseSchema:
         prev_lesson_id=lesson.prev_lesson_id,
         sections=sections_data,
         exercises=exercises_data,
+        is_completed=is_completed,
     )

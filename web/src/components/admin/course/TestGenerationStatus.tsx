@@ -105,7 +105,6 @@ export default function TestGenerationStatus({
                             icon={<IconAlertTriangle size={16} />}
                             color="orange"
                             variant="light"
-                            size="sm"
                         >
                             <Text size="xs">
                                 Lỗi thường xảy ra do dịch vụ AI tạm thời quá tải. Vui lòng thử lại sau vài phút.
@@ -119,7 +118,6 @@ export default function TestGenerationStatus({
                             icon={<Loader size={16} />}
                             color="blue"
                             variant="light"
-                            size="sm"
                         >
                             <Text size="xs">
                                 Không đóng trang này. Quá trình tạo test có thể mất 2-5 phút.

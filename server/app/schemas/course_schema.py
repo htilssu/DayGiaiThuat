@@ -175,19 +175,59 @@ class CourseDetailResponse(CourseResponse):
         from_attributes = True
 
 
+class CourseListItem(BaseModel):
+    """
+    Schema cơ bản cho item trong danh sách khóa học (không bao gồm chi tiết topics)
+
+    Attributes:
+        id: ID của khóa học
+        title: Tiêu đề của khóa học
+        description: Mô tả chi tiết về khóa học
+        thumbnail_url: Đường dẫn đến ảnh thumbnail của khóa học
+        level: Cấp độ khó của khóa học
+        duration: Thời lượng ước tính để hoàn thành khóa học (tính bằng phút)
+        price: Giá của khóa học (0 nếu miễn phí)
+        tags: Các thẻ tag liên quan đến khóa học
+        created_at: Thời điểm tạo khóa học
+        updated_at: Thời điểm cập nhật gần nhất
+        is_enrolled: Trạng thái đăng ký của người dùng hiện tại (chỉ có khi người dùng đã đăng nhập)
+    """
+
+    id: int = Field(..., description="ID của khóa học")
+    title: str = Field(..., description="Tiêu đề của khóa học")
+    description: Optional[str] = Field(None, description="Mô tả chi tiết về khóa học")
+    thumbnail_url: Optional[str] = Field(
+        None, description="Đường dẫn đến ảnh thumbnail của khóa học"
+    )
+    level: Optional[str] = Field("Beginner", description="Cấp độ khó của khóa học")
+    duration: Optional[int] = Field(
+        0, description="Thời lượng ước tính để hoàn thành khóa học (tính bằng phút)"
+    )
+    price: Optional[float] = Field(0.0, description="Giá của khóa học (0 nếu miễn phí)")
+    tags: Optional[str] = Field("", description="Các thẻ tag liên quan đến khóa học")
+    created_at: datetime = Field(..., description="Thời điểm tạo khóa học")
+    updated_at: datetime = Field(..., description="Thời điểm cập nhật gần nhất")
+    is_enrolled: Optional[bool] = Field(
+        False, description="Trạng thái đăng ký của người dùng hiện tại"
+    )
+
+    class Config:
+        from_attributes = True
+
+
 class CourseListResponse(BaseModel):
     """
     Schema cho response khi lấy danh sách khóa học với phân trang
 
     Attributes:
-        items: Danh sách các khóa học
+        items: Danh sách các khóa học (chỉ thông tin cơ bản)
         total: Tổng số khóa học
         page: Số trang hiện tại
         limit: Số lượng item mỗi trang
         totalPages: Tổng số trang
     """
 
-    items: list[CourseResponse]
+    items: list[CourseListItem]
     total: int
     page: int
     limit: int

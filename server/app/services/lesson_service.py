@@ -130,11 +130,23 @@ class LessonService:
         """
         Get a lesson by ID.
         """
-        stmt = (
-            select(Lesson)
-            .where(Lesson.id == lesson_id)
-            .options(selectinload(Lesson.sections), selectinload(Lesson.exercises))
-        )
+        stmt = select(Lesson).where(Lesson.id == lesson_id)
+        result = await self.db.execute(stmt)
+        lesson = result.scalar_one_or_none()
+
+        if not lesson:
+            return None
+
+        # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
+        return convert_lesson_to_schema(lesson)
+
+    async def get_lesson_by_order(
+        self, topic_id: int, order: int
+    ) -> Optional[LessonResponseSchema]:
+        """
+        Get a lesson by order.
+        """
+        stmt = select(Lesson).where(Lesson.topic_id == topic_id, Lesson.order == order)
         result = await self.db.execute(stmt)
         lesson = result.scalar_one_or_none()
 
@@ -205,6 +217,20 @@ class LessonService:
 
         # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
         return convert_lesson_to_schema(lesson)
+
+    async def mark_lesson_completed(self, lesson_id: int, user_id: int):
+        """
+        Mark a lesson as completed.
+        """
+        stmt = select(Lesson).where(Lesson.id == lesson_id)
+        result = await self.db.execute(stmt)
+        lesson = result.scalar_one_or_none()
+
+        if not lesson:
+            return False
+
+        lesson.
+        await self.db.commit()
 
     async def delete_lesson(self, lesson_id: int) -> bool:
         """

@@ -105,6 +105,7 @@ class LessonResponseSchema(BaseModel):
     prev_lesson_id: Optional[str] = None
     sections: List[LessonSectionSchema]
     exercises: List[ExerciseResponse] = []
+    is_completed: Optional[bool] = False
 
     class Config:
         from_attributes = True

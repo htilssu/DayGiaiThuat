@@ -23,7 +23,7 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
           code: ({ node, inline, className, children, ...props }: CodeProps) => {
             const match = /language-(\w+)/.exec(className || '');
             const language = match ? match[1] : '';
-            
+
             return !inline && language ? (
               <SyntaxHighlighter
                 style={tomorrow}
@@ -53,7 +53,7 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
             <h4 className="text-lg font-semibold mb-2 text-gray-700">{children}</h4>
           ),
           p: ({ children }) => (
-            <p className="mb-4 text-gray-700 leading-relaxed">{children}</p>
+            <p className="text-gray-700 leading-relaxed">{children}</p>
           ),
           ul: ({ children }) => (
             <ul className="list-disc list-inside mb-4 ml-4 space-y-1 text-gray-700">{children}</ul>
@@ -76,8 +76,8 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
             <em className="italic text-gray-700">{children}</em>
           ),
           a: ({ href, children }) => (
-            <a 
-              href={href} 
+            <a
+              href={href}
               className="text-blue-600 hover:text-blue-800 underline"
               target="_blank"
               rel="noopener noreferrer"

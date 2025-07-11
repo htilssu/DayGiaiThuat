@@ -9,7 +9,7 @@ import Link from "next/link";
  */
 export default function Footer() {
   // App name from environment variable
-  const appName = process.env.NEXT_PUBLIC_APP_NAME || "AIGiảiThuật";
+  const appName = process.env.NEXT_PUBLIC_APP_NAME || "AGT - Học Thuật Toán và Lập Trình";
 
   return (
     <footer className="w-full py-16 mt-auto bg-background border-t border-primary/10 transition-theme">

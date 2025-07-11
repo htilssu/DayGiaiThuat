@@ -115,12 +115,12 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
 
     const renderSection = (section: ApiLessonSection) => {
         const { content, isMarkdown, isHtml, language } = processLessonContent(section.content, section.type);
-        
+
         switch (section.type) {
             case "text":
                 if (isMarkdown) {
                     return (
-                        <MarkdownRenderer 
+                        <MarkdownRenderer
                             content={content}
                             className="prose-lg"
                         />
@@ -148,7 +148,7 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                             <h3 className="text-lg font-semibold text-blue-800">Bài giảng</h3>
                         </div>
                         {isMarkdown ? (
-                            <MarkdownRenderer 
+                            <MarkdownRenderer
                                 content={content}
                                 className="prose-blue"
                             />
@@ -172,7 +172,7 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                             </svg>
                             <h4 className="text-lg font-semibold text-gray-700">Ví dụ Code</h4>
                         </div>
-                        <CodeBlock 
+                        <CodeBlock
                             code={content}
                             language={language}
                             showLineNumbers={true}
@@ -197,7 +197,7 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                         </div>
                         <div className="mb-6">
                             {isMarkdown ? (
-                                <MarkdownRenderer 
+                                <MarkdownRenderer
                                     content={content}
                                     className="prose-amber mb-4"
                                 />
@@ -211,33 +211,31 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                                     const isSelected = selectedAnswer === key;
                                     const isCorrect = key === section.answer;
                                     const isIncorrect = isSelected && !isCorrect;
-                                    
+
                                     return (
                                         <div
                                             key={key}
                                             onClick={() => handleAnswerSelect(key)}
-                                            className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                                                isSelected
-                                                    ? isCorrect
-                                                        ? "border-green-500 bg-green-50"
-                                                        : "border-red-500 bg-red-50"
-                                                    : "border-gray-200 hover:border-primary/50 hover:bg-gray-50"
-                                            }`}
+                                            className={`p-4 border rounded-lg cursor-pointer transition-all ${isSelected
+                                                ? isCorrect
+                                                    ? "border-green-500 bg-green-50"
+                                                    : "border-red-500 bg-red-50"
+                                                : "border-gray-200 hover:border-primary/50 hover:bg-gray-50"
+                                                }`}
                                         >
                                             <div className="flex items-center">
                                                 <div
-                                                    className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 text-sm font-semibold ${
-                                                        isSelected
-                                                            ? isCorrect
-                                                                ? "bg-green-500 text-white"
-                                                                : "bg-red-500 text-white"
-                                                            : "bg-gray-200 text-gray-700"
-                                                    }`}
+                                                    className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 text-sm font-semibold ${isSelected
+                                                        ? isCorrect
+                                                            ? "bg-green-500 text-white"
+                                                            : "bg-red-500 text-white"
+                                                        : "bg-gray-200 text-gray-700"
+                                                        }`}
                                                 >
                                                     {key}
                                                 </div>
                                                 <div className="flex-1">
-                                                    <MarkdownRenderer 
+                                                    <MarkdownRenderer
                                                         content={String(value)}
                                                         className="prose-sm mb-0"
                                                     />
@@ -276,7 +274,7 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                                         </>
                                     )}
                                 </div>
-                                <MarkdownRenderer 
+                                <MarkdownRenderer
                                     content={section.explanation || "Không có giải thích."}
                                     className="prose-sm"
                                 />
@@ -305,10 +303,8 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                 <div className="mb-8">
                     <div className="flex items-center mb-2">
                         <Link href={`/topics/${lesson.topicId}`} className="text-primary hover:underline">
-                            {`Chủ đề ${lesson.topicId}`}
+                            {`Chủ đề ${lesson.order}`}
                         </Link>
-                        <span className="mx-2">•</span>
-                        <span>Bài {lesson.id}</span>
                     </div>
                     <h1 className="text-3xl md:text-4xl font-bold">{lesson.title}</h1>
                     <p className="text-foreground/70 mt-2">{lesson.description}</p>
@@ -355,10 +351,10 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                                 </Link>
                             )}
                             <Link
-                                href="/learn"
+                                href={`/topics/${lesson.topicId}/lessons/${lesson.nextLessonId}`}
                                 className="px-6 py-3 bg-background border border-primary text-primary font-semibold rounded-lg hover:bg-primary/5 transition-all"
                             >
-                                Lộ trình học tập
+                                Bài học tiếp theo
                             </Link>
                         </div>
                     </motion.div>

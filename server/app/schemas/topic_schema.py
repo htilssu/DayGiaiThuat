@@ -60,6 +60,7 @@ class TopicResponse(TopicBase):
         id: ID của chủ đề
         external_id: ID hiển thị cho người dùng
         course_id: ID của khóa học chứa chủ đề này
+        order: Thứ tự của chủ đề trong khóa học
         created_at: Thời điểm tạo
         updated_at: Thời điểm cập nhật
     """
@@ -69,6 +70,7 @@ class TopicResponse(TopicBase):
     course_id: Optional[int] = Field(
         None, description="ID của khóa học chứa chủ đề này"
     )
+    order: Optional[int] = Field(None, description="Thứ tự của chủ đề trong khóa học")
     created_at: datetime = Field(..., description="Thời điểm tạo")
     updated_at: datetime = Field(..., description="Thời điểm cập nhật")
 

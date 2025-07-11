@@ -8,7 +8,7 @@ export default function AIRequestPage() {
   return (
     <div className="space-y-8">
       <Paper className="p-6 bg-primary/5 rounded-lg border border-primary/10">
-        <Title order={2} className="mb-6 text-gradient-theme">
+        <Title order={2} className="mb-6 ">
           AI Content Creator
         </Title>
         <Grid>

@@ -59,7 +59,7 @@ export default function AdminDashboard() {
 
           <Tabs.Panel value="chat">
             <Container size="lg" className="px-0">
-              <Title order={2} className="mb-6 text-gradient-theme">
+              <Title order={2} className="mb-6">
                 AI Content Creator
               </Title>
               <Paper className="p-4 bg-white/50 border border-primary/10">
@@ -70,7 +70,7 @@ export default function AdminDashboard() {
 
           <Tabs.Panel value="add-documents">
             <Container size="lg" className="px-0">
-              <Title order={2} className="mb-6 text-gradient-theme">
+              <Title order={2} className="mb-6 ">
                 Upload Documents
               </Title>
               <Paper className="p-4 bg-white/50 border border-primary/10">

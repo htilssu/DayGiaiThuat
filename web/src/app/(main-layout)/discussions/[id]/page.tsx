@@ -37,7 +37,7 @@ export default async function DiscussionDetailPage({ params }: Props) {
           </div>
           <div className="flex-1">
             <Group justify="space-between" mb="xs">
-              <Title order={3} className="text-gradient-theme font-semibold">
+              <Title order={3} className=" font-semibold">
                 {discussion.title}
               </Title>
               <Badge

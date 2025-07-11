@@ -35,7 +35,7 @@ export function AdminHeader() {
       <div className="container mx-auto px-4 sm:px-6 py-4">
         <Group justify="space-between" align="center">
           <div className="flex items-center gap-x-3">
-            <Title order={3} className="text-gradient-theme font-semibold">
+            <Title order={3} className="font-semibold">
               Admin Dashboard
             </Title>
           </div>

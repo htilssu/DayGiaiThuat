@@ -2,6 +2,7 @@ import os
 import uuid
 import logging
 import json
+import time
 from datetime import datetime
 from typing import Dict, Any, Optional
 from pathlib import Path
@@ -56,12 +57,21 @@ class StorageService:
             if settings.S3_ENDPOINT_URL:
                 client_config["endpoint_url"] = settings.S3_ENDPOINT_URL
 
-            self.s3_client = boto3.client("s3", **client_config)
+            # retry if cannot connect to s3
+            for i in range(3):
+                try:
+                    self.s3_client = boto3.client("s3", **client_config)
+                    break
+                except Exception as e:
+                    logger.error(f"Không thể khởi tạo S3 client: {str(e)}")
+                    time.sleep(1)
+            if not self.s3_client:
+                raise Exception("Không thể khởi tạo S3 client")
             self.bucket_name = settings.S3_BUCKET_NAME
             self._ensure_bucket_exists()
         except Exception as e:
             logger.error(f"Không thể khởi tạo S3 client: {str(e)}")
-            self.s3_client = None
+            raise e
 
     def _ensure_bucket_exists(self) -> None:
         """
@@ -219,12 +229,12 @@ class StorageService:
         upload_dir = self._create_upload_directory()
 
         # Tạo tên file tạm thời
-        temp_filename = f"{uuid.uuid4()}{os.path.splitext(file.filename)[1]}"
+        temp_filename = f"{uuid.uuid4()}{os.path.splitext(file.filename or '')[1]}"
         temp_file_path = os.path.join(upload_dir, temp_filename)
 
         try:
             # Tạo key cho file trên S3
-            file_key = self._generate_file_key(prefix, file.filename)
+            file_key = self._generate_file_key(prefix, file.filename or "")
             logger.info(f"Generated file key: {file_key}")
 
             # Bước 1: Lưu file tạm thời vào thư mục upload
@@ -393,13 +403,13 @@ class StorageService:
         upload_dir = self._create_upload_directory()
 
         # Tạo tên file tạm thời
-        temp_filename = f"{uuid.uuid4()}{os.path.splitext(file.filename)[1]}"
+        temp_filename = f"{uuid.uuid4()}{os.path.splitext(file.filename or '')[1]}"
         temp_file_path = os.path.join(upload_dir, temp_filename)
 
         try:
             # Tạo key cho file trên S3
             file_key = self._generate_file_key(
-                settings.S3_DOCUMENT_PREFIX, file.filename
+                settings.S3_DOCUMENT_PREFIX, file.filename or ""
             )
             logger.info(f"Generated document file key: {file_key}")
 
@@ -428,6 +438,7 @@ class StorageService:
             # Chuẩn bị ExtraArgs cho upload (không set ACL public vì documents nhạy cảm)
             extra_args = {
                 "ContentType": content_type,
+                "ACL": "public-read",
                 "Metadata": {
                     "document_id": document_id,
                     "uploaded_at": datetime.now().isoformat(),

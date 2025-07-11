@@ -123,7 +123,7 @@ export default function CourseAdminClient() {
             if (result.failedCount > 0) {
                 notifications.show({
                     title: 'Cảnh báo',
-                    message: `${result.failedCount} khóa học không thể xóa. Xem chi tiết trong console.`,
+                    message: `${result.failedCount} khóa học không thể xóa.`,
                     color: 'yellow',
                 });
                 console.error('Bulk delete errors:', result.errors);
@@ -216,7 +216,7 @@ export default function CourseAdminClient() {
                 <div>
                     <div className="font-medium text-gray-900">{course.title}</div>
                     {course.description && (
-                        <div className="text-sm text-gray-500 mt-1 line-clamp-2">
+                        <div className="text-sm text-gray-500 mt-1 line-clamp-2 md:max-w-64">
                             {course.description}
                         </div>
                     )}

@@ -69,7 +69,7 @@ export default function BrandLogo({
         <span
           className={`font-bold text-xl ${
             variant === "theme"
-              ? "text-gradient-theme"
+              ? ""
               : variant === "white"
               ? "text-white"
               : ""

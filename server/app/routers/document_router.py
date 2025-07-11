@@ -83,6 +83,7 @@ async def store_document(
             document_responses.append(document_response)
 
         except Exception as e:
+            print(f"Failed to process file {file.filename}: {str(e)}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to process file {file.filename}: {str(e)}",

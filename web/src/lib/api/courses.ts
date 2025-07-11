@@ -44,7 +44,24 @@ export interface TopicWithLessons {
 }
 
 /**
- * Kiểu dữ liệu cho khóa học
+ * Kiểu dữ liệu cho item trong danh sách khóa học (không bao gồm topics)
+ */
+export interface CourseListItem {
+  id: number;
+  title: string;
+  description: string | null;
+  thumbnailUrl: string | null;
+  level: string;
+  duration: number;
+  price: number;
+  tags: string;
+  createdAt: string;
+  updatedAt: string;
+  isEnrolled?: boolean;
+}
+
+/**
+ * Kiểu dữ liệu cho khóa học chi tiết
  */
 export interface UserCourseDetail {
   id: number;
@@ -95,11 +112,11 @@ export interface EnrolledCourse extends UserCourseDetail {
  * Lấy danh sách khóa học có phân trang
  * @param page - Số trang
  * @param limit - Số lượng item mỗi trang
- * @returns Danh sách khóa học và thông tin phân trang
+ * @returns Danh sách khóa học cơ bản và thông tin phân trang
  */
 export async function getCourses(page = 1, limit = 10) {
   return get<{
-    items: UserCourseDetail[];
+    items: CourseListItem[];
     total: number;
     page: number;
     limit: number;

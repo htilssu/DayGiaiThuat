@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { lessonsApi } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { lessonsApi, Lesson } from "@/lib/api";
+import { useState } from "react";
 
 interface LessonPageProps {
   topicId: string;
@@ -10,33 +11,17 @@ interface LessonPageProps {
 }
 
 export default function LessonPage({ topicId, lessonId }: LessonPageProps) {
-  const [lesson, setLesson] = useState<Lesson | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { data: lesson, isLoading: isLessonLoading, error: lessonError } = useQuery({
+    queryKey: ["lesson", lessonId],
+    queryFn: () => lessonsApi.getLessonByExternalId(lessonId),
+    enabled: !!lessonId,
+    staleTime: 1000 * 60 * 5,
+    retry: 3,
+  })
 
-  useEffect(() => {
-    const fetchLessonData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
 
-        // Fetch lesson by external ID
-        const lessonData = await lessonsApi.getLessonByExternalId(lessonId);
-        setLesson(lessonData);
-      } catch (err) {
-        console.error("Lỗi khi tải dữ liệu bài học:", err);
-        setError("Không thể tải thông tin bài học. Vui lòng thử lại sau.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (lessonId) {
-      fetchLessonData();
-    }
-  }, [lessonId]);
-
-  if (isLoading) {
+  if (isLessonLoading) {
     return (
       <div className="min-h-screen pb-20">
         <div className="container mx-auto px-4 py-8">
@@ -183,9 +168,9 @@ export default function LessonPage({ topicId, lessonId }: LessonPageProps) {
         {/* Navigation */}
         <div className="mb-8 flex justify-between items-center">
           <div>
-            {lesson.prev_lesson_id && (
+            {lesson.prevLessonId && (
               <Link
-                href={`/topics/${topicId}/lessons/${lesson.prev_lesson_id}`}
+                href={`/topics/${topicId}/lessons/${lesson.prevLessonId}`}
                 className="inline-flex items-center px-4 py-2 bg-foreground/5 rounded-lg hover:bg-foreground/10 transition">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -205,9 +190,9 @@ export default function LessonPage({ topicId, lessonId }: LessonPageProps) {
             )}
           </div>
           <div>
-            {lesson.next_lesson_id && (
+            {lesson.nextLessonId && (
               <Link
-                href={`/topics/${topicId}/lessons/${lesson.next_lesson_id}`}
+                href={`/topics/${topicId}/lessons/${lesson.nextLessonId}`}
                 className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition">
                 Bài tiếp theo
                 <svg

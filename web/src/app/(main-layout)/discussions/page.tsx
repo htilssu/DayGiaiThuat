@@ -71,7 +71,7 @@ export default function DiscussionsPage() {
     <Container size="lg" py="xl">
       <div className="space-y-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <Title order={2} className="text-gradient-theme font-semibold">
+          <Title order={2} className=" font-semibold">
             Discussions
           </Title>
           <Button

@@ -54,8 +54,9 @@ Hướng dẫn về từng loại section:
   * Sử dụng ```language cho code blocks trong section "code"
 # Quan trọng:
 - Phải dựa vào layout của bài giảng từ đầu vào, không được tự ý thay đổi cấu trúc.
+- Bài giảng hoặc giới thiệu luôn nằm ở đầu tiên, sau đó là các phần khác.
 - Dưới mỗi bài giảng, cần có phần tóm tắt ngắn gọn các điểm chính đã học,phải thêm ví dụ và phần triển khai để người dùng hiểu rõ hơn.
-- Phải có phần bài tập ví dụ (bài tập này phải được giải thích kỹ),sau bài tập ví dụ đó có 1 bài tập vận dụng để học viên thực hành.
+- Phải có phần bài tập ví dụ (bài tập này phải được giải thích kỹ),sau bài tập ví dụ đó có 1 bài tập vận dụng để học viên thực hành, Phần vận dụng hoặc bài tập sẽ nằm sau phần lý thuyết liên quan.
 - Type của section phải là một trong các giá trị sau: "text", "code", "quiz", "manipulate","teaching", "image".
 {format_instructions}
 """

@@ -13,7 +13,7 @@ class UserTopic(Base):
     topic_id: Mapped[int] = mapped_column(Integer, ForeignKey("topics.id"))
     progress: Mapped[int] = mapped_column(Integer, default=0)
     completed_lessons: Mapped[int] = mapped_column(Integer, default=0)
-    total_lessons: Mapped[int] = mapped_column(Integer, default=0)
+    current_lesson_id: Mapped[int] = mapped_column(Integer, ForeignKey("lessons.id"))
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
 
     topic: Mapped[Topic] = relationship("Topic", back_populates="user_topics")

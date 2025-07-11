@@ -129,7 +129,7 @@ export default function Overview() {
     <div className="space-y-8">
       {/* Quick Actions */}
       <Paper className="p-6 bg-white/50 border border-primary/10">
-        <Title order={3} className="mb-4 text-gradient-theme">
+        <Title order={3} className="mb-4 ">
           Quản lý nhanh
         </Title>
         <Grid>
@@ -215,7 +215,7 @@ export default function Overview() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Activity */}
         <Paper className="lg:col-span-1 p-6 bg-white/50 border border-primary/10">
-          <Title order={3} className="mb-6 text-gradient-theme">
+          <Title order={3} className="mb-6 ">
             Recent Activity
           </Title>
           <div className="space-y-6">
@@ -240,7 +240,7 @@ export default function Overview() {
         {/* Data Table */}
         <Paper className="lg:col-span-2 p-6 bg-white/50 border border-primary/10">
           <div className="flex justify-between items-center mb-6">
-            <Title order={3} className="text-gradient-theme">
+            <Title order={3} className="">
               Recent Users
             </Title>
             <button className="text-primary hover:text-primary/80 text-sm font-medium transition-colors">

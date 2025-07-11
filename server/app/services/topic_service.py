@@ -14,6 +14,7 @@ from app.schemas.topic_schema import (
     UpdateTopicSchema,
 )
 from app.schemas.lesson_schema import LessonResponseSchema
+from app.utils.model_utils import convert_lesson_to_schema
 
 
 class TopicService:
@@ -114,11 +115,16 @@ class TopicService:
         """
         Lấy danh sách lessons theo topic_id
         """
-        stmt = select(Lesson).where(Lesson.topic_id == topic_id).order_by(Lesson.order)
+        stmt = (
+            select(Lesson)
+            .where(Lesson.topic_id == topic_id)
+            .options(selectinload(Lesson.sections), selectinload(Lesson.exercises))
+            .order_by(Lesson.order)
+        )
         result = await self.db.execute(stmt)
         lessons = result.scalars().all()
 
-        return [LessonResponseSchema.model_validate(lesson) for lesson in lessons]
+        return [convert_lesson_to_schema(lesson) for lesson in lessons]
 
     async def get_topic_with_lessons(
         self, topic_id: int
@@ -135,7 +141,10 @@ class TopicService:
         stmt = (
             select(Topic)
             .where(Topic.id == topic_id)
-            .options(selectinload(Topic.lessons))
+            .options(
+                selectinload(Topic.lessons).selectinload(Lesson.sections),
+                selectinload(Topic.lessons).selectinload(Lesson.exercises),
+            )
         )
 
         result = await self.db.execute(stmt)
@@ -144,7 +153,22 @@ class TopicService:
         if not topic:
             return None
 
-        return TopicWithLessonsResponse.model_validate(topic)
+        # Convert lessons manually to ensure proper schema conversion
+        lessons_schemas = [convert_lesson_to_schema(lesson) for lesson in topic.lessons]
+
+        # Create the response manually to avoid Pydantic validation issues
+        return TopicWithLessonsResponse(
+            id=topic.id,
+            external_id=topic.external_id,
+            course_id=topic.course_id,
+            name=topic.name,
+            description=topic.description,
+            prerequisites=topic.prerequisites,
+            order=topic.order,
+            created_at=topic.created_at,
+            updated_at=topic.updated_at,
+            lessons=lessons_schemas,
+        )
 
     async def get_topics_with_lessons_by_course_id(
         self, course_id: int
@@ -161,14 +185,38 @@ class TopicService:
         stmt = (
             select(Topic)
             .where(Topic.course_id == course_id)
-            .options(selectinload(Topic.lessons))
+            .options(
+                selectinload(Topic.lessons).selectinload(Lesson.sections),
+                selectinload(Topic.lessons).selectinload(Lesson.exercises),
+            )
             .order_by(Topic.order.asc().nulls_last(), Topic.id.asc())
         )
 
         result = await self.db.execute(stmt)
         topics = result.scalars().all()
 
-        return [TopicWithLessonsResponse.model_validate(topic) for topic in topics]
+        # Convert each topic manually to ensure proper schema conversion
+        topics_responses = []
+        for topic in topics:
+            lessons_schemas = [
+                convert_lesson_to_schema(lesson) for lesson in topic.lessons
+            ]
+
+            topic_response = TopicWithLessonsResponse(
+                id=topic.id,
+                external_id=topic.external_id,
+                course_id=topic.course_id,
+                name=topic.name,
+                description=topic.description,
+                prerequisites=topic.prerequisites,
+                order=topic.order,
+                created_at=topic.created_at,
+                updated_at=topic.updated_at,
+                lessons=lessons_schemas,
+            )
+            topics_responses.append(topic_response)
+
+        return topics_responses
 
 
 def get_topic_service(db: AsyncSession = Depends(get_async_db)) -> TopicService:

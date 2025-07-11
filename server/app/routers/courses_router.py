@@ -5,8 +5,10 @@ from sqlalchemy.orm import Session, joinedload
 from app.database.database import get_db
 from app.models.course_model import Course
 from app.models.topic_model import Topic
+from app.models.lesson_model import UserLesson, Lesson
 from app.schemas.course_schema import (
     CourseListResponse,
+    CourseListItem,
     CourseDetailResponse,
     rebuild_course_models,
 )
@@ -14,9 +16,7 @@ from app.schemas.topic_schema import (
     TopicWithUserState,
     TopicWithLessonsResponse,
 )
-from app.schemas.lesson_schema import (
-    LessonResponseSchema,
-)
+
 from app.schemas.user_course_schema import (
     CourseEnrollmentResponse,
 )
@@ -27,6 +27,7 @@ from app.services.topic_service import TopicService, get_topic_service
 from app.services.test_service import TestService, get_test_service
 from app.utils.utils import get_current_user, get_current_user_optional
 from app.utils.model_utils import convert_lesson_to_schema
+from datetime import datetime
 
 
 router = APIRouter(
@@ -45,6 +46,7 @@ async def get_courses(
     limit: int = Query(10, gt=0, le=100, description="Số item mỗi trang"),
     db: Session = Depends(get_db),
     current_user: UserExcludeSecret = Depends(get_current_user_optional),
+    course_service: CourseService = Depends(get_course_service),
 ):
     """
     Lấy danh sách khóa học với phân trang (chỉ hiển thị khóa học được công khai)
@@ -54,9 +56,10 @@ async def get_courses(
         limit: Số lượng item mỗi trang
         db: Session database
         current_user: Thông tin người dùng hiện tại (nếu đã đăng nhập)
+        course_service: Service để xử lý logic course
 
     Returns:
-        CourseListResponse: Danh sách khóa học và thông tin phân trang
+        CourseListResponse: Danh sách khóa học cơ bản và thông tin phân trang
     """
     # Tính toán offset
     offset = (page - 1) * limit
@@ -71,17 +74,43 @@ async def get_courses(
         .limit(limit)
         .all()
     )
+    if current_user:
+        enrolled_courses = course_service.get_user_courses(current_user.id)
+    else:
+        enrolled_courses = []
+
+    # Chuyển đổi Course thành CourseListItem và kiểm tra trạng thái enrolled
+    course_items = []
+    for course in courses:
+        is_enrolled = False
+        if course.id in [enrolled_course.id for enrolled_course in enrolled_courses]:
+            is_enrolled = True
+
+        course_item = CourseListItem(
+            id=course.id,
+            title=course.title,
+            description=course.description,
+            thumbnail_url=course.thumbnail_url,
+            level=course.level,
+            duration=course.duration,
+            price=course.price,
+            tags=course.tags,
+            created_at=course.created_at,
+            updated_at=course.updated_at,
+            is_enrolled=is_enrolled,
+        )
+        course_items.append(course_item)
 
     # Tính tổng số trang
     total_pages = (total_courses + limit - 1) // limit
 
-    return {
-        "items": courses,
-        "total": total_courses,
-        "page": page,
-        "limit": limit,
-        "totalPages": total_pages,
-    }
+    return CourseListResponse(
+        items=course_items,
+        total=total_courses,
+        page=page,
+        limit=limit,
+        totalPages=total_pages,
+    )
 
 
 @router.get(
@@ -113,7 +142,19 @@ async def get_course_by_id(
     Raises:
         HTTPException: Nếu không tìm thấy khóa học hoặc không có quyền truy cập
     """
-    course = db.query(Course).filter(Course.id == course_id).first()
+    course = (
+        db.query(Course)
+        .options(
+            joinedload(Course.topics)
+            .joinedload(Topic.lessons)
+            .joinedload(Lesson.sections),
+            joinedload(Course.topics)
+            .joinedload(Topic.lessons)
+            .joinedload(Lesson.exercises),
+        )
+        .filter(Course.id == course_id)
+        .first()
+    )
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -133,14 +174,16 @@ async def get_course_by_id(
         is_enrolled = course_service.is_enrolled(current_user.id, course_id)
 
     # Chuyển đổi course ORM sang schema bằng hàm tiện ích
-    course_response = convert_course_to_schema(course, is_enrolled)
+    course_response = convert_course_to_schema(
+        course, is_enrolled, current_user.id if current_user else None, db
+    )
     return course_response
 
 
 # Hàm tiện ích chuyển đổi Course ORM sang CourseDetailResponse schema
 
 
-def convert_course_to_schema(course, is_enrolled=False):
+def convert_course_to_schema(course, is_enrolled=False, user_id=None, db=None):
     """
     Chuyển đổi đối tượng Course ORM sang CourseDetailResponse schema, bao gồm cả topics và lessons
     """
@@ -151,7 +194,7 @@ def convert_course_to_schema(course, is_enrolled=False):
         for lesson in sorted(
             getattr(topic, "lessons", []), key=lambda x: getattr(x, "created_at", 0)
         ):
-            lesson_response = convert_lesson_to_schema(lesson)
+            lesson_response = convert_lesson_to_schema(lesson, user_id, db)
             lessons_response.append(lesson_response)
         topic_response = TopicWithLessonsResponse(
             id=topic.id,
@@ -160,6 +203,7 @@ def convert_course_to_schema(course, is_enrolled=False):
             name=topic.name,
             description=topic.description,
             prerequisites=getattr(topic, "prerequisites", None),
+            order=getattr(topic, "order", None),
             created_at=topic.created_at,
             updated_at=topic.updated_at,
             lessons=lessons_response,
@@ -437,3 +481,273 @@ async def start_course_entry_test(
     )
 
     return test_session
+
+
+@router.put(
+    "/{course_id}/complete-lesson",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        204: {"description": "Cập nhật trạng thái hoàn thành lesson thành công"},
+        400: {"description": "Dữ liệu không hợp lệ"},
+        404: {"description": "Không tìm thấy lesson hoặc khóa học"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def complete_lesson(
+    course_id: int,
+    data: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Cập nhật trạng thái hoàn thành lesson của người dùng trong khóa học
+
+    Args:
+        course_id: ID của khóa học
+        data: Dữ liệu chứa lessonId và trạng thái hoàn thành
+        db: Session database
+        current_user: Thông tin người dùng hiện tại
+
+    Raises:
+        HTTPException: Nếu có lỗi khi cập nhật trạng thái hoàn thành
+    """
+    lesson_id = data.get("lesson_id")
+    is_completed = data.get("is_completed")
+
+    if lesson_id is None or is_completed is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="lesson_id và is_completed là bắt buộc",
+        )
+
+    # Kiểm tra xem lesson có tồn tại trong khóa học không
+    lesson = (
+        db.query(Lesson)
+        .join(Topic)
+        .filter(Lesson.id == lesson_id, Topic.course_id == course_id)
+        .first()
+    )
+    if not lesson:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy lesson hoặc khóa học",
+        )
+
+    # Cập nhật trạng thái hoàn thành lesson
+    user_lesson = (
+        db.query(UserLesson)
+        .filter(
+            UserLesson.lesson_id == lesson_id,
+            UserLesson.user_id == current_user.id,
+        )
+        .first()
+    )
+    if user_lesson:
+        user_lesson.is_completed = is_completed
+        user_lesson.completed_at = datetime.utcnow() if is_completed else None
+    else:
+        user_lesson = UserLesson(
+            user_id=current_user.id,
+            lesson_id=lesson_id,
+            is_completed=is_completed,
+            completed_at=datetime.utcnow() if is_completed else None,
+        )
+        db.add(user_lesson)
+
+    db.commit()
+
+
+@router.post(
+    "/lessons/{lesson_id}/complete",
+    responses={
+        200: {"description": "Cập nhật trạng thái hoàn thành lesson thành công"},
+        404: {"description": "Không tìm thấy lesson"},
+        403: {"description": "Chưa đăng ký khóa học"},
+    },
+)
+async def mark_lesson_completed(
+    lesson_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserExcludeSecret = Depends(get_current_user),
+):
+    """
+    Đánh dấu lesson đã hoàn thành
+
+    Args:
+        lesson_id: ID của lesson
+        db: Session database
+        current_user: Thông tin người dùng hiện tại
+
+    Returns:
+        dict: Thông báo kết quả
+
+    Raises:
+        HTTPException: Nếu không tìm thấy lesson hoặc chưa đăng ký khóa học
+    """
+    # Kiểm tra lesson có tồn tại không
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy lesson với ID {lesson_id}",
+        )
+
+    # Kiểm tra người dùng đã đăng ký khóa học chưa
+    course_service = get_course_service()
+    # Lấy course_id thông qua topic
+    topic = db.query(Topic).filter(Topic.id == lesson.topic_id).first()
+    if not topic or not topic.course_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy khóa học của lesson này",
+        )
+
+    if not course_service.is_enrolled(current_user.id, topic.course_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn cần đăng ký khóa học trước khi có thể hoàn thành lesson",
+        )
+
+    # Kiểm tra xem đã có UserLesson chưa
+    user_lesson = (
+        db.query(UserLesson)
+        .filter(
+            UserLesson.user_id == current_user.id,
+            UserLesson.lesson_id == lesson_id,
+        )
+        .first()
+    )
+
+    if user_lesson:
+        # Cập nhật trạng thái
+        user_lesson.is_completed = True
+        user_lesson.progress = 100
+        user_lesson.completed_at = datetime.utcnow()
+    else:
+        # Tạo mới UserLesson
+        user_lesson = UserLesson(
+            user_id=current_user.id,
+            lesson_id=lesson_id,
+            is_completed=True,
+            progress=100,
+            completed_at=datetime.utcnow(),
+        )
+        db.add(user_lesson)
+
+    db.commit()
+
+    return {"message": "Lesson đã được đánh dấu hoàn thành thành công"}
+
+
+@router.delete(
+    "/lessons/{lesson_id}/complete",
+    responses={
+        200: {"description": "Hủy trạng thái hoàn thành lesson thành công"},
+        404: {"description": "Không tìm thấy lesson"},
+    },
+)
+async def unmark_lesson_completed(
+    lesson_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserExcludeSecret = Depends(get_current_user),
+):
+    """
+    Hủy đánh dấu lesson đã hoàn thành
+
+    Args:
+        lesson_id: ID của lesson
+        db: Session database
+        current_user: Thông tin người dùng hiện tại
+
+    Returns:
+        dict: Thông báo kết quả
+
+    Raises:
+        HTTPException: Nếu không tìm thấy lesson
+    """
+    # Kiểm tra lesson có tồn tại không
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy lesson với ID {lesson_id}",
+        )
+
+    # Kiểm tra xem có UserLesson không
+    user_lesson = (
+        db.query(UserLesson)
+        .filter(
+            UserLesson.user_id == current_user.id,
+            UserLesson.lesson_id == lesson_id,
+        )
+        .first()
+    )
+
+    if user_lesson:
+        # Cập nhật trạng thái
+        user_lesson.is_completed = False
+        user_lesson.progress = 0
+        user_lesson.completed_at = None
+        db.commit()
+
+    return {"message": "Đã hủy trạng thái hoàn thành lesson"}
+
+
+@router.get(
+    "/lessons/{lesson_id}/status",
+    responses={
+        200: {"description": "Lấy trạng thái lesson thành công"},
+        404: {"description": "Không tìm thấy lesson"},
+    },
+)
+async def get_lesson_status(
+    lesson_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserExcludeSecret = Depends(get_current_user),
+):
+    """
+    Lấy trạng thái hoàn thành của lesson
+
+    Args:
+        lesson_id: ID của lesson
+        db: Session database
+        current_user: Thông tin người dùng hiện tại
+
+    Returns:
+        dict: Trạng thái lesson
+
+    Raises:
+        HTTPException: Nếu không tìm thấy lesson
+    """
+    # Kiểm tra lesson có tồn tại không
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy lesson với ID {lesson_id}",
+        )
+
+    # Lấy trạng thái UserLesson
+    user_lesson = (
+        db.query(UserLesson)
+        .filter(
+            UserLesson.user_id == current_user.id,
+            UserLesson.lesson_id == lesson_id,
+        )
+        .first()
+    )
+
+    if user_lesson:
+        return {
+            "lesson_id": lesson_id,
+            "is_completed": user_lesson.is_completed,
+            "progress": user_lesson.progress,
+            "completed_at": user_lesson.completed_at,
+        }
+    else:
+        return {
+            "lesson_id": lesson_id,
+            "is_completed": False,
+            "progress": 0,
+            "completed_at": None,
+        }

@@ -535,7 +535,7 @@ export default function CourseDetailPage() {
                           <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-foreground/10">
                             <div>
                               <h3 className="font-medium">
-                                Chủ đề {topic.id}: {topic.name}
+                                Chủ đề {topic.order}: {topic.name}
                               </h3>
                               <p className="text-sm text-foreground/70 mt-1">
                                 {topic.description}

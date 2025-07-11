@@ -171,7 +171,7 @@ async def analyze_test_session(
     
     **Điều kiện cần thiết**:
     - Test session phải tồn tại
-    - User phải có quyền truy cập  
+    - User phải có quyền truy cập
     - Test session đã hoàn thành
     - Đã có điểm số
     """,

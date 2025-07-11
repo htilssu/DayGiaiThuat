@@ -7,6 +7,9 @@ import ChatBot from "@/components/ChatBot/ChatBot";
 import StoreWrapper from "@/components/wrapper/StoreWrapper";
 import ModalWrapper from "@/components/wrapper/ModalWrapper";
 import ClientWrapper from "@/components/wrapper/ClientWrapper";
+import { WebSocketProvider } from "@/contexts/WebSocketContext";
+import { Toaster } from "react-hot-toast";
+import WebSocketNotification from "@/components/ui/WebSocketNotification";
 
 
 export const metadata: Metadata = {
@@ -45,13 +48,39 @@ export default function RootLayout({
         className={`antialiased transition-theme min-h-screen bg-background text-foreground`}>
         <StoreWrapper>
           <ClientWrapper>
-            <ThemeInitializer />
-            <MantineThemeProvider>
-              <ModalWrapper>
-                {children}
-              </ModalWrapper>
-              <ChatBot />
-            </MantineThemeProvider>
+            <WebSocketProvider>
+              <ThemeInitializer />
+              <MantineThemeProvider>
+                <ModalWrapper>
+                  {children}
+                </ModalWrapper>
+                <ChatBot />
+                <WebSocketNotification />
+                <Toaster
+                  position="top-right"
+                  toastOptions={{
+                    duration: 4000,
+                    style: {
+                      background: 'var(--card)',
+                      color: 'var(--card-foreground)',
+                      border: '1px solid var(--border)',
+                    },
+                    success: {
+                      iconTheme: {
+                        primary: 'var(--primary)',
+                        secondary: 'var(--primary-foreground)',
+                      },
+                    },
+                    error: {
+                      iconTheme: {
+                        primary: 'var(--destructive)',
+                        secondary: 'var(--destructive-foreground)',
+                      },
+                    },
+                  }}
+                />
+              </MantineThemeProvider>
+            </WebSocketProvider>
           </ClientWrapper>
         </StoreWrapper>
       </body>
