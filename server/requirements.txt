@@ -37,3 +37,4 @@ langsmith
 # Other tools
 unidecode
 boto3
+bidict

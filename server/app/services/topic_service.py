@@ -9,7 +9,6 @@ from app.models.topic_model import Topic
 from app.models.lesson_model import Lesson
 from app.schemas.topic_schema import (
     TopicResponse,
-    TopicWithLessonsResponse,
     CreateTopicSchema,
     UpdateTopicSchema,
 )

@@ -1,7 +1,9 @@
 from datetime import datetime
-from sqlalchemy import DateTime, Integer, String, Boolean, ForeignKey, Text, JSON
+from typing import TYPE_CHECKING, List, Optional
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import Optional, List, Dict, Any, TYPE_CHECKING
+
 from app.database.database import Base
 from app.schemas.lesson_schema import Options
 

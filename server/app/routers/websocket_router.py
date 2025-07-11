@@ -1,14 +1,13 @@
-# Import handler classes from app.socket
-from typing import Dict
-
+from bidict import bidict
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from jose import JWTError, jwt
+
 from app.core.config import settings
-from app.utils.utils import ALGORITHM
 from app.socket.socker_chain import process_message
+from app.utils.utils import ALGORITHM
 
 router = APIRouter()
-active_connections: Dict[str, WebSocket] = {}
+active_connections: bidict[str, WebSocket] = bidict()
 
 
 def get_current_user_ws(token: str):

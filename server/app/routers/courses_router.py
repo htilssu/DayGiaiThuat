@@ -1,6 +1,6 @@
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends, Query, status, Body
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.models.course_model import Course
@@ -14,7 +14,6 @@ from app.schemas.course_schema import (
 )
 from app.schemas.topic_schema import (
     TopicWithUserState,
-    TopicResponse,
 )
 
 from app.schemas.user_course_schema import (
@@ -26,7 +25,6 @@ from app.services.course_service import CourseService, get_course_service
 from app.services.topic_service import TopicService, get_topic_service
 from app.services.test_service import TestService, get_test_service
 from app.utils.utils import get_current_user, get_current_user_optional
-from app.utils.model_utils import convert_lesson_to_schema
 from datetime import datetime
 
 

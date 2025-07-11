@@ -8,6 +8,12 @@ class UserCourse(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     course_id: Mapped[int] = mapped_column(Integer, ForeignKey("courses.id"))
+    current_topic: Mapped[int] = mapped_column(Integer, default=1)
+    current_lesson: Mapped[int] = mapped_column(Integer, default=1)
+    current_section: Mapped[int] = mapped_column(Integer, default=1)
+    progress_topic: Mapped[int] = mapped_column(Integer, default=0)
+    progress_lesson: Mapped[int] = mapped_column(Integer, default=0)
+    progress_section: Mapped[int] = mapped_column(Integer, default=0)
 
     user: Mapped["User"] = relationship("User")
     course: Mapped["Course"] = relationship("Course")
