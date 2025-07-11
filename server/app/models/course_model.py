@@ -73,9 +73,6 @@ class Course(Base):
     what_you_will_learn: Mapped[str] = mapped_column(
         Text, nullable=True
     )  # Lưu dưới dạng JSON string
-    learning_path: Mapped[str] = mapped_column(
-        Text, nullable=True
-    )  # Lưu dưới dạng JSON string lộ trình học tập
 
     # Relationships
     topics: Mapped[List["Topic"]] = relationship(

@@ -229,7 +229,7 @@ class LessonService:
         if not lesson:
             return False
 
-        lesson.
+        # lesson.is_completed = True
         await self.db.commit()
 
     async def delete_lesson(self, lesson_id: int) -> bool:

@@ -71,8 +71,20 @@ class TopicResponse(TopicBase):
         None, description="ID của khóa học chứa chủ đề này"
     )
     order: Optional[int] = Field(None, description="Thứ tự của chủ đề trong khóa học")
+    is_completed: Optional[bool] = Field(
+        None, description="Trạng thái hoàn thành của chủ đề"
+    )
+    progress: Optional[int] = Field(
+        None, description="Tiến trình hoàn thành của chủ đề"
+    )
+    completed_lessons: Optional[int] = Field(
+        None, description="Số lượng lessons đã hoàn thành của chủ đề"
+    )
     created_at: datetime = Field(..., description="Thời điểm tạo")
     updated_at: datetime = Field(..., description="Thời điểm cập nhật")
+    lessons: List[LessonResponseSchema] = Field(
+        default_factory=list, description="Danh sách lessons"
+    )
 
     class Config:
         from_attributes = True

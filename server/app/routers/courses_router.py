@@ -14,7 +14,7 @@ from app.schemas.course_schema import (
 )
 from app.schemas.topic_schema import (
     TopicWithUserState,
-    TopicWithLessonsResponse,
+    TopicResponse,
 )
 
 from app.schemas.user_course_schema import (
@@ -142,95 +142,11 @@ async def get_course_by_id(
     Raises:
         HTTPException: Nếu không tìm thấy khóa học hoặc không có quyền truy cập
     """
-    course = (
-        db.query(Course)
-        .options(
-            joinedload(Course.topics)
-            .joinedload(Topic.lessons)
-            .joinedload(Lesson.sections),
-            joinedload(Course.topics)
-            .joinedload(Topic.lessons)
-            .joinedload(Lesson.exercises),
-        )
-        .filter(Course.id == course_id)
-        .first()
-    )
-    if not course:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy khóa học với ID {course_id}",
-        )
-
-    # Kiểm tra quyền truy cập - chỉ khóa học được công khai mới có thể xem (trừ admin)
-    if not course.is_published and (not current_user or not current_user.is_admin):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn không có quyền truy cập khóa học này",
-        )
-
-    # Kiểm tra trạng thái đăng ký nếu người dùng đã đăng nhập
-    is_enrolled = False
-    if current_user:
-        is_enrolled = course_service.is_enrolled(current_user.id, course_id)
-
-    # Chuyển đổi course ORM sang schema bằng hàm tiện ích
-    course_response = convert_course_to_schema(
-        course, is_enrolled, current_user.id if current_user else None, db
-    )
-    return course_response
+    course = course_service.get_course(course_id, current_user.id)
+    return course
 
 
 # Hàm tiện ích chuyển đổi Course ORM sang CourseDetailResponse schema
-
-
-def convert_course_to_schema(course, is_enrolled=False, user_id=None, db=None):
-    """
-    Chuyển đổi đối tượng Course ORM sang CourseDetailResponse schema, bao gồm cả topics và lessons
-    """
-    topics = course.topics if hasattr(course, "topics") else []
-    topics_response = []
-    for topic in topics:
-        lessons_response = []
-        for lesson in sorted(
-            getattr(topic, "lessons", []), key=lambda x: getattr(x, "created_at", 0)
-        ):
-            lesson_response = convert_lesson_to_schema(lesson, user_id, db)
-            lessons_response.append(lesson_response)
-        topic_response = TopicWithLessonsResponse(
-            id=topic.id,
-            external_id=getattr(topic, "external_id", None),
-            course_id=topic.course_id,
-            name=topic.name,
-            description=topic.description,
-            prerequisites=getattr(topic, "prerequisites", None),
-            order=getattr(topic, "order", None),
-            created_at=topic.created_at,
-            updated_at=topic.updated_at,
-            lessons=lessons_response,
-        )
-        topics_response.append(topic_response)
-    test_generation_status = getattr(course, "test_generation_status", None)
-    if not isinstance(test_generation_status, str) or not test_generation_status:
-        test_generation_status = "NOT_STARTED"
-    course_response = CourseDetailResponse(
-        id=course.id,
-        title=course.title,
-        description=course.description,
-        thumbnail_url=getattr(course, "thumbnail_url", None),
-        level=getattr(course, "level", None),
-        duration=getattr(course, "duration", None),
-        price=getattr(course, "price", None),
-        is_published=getattr(course, "is_published", None),
-        tags=getattr(course, "tags", None),
-        requirements=getattr(course, "requirements", None),
-        what_you_will_learn=getattr(course, "what_you_will_learn", None),
-        created_at=course.created_at,
-        updated_at=course.updated_at,
-        topics=topics_response,
-        test_generation_status=test_generation_status,
-        is_enrolled=is_enrolled,
-    )
-    return course_response
 
 
 @router.post(

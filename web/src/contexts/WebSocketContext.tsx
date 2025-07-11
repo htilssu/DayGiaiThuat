@@ -150,6 +150,7 @@ export const useWebSocket = (): WebSocketContextType => {
 export default WebSocketContext;
 export const socketType = {
     LEARN_COMPLETE: 'learn.complete',
+    LEARN_START_LESSON: 'learn.start_lesson',
     CHAT: 'chat',
     NOTIFICATION: 'notification',
     TEST_SESSION_COMPLETE: 'test_session.complete',

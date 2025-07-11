@@ -39,6 +39,7 @@ export default function CourseDetailPage() {
   // Update course state when data changes
   useEffect(() => {
     if (courseData) {
+      courseData.topics.sort((a, b) => a.order - b.order);
       setCourse(courseData);
       setIsEnrolled(!!courseData.isEnrolled);
     }

@@ -9,6 +9,7 @@ import type { Lesson as ApiLesson, LessonSection as ApiLessonSection } from "@/l
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 import { processLessonContent } from "@/lib/contentUtils";
+import { socketType, useWebSocket } from "@/contexts/WebSocketContext";
 
 interface LessonPageProps {
     topicId: string;
@@ -23,12 +24,19 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
     const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
     const [showExplanation, setShowExplanation] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);
+    const { socket, sendMessage } = useWebSocket();
 
     useEffect(() => {
         async function fetchLesson() {
             setIsLoading(true);
             setError(null);
             try {
+                sendMessage({
+                    type: socketType.LEARN_START_LESSON,
+                    data: {
+                        lessonId: lessonId
+                    }
+                });
                 const data = await lessonsApi.getLessonByExternalId(lessonId);
                 setLesson(data);
             } catch (err: any) {
@@ -91,6 +99,12 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
 
         if (isLastSection) {
             setIsCompleted(true);
+            sendMessage({
+                type: socketType.LEARN_COMPLETE,
+                data: {
+                    lessonId: lessonId
+                }
+            });
         } else {
             setCurrentSectionIndex(currentSectionIndex + 1);
             setSelectedAnswer(null);

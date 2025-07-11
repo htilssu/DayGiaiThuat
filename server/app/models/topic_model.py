@@ -33,7 +33,7 @@ class Topic(Base):
         "Lesson", back_populates="topic", cascade="all, delete-orphan"
     )
     user_topics: Mapped[List[UserTopic]] = relationship(
-        "UserTopic", back_populates="topic"
+        "UserTopic", back_populates="topic", cascade="all, delete-orphan"
     )
     tests: Mapped[List[Test]] = relationship(
         "Test", back_populates="topic", cascade="all, delete-orphan"

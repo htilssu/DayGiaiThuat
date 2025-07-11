@@ -11,7 +11,10 @@ from app.database.database import get_db
 from app.models.course_model import Course, TestGenerationStatus
 from app.models.user_course_model import UserCourse
 from app.models.user_model import User
+from app.models.user_topic_model import UserTopic
 from app.schemas.course_schema import CourseCreate
+from app.schemas.course_schema import CourseDetailResponse
+from app.schemas.topic_schema import TopicResponse
 
 
 class CourseService:
@@ -36,7 +39,7 @@ class CourseService:
         """
         return self.db.query(Course).offset(skip).limit(limit).all()
 
-    def get_course(self, course_id: int):
+    def get_course(self, course_id: int, user_id: int):
         """
         Lấy thông tin chi tiết của một khóa học
 
@@ -46,7 +49,73 @@ class CourseService:
         Returns:
             Course: Thông tin chi tiết của khóa học
         """
-        return self.db.query(Course).filter(Course.id == course_id).first()
+        course = self.db.query(Course).filter(Course.id == course_id).first()
+        if course is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy khóa học với ID {course_id}",
+            )
+        list_topic_id = [i.id for i in course.topics]
+        user_topic = (
+            self.db.query(UserTopic)
+            .filter(UserTopic.user_id == user_id, UserTopic.topic_id.in_(list_topic_id))
+            .all()
+        )
+        list_topic_response = []
+
+        for topic in course.topics:
+            user_topic_item = next(
+                (i for i in user_topic if i.topic_id == topic.id), None
+            )
+            if user_topic_item is not None:
+                is_completed = user_topic_item.is_completed
+                progress = user_topic_item.progress
+                completed_lessons = user_topic_item.completed_lessons
+            else:
+                is_completed = False
+                progress = 0
+                completed_lessons = 0
+
+            topic_response = TopicResponse(
+                id=topic.id,
+                name=topic.name,
+                description=topic.description,
+                prerequisites=topic.prerequisites,
+                order=topic.order,
+                created_at=topic.created_at,
+                updated_at=topic.updated_at,
+                external_id=topic.external_id,
+                course_id=topic.course_id,
+                is_completed=is_completed,
+                progress=progress,
+                completed_lessons=completed_lessons,
+            )
+            list_topic_response.append(topic_response)
+
+        if not course:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy khóa học với ID {course_id}",
+            )
+
+        return CourseDetailResponse(
+            description=course.description,
+            thumbnail_url=course.thumbnail_url,
+            id=course.id,
+            created_at=course.created_at,
+            updated_at=course.updated_at,
+            test_generation_status=course.test_generation_status,
+            is_enrolled=user_topic is not None,
+            title=course.title,
+            level=course.level,
+            topics=list_topic_response,
+            duration=course.duration,
+            price=course.price,
+            is_published=course.is_published,
+            tags=course.tags,
+            requirements=course.requirements,
+            what_you_will_learn=course.what_you_will_learn,
+        )
 
     def create_course(self, course_data: CourseCreate):
         """
@@ -88,7 +157,7 @@ class CourseService:
         """
         try:
             # Tìm khóa học cần cập nhật
-            course = self.get_course(course_id)
+            course = self.db.query(Course).filter(Course.id == course_id).first()
             if not course:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -124,7 +193,7 @@ class CourseService:
         """
         try:
             # Tìm khóa học cần xóa
-            course = self.get_course(course_id)
+            course = self.db.query(Course).filter(Course.id == course_id).first()
             if not course:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -169,7 +238,7 @@ class CourseService:
         for course_id in course_ids:
             try:
                 # Tìm khóa học cần xóa
-                course = self.get_course(course_id)
+                course = self.db.query(Course).filter(Course.id == course_id).first()
                 if not course:
                     failed_courses.append(course_id)
                     errors.append(f"Không tìm thấy khóa học với ID {course_id}")
@@ -266,19 +335,12 @@ class CourseService:
             dict: Thông tin đăng ký khóa học và test đầu vào (nếu có)
         """
         try:
-            # Kiểm tra xem người dùng có tồn tại không
-            user = self.db.query(User).filter(User.id == user_id).first()
-            if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Không tìm thấy người dùng với ID {user_id}",
-                )
 
             # Kiểm tra xem khóa học có tồn tại không
-            course = self.get_course(course_id)
+            course = self.db.query(Course).filter(Course.id == course_id).first()
             if not course:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
+                    status_code=404,
                     detail=f"Không tìm thấy khóa học với ID {course_id}",
                 )
 
@@ -305,6 +367,25 @@ class CourseService:
             self.db.commit()
             self.db.refresh(enrollment)
 
+            from app.models.user_topic_model import UserTopic
+
+            course.topics.sort(key=lambda x: x.order)
+            if course is not None:
+                first_topic = course.topics[0]
+
+                user_topic = UserTopic(
+                    user_id=user_id,
+                    topic_id=first_topic.id,
+                )
+
+            user_topic = UserTopic(
+                user_id=user_id,
+                topic_id=first_topic.id,
+            )
+            self.db.add(user_topic)
+            self.db.commit()
+            self.db.refresh(user_topic)
+
             # Kiểm tra xem có test đầu vào cho khóa học này không
             from app.models.test_model import Test
 
@@ -320,7 +401,7 @@ class CourseService:
         except SQLAlchemyError as e:
             self.db.rollback()
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=500,
                 detail=f"Lỗi khi đăng ký khóa học: {str(e)}",
             )
 
@@ -349,7 +430,7 @@ class CourseService:
 
             if not enrollment:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
+                    status_code=404,
                     detail="Không tìm thấy đăng ký khóa học",
                 )
 
@@ -360,7 +441,7 @@ class CourseService:
         except SQLAlchemyError as e:
             self.db.rollback()
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=500,
                 detail=f"Lỗi khi hủy đăng ký khóa học: {str(e)}",
             )
 
@@ -379,7 +460,7 @@ class CourseService:
             user = self.db.query(User).filter(User.id == user_id).first()
             if not user:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
+                    status_code=404,
                     detail=f"Không tìm thấy người dùng với ID {user_id}",
                 )
 
@@ -393,7 +474,7 @@ class CourseService:
             return courses
         except SQLAlchemyError as e:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=500,
                 detail=f"Lỗi khi lấy danh sách khóa học: {str(e)}",
             )
 
@@ -426,10 +507,10 @@ class CourseService:
             status: Trạng thái mới
         """
         try:
-            course = self.get_course(course_id)
+            course = self.db.query(Course).filter(Course.id == course_id).first()
             if not course:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
+                    status_code=404,
                     detail=f"Không tìm thấy khóa học với ID {course_id}",
                 )
 
@@ -441,7 +522,7 @@ class CourseService:
         except SQLAlchemyError as e:
             self.db.rollback()
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=500,
                 detail=f"Lỗi khi cập nhật trạng thái test: {str(e)}",
             )
 
@@ -527,7 +608,7 @@ class CourseService:
         """
         try:
             # Lấy course để lấy thông tin
-            course = self.get_course(course_id)
+            course = self.db.query(Course).filter(Course.id == course_id).first()
             if not course:
                 raise ValueError(f"Không tìm thấy khóa học với ID {course_id}")
 
@@ -590,7 +671,7 @@ class CourseService:
         """
         try:
             # Lấy course để lấy thông tin
-            course = self.get_course(course_id)
+            course = self.db.query(Course).filter(Course.id == course_id).first()
             if not course:
                 raise ValueError(f"Không tìm thấy khóa học với ID {course_id}")
 
@@ -667,7 +748,7 @@ class CourseService:
         """
         try:
             # Tìm khóa học cần cập nhật
-            course = self.get_course(course_id)
+            course = self.db.query(Course).filter(Course.id == course_id).first()
             if not course:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -704,7 +785,7 @@ class CourseService:
         """
         try:
             # Kiểm tra khóa học có tồn tại không
-            course = self.get_course(course_id)
+            course = self.db.query(Course).filter(Course.id == course_id).first()
             if not course:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
