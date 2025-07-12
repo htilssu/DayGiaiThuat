@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 from app.database.database import get_async_db
 from app.models.lesson_model import Lesson, LessonSection
 from app.models.lesson_generation_state_model import LessonGenerationState
+from app.models.user_state_model import UserState
 from app.schemas.lesson_schema import (
     CreateLessonSchema,
     UpdateLessonSchema,
@@ -191,6 +192,57 @@ class LessonService:
 
         # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
         return [convert_lesson_to_schema(lesson) for lesson in lessons]
+
+    async def start_lesson(self, lesson_id: int, user_id: int):
+        user_state = await self.db.get(UserState, user_id)
+        if not user_state:
+            raise HTTPException(status_code=404, detail="User state not found")
+        user_state.current_lesson_id = lesson_id
+        await self.db.commit()
+
+    async def complete_lesson(self, lesson_id: int, user_id: int):
+        # Lấy bài học hiện tại
+        current_lesson = await self.db.get(Lesson, lesson_id)
+        if not current_lesson:
+            raise HTTPException(status_code=404, detail="Lesson not found")
+
+        # Tìm bài học tiếp theo trong cùng một chủ đề
+        next_lesson_stmt = (
+            select(Lesson)
+            .where(
+                Lesson.topic_id == current_lesson.topic_id,
+                Lesson.order == current_lesson.order + 1,
+            )
+            .limit(1)
+        )
+        next_lesson = (await self.db.execute(next_lesson_stmt)).scalar_one_or_none()
+        user_state = await self.db.get(UserState, user_id)
+        if user_state is None:
+            raise HTTPException(status_code=404, detail="User state not found")
+        if next_lesson:
+            # Nếu có bài học tiếp theo, cập nhật trạng thái người dùng
+            user_state.current_lesson_id = next_lesson.id
+            await self.db.commit()
+            return {"type": "next_lesson", "lesson": next_lesson}
+        else:
+            # Nếu không có bài học tiếp theo, tìm chủ đề tiếp theo
+            topic = await self.topic_service.get_next_topic(current_lesson.topic_id)
+            if topic:
+                # Tìm bài học đầu tiên của chủ đề tiếp theo
+                first_lesson_stmt = (
+                    select(Lesson)
+                    .where(Lesson.topic_id == topic.id)
+                    .order_by(Lesson.order)
+                    .limit(1)
+                )
+                first_lesson_of_next_topic = (
+                    await self.db.execute(first_lesson_stmt)
+                ).scalar_one_or_none()
+
+                if first_lesson_of_next_topic:
+                    user_state.current_lesson_id = first_lesson_of_next_topic.id
+                    await self.db.commit()
+                    return {"type": "next_topic", "topic": topic}
 
     async def update_lesson(
         self, lesson_id: int, lesson_data: UpdateLessonSchema

@@ -1,5 +1,4 @@
 # flake8: noqa
-from app.models.user_topic_model import UserTopic
 from app.models.lesson_model import Lesson
 from app.models.exercise_model import Exercise
 from app.models.user_state_model import UserState

@@ -1,5 +1,4 @@
 from app.socket.base_handler import BaseWebSocketHandler
-from app.socket.learn_handler import LearnConnectionHandler
 from fastapi import WebSocket
 from typing import Any
 
@@ -7,6 +6,8 @@ chain_handler: list[BaseWebSocketHandler] = []
 
 
 def add_handler():
+    from app.socket.learn_handler import LearnConnectionHandler
+
     chain_handler.append(LearnConnectionHandler())
 
 

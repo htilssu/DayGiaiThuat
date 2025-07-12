@@ -108,6 +108,25 @@ class TopicService:
 
         return [TopicResponse.model_validate(topic) for topic in topics]
 
+    async def get_next_topic(self, current_topic_id: int) -> Optional[Topic]:
+        """
+        Lấy chủ đề tiếp theo trong cùng một khóa học.
+        """
+        current_topic = await self.db.get(Topic, current_topic_id)
+        if not current_topic:
+            return None
+
+        next_topic_stmt = (
+            select(Topic)
+            .where(
+                Topic.course_id == current_topic.course_id,
+                Topic.order == current_topic.order + 1,
+            )
+            .limit(1)
+        )
+        next_topic = (await self.db.execute(next_topic_stmt)).scalar_one_or_none()
+        return next_topic
+
     async def get_lessons_by_topic_id(
         self, topic_id: int
     ) -> List[LessonResponseSchema]:

@@ -1,8 +1,6 @@
 from fastapi import Depends
 
-from app.schemas.exercise_schema import (
-    CreateExerciseSchema,
-)
+from app.schemas.exercise_schema import CreateExerciseSchema
 from app.core.agents.exercise_agent import ExerciseDetail as ExerciseSchema
 from app.models.exercise_model import Exercise as ExerciseModel
 from app.core.agents.exercise_agent import (

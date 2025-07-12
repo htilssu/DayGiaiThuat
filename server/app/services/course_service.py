@@ -11,7 +11,6 @@ from app.database.database import get_db
 from app.models.course_model import Course, TestGenerationStatus
 from app.models.user_course_model import UserCourse
 from app.models.user_model import User
-from app.models.user_topic_model import UserTopic
 from app.schemas.course_schema import CourseCreate
 from app.schemas.course_schema import CourseDetailResponse
 from app.schemas.topic_schema import TopicResponse
@@ -56,25 +55,12 @@ class CourseService:
                 detail=f"Không tìm thấy khóa học với ID {course_id}",
             )
         list_topic_id = [i.id for i in course.topics]
-        user_topic = (
-            self.db.query(UserTopic)
-            .filter(UserTopic.user_id == user_id, UserTopic.topic_id.in_(list_topic_id))
-            .all()
-        )
         list_topic_response = []
 
         for topic in course.topics:
-            user_topic_item = next(
-                (i for i in user_topic if i.topic_id == topic.id), None
-            )
-            if user_topic_item is not None:
-                is_completed = user_topic_item.is_completed
-                progress = user_topic_item.progress
-                completed_lessons = user_topic_item.completed_lessons
-            else:
-                is_completed = False
-                progress = 0
-                completed_lessons = 0
+            is_completed = False
+            progress = 0
+            completed_lessons = 0
 
             topic_response = TopicResponse(
                 id=topic.id,
@@ -366,25 +352,6 @@ class CourseService:
             self.db.add(enrollment)
             self.db.commit()
             self.db.refresh(enrollment)
-
-            from app.models.user_topic_model import UserTopic
-
-            course.topics.sort(key=lambda x: x.order)
-            if course is not None:
-                first_topic = course.topics[0]
-
-                user_topic = UserTopic(
-                    user_id=user_id,
-                    topic_id=first_topic.id,
-                )
-
-            user_topic = UserTopic(
-                user_id=user_id,
-                topic_id=first_topic.id,
-            )
-            self.db.add(user_topic)
-            self.db.commit()
-            self.db.refresh(user_topic)
 
             # Kiểm tra xem có test đầu vào cho khóa học này không
             from app.models.test_model import Test

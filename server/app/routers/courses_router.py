@@ -161,7 +161,7 @@ async def get_course_by_id(
 async def enroll_course(
     data: dict = Body(...),
     course_service: CourseService = Depends(get_course_service),
-    current_user=Depends(get_current_user),
+    current_user: UserExcludeSecret = Depends(get_current_user),
 ):
     """
     Đăng ký khóa học
@@ -245,32 +245,6 @@ async def get_enrolled_courses(
 
 
 @router.get(
-    "/{course_id}/check-enrollment",
-    responses={
-        200: {"description": "OK"},
-    },
-)
-async def check_enrollment(
-    course_id: int,
-    course_service: CourseService = Depends(get_course_service),
-    current_user=Depends(get_current_user),
-):
-    """
-    Kiểm tra trạng thái đăng ký khóa học
-
-    Args:
-        course_id: ID của khóa học
-        course_service: Service xử lý khóa học
-        current_user: Thông tin người dùng hiện tại
-
-    Returns:
-        dict: Trạng thái đăng ký
-    """
-    is_enrolled = course_service.is_enrolled(current_user.id, course_id)
-    return {"is_enrolled": is_enrolled}
-
-
-@router.get(
     "/{course_id}/user-topics",
     response_model=List[TopicWithUserState],
     summary="Lấy danh sách topic của khóa học theo người dùng",
@@ -292,7 +266,7 @@ async def get_user_topics(
     Returns:
         List[TopicWithUserState]: Danh sách topic kèm trạng thái
     """
-    course = course_service.get_course(course_id)
+    course = course_service.get_course(course_id, current_user.id)
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
