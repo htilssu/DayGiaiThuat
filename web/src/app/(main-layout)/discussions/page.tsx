@@ -25,9 +25,11 @@ import { discussionsApi, type Discussion } from "@/lib/api/discussions";
 import { useRouter } from "next/navigation";
 import { discussions as mockDiscussions } from "@/data/discussions";
 import Link from "next/link";
+import { useAppSelector } from "@/lib/store";
 
 export default function DiscussionsPage() {
   const router = useRouter();
+  const user = useAppSelector((state) => state.user.user);
   const [isLoading, setIsLoading] = useState(true);
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -66,6 +68,27 @@ export default function DiscussionsPage() {
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  if (!user) {
+    return (
+      <Container size="lg" py="xl">
+        <div className="flex flex-col items-center justify-center min-h-[40vh]">
+          <Title order={3} className="text-gradient-theme font-semibold mb-2">
+            Please log in to view discussions
+          </Title>
+          <Button
+            onClick={() => router.push("/auth/login")}
+            variant="gradient"
+            gradient={{
+              from: "rgb(var(--color-primary))",
+              to: "rgb(var(--color-secondary))",
+            }}>
+            Go to Login
+          </Button>
+        </div>
+      </Container>
+    );
+  }
 
   return (
     <Container size="lg" py="xl">

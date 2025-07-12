@@ -48,3 +48,20 @@ export interface Lesson {
  * Kiểu dữ liệu cho chủ đề
  */
 
+export interface CodeSubmissionRequest {
+  code: string;
+  language: string;
+}
+
+export interface TestCaseResult {
+  input: string;
+  expectedOutput: string;
+  actualOutput: string;
+  passed: boolean;
+  error?: string | null;
+}
+
+export interface CodeSubmissionResponse {
+  results: TestCaseResult[];
+  allPassed: boolean;
+}

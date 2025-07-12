@@ -88,3 +88,21 @@ class ExerciseResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CodeSubmissionRequest(BaseModel):
+    code: str = Field(..., description="User's submitted code")
+    language: str = Field(..., description="Programming language (e.g., python, javascript, java, cpp, etc.)")
+
+
+class TestCaseResult(BaseModel):
+    input: str
+    expected_output: str
+    actual_output: str
+    passed: bool
+    error: str | None = None
+
+
+class CodeSubmissionResponse(BaseModel):
+    results: list[TestCaseResult]
+    all_passed: bool

@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 
-from app.schemas.exercise_schema import CreateExerciseSchema
+from app.schemas.exercise_schema import CreateExerciseSchema, CodeSubmissionRequest, CodeSubmissionResponse
 from app.services.exercise_service import ExerciseService, get_exercise_service
 
 router = APIRouter(prefix="/exercise", tags=["exercise"])
@@ -59,3 +59,19 @@ async def get_exercise(
             status_code=404, detail=f"Không tìm thấy bài tập với ID {exercise_id}"
         )
     return exercise
+
+
+@router.post(
+    "/{exercise_id}/submit",
+    summary="Nộp code bài tập và chấm điểm tự động",
+    response_model=CodeSubmissionResponse,
+)
+async def submit_exercise_code(
+    exercise_id: int,
+    submission: CodeSubmissionRequest = Body(...),
+    exercise_service: ExerciseService = Depends(get_exercise_service),
+):
+    """
+    Nhận code, chạy với các test case và trả về kết quả từng test case.
+    """
+    return await exercise_service.evaluate_submission(exercise_id, submission)

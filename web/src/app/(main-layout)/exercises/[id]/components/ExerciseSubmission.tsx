@@ -8,8 +8,13 @@ import {
 } from "@tabler/icons-react";
 import { ExerciseDetail, TestResult } from "./types";
 import AIChat from "./AIChat";
-import { runTests, testCases } from "@/services/codeRunner";
 import MonacoEditor from "@/components/ui/MonacoEditor";
+import { exercisesApi } from "@/lib/api";
+import type {
+  CodeSubmissionRequest,
+  CodeSubmissionResponse,
+} from "@/lib/api/types";
+import { sendCodeToJudge } from "@/lib/api/exercises";
 
 /**
  * Component cho phần nộp bài tập và chạy test
@@ -50,46 +55,52 @@ export default function ExerciseSubmission({
     }>
   >([]);
 
-  // Giả lập chạy test
-  const handleRunTests = () => {
+  const handleJudge0Run = async () => {
+    try {
+      // You may need to map your language to Judge0's language_id here
+      const judge0LanguageId = language; // Replace with mapping if needed
+      const result = await sendCodeToJudge({
+        code,
+        language: judge0LanguageId,
+        stdin: "", // or provide user input if needed
+      });
+      console.log("Judge0 result:", result);
+      // You can set state here to display the result to the user
+    } catch (err) {
+      alert("Error sending code to Judge0: " + err);
+    }
+  };
+
+  // Chạy test thực tế bằng API backend
+  const handleRunTests = async () => {
     setIsRunningTests(true);
-    // setTestResults([]);
-
-    // Mô phỏng việc chạy test bằng cách tạo kết quả ngẫu nhiên
-    // setTimeout(() => {
-    //   const results: TestResult[] = exercise.testCases.map(
-    //     (testCase, index) => {
-    //       // Giả lập kết quả test, trong thực tế sẽ chạy code thật với test case
-    //       // 70% khả năng test pass cho mô phỏng
-    //       const passed = Math.random() > 0.3;
-    //       return {
-    //         passed,
-    //         input: testCase.input,
-    //         expectedOutput: testCase.expectedOutput,
-    //         actualOutput: passed
-    //           ? testCase.expectedOutput
-    //           : `Kết quả sai: ${index + Math.floor(Math.random() * 100)}`,
-    //         error: passed
-    //           ? undefined
-    //           : Math.random() > 0.5
-    //           ? "Runtime error: Lỗi chia cho 0"
-    //           : undefined,
-    //       };
-    //     }
-    //   );
-
-    //   setTestResults(results);
-    //   setAllTestsPassed(results.every((result) => result.passed));
-    //   setIsRunningTests(false);
-    // }, 1500);
-    setTimeout(() => {
-      const testResults = runTests(code, testCases);
-      setResults(testResults);
-
+    try {
+      const submission: CodeSubmissionRequest = {
+        code,
+        language,
+      };
+      const response: CodeSubmissionResponse =
+        await exercisesApi.submitExerciseCode(
+          typeof exercise.id === "string" ? Number(exercise.id) : exercise.id,
+          submission
+        );
+      setResults(
+        response.results.map((r) => ({
+          input: r.input,
+          expectedOutput: r.expectedOutput,
+          actualOutput: r.actualOutput,
+          passed: r.passed,
+          error: r.error || "",
+        }))
+      );
+      // Optionally update allTestsPassed state if you want to enable submit
+      // setAllTestsPassed(response.allPassed);
+    } catch {
+      setResults([]);
+      alert("Đã xảy ra lỗi khi chạy test. Vui lòng thử lại.");
+    } finally {
       setIsRunningTests(false);
-    }, 1500);
-    console.log("callAIChat", results);
-    console.log("content", exercise);
+    }
     setCallAIChat(true);
   };
 
