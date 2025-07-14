@@ -61,10 +61,8 @@ export default function ExerciseSubmission({
   const handleTestJudge0 = async () => {
     setIsRunningJudge0(true);
     try {
-      // Convert code to a single-line string with \n for newlines
-      const singleLineCode = code.replace(/\r?\n/g, "\\n");
       const submission: Judge0SubmissionRequest = {
-        code: singleLineCode,
+        code,
         language,
         stdin: "", // You can add input if needed
       };
@@ -73,15 +71,15 @@ export default function ExerciseSubmission({
       console.log("Judge0 result:", result);
 
       // Show result to user
-      if (result.stdout) {
-        alert(`Judge0 Output: ${result.stdout}`);
-      } else if (result.stderr) {
-        alert(`Judge0 Error: ${result.stderr}`);
-      } else if (result.compile_output) {
-        alert(`Compilation Error: ${result.compile_output}`);
-      } else {
-        alert(`Status: ${result.status.description}`);
-      }
+      // if (result.stdout) {
+      //   alert(`Judge0 Output: ${result.stdout}`);
+      // } else if (result.stderr) {
+      //   alert(`Judge0 Error: ${result.stderr}`);
+      // } else if (result.compile_output) {
+      //   alert(`Compilation Error: ${result.compile_output}`);
+      // } else {
+      //   alert(`Status: ${result.status.description}`);
+      // }
     } catch (err) {
       console.error("Judge0 error:", err);
       alert("Error sending code to Judge0: " + err);
@@ -173,12 +171,12 @@ export default function ExerciseSubmission({
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
-                  stroke-width="1.2"
+                  strokeWidth="1.2"
                   stroke="currentColor"
                   className="h-5 w-5 ml-1 absolute top-2.5 right-2.5 text-primary">
                   <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                     d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9"
                   />
                 </svg>
@@ -198,7 +196,7 @@ export default function ExerciseSubmission({
 
           <div className="flex gap-2">
             <button
-              onClick={handleRunTests}
+              onClick={handleTestJudge0}
               disabled={isRunningTests}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-lg transition-colors ${
                 isRunningTests ? "opacity-60 cursor-not-allowed" : ""
@@ -216,7 +214,7 @@ export default function ExerciseSubmission({
               )}
             </button>
 
-            <button
+            {/* <button
               onClick={handleTestJudge0}
               disabled={isRunningJudge0}
               className={`flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 font-medium rounded-lg transition-colors ${
@@ -233,7 +231,7 @@ export default function ExerciseSubmission({
                   <span>Judge0</span>
                 </>
               )}
-            </button>
+            </button> */}
           </div>
         </div>
 

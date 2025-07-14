@@ -99,6 +99,7 @@ async function submitExerciseCode(
  * @param submission - Code, ngôn ngữ và input
  * @returns Kết quả từ Judge0
  */
+
 async function sendCodeToJudge(
   submission: Judge0SubmissionRequest
 ): Promise<Judge0SubmissionResponse> {
@@ -113,6 +114,7 @@ async function sendCodeToJudge(
       },
       body: JSON.stringify({
         source_code: submission.code,
+        // source_code: "console.log('Hello, World!');",
         language_id: getLanguageId(submission.language),
         stdin: submission.stdin || "",
       }),
@@ -127,35 +129,25 @@ async function sendCodeToJudge(
     const createData = await createResponse.json();
     const token = createData.token;
 
-    // Poll for results
-    let attempts = 0;
-    const maxAttempts = 30; // 30 seconds timeout
+    console.log("token:", token);
 
-    while (attempts < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second
-
-      const resultResponse = await fetch(
-        `${JUDGE0_API_URL}/submissions/${token}`
-      );
-
-      if (!resultResponse.ok) {
-        throw new Error(
-          `Failed to get submission result: ${resultResponse.statusText}`
-        );
+    const resultResponse = await fetch(
+      `${JUDGE0_API_URL}/submissions/${token}`,
+      {
+        method: "get",
+        headers: new Headers({
+          "ngrok-skip-browser-warning": "69420",
+        }),
       }
+    );
 
-      const resultData = await resultResponse.json();
+    console.log("resultResponse:", resultResponse);
 
-      // Check if processing is complete
-      if (resultData.status.id > 2) {
-        // Status > 2 means processing is complete
-        return resultData;
-      }
+    const resultData = await resultResponse.json();
 
-      attempts++;
-    }
+    console.log("resultData:", resultData);
 
-    throw new Error("Timeout waiting for Judge0 response");
+    return resultData;
   } catch (error) {
     console.error("Judge0 API error:", error);
     throw error;
