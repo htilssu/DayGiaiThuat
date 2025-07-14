@@ -18,12 +18,36 @@ export interface CreateExerciseRequest {
 }
 
 /**
- * Lấy thông tin chi tiết của một bài tập theo ID
- * @param exerciseId - ID của bài tập
- * @returns Thông tin chi tiết bài tập
+ * Kiểu dữ liệu cho yêu cầu gửi code đến Judge0
  */
-async function getExerciseById(exerciseId: number) {
-  return get<Exercise>(`/exercise/${exerciseId}`);
+export interface Judge0SubmissionRequest {
+  code: string;
+  language: string;
+  stdin?: string;
+}
+
+/**
+ * Kiểu dữ liệu cho phản hồi từ Judge0
+ */
+export interface Judge0SubmissionResponse {
+  token: string;
+  stdout?: string;
+  stderr?: string;
+  compile_output?: string;
+  message?: string;
+  status: {
+    id: number;
+    description: string;
+  };
+}
+
+/**
+ * Lấy bài tập theo ID
+ * @param id - ID của bài tập
+ * @returns Thông tin bài tập
+ */
+async function getExerciseById(id: number) {
+  return get<Exercise>(`/exercise/${id}`);
 }
 
 /**
@@ -36,25 +60,22 @@ async function createExercise(exerciseData: CreateExerciseRequest) {
 }
 
 /**
- * Cập nhật thông tin bài tập
- * @param exerciseId - ID của bài tập
+ * Cập nhật bài tập
+ * @param id - ID của bài tập
  * @param exerciseData - Dữ liệu cập nhật
  * @returns Thông tin bài tập đã cập nhật
  */
-async function updateExercise(
-  exerciseId: number,
-  exerciseData: Partial<CreateExerciseRequest>
-) {
-  return put<Exercise>(`/exercise/${exerciseId}`, exerciseData);
+async function updateExercise(id: number, exerciseData: Partial<Exercise>) {
+  return put<Exercise>(`/exercise/${id}`, exerciseData);
 }
 
 /**
- * Xóa một bài tập
- * @param exerciseId - ID của bài tập
+ * Xóa bài tập
+ * @param id - ID của bài tập
  * @returns Kết quả xóa
  */
-async function deleteExercise(exerciseId: number) {
-  return del<{ message: string }>(`/exercise/${exerciseId}`);
+async function deleteExercise(id: number) {
+  return del(`/exercise/${id}`);
 }
 
 /**
@@ -74,46 +95,93 @@ async function submitExerciseCode(
 }
 
 /**
- * Gửi code đến Judge0 để chấm điểm
- * @param {Object} params
- * @param {string} params.code - Source code
- * @param {string} params.language - Language id or name
- * @param {string} [params.stdin] - Optional input
- * @returns {Promise<any>} Judge0 API response
+ * Gửi code đến Judge0 để chạy và nhận kết quả
+ * @param submission - Code, ngôn ngữ và input
+ * @returns Kết quả từ Judge0
  */
-export async function sendCodeToJudge({
-  code,
-  language,
-  stdin,
-}: {
-  code: string;
-  language: string;
-  stdin?: string;
-}) {
-  // Map language name to Judge0 language_id if needed
-  // For demo, assume language is already Judge0's language_id
-  const body = {
-    source_code: code,
-    language_id: language, // You may need to map this
-    stdin: stdin || "",
-  };
+async function sendCodeToJudge(
+  submission: Judge0SubmissionRequest
+): Promise<Judge0SubmissionResponse> {
+  const JUDGE0_API_URL = "https://76941b3633ca.ngrok-free.app";
 
-  const res = await fetch(
-    "https://judge0-extra-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
-    {
+  try {
+    // Tạo submission
+    const createResponse = await fetch(`${JUDGE0_API_URL}/submissions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-RapidAPI-Host": "judge0-extra-ce.p.rapidapi.com",
-        "X-RapidAPI-Key": "d9adf119c4msh9041921e62d6d88p1eadeejsn847675e333d6",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        source_code: submission.code,
+        language_id: getLanguageId(submission.language),
+        stdin: submission.stdin || "",
+      }),
+    });
+
+    if (!createResponse.ok) {
+      throw new Error(
+        `Failed to create submission: ${createResponse.statusText}`
+      );
     }
-  );
-  if (!res.ok) {
-    throw new Error("Failed to send code to Judge0");
+
+    const createData = await createResponse.json();
+    const token = createData.token;
+
+    // Poll for results
+    let attempts = 0;
+    const maxAttempts = 30; // 30 seconds timeout
+
+    while (attempts < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second
+
+      const resultResponse = await fetch(
+        `${JUDGE0_API_URL}/submissions/${token}`
+      );
+
+      if (!resultResponse.ok) {
+        throw new Error(
+          `Failed to get submission result: ${resultResponse.statusText}`
+        );
+      }
+
+      const resultData = await resultResponse.json();
+
+      // Check if processing is complete
+      if (resultData.status.id > 2) {
+        // Status > 2 means processing is complete
+        return resultData;
+      }
+
+      attempts++;
+    }
+
+    throw new Error("Timeout waiting for Judge0 response");
+  } catch (error) {
+    console.error("Judge0 API error:", error);
+    throw error;
   }
-  return res.json();
+}
+
+/**
+ * Map ngôn ngữ lập trình sang Judge0 language ID
+ * @param language - Tên ngôn ngữ
+ * @returns Judge0 language ID
+ */
+function getLanguageId(language: string): number {
+  const languageMap: Record<string, number> = {
+    javascript: 63, // Node.js
+    typescript: 74, // TypeScript
+    python: 71, // Python
+    csharp: 51, // C#
+    c: 50, // C
+    cpp: 54, // C++
+    java: 62, // Java
+    php: 68, // PHP
+    ruby: 72, // Ruby
+    swift: 83, // Swift
+  };
+
+  return languageMap[language.toLowerCase()] || 63; // Default to JavaScript
 }
 
 export const exercisesApi = {
@@ -122,4 +190,5 @@ export const exercisesApi = {
   updateExercise,
   deleteExercise,
   submitExerciseCode,
+  sendCodeToJudge,
 };

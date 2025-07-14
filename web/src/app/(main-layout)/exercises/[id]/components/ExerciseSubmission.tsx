@@ -5,6 +5,7 @@ import {
   IconCircleCheck,
   IconCircleX,
   IconPlayerPlay,
+  IconCode,
 } from "@tabler/icons-react";
 import { ExerciseDetail, TestResult } from "./types";
 import AIChat from "./AIChat";
@@ -14,7 +15,7 @@ import type {
   CodeSubmissionRequest,
   CodeSubmissionResponse,
 } from "@/lib/api/types";
-import { sendCodeToJudge } from "@/lib/api/exercises";
+import type { Judge0SubmissionRequest } from "@/lib/api/exercises";
 
 /**
  * Component cho phần nộp bài tập và chạy test
@@ -54,20 +55,38 @@ export default function ExerciseSubmission({
       error: string;
     }>
   >([]);
+  const [isRunningJudge0, setIsRunningJudge0] = useState(false);
 
-  const handleJudge0Run = async () => {
+  // Test Judge0 functionality
+  const handleTestJudge0 = async () => {
+    setIsRunningJudge0(true);
     try {
-      // You may need to map your language to Judge0's language_id here
-      const judge0LanguageId = language; // Replace with mapping if needed
-      const result = await sendCodeToJudge({
-        code,
-        language: judge0LanguageId,
-        stdin: "", // or provide user input if needed
-      });
+      // Convert code to a single-line string with \n for newlines
+      const singleLineCode = code.replace(/\r?\n/g, "\\n");
+      const submission: Judge0SubmissionRequest = {
+        code: singleLineCode,
+        language,
+        stdin: "", // You can add input if needed
+      };
+
+      const result = await exercisesApi.sendCodeToJudge(submission);
       console.log("Judge0 result:", result);
-      // You can set state here to display the result to the user
+
+      // Show result to user
+      if (result.stdout) {
+        alert(`Judge0 Output: ${result.stdout}`);
+      } else if (result.stderr) {
+        alert(`Judge0 Error: ${result.stderr}`);
+      } else if (result.compile_output) {
+        alert(`Compilation Error: ${result.compile_output}`);
+      } else {
+        alert(`Status: ${result.status.description}`);
+      }
     } catch (err) {
+      console.error("Judge0 error:", err);
       alert("Error sending code to Judge0: " + err);
+    } finally {
+      setIsRunningJudge0(false);
     }
   };
 
@@ -177,24 +196,45 @@ export default function ExerciseSubmission({
             </div>
           </div>
 
-          <button
-            onClick={handleRunTests}
-            disabled={isRunningTests}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-lg transition-colors ${
-              isRunningTests ? "opacity-60 cursor-not-allowed" : ""
-            }`}>
-            {isRunningTests ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                <span>Đang chạy...</span>
-              </>
-            ) : (
-              <>
-                <IconPlayerPlay className="h-5 w-5" />
-                <span>Chạy Test</span>
-              </>
-            )}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleRunTests}
+              disabled={isRunningTests}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-lg transition-colors ${
+                isRunningTests ? "opacity-60 cursor-not-allowed" : ""
+              }`}>
+              {isRunningTests ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                  <span>Đang chạy...</span>
+                </>
+              ) : (
+                <>
+                  <IconPlayerPlay className="h-5 w-5" />
+                  <span>Chạy Test</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={handleTestJudge0}
+              disabled={isRunningJudge0}
+              className={`flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 font-medium rounded-lg transition-colors ${
+                isRunningJudge0 ? "opacity-60 cursor-not-allowed" : ""
+              }`}>
+              {isRunningJudge0 ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                  <span>Judge0...</span>
+                </>
+              ) : (
+                <>
+                  <IconCode className="h-5 w-5" />
+                  <span>Judge0</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* AI Chat */}
