@@ -39,11 +39,7 @@ class StorageService:
         )
 
         if not settings.S3_ENABLED:
-            logger.warning(
-                "S3/R2 không được cấu hình đầy đủ. Các tính năng upload sẽ không hoạt động."
-            )
-            self.s3_client = None
-            return
+            raise Exception("S3/R2 không được cấu hình đầy đủ.")
 
         try:
             # Cấu hình client cho S3/R2

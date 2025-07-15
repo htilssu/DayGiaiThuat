@@ -6,3 +6,4 @@ from .badge_schema import *
 from .learning_progress_schema import *
 from .user_state_schema import *
 from .lesson_schema import *
+from .user_course_progress_schema import *

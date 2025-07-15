@@ -4,24 +4,19 @@
  */
 
 import { get, post, put, del } from "./client";
-import type { Lesson } from "./types";
+import { Lesson } from "./lessons";
 
-// Re-export Lesson type for convenience
-export type { Lesson } from "./types";
 
 export interface Topic {
   id: number;
   name: string;
-  description?: string | null;
+  order: number;
   prerequisites?: string[] | null;
-  externalId?: string | null;
-  courseId: number;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface TopicWithLessons extends Topic {
+  description?: string;
+  courseId?: number;
   lessons: Lesson[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -30,7 +25,7 @@ export interface TopicWithLessons extends Topic {
  * @returns Danh sách chủ đề kèm lessons
  */
 async function getTopicsByCourse(courseId: number) {
-  return get<TopicWithLessons[]>(`/topics/course/${courseId}`);
+  return get<Topic[]>(`/topics/course/${courseId}`);
 }
 
 /**
@@ -99,7 +94,7 @@ export async function getTopicLessons(topicId: number): Promise<Lesson[]> {
  * @returns Danh sách topics với lessons
  * @deprecated Sử dụng getTopicsByCourse thay thế - API đã được cập nhật để trả về topics kèm lessons
  */
-export async function getTopicsWithLessons(courseId: number): Promise<TopicWithLessons[]> {
+export async function getTopicsWithLessons(courseId: number): Promise<Topic[]> {
   // Bây giờ getTopicsByCourse đã trả về topics kèm lessons
   return getTopicsByCourse(courseId);
 }

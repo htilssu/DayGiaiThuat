@@ -1,10 +1,20 @@
 from app.schemas.lesson_schema import (
     CreateLessonSchema,
     GenerateLessonRequestSchema,
+    LessonCompleteResponseSchema,
     LessonResponseSchema,
     UpdateLessonSchema,
 )
+from app.schemas.enhanced_course_schema import (
+    LessonDetailWithProgressResponse,
+)
+from app.utils.utils import get_current_user, get_current_user_optional
+from app.schemas.user_profile_schema import UserExcludeSecret
 from app.services.lesson_service import LessonService, get_lesson_service
+from app.services.enhanced_course_service import (
+    EnhancedCourseService,
+    get_enhanced_course_service,
+)
 from fastapi import APIRouter, Depends, HTTPException, status
 
 router = APIRouter(prefix="/lessons", tags=["Bài học"])
@@ -48,12 +58,45 @@ async def create_lesson(
         )
 
 
-@router.get("/{lesson_id}", response_model=LessonResponseSchema)
+@router.post("/{lesson_id}/complete", response_model=LessonCompleteResponseSchema)
+async def complete_lesson(
+    lesson_id: int,
+    current_user: UserExcludeSecret = Depends(get_current_user),
+    lesson_service: LessonService = Depends(get_lesson_service),
+):
+    """
+    Complete a lesson.
+    """
+    lesson = await lesson_service.complete_lesson(lesson_id, current_user.id)
+    return lesson
+
+
+@router.get("/{lesson_id}", response_model=LessonDetailWithProgressResponse)
 async def get_lesson(
+    lesson_id: int,
+    current_user: UserExcludeSecret = Depends(get_current_user_optional),
+    enhanced_service: EnhancedCourseService = Depends(get_enhanced_course_service),
+):
+    """
+    Lấy lesson theo ID với progress information
+
+    Returns lesson detail với:
+    - Progress status (completed/in_progress/not_started)
+    - Last viewed time
+    - Completion percentage
+    - User course context
+    """
+    user_id = current_user.id if current_user else None
+    lesson = await enhanced_service.get_lesson_with_progress(lesson_id, user_id)
+    return lesson
+
+
+@router.get("/{lesson_id}/basic", response_model=LessonResponseSchema)
+async def get_lesson_basic_info(
     lesson_id: int, lesson_service: LessonService = Depends(get_lesson_service)
 ):
     """
-    Get a lesson by ID.
+    Get basic lesson info without progress (backward compatibility)
     """
     lesson = await lesson_service.get_lesson_by_id(lesson_id)
 

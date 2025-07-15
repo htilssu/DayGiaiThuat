@@ -591,7 +591,7 @@ export default function CourseDetailPage() {
                                 </div>
                                 <div className="flex items-center gap-3 flex-shrink-0">
                                   <Link
-                                    href={`/topics/${topic.id}/lessons/${lesson.externalId || lesson.id}`}
+                                    href={`/topics/${topic.id}/lessons/${lesson.id}`}
                                     className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
                                     Học ngay
                                   </Link>

@@ -5,10 +5,15 @@ from app.schemas.topic_schema import (
     CreateTopicSchema,
     UpdateTopicSchema,
     TopicResponse,
-    TopicWithLessonsResponse,
+)
+from app.schemas.enhanced_course_schema import (
+    TopicDetailWithProgressResponse,
 )
 from app.schemas.lesson_schema import LessonResponseSchema
+from app.schemas.user_profile_schema import UserExcludeSecret
 from app.services.topic_service import TopicService, get_topic_service
+from app.utils.utils import get_current_user_optional
+from app.services.course_service import CourseService, get_course_service
 
 router = APIRouter(prefix="/topics", tags=["Chủ đề"])
 
@@ -23,32 +28,49 @@ async def create_topic(
     return topic
 
 
-@router.get("/course/{course_id}", response_model=List[TopicWithLessonsResponse])
+@router.get("/course/{course_id}", response_model=List[TopicResponse])
 async def list_topics_for_course(
     course_id: int, topic_service: TopicService = Depends(get_topic_service)
 ):
-    """Lấy danh sách topics kèm lessons theo course ID"""
-    topics_with_lessons = await topic_service.get_topics_with_lessons_by_course_id(
-        course_id
-    )
-    return topics_with_lessons
+    """Lấy danh sách topics theo course ID"""
+    topics = await topic_service.get_topics_by_course_id(course_id)
+    return topics
 
 
-@router.get("/{topic_id}", response_model=TopicResponse)
+@router.get("/{topic_id}", response_model=TopicDetailWithProgressResponse)
 async def get_topic_by_id(
+    topic_id: int,
+    current_user: UserExcludeSecret = Depends(get_current_user_optional),
+    enhanced_service: CourseService = Depends(get_course_service),
+):
+    """
+    Lấy topic theo ID với lessons và progress nested
+
+    Returns topic detail với:
+    - Danh sách lessons với progress status
+    - Topic completion percentage
+    - Progress summary
+    """
+    user_id = current_user.id if current_user else None
+    topic = await enhanced_service.get_topic_with_progress(topic_id, user_id)
+    return topic
+
+
+@router.get("/{topic_id}/basic", response_model=TopicResponse)
+async def get_topic_basic_info(
     topic_id: int, topic_service: TopicService = Depends(get_topic_service)
 ):
-    """Lấy topic theo ID"""
+    """Lấy basic topic info không có progress (backward compatibility)"""
     topic = await topic_service.get_topic_by_id(topic_id)
     return topic
 
 
-@router.get("/{topic_id}/with-lessons", response_model=TopicWithLessonsResponse)
+@router.get("/{topic_id}/with-lessons", response_model=TopicResponse)
 async def get_topic_with_lessons(
     topic_id: int, topic_service: TopicService = Depends(get_topic_service)
 ):
-    """Lấy topic với lessons"""
-    result = await topic_service.get_topic_with_lessons(topic_id)
+    """Lấy topic"""
+    result = await topic_service.get_topic_by_id(topic_id)
 
     if result is None:
         from fastapi import HTTPException

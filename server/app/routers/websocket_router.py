@@ -34,9 +34,11 @@ async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
                 code=status.WS_1000_NORMAL_CLOSURE,
                 reason="New connection from same user",
             )
-        except Exception:
+            active_connections.pop(user_id)
+        except Exception as e:
+            print(e)
             pass
-    active_connections[user_id] = websocket
+    active_connections.put(user_id, websocket)
     await websocket.accept()
     try:
         while True:
@@ -45,6 +47,4 @@ async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
     except WebSocketDisconnect:
         pass
     finally:
-        if user_id in active_connections and active_connections[user_id] == websocket:
-            print(f"User {user_id} disconnected")
-            del active_connections[user_id]
+        active_connections.pop(user_id)

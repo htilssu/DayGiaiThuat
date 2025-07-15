@@ -5,43 +5,17 @@
 
 import { get, post, del } from "./client";
 import { Test, TestSession } from "./test";
+import { Topic } from "./topics";
 
 /**
  * Kiểu dữ liệu cho lesson
  */
-export interface Lesson {
-  id: number;
-  externalId: string;
-  title: string;
-  description?: string;
-  type: string;
-  order: number;
-  content?: string;
-  sections?: {
-    id: number;
-    title: string;
-    content: string;
-    type: string;
-    order: number;
-  }[];
-  createdAt: string;
-  updatedAt: string;
-}
+
 
 /**
  * Kiểu dữ liệu cho topic với lessons
  */
-export interface TopicWithLessons {
-  id: number;
-  name: string;
-  order: number;
-  prerequisites?: string[] | null;
-  description?: string;
-  courseId?: number;
-  lessons: Lesson[];
-  createdAt: string;
-  updatedAt: string;
-}
+
 
 /**
  * Kiểu dữ liệu cho item trong danh sách khóa học (không bao gồm topics)
@@ -79,7 +53,7 @@ export interface UserCourseDetail {
   updatedAt: string;
   testGenerationStatus?: string;
   isEnrolled?: boolean;
-  topics: TopicWithLessons[];
+  topics: Topic[];
 }
 
 

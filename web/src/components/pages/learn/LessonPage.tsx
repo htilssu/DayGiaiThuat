@@ -5,11 +5,12 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { lessonsApi } from "@/lib/api";
-import type { Lesson as ApiLesson, LessonSection as ApiLessonSection } from "@/lib/api/types";
+import { Lesson, LessonSection } from "@/lib/api/lessons";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 import { processLessonContent } from "@/lib/contentUtils";
 import { socketType, useWebSocket } from "@/contexts/WebSocketContext";
+import { useRouter } from "next/navigation";
 
 interface LessonPageProps {
     topicId: string;
@@ -17,7 +18,7 @@ interface LessonPageProps {
 }
 
 export function LessonPage({ topicId, lessonId }: LessonPageProps) {
-    const [lesson, setLesson] = useState<ApiLesson | null>(null);
+    const [lesson, setLesson] = useState<Lesson | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
@@ -25,7 +26,7 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
     const [showExplanation, setShowExplanation] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);
     const { socket, sendMessage } = useWebSocket();
-
+    const router = useRouter();
     useEffect(() => {
         async function fetchLesson() {
             setIsLoading(true);
@@ -37,7 +38,7 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                         lessonId: lessonId
                     }
                 });
-                const data = await lessonsApi.getLessonByExternalId(lessonId);
+                const data = await lessonsApi.getLessonById(Number(lessonId));
                 setLesson(data);
             } catch (err: any) {
                 setError("Không thể tải thông tin bài học. Vui lòng thử lại sau.");
@@ -94,17 +95,15 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
     const isLastSection = currentSectionIndex === lesson.sections.length - 1;
     const isQuiz = currentSection?.type === "quiz";
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (isQuiz && selectedAnswer === null) return;
 
         if (isLastSection) {
             setIsCompleted(true);
-            sendMessage({
-                type: socketType.LEARN_COMPLETE,
-                data: {
-                    lessonId: lessonId
-                }
-            });
+            const data = await lessonsApi.completeLesson(lesson.id);
+            if (data.isCompleted) {
+                router.push(`/topics/${lesson.topicId}/lessons/${data.nextLessonId}`);
+            }
         } else {
             setCurrentSectionIndex(currentSectionIndex + 1);
             setSelectedAnswer(null);
@@ -127,7 +126,7 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
         }
     };
 
-    const renderSection = (section: ApiLessonSection) => {
+    const renderSection = (section: LessonSection) => {
         const { content, isMarkdown, isHtml, language } = processLessonContent(section.content, section.type);
 
         switch (section.type) {

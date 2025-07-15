@@ -23,6 +23,8 @@ async def process_message(websocket: WebSocket, message: Any):
     async def next():
         nonlocal current_handler_index
         nonlocal current_handler
+        if current_handler_index == length - 1:
+            return
         if current_handler_index < length - 1:
             current_handler_index += 1
             current_handler = chain_handler[current_handler_index]

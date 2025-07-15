@@ -14,7 +14,7 @@ export default function LessonPage({ topicId, lessonId }: LessonPageProps) {
   const [error, setError] = useState<string | null>(null);
   const { data: lesson, isLoading: isLessonLoading, error: lessonError } = useQuery({
     queryKey: ["lesson", lessonId],
-    queryFn: () => lessonsApi.getLessonByExternalId(lessonId),
+    queryFn: () => lessonsApi.getLessonById(Number(lessonId)),
     enabled: !!lessonId,
     staleTime: 1000 * 60 * 5,
     retry: 3,
@@ -168,7 +168,7 @@ export default function LessonPage({ topicId, lessonId }: LessonPageProps) {
         {/* Navigation */}
         <div className="mb-8 flex justify-between items-center">
           <div>
-            {lesson.prevLessonId && (
+            {lesson?.prevLessonId && (
               <Link
                 href={`/topics/${topicId}/lessons/${lesson.prevLessonId}`}
                 className="inline-flex items-center px-4 py-2 bg-foreground/5 rounded-lg hover:bg-foreground/10 transition">
@@ -190,7 +190,7 @@ export default function LessonPage({ topicId, lessonId }: LessonPageProps) {
             )}
           </div>
           <div>
-            {lesson.nextLessonId && (
+            {lesson?.nextLessonId && (
               <Link
                 href={`/topics/${topicId}/lessons/${lesson.nextLessonId}`}
                 className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition">
@@ -216,14 +216,14 @@ export default function LessonPage({ topicId, lessonId }: LessonPageProps) {
         {/* Lesson Content */}
         <div className="max-w-4xl mx-auto">
           <div className="space-y-6">
-            {lesson.sections.map((section, index) =>
+            {lesson?.sections?.map((section, index) =>
               renderSection(section, index)
             )}
           </div>
         </div>
 
         {/* Exercise */}
-        {lesson.exercise && (
+        {lesson?.exercise && (
           <div className="max-w-4xl mx-auto mt-12">
             <div className="bg-white rounded-xl p-6 shadow-sm border border-foreground/10">
               <h2 className="text-2xl font-bold mb-4">Bài tập</h2>

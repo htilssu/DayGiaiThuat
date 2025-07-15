@@ -4,7 +4,40 @@
  */
 
 import { get, post, put, del } from "./client";
-import type { Lesson, LessonSection } from "./types";
+
+export interface LessonSection {
+  id: number;
+  title: string;
+  content: string;
+  options: Record<string, string>;
+  answer: string;
+  explanation: string;
+  type: string;
+  order: number;
+}
+
+export interface LessonCompleteResponseSchema {
+  lesson_id: number;
+  nextLessonId: number | null;
+  isCompleted: boolean;
+}
+
+export interface Lesson {
+  id: number;
+  externalId: string;
+  title: string;
+  description?: string;
+  type: string;
+  order: number;
+  topicId: number;
+  content?: string;
+  sections?: LessonSection[];
+  createdAt: string;
+  updatedAt: string;
+  isCompleted: boolean;
+  nextLessonId: number | null;
+  prevLessonId: number | null;
+}
 
 /**
  * Kiểu dữ liệu cho yêu cầu tạo bài học
@@ -117,6 +150,10 @@ async function deleteLesson(lessonId: number) {
   return del<{ message: string }>(`/lessons/${lessonId}`);
 }
 
+async function completeLesson(lessonId: number) {
+  return post<LessonCompleteResponseSchema>(`/lessons/${lessonId}/complete`);
+}
+
 export const lessonsApi = {
   getLessonById,
   getLessonByExternalId,
@@ -125,4 +162,5 @@ export const lessonsApi = {
   generateLesson,
   updateLesson,
   deleteLesson,
+  completeLesson,
 };

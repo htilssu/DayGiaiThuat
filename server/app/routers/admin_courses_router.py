@@ -4,6 +4,10 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.database.database import get_db, get_independent_db_session
+from app.services.test_generation_service import (
+    TestGenerationService,
+    get_test_generation_service,
+)
 from app.models.course_model import Course
 from app.schemas.course_schema import (
     CourseCreate,
@@ -335,44 +339,16 @@ async def delete_course(
 )
 async def create_test(
     course_id: int,
-    course_service: CourseService = Depends(get_course_service),
+    test_generation_service: TestGenerationService = Depends(
+        get_test_generation_service
+    ),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Tạo bài kiểm tra đầu vào cho khóa học - Background (chỉ admin)
     """
-    await course_service.generate_input_test_async(course_id)
+    await test_generation_service.generate_input_test_async(course_id)
     return {"message": "Đã bắt đầu tạo test trong background", "course_id": course_id}
-
-
-@router.post(
-    "/{course_id}/test-sync",
-    summary="Tạo bài kiểm tra đầu vào cho khóa học - Sync (Admin)",
-    status_code=status.HTTP_201_CREATED,
-    responses={
-        201: {"description": "Created"},
-        400: {"description": "Dữ liệu không hợp lệ"},
-        403: {"description": "Không có quyền truy cập"},
-        500: {"description": "Internal server error"},
-    },
-)
-def create_test_sync(
-    course_id: int,
-    course_service: CourseService = Depends(get_course_service),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
-):
-    """
-    Tạo bài kiểm tra đầu vào cho khóa học - Đồng bộ (chỉ admin)
-    Hàm này sẽ chờ cho đến khi test được tạo xong rồi mới trả về kết quả
-    """
-    test = course_service.generate_input_test_sync(course_id)
-    return {
-        "message": "Đã tạo test thành công",
-        "course_id": course_id,
-        "test_id": test.id,
-        "questions_count": len(test.questions) if test.questions else 0,
-        "duration_minutes": test.duration_minutes,
-    }
 
 
 @router.get(

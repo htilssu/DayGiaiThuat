@@ -17,10 +17,10 @@ class LessonSection(Base):
     __tablename__ = "lesson_sections"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    lesson_id: Mapped[int] = mapped_column(Integer, ForeignKey("lessons.id"))
-    type: Mapped[str] = mapped_column(
-        String, index=True
-    )  # "text", "code", "image", "quiz"
+    lesson_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("lessons.id"), index=True
+    )
+    type: Mapped[str] = mapped_column(String)  # "text", "code", "image", "quiz"
     content: Mapped[str] = mapped_column(Text)
     order: Mapped[int] = mapped_column(Integer)
     options: Mapped[Optional[Options]] = mapped_column(
@@ -44,9 +44,9 @@ class Lesson(Base):
     external_id: Mapped[str] = mapped_column(
         String, index=True, unique=True
     )  # ID hiển thị cho người dùng (ví dụ: "1", "2")
-    title: Mapped[str] = mapped_column(String, index=True)
-    description: Mapped[str] = mapped_column(String, index=True)
-    topic_id: Mapped[int] = mapped_column(Integer, ForeignKey("topics.id"))
+    title: Mapped[str] = mapped_column(String)
+    description: Mapped[str] = mapped_column(String)
+    topic_id: Mapped[int] = mapped_column(Integer, ForeignKey("topics.id"), index=True)
     order: Mapped[int] = mapped_column(Integer)  # Thứ tự bài học trong chủ đề
     next_lesson_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     prev_lesson_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)

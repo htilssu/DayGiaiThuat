@@ -9,12 +9,13 @@ from fastapi import HTTPException, status
 from app.database.database import get_async_db
 from app.models.lesson_model import Lesson, LessonSection
 from app.models.lesson_generation_state_model import LessonGenerationState
-from app.models.user_state_model import UserState
+from app.models.user_course_model import UserCourse
 from app.schemas.lesson_schema import (
     CreateLessonSchema,
     UpdateLessonSchema,
     LessonResponseSchema,
     GenerateLessonRequestSchema,
+    LessonCompleteResponseSchema,
 )
 from app.core.agents.lesson_generating_agent import get_lesson_generating_agent
 from app.utils.model_utils import convert_lesson_to_schema
@@ -31,7 +32,7 @@ class LessonService:
 
     async def generate_lesson(
         self, request: GenerateLessonRequestSchema, topic_id: int, order: int
-    ) -> LessonResponseSchema:
+    ) -> Optional[LessonResponseSchema]:
         """
         Generate a lesson using the RAG AI agent and log the state.
         """
@@ -57,25 +58,28 @@ class LessonService:
 
         try:
             # Generate lesson using the agent
-            lesson_data = await self.agent.act(**request.model_dump())
+            list_lesson_data = await self.agent.act(**request.model_dump())
 
-            # Update the generated lesson with proper topic_id and order
-            lesson_data.topic_id = topic_id
-            lesson_data.order = order
-
-            # Create the lesson in database
-            lesson = await self.create_lesson(lesson_data)
+            # Create the lessons in database
+            created_lessons = []
+            for lesson_data in list_lesson_data:
+                lesson_data.topic_id = topic_id
+                lesson_data.order = order  # This might need adjustment if agent returns multiple lessons with their own intended order
+                lesson = await self.create_lesson(lesson_data)
+                created_lessons.append(lesson)
 
             # Update state to completed
-            generation_state.status = "completed"
-            generation_state.lesson_id = lesson.id
+            generation_state.status = "completed"  # type: ignore
+            generation_state.lesson_id = created_lessons[0].id if created_lessons else None  # type: ignore # Link to the first created lesson
             await self.db.commit()
 
-            return lesson
+            return (
+                created_lessons[0] if created_lessons else None
+            )  # Return the first created lesson
 
         except Exception as e:
             # Update state to failed
-            generation_state.status = "failed"
+            generation_state.status = "failed"  # type: ignore
             await self.db.commit()
             # Re-raise the exception
             raise e
@@ -131,7 +135,11 @@ class LessonService:
         """
         Get a lesson by ID.
         """
-        stmt = select(Lesson).where(Lesson.id == lesson_id)
+        stmt = (
+            select(Lesson)
+            .where(Lesson.id == lesson_id)
+            .options(selectinload(Lesson.sections), selectinload(Lesson.exercises))
+        )
         result = await self.db.execute(stmt)
         lesson = result.scalar_one_or_none()
 
@@ -193,16 +201,16 @@ class LessonService:
         # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
         return [convert_lesson_to_schema(lesson) for lesson in lessons]
 
-    async def start_lesson(self, lesson_id: int, user_id: int):
-        user_state = await self.db.get(UserState, user_id)
-        if not user_state:
-            raise HTTPException(status_code=404, detail="User state not found")
-        user_state.current_lesson_id = lesson_id
-        await self.db.commit()
-
-    async def complete_lesson(self, lesson_id: int, user_id: int):
+    async def complete_lesson(
+        self, lesson_id: int, user_id: int
+    ) -> LessonCompleteResponseSchema:
         # Lấy bài học hiện tại
-        current_lesson = await self.db.get(Lesson, lesson_id)
+        current_lesson = await self.db.execute(
+            select(Lesson)
+            .options(selectinload(Lesson.topic))
+            .where(Lesson.id == lesson_id)
+        )
+        current_lesson = current_lesson.scalar_one_or_none()
         if not current_lesson:
             raise HTTPException(status_code=404, detail="Lesson not found")
 
@@ -216,14 +224,25 @@ class LessonService:
             .limit(1)
         )
         next_lesson = (await self.db.execute(next_lesson_stmt)).scalar_one_or_none()
-        user_state = await self.db.get(UserState, user_id)
-        if user_state is None:
+        user_course = await self.db.execute(
+            select(UserCourse).where(
+                UserCourse.user_id == user_id,
+                UserCourse.course_id == current_lesson.topic.course_id,
+            )
+        )
+        user_course = user_course.scalar_one_or_none()
+        if user_course is None:
             raise HTTPException(status_code=404, detail="User state not found")
         if next_lesson:
             # Nếu có bài học tiếp theo, cập nhật trạng thái người dùng
-            user_state.current_lesson_id = next_lesson.id
+            user_course.current_lesson = next_lesson.id
+            user_course.current_topic = next_lesson.topic_id
             await self.db.commit()
-            return {"type": "next_lesson", "lesson": next_lesson}
+            return LessonCompleteResponseSchema(
+                lesson_id=next_lesson.id,
+                next_lesson_id=next_lesson.id,
+                is_completed=True,
+            )
         else:
             # Nếu không có bài học tiếp theo, tìm chủ đề tiếp theo
             topic = await self.topic_service.get_next_topic(current_lesson.topic_id)
@@ -240,9 +259,18 @@ class LessonService:
                 ).scalar_one_or_none()
 
                 if first_lesson_of_next_topic:
-                    user_state.current_lesson_id = first_lesson_of_next_topic.id
+                    user_course.current_lesson = first_lesson_of_next_topic.id
+                    user_course.current_topic = first_lesson_of_next_topic.topic_id
                     await self.db.commit()
-                    return {"type": "next_topic", "topic": topic}
+                    return LessonCompleteResponseSchema(
+                        lesson_id=first_lesson_of_next_topic.id,
+                        next_lesson_id=first_lesson_of_next_topic.id,
+                        is_completed=True,
+                    )
+        # Nếu không có bài học tiếp theo hoặc chủ đề tiếp theo
+        return LessonCompleteResponseSchema(
+            lesson_id=lesson_id, next_lesson_id=None, is_completed=True
+        )
 
     async def update_lesson(
         self, lesson_id: int, lesson_data: UpdateLessonSchema

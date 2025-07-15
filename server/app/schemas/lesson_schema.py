@@ -2,6 +2,12 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 
 
+class LessonCompleteResponseSchema(BaseModel):
+    lesson_id: int
+    next_lesson_id: Optional[int] = None
+    is_completed: bool
+
+
 class ExerciseBase(BaseModel):
     """
     Schema cơ bản cho bài tập

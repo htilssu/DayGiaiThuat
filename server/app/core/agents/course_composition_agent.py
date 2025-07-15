@@ -3,7 +3,6 @@ from app.core.agents.components.document_store import get_vector_store
 from app.schemas.course_schema import (
     CourseCompositionRequestSchema,
     CourseCompositionResponseSchema,
-    TopicResponse,
 )
 from app.core.agents.lesson_generating_agent import LessonGeneratingAgent
 from app.models.topic_model import Topic
@@ -183,9 +182,7 @@ class CourseCompositionAgent(BaseAgent):
         )
 
     @trace_agent(project_name="default", tags=["course", "composition"])
-    async def act(
-        self, request: CourseCompositionRequestSchema
-    ) -> CourseCompositionResponseSchema:
+    async def act(self, request: CourseCompositionRequestSchema) -> None:
         """Tự động soạn toàn bộ khóa học: tạo topics và lessons"""
         from langchain_core.runnables import RunnableConfig
 
@@ -216,12 +213,7 @@ class CourseCompositionAgent(BaseAgent):
 
             if not result or not result.get("output"):
                 errors.append("Không thể tạo topics cho khóa học")
-                return CourseCompositionResponseSchema(
-                    course_id=request.course_id,
-                    topics=[],
-                    status="failed",
-                    errors=errors,
-                )
+                return
 
             topics_from_db = await self._get_topics_by_course_id(request.course_id)
 
@@ -239,7 +231,6 @@ class CourseCompositionAgent(BaseAgent):
                     lesson_title=f"Bài giảng {topic.name}",
                     lesson_description=topic.description,
                     difficulty_level=request.course_level,
-                    lesson_type="video",
                     max_sections=5,
                     session_id=session_id,
                 )
@@ -249,39 +240,7 @@ class CourseCompositionAgent(BaseAgent):
                     lesson.topic_id = topic.id
                     await lesson_service.create_lesson(lesson)
 
-            # Chuyển đổi topics_from_db thành danh sách TopicResponse từ course_schema
-            from typing import List
-
-            topic_responses: List[TopicResponse] = []
-            for topic in topics_from_db:
-                topic_responses.append(
-                    TopicResponse(
-                        id=topic.id,
-                        name=topic.name,
-                        description=topic.description,
-                        prerequisites=topic.prerequisites,
-                        external_id=topic.external_id,
-                        course_id=(
-                            topic.course_id
-                            if topic.course_id is not None
-                            else request.course_id
-                        ),
-                    )
-                )
-
-            return CourseCompositionResponseSchema(
-                course_id=request.course_id,
-                topics=topic_responses,
-                status="success",
-                errors=errors,
-            )
-
         except Exception as e:
             print(f"❌ Lỗi khi soạn khóa học: {e}")
             errors.append(f"Lỗi hệ thống: {str(e)}")
-            return CourseCompositionResponseSchema(
-                course_id=request.course_id,
-                topics=[],
-                status="failed",
-                errors=errors,
-            )
+            return

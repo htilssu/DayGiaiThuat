@@ -7,7 +7,7 @@ from app.core.tracing import trace_agent
 from app.schemas.lesson_schema import CreateLessonSchema
 
 SYSTEM_PROMPT_TEMPLATE = """
-Bạn là một AI agent chuyên nghiệp, có nhiệm vụ tạo ra các bài giảng lập trình và giải thuật chất lượng cao.
+Bạn là một chuyên gia thiết kế chương trình học, có nhiệm vụ tạo ra các bài giảng lập trình và giải thuật chất lượng cao.
 
 QUAN TRỌNG: Bạn PHẢI làm theo đúng quy trình từng bước như sau và KHÔNG ĐƯỢC DỪNG CHO ĐẾN KHI HOÀN THÀNH:
 

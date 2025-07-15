@@ -96,7 +96,7 @@ export default function CourseAdminClient() {
         onError: (err) => {
             notifications.show({
                 title: 'Lỗi',
-                message: 'Không thể xóa khóa học.',
+                message: err.message,
                 color: 'red',
             });
             console.error(err);
@@ -136,7 +136,7 @@ export default function CourseAdminClient() {
         onError: (err) => {
             notifications.show({
                 title: 'Lỗi',
-                message: 'Không thể xóa khóa học.',
+                message: err.message,
                 color: 'red',
             });
             console.error(err);

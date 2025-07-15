@@ -22,7 +22,6 @@ def register_router(app: FastAPI):
         assessment_router,
         lesson_plan_router,
         lesson_router,
-        lessons_router,
         websocket_router,
     )
 
@@ -40,8 +39,6 @@ def register_router(app: FastAPI):
     app.include_router(assessment_router.router)
     app.include_router(lesson_plan_router.router)
     app.include_router(lesson_router.router)
-    app.include_router(lessons_router.router)
-    
     # WebSocket routes
     app.include_router(websocket_router.router)
 

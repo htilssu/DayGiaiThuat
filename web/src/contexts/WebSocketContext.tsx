@@ -27,6 +27,7 @@ interface WebSocketProviderProps {
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }) => {
     const [socket, setSocket] = useState<WebSocket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
+    const loggingInterval = useRef<NodeJS.Timeout | null>(null);
     const { user } = useAppSelector((state: RootState) => state.user);
     const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
     const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
@@ -70,15 +71,12 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
                 setSocket(null);
                 setConnectionStatus('disconnected');
 
-                // Tự động kết nối lại nếu không phải đóng kết nối có chủ ý
-                if (event.code !== 1000 && reconnectAttempts.current < maxReconnectAttempts) {
-                    const delay = Math.pow(2, reconnectAttempts.current) * 1000; // Exponential backoff
-                    reconnectTimeout.current = setTimeout(() => {
-                        reconnectAttempts.current++;
-                        console.log(`Thử kết nối lại WebSocket lần ${reconnectAttempts.current}/${maxReconnectAttempts}`);
-                        connectWebSocket();
-                    }, delay);
-                }
+                const delay = Math.pow(2, reconnectAttempts.current) * 1000; // Exponential backoff
+                reconnectTimeout.current = setTimeout(() => {
+                    reconnectAttempts.current++;
+                    console.log(`Thử kết nối lại WebSocket lần ${reconnectAttempts.current}/${maxReconnectAttempts}`);
+                    connectWebSocket();
+                }, delay);
             };
 
             ws.onerror = (error) => {
@@ -107,6 +105,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
 
     // Kết nối WebSocket khi component mount
     useEffect(() => {
+        if (!user) return;
         if (socket?.readyState === WebSocket.OPEN) {
             socket.close(1000, 'Reconnect');
         }
@@ -122,7 +121,17 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
         };
     }, [user]);
 
-
+    useEffect(() => {
+        const interval = setInterval(() => {
+            console.log(socket);
+        }, 1000);
+        loggingInterval.current = interval;
+        return () => {
+            if (loggingInterval.current) {
+                clearInterval(loggingInterval.current);
+            }
+        };
+    }, [socket]);
 
     const value: WebSocketContextType = {
         socket,
@@ -149,7 +158,7 @@ export const useWebSocket = (): WebSocketContextType => {
 
 export default WebSocketContext;
 export const socketType = {
-    LEARN_COMPLETE: 'learn.complete',
+    LEARN_COMPLETE_LESSON: 'learn.complete_lesson',
     LEARN_START_LESSON: 'learn.start_lesson',
     CHAT: 'chat',
     NOTIFICATION: 'notification',

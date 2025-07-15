@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { getCourseById } from "@/lib/api/courses";
-import { getTopicsWithLessons, Topic, TopicWithLessons, Lesson } from "@/lib/api/topics";
+import { Topic, topicsApi } from "@/lib/api/topics";
 import Link from "next/link";
 import { Container, Title, Text, Card, Group, Button, Loader, Alert, List, ThemeIcon, Paper, Grid, Divider, Badge } from "@mantine/core";
 import { IconAlertCircle, IconCircleCheck, IconCircleDashed, IconBook } from "@tabler/icons-react";
 
-interface ExtendedTopicWithLessons extends TopicWithLessons {
+interface ExtendedTopicWithLessons extends Topic {
     progress: number;
     lessonsCount: number;
 }
@@ -30,11 +30,11 @@ export default function CourseLearnClient({ courseId }: CourseLearnClientProps) 
                 setCourse(courseData);
 
                 // Lấy topics và lessons từ API
-                const topicsData = await getTopicsWithLessons(courseId);
+                const topicsData = await topicsApi.getTopicsByCourse(courseId);
 
                 // Tính toán progress và lessons count cho mỗi topic
                 const enrichedTopics: ExtendedTopicWithLessons[] = topicsData.map((topic) => {
-                    const completedLessons = topic.lessons.filter(lesson => lesson.is_completed).length;
+                    const completedLessons = topic.lessons.filter(lesson => lesson.isCompleted).length;
                     const totalLessons = topic.lessons.length;
                     const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 

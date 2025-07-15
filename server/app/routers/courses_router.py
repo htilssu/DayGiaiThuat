@@ -9,8 +9,10 @@ from app.models.lesson_model import UserLesson, Lesson
 from app.schemas.course_schema import (
     CourseListResponse,
     CourseListItem,
-    CourseDetailResponse,
     rebuild_course_models,
+)
+from app.schemas.enhanced_course_schema import (
+    CourseDetailWithProgressResponse,
 )
 from app.schemas.topic_schema import (
     TopicWithUserState,
@@ -38,7 +40,7 @@ router = APIRouter(
 rebuild_course_models()
 
 
-@router.get("", response_model=CourseListResponse)
+@router.get("/", response_model=CourseListResponse, summary="Lấy danh sách khóa học")
 async def get_courses(
     page: int = Query(1, gt=0, description="Số trang"),
     limit: int = Query(10, gt=0, le=100, description="Số item mỗi trang"),
@@ -63,7 +65,6 @@ async def get_courses(
     offset = (page - 1) * limit
 
     # Chỉ hiển thị khóa học được công khai cho user
-    total_courses = db.query(Course).filter(Course.is_published == True).count()
     courses = (
         db.query(Course)
         .filter(Course.is_published == True)
@@ -98,13 +99,13 @@ async def get_courses(
             is_enrolled=is_enrolled,
         )
         course_items.append(course_item)
-
+    course_total = len(courses)
     # Tính tổng số trang
-    total_pages = (total_courses + limit - 1) // limit
+    total_pages = (course_total + limit - 1) // limit
 
     return CourseListResponse(
         items=course_items,
-        total=total_courses,
+        total=course_total,
         page=page,
         limit=limit,
         totalPages=total_pages,
@@ -113,7 +114,7 @@ async def get_courses(
 
 @router.get(
     "/{course_id}",
-    response_model=CourseDetailResponse,
+    response_model=CourseDetailWithProgressResponse,
     responses={
         200: {"description": "OK"},
         404: {"description": "Không tìm thấy khóa học"},
@@ -122,25 +123,25 @@ async def get_courses(
 )
 async def get_course_by_id(
     course_id: int,
-    db: Session = Depends(get_db),
     current_user: UserExcludeSecret = Depends(get_current_user_optional),
-    course_service: CourseService = Depends(get_course_service),
+    enhanced_service: CourseService = Depends(get_course_service),
 ):
     """
-    Lấy thông tin chi tiết của một khóa học bao gồm topics và lessons
+    Lấy thông tin chi tiết của một khóa học bao gồm topics, lessons và progress
 
     Args:
         course_id: ID của khóa học
-        db: Session database
         current_user: Thông tin người dùng hiện tại (nếu đã đăng nhập)
+        enhanced_service: Enhanced service với progress support
 
     Returns:
-        CourseDetailResponse: Thông tin chi tiết của khóa học kèm topics và lessons
+        CourseDetailWithProgressResponse: Thông tin chi tiết của khóa học kèm topics, lessons và progress
 
     Raises:
         HTTPException: Nếu không tìm thấy khóa học hoặc không có quyền truy cập
     """
-    course = course_service.get_course(course_id, current_user.id)
+    user_id = current_user.id if current_user else None
+    course = await enhanced_service.get_course_with_progress(course_id, user_id)
     return course
 
 
@@ -187,35 +188,6 @@ async def enroll_course(
     # Sử dụng service để đăng ký khóa học
     result = course_service.enroll_course(current_user.id, course_id)
     return result
-
-
-@router.delete(
-    "/enroll/{course_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        204: {"description": "Hủy đăng ký thành công"},
-        404: {"description": "Không tìm thấy đăng ký khóa học"},
-        500: {"description": "Internal server error"},
-    },
-)
-async def unenroll_course(
-    course_id: int,
-    course_service: CourseService = Depends(get_course_service),
-    current_user=Depends(get_current_user),
-):
-    """
-    Hủy đăng ký khóa học
-
-    Args:
-        course_id: ID của khóa học
-        course_service: Service xử lý khóa học
-        current_user: Thông tin người dùng hiện tại
-
-    Raises:
-        HTTPException: Nếu có lỗi khi hủy đăng ký
-    """
-    # Sử dụng service để hủy đăng ký khóa học
-    course_service.unenroll_course(current_user.id, course_id)
 
 
 @router.get(
@@ -457,6 +429,7 @@ async def mark_lesson_completed(
     lesson_id: int,
     db: Session = Depends(get_db),
     current_user: UserExcludeSecret = Depends(get_current_user),
+    course_service: CourseService = Depends(get_course_service),
 ):
     """
     Đánh dấu lesson đã hoàn thành
@@ -480,8 +453,6 @@ async def mark_lesson_completed(
             detail=f"Không tìm thấy lesson với ID {lesson_id}",
         )
 
-    # Kiểm tra người dùng đã đăng ký khóa học chưa
-    course_service = get_course_service()
     # Lấy course_id thông qua topic
     topic = db.query(Topic).filter(Topic.id == lesson.topic_id).first()
     if not topic or not topic.course_id:
@@ -525,117 +496,3 @@ async def mark_lesson_completed(
     db.commit()
 
     return {"message": "Lesson đã được đánh dấu hoàn thành thành công"}
-
-
-@router.delete(
-    "/lessons/{lesson_id}/complete",
-    responses={
-        200: {"description": "Hủy trạng thái hoàn thành lesson thành công"},
-        404: {"description": "Không tìm thấy lesson"},
-    },
-)
-async def unmark_lesson_completed(
-    lesson_id: int,
-    db: Session = Depends(get_db),
-    current_user: UserExcludeSecret = Depends(get_current_user),
-):
-    """
-    Hủy đánh dấu lesson đã hoàn thành
-
-    Args:
-        lesson_id: ID của lesson
-        db: Session database
-        current_user: Thông tin người dùng hiện tại
-
-    Returns:
-        dict: Thông báo kết quả
-
-    Raises:
-        HTTPException: Nếu không tìm thấy lesson
-    """
-    # Kiểm tra lesson có tồn tại không
-    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
-    if not lesson:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy lesson với ID {lesson_id}",
-        )
-
-    # Kiểm tra xem có UserLesson không
-    user_lesson = (
-        db.query(UserLesson)
-        .filter(
-            UserLesson.user_id == current_user.id,
-            UserLesson.lesson_id == lesson_id,
-        )
-        .first()
-    )
-
-    if user_lesson:
-        # Cập nhật trạng thái
-        user_lesson.is_completed = False
-        user_lesson.progress = 0
-        user_lesson.completed_at = None
-        db.commit()
-
-    return {"message": "Đã hủy trạng thái hoàn thành lesson"}
-
-
-@router.get(
-    "/lessons/{lesson_id}/status",
-    responses={
-        200: {"description": "Lấy trạng thái lesson thành công"},
-        404: {"description": "Không tìm thấy lesson"},
-    },
-)
-async def get_lesson_status(
-    lesson_id: int,
-    db: Session = Depends(get_db),
-    current_user: UserExcludeSecret = Depends(get_current_user),
-):
-    """
-    Lấy trạng thái hoàn thành của lesson
-
-    Args:
-        lesson_id: ID của lesson
-        db: Session database
-        current_user: Thông tin người dùng hiện tại
-
-    Returns:
-        dict: Trạng thái lesson
-
-    Raises:
-        HTTPException: Nếu không tìm thấy lesson
-    """
-    # Kiểm tra lesson có tồn tại không
-    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
-    if not lesson:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy lesson với ID {lesson_id}",
-        )
-
-    # Lấy trạng thái UserLesson
-    user_lesson = (
-        db.query(UserLesson)
-        .filter(
-            UserLesson.user_id == current_user.id,
-            UserLesson.lesson_id == lesson_id,
-        )
-        .first()
-    )
-
-    if user_lesson:
-        return {
-            "lesson_id": lesson_id,
-            "is_completed": user_lesson.is_completed,
-            "progress": user_lesson.progress,
-            "completed_at": user_lesson.completed_at,
-        }
-    else:
-        return {
-            "lesson_id": lesson_id,
-            "is_completed": False,
-            "progress": 0,
-            "completed_at": None,
-        }
