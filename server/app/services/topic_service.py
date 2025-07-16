@@ -13,7 +13,7 @@ from app.schemas.topic_schema import (
     CreateTopicSchema,
     UpdateTopicSchema,
 )
-from app.schemas.lesson_schema import LessonResponseSchema
+from app.schemas.lesson_schema import LessonWithChildSchema, LessonWithProgressResponse
 from app.utils.model_utils import convert_lesson_to_schema
 from app.models.user_course_model import UserCourse
 from app.models.user_course_progress_model import ProgressStatus, UserCourseProgress
@@ -189,6 +189,8 @@ class TopicService:
                     title=lesson.title,
                     description=lesson.description,
                     order=lesson.order,
+                    next_lesson_id=None,
+                    prev_lesson_id=None,
                     status=lesson_status,
                     last_viewed_at=lesson_last_viewed,
                     completed_at=lesson_completed_at,
@@ -237,7 +239,7 @@ class TopicService:
 
     async def get_lessons_by_topic_id(
         self, topic_id: int
-    ) -> List[LessonResponseSchema]:
+    ) -> List[LessonWithChildSchema]:
         """
         Lấy danh sách lessons theo topic_id
         """

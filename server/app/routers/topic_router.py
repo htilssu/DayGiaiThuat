@@ -8,7 +8,7 @@ from app.schemas.topic_schema import (
     TopicResponse,
 )
 
-from app.schemas.lesson_schema import LessonResponseSchema
+from app.schemas.lesson_schema import LessonWithChildSchema
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.services.topic_service import TopicService, get_topic_service
 from app.utils.utils import get_current_user_optional
@@ -110,7 +110,7 @@ async def get_topics_by_course(
     return topics
 
 
-@router.get("/{topic_id}/lessons", response_model=List[LessonResponseSchema])
+@router.get("/{topic_id}/lessons", response_model=List[LessonWithChildSchema])
 async def get_lessons_by_topic(
     topic_id: int,
     topic_service: TopicService = Depends(get_topic_service),

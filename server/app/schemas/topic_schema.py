@@ -2,7 +2,7 @@ from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 from app.schemas.lesson_schema import (
-    LessonResponseSchema,
+    LessonWithChildSchema,
     LessonDetailWithProgressResponse,
 )
 
@@ -85,7 +85,7 @@ class TopicResponse(TopicBase):
     )
     created_at: datetime = Field(..., description="Thời điểm tạo")
     updated_at: datetime = Field(..., description="Thời điểm cập nhật")
-    lessons: List[LessonResponseSchema] = Field(
+    lessons: List[LessonWithChildSchema] = Field(
         default_factory=list, description="Danh sách lessons"
     )
 
@@ -98,7 +98,7 @@ class TopicWithLessonsResponse(TopicResponse):
     Schema cho response topic kèm lessons
     """
 
-    lessons: List[LessonResponseSchema] = Field(
+    lessons: List[LessonWithChildSchema] = Field(
         default_factory=list, description="Danh sách lessons"
     )
 

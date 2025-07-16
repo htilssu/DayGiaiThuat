@@ -2,7 +2,7 @@ from app.schemas.lesson_schema import (
     CreateLessonSchema,
     GenerateLessonRequestSchema,
     LessonCompleteResponseSchema,
-    LessonResponseSchema,
+    LessonWithChildSchema,
     UpdateLessonSchema,
 )
 from app.schemas.lesson_schema import (
@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 router = APIRouter(prefix="/lessons", tags=["Bài học"])
 
 
-@router.post("/generate", response_model=LessonResponseSchema)
+@router.post("/generate", response_model=LessonWithChildSchema)
 async def generate_lesson(
     request: GenerateLessonRequestSchema,
     topic_id: int,
@@ -36,7 +36,7 @@ async def generate_lesson(
         )
 
 
-@router.post("/", response_model=LessonResponseSchema)
+@router.post("/", response_model=LessonWithChildSchema)
 async def create_lesson(
     lesson_data: CreateLessonSchema,
     lesson_service: LessonService = Depends(get_lesson_service),
@@ -87,7 +87,7 @@ async def get_lesson(
     return lesson
 
 
-@router.get("/{lesson_id}/basic", response_model=LessonResponseSchema)
+@router.get("/{lesson_id}/basic", response_model=LessonWithChildSchema)
 async def get_lesson_basic_info(
     lesson_id: int, lesson_service: LessonService = Depends(get_lesson_service)
 ):
@@ -104,7 +104,7 @@ async def get_lesson_basic_info(
     return lesson
 
 
-@router.get("/external/{external_id}", response_model=LessonResponseSchema)
+@router.get("/external/{external_id}", response_model=LessonWithChildSchema)
 async def get_lesson_by_external_id(
     external_id: str, lesson_service: LessonService = Depends(get_lesson_service)
 ):
@@ -121,7 +121,7 @@ async def get_lesson_by_external_id(
     return lesson
 
 
-@router.get("/topic/{topic_id}", response_model=list[LessonResponseSchema])
+@router.get("/topic/{topic_id}", response_model=list[LessonWithChildSchema])
 async def get_lessons_by_topic(
     topic_id: int, lesson_service: LessonService = Depends(get_lesson_service)
 ):
@@ -132,7 +132,7 @@ async def get_lessons_by_topic(
     return lessons
 
 
-@router.put("/{lesson_id}", response_model=LessonResponseSchema)
+@router.put("/{lesson_id}", response_model=LessonWithChildSchema)
 async def update_lesson(
     lesson_id: int,
     lesson_data: UpdateLessonSchema,

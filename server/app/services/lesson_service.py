@@ -14,7 +14,7 @@ from app.schemas.lesson_schema import (
     CreateLessonSchema,
     LessonDetailWithProgressResponse,
     UpdateLessonSchema,
-    LessonResponseSchema,
+    LessonWithChildSchema,
     GenerateLessonRequestSchema,
     LessonCompleteResponseSchema,
     LessonSectionSchema,
@@ -37,7 +37,7 @@ class LessonService:
 
     async def generate_lesson(
         self, request: GenerateLessonRequestSchema, topic_id: int, order: int
-    ) -> Optional[LessonResponseSchema]:
+    ) -> Optional[LessonWithChildSchema]:
         """
         Generate a lesson using the RAG AI agent and log the state.
         """
@@ -91,7 +91,7 @@ class LessonService:
 
     async def create_lesson(
         self, lesson_data: CreateLessonSchema
-    ) -> LessonResponseSchema:
+    ) -> LessonWithChildSchema:
         """
         Create a new lesson with sections.
         """
@@ -136,7 +136,7 @@ class LessonService:
         # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
         return convert_lesson_to_schema(lesson)
 
-    async def get_lesson_by_id(self, lesson_id: int) -> Optional[LessonResponseSchema]:
+    async def get_lesson_by_id(self, lesson_id: int) -> Optional[LessonWithChildSchema]:
         """
         Get a lesson by ID.
         """
@@ -156,7 +156,7 @@ class LessonService:
 
     async def get_lesson_by_order(
         self, topic_id: int, order: int
-    ) -> Optional[LessonResponseSchema]:
+    ) -> Optional[LessonWithChildSchema]:
         """
         Get a lesson by order.
         """
@@ -172,7 +172,7 @@ class LessonService:
 
     async def get_lesson_by_external_id(
         self, external_id: str
-    ) -> Optional[LessonResponseSchema]:
+    ) -> Optional[LessonWithChildSchema]:
         """
         Get a lesson by external ID.
         """
@@ -190,7 +190,7 @@ class LessonService:
         # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
         return convert_lesson_to_schema(lesson)
 
-    async def get_lessons_by_topic(self, topic_id: int) -> List[LessonResponseSchema]:
+    async def get_lessons_by_topic(self, topic_id: int) -> List[LessonWithChildSchema]:
         """
         Get all lessons for a topic.
         """
@@ -301,7 +301,7 @@ class LessonService:
 
     async def update_lesson(
         self, lesson_id: int, lesson_data: UpdateLessonSchema
-    ) -> Optional[LessonResponseSchema]:
+    ) -> Optional[LessonWithChildSchema]:
         """
         Update a lesson.
         """

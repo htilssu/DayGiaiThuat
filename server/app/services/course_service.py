@@ -18,7 +18,7 @@ from app.schemas.course_schema import (
     TopicWithProgressResponse,
 )
 from app.schemas.lesson_schema import (
-    LessonResponseSchema,
+    LessonWithChildSchema,
     LessonSectionSchema,
     LessonWithProgressResponse,
 )
@@ -80,7 +80,7 @@ class CourseService:
             topic_response = TopicResponse(
                 id=topic.id,
                 lessons=[
-                    LessonResponseSchema(
+                    LessonWithChildSchema(
                         id=lesson.id,
                         title=lesson.title,
                         description=lesson.description,
@@ -693,6 +693,9 @@ class CourseService:
                         title=lesson.title,
                         description=lesson.description,
                         order=lesson.order,
+                        is_completed=lesson_status == ProgressStatus.COMPLETED,
+                        next_lesson_id=None,
+                        prev_lesson_id=None,
                         status=lesson_status,
                         last_viewed_at=lesson_last_viewed,
                         completed_at=lesson_completed_at,

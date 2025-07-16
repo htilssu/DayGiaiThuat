@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.services.lesson_service import LessonService, get_lesson_service
 from app.schemas.lesson_schema import (
-    LessonResponseSchema,
+    LessonWithChildSchema,
     GenerateLessonRequestSchema,
 )
 
 router = APIRouter(prefix="/lesson-plans", tags=["Lộ trình học"])
 
 
-@router.post("/generate-test", response_model=LessonResponseSchema)
+@router.post("/generate-test", response_model=LessonWithChildSchema)
 async def generate_lesson_test(
     request: GenerateLessonRequestSchema,
     lesson_service: LessonService = Depends(get_lesson_service),

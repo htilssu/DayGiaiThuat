@@ -10,6 +10,33 @@ class LessonCompleteResponseSchema(BaseModel):
     is_completed: bool
 
 
+class LessonBase(BaseModel):
+    """
+    Schema cơ bản cho lesson
+
+    Attributes:
+        external_id: External ID của lesson
+        title: Tiêu đề của lesson
+        description: Mô tả chi tiết về lesson
+        topic_id: ID của topic mà lesson thuộc về
+        order: Thứ tự của lesson trong topic
+        next_lesson_id: ID của lesson tiếp theo (nếu có)
+        prev_lesson_id: ID của lesson trước đó (nếu có)
+    """
+
+    id: int = Field(..., description="ID của lesson")
+    external_id: str = Field(..., description="External ID của lesson")
+    title: str = Field(..., description="Tiêu đề lesson")
+    description: str = Field(..., description="Mô tả lesson")
+    order: int = Field(..., description="Thứ tự lesson trong topic")
+    next_lesson_id: Optional[str] = Field(None, description="ID của lesson tiếp theo")
+    prev_lesson_id: Optional[str] = Field(None, description="ID của lesson trước đó")
+
+
+class LessonResponseSchema(LessonBase):
+    is_completed: Optional[bool] = False
+
+
 class ExerciseBase(BaseModel):
     """
     Schema cơ bản cho bài tập
@@ -83,42 +110,6 @@ class LessonSectionSchema(BaseModel):
     )
 
 
-class LessonDetailWithProgressResponse(BaseModel):
-    """
-    Schema cho lesson detail với progress
-    """
-
-    id: int = Field(..., description="ID của lesson")
-    external_id: str = Field(..., description="External ID của lesson")
-    title: str = Field(..., description="Tiêu đề lesson")
-    description: str = Field(..., description="Mô tả lesson")
-    order: int = Field(..., description="Thứ tự lesson trong topic")
-    topic_id: int = Field(..., description="ID của topic")
-
-    # Progress fields
-    status: ProgressStatus = Field(
-        default=ProgressStatus.NOT_STARTED, description="Trạng thái học tập"
-    )
-    last_viewed_at: Optional[datetime] = Field(
-        None, description="Thời điểm xem gần nhất"
-    )
-    completed_at: Optional[datetime] = Field(None, description="Thời điểm hoàn thành")
-    completion_percentage: float = Field(
-        default=0.0, description="Phần trăm hoàn thành"
-    )
-
-    # Context info (chỉ hiển thị khi user đã enroll course)
-    user_course_id: Optional[int] = Field(
-        None, description="ID của user course nếu đã đăng ký"
-    )
-    sections: Optional[List[LessonSectionSchema]] = Field(
-        None, description="Danh sách các section của lesson"
-    )
-
-    class Config:
-        from_attributes = True
-
-
 class CreateLessonSchema(BaseModel):
     external_id: str
     title: str
@@ -138,33 +129,42 @@ class UpdateLessonSchema(BaseModel):
     prev_lesson_id: Optional[str] = None
 
 
-class LessonResponseSchema(BaseModel):
-    id: int
-    external_id: str
-    title: str
-    description: str
-    topic_id: int
-    order: int
-    next_lesson_id: Optional[str] = None
-    prev_lesson_id: Optional[str] = None
-    sections: List[LessonSectionSchema]
-    exercises: List[ExerciseResponse] = []
-    is_completed: Optional[bool] = False
+class LessonWithChildSchema(LessonResponseSchema):
+    sections: List[LessonSectionSchema] = Field(
+        default_factory=list, description="Danh sách các section của lesson"
+    )
+    exercises: List[ExerciseResponse] = Field(
+        default_factory=list, description="Danh sách các bài tập của lesson"
+    )
 
     class Config:
         from_attributes = True
 
 
-class LessonWithProgressResponse(BaseModel):
+class LessonDetailWithProgressResponse(LessonWithChildSchema):
+    """
+    Schema cho lesson detail với progress
+    """
+
+    last_viewed_at: Optional[datetime] = Field(
+        None, description="Thời điểm xem gần nhất"
+    )
+    completed_at: Optional[datetime] = Field(None, description="Thời điểm hoàn thành")
+    completion_percentage: float = Field(
+        default=0.0, description="Phần trăm hoàn thành"
+    )
+    user_course_id: Optional[int] = Field(
+        None, description="ID của user course nếu đã đăng ký"
+    )
+
+    class Config:
+        from_attributes = True
+
+
+class LessonWithProgressResponse(LessonWithChildSchema):
     """
     Schema cho lesson với thông tin progress
     """
-
-    id: int = Field(..., description="ID của lesson")
-    external_id: str = Field(..., description="External ID của lesson")
-    title: str = Field(..., description="Tiêu đề lesson")
-    description: str = Field(..., description="Mô tả lesson")
-    order: int = Field(..., description="Thứ tự lesson trong topic")
 
     # Progress fields
     status: ProgressStatus = Field(

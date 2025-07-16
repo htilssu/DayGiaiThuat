@@ -59,16 +59,14 @@ export default function LessonDetailPage() {
     );
   }
 
-  // Helper: get topicId from lesson if needed (if you want to link back to topic)
-  const topicId = lesson.topic_id;
 
   return (
     <div className="py-10 px-4 max-w-3xl mx-auto">
       <div className="mb-6">
         <Link
-          href={topicId ? `/topics/${topicId}` : "/courses"}
+          href={lesson.topicId ? `/topics/${lesson.topicId}` : "/courses"}
           className="text-primary hover:underline text-sm mb-2">
-          ← Quay lại {topicId ? "chủ đề" : "khóa học"}
+          ← Quay lại {lesson.topicId ? "chủ đề" : "khóa học"}
         </Link>
         <h2 className="text-lg text-foreground/70 font-medium mb-1">
           {lesson.order ? `Bài ${lesson.order}` : ""}

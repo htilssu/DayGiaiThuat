@@ -1,6 +1,6 @@
 from app.models.lesson_model import Lesson, UserLesson
 from app.schemas.lesson_schema import (
-    LessonResponseSchema,
+    LessonWithChildSchema,
     LessonSectionSchema,
     ExerciseResponse,
     Options,
@@ -15,7 +15,7 @@ def model_to_dict(instance):
 
 def convert_lesson_to_schema(
     lesson: Lesson, user_id: Optional[int] = None, db: Optional[Session] = None
-) -> LessonResponseSchema:
+) -> LessonWithChildSchema:
     """
     Chuyển đổi từ model Lesson sang LessonResponseSchema
 
@@ -76,7 +76,7 @@ def convert_lesson_to_schema(
             is_completed = user_lesson.is_completed
 
     # Tạo lesson response
-    return LessonResponseSchema(
+    return LessonWithChildSchema(
         id=lesson.id,
         external_id=lesson.external_id,
         title=lesson.title,
