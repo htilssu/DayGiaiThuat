@@ -12,16 +12,21 @@ from app.models.lesson_generation_state_model import LessonGenerationState
 from app.models.user_course_model import UserCourse
 from app.schemas.lesson_schema import (
     CreateLessonSchema,
+    LessonDetailWithProgressResponse,
     UpdateLessonSchema,
     LessonResponseSchema,
     GenerateLessonRequestSchema,
     LessonCompleteResponseSchema,
+    LessonSectionSchema,
 )
 from app.core.agents.lesson_generating_agent import get_lesson_generating_agent
 from app.utils.model_utils import convert_lesson_to_schema
 
 
 from app.services.topic_service import get_topic_service, TopicService
+from app.models.user_course_progress_model import ProgressStatus, UserCourseProgress
+from app.models.topic_model import Topic
+from datetime import datetime
 
 
 class LessonService:
@@ -233,6 +238,28 @@ class LessonService:
         user_course = user_course.scalar_one_or_none()
         if user_course is None:
             raise HTTPException(status_code=404, detail="User state not found")
+
+        # Lưu thông tin hoàn thành bài học vào UserCourseProgress
+        progress_stmt = select(UserCourseProgress).where(
+            UserCourseProgress.user_course_id == user_course.id,
+            UserCourseProgress.topic_id == current_lesson.topic_id,
+            UserCourseProgress.lesson_id == lesson_id,
+        )
+        progress = (await self.db.execute(progress_stmt)).scalar_one_or_none()
+        if progress:
+            progress.status = ProgressStatus.COMPLETED
+            progress.completed_at = datetime.now()
+        else:
+            progress = UserCourseProgress(
+                user_course_id=user_course.id,
+                topic_id=current_lesson.topic_id,
+                lesson_id=lesson_id,
+                status=ProgressStatus.COMPLETED,
+                completed_at=datetime.utcnow(),
+            )
+            self.db.add(progress)
+        await self.db.commit()
+
         if next_lesson:
             # Nếu có bài học tiếp theo, cập nhật trạng thái người dùng
             user_course.current_lesson = next_lesson.id
@@ -327,6 +354,98 @@ class LessonService:
         await self.db.commit()
 
         return True
+
+    async def get_lesson_with_progress(
+        self, lesson_id: int, user_id: Optional[int] = None
+    ) -> LessonDetailWithProgressResponse:
+        """Lấy lesson với progress"""
+        lesson = await self.db.execute(
+            select(Lesson)
+            .filter(Lesson.id == lesson_id)
+            .options(selectinload(Lesson.sections))
+        )
+        lesson = lesson.scalar_one_or_none()
+
+        if not lesson:
+            raise HTTPException(status_code=404, detail="Lesson not found")
+
+        # Get topic and course info
+        topic = await self.db.execute(select(Topic).filter(Topic.id == lesson.topic_id))
+        topic = topic.scalar_one_or_none()
+
+        # Check enrollment
+        user_course_id = None
+        if user_id and topic:
+            user_course = await self.db.execute(
+                select(UserCourse).filter(
+                    UserCourse.user_id == user_id,
+                    UserCourse.course_id == topic.course_id,
+                )
+            )
+            user_course = user_course.scalar_one_or_none()
+            if user_course:
+                user_course_id = user_course.id
+
+        # Get progress for this lesson
+        lesson_status = ProgressStatus.NOT_STARTED
+        lesson_last_viewed = None
+        lesson_completed_at = None
+        lesson_completion = 0.0
+
+        if user_course_id:
+            progress = await self.db.execute(
+                select(UserCourseProgress).filter(
+                    UserCourseProgress.user_course_id == user_course_id,
+                    UserCourseProgress.topic_id == lesson.topic_id,
+                    UserCourseProgress.lesson_id == lesson_id,
+                )
+            )
+            progress = progress.scalar_one_or_none()
+
+            if progress:
+                lesson_status = progress.status
+                lesson_last_viewed = progress.updated_at
+                lesson_completed_at = (
+                    progress.completed_at
+                    if progress.status == ProgressStatus.COMPLETED
+                    else None
+                )
+                lesson_completion = (
+                    100.0
+                    if progress.status == ProgressStatus.COMPLETED
+                    else (
+                        50.0 if progress.status == ProgressStatus.IN_PROGRESS else 0.0
+                    )
+                )
+
+        return LessonDetailWithProgressResponse(
+            id=lesson.id,
+            external_id=lesson.external_id,
+            title=lesson.title,
+            description=lesson.description,
+            order=lesson.order,
+            topic_id=lesson.topic_id,
+            sections=(
+                [
+                    LessonSectionSchema(
+                        type=section.type,
+                        content=section.content,
+                        order=section.order,
+                        options=section.options,
+                        answer=section.answer,
+                        explanation=section.explanation,
+                    )
+                    for section in lesson.sections
+                ]
+                if lesson.sections
+                else []
+            ),
+            status=lesson_status,
+            last_viewed_at=lesson_last_viewed,
+            completed_at=lesson_completed_at,
+            completion_percentage=lesson_completion,
+            user_course_id=user_course_id,
+        )
 
 
 def get_lesson_service(

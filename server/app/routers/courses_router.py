@@ -1,34 +1,23 @@
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends, Query, status, Body
-from sqlalchemy.orm import Session
 
-from app.database.database import get_db
+from app.database.database import get_async_db
 from app.models.course_model import Course
-from app.models.topic_model import Topic
-from app.models.lesson_model import UserLesson, Lesson
 from app.schemas.course_schema import (
-    CourseListResponse,
-    CourseListItem,
-    rebuild_course_models,
-)
-from app.schemas.enhanced_course_schema import (
     CourseDetailWithProgressResponse,
-)
-from app.schemas.topic_schema import (
-    TopicWithUserState,
-)
-
-from app.schemas.user_course_schema import (
-    CourseEnrollmentResponse,
+    CourseListItem,
+    CourseListResponse,
 )
 from app.schemas.test_schema import TestRead, TestSessionRead
+from app.schemas.topic_schema import TopicWithUserState
+from app.schemas.user_course_schema import CourseEnrollmentResponse
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.services.course_service import CourseService, get_course_service
-from app.services.topic_service import TopicService, get_topic_service
 from app.services.test_service import TestService, get_test_service
+from app.services.topic_service import TopicService, get_topic_service
 from app.utils.utils import get_current_user, get_current_user_optional
-from datetime import datetime
-
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(
     prefix="/courses",
@@ -36,15 +25,17 @@ router = APIRouter(
     responses={404: {"description": "Không tìm thấy khóa học"}},
 )
 
-# Rebuild models để resolve forward references
-rebuild_course_models()
 
-
-@router.get("/", response_model=CourseListResponse, summary="Lấy danh sách khóa học")
+@router.get(
+    "/",
+    response_model=CourseListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Lấy danh sách khóa học",
+)
 async def get_courses(
     page: int = Query(1, gt=0, description="Số trang"),
     limit: int = Query(10, gt=0, le=100, description="Số item mỗi trang"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: UserExcludeSecret = Depends(get_current_user_optional),
     course_service: CourseService = Depends(get_course_service),
 ):
@@ -65,16 +56,16 @@ async def get_courses(
     offset = (page - 1) * limit
 
     # Chỉ hiển thị khóa học được công khai cho user
-    courses = (
-        db.query(Course)
+    result = await db.execute(
+        select(Course)
         .filter(Course.is_published == True)
         .order_by(Course.created_at.desc())
         .offset(offset)
         .limit(limit)
-        .all()
     )
+    courses = result.scalars().all()
     if current_user:
-        enrolled_courses = course_service.get_user_courses(current_user.id)
+        enrolled_courses = await course_service.get_user_courses(current_user.id)
     else:
         enrolled_courses = []
 
@@ -124,7 +115,7 @@ async def get_courses(
 async def get_course_by_id(
     course_id: int,
     current_user: UserExcludeSecret = Depends(get_current_user_optional),
-    enhanced_service: CourseService = Depends(get_course_service),
+    course_service: CourseService = Depends(get_course_service),
 ):
     """
     Lấy thông tin chi tiết của một khóa học bao gồm topics, lessons và progress
@@ -141,7 +132,7 @@ async def get_course_by_id(
         HTTPException: Nếu không tìm thấy khóa học hoặc không có quyền truy cập
     """
     user_id = current_user.id if current_user else None
-    course = await enhanced_service.get_course_with_progress(course_id, user_id)
+    course = await course_service.get_course_with_progress(course_id, user_id)
     return course
 
 
@@ -186,7 +177,7 @@ async def enroll_course(
         )
 
     # Sử dụng service để đăng ký khóa học
-    result = course_service.enroll_course(current_user.id, course_id)
+    result = await course_service.enroll_course(current_user.id, course_id)
     return result
 
 
@@ -212,7 +203,7 @@ async def get_enrolled_courses(
         List: Danh sách khóa học đã đăng ký
     """
     # Sử dụng service để lấy danh sách khóa học đã đăng ký
-    enrolled_courses = course_service.get_user_courses(current_user.id)
+    enrolled_courses = await course_service.get_user_courses(current_user.id)
     return enrolled_courses
 
 
@@ -238,7 +229,7 @@ async def get_user_topics(
     Returns:
         List[TopicWithUserState]: Danh sách topic kèm trạng thái
     """
-    course = course_service.get_course(course_id, current_user.id)
+    course = await course_service.get_course(course_id, current_user.id)
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -286,7 +277,7 @@ async def get_course_entry_test(
         )
 
     # Lấy test đầu vào
-    entry_test = course_service.get_course_entry_test(course_id)
+    entry_test = await course_service.get_course_entry_test(course_id)
     if not entry_test:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -341,158 +332,3 @@ async def start_course_entry_test(
     )
 
     return test_session
-
-
-@router.put(
-    "/{course_id}/complete-lesson",
-    status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        204: {"description": "Cập nhật trạng thái hoàn thành lesson thành công"},
-        400: {"description": "Dữ liệu không hợp lệ"},
-        404: {"description": "Không tìm thấy lesson hoặc khóa học"},
-        500: {"description": "Internal server error"},
-    },
-)
-async def complete_lesson(
-    course_id: int,
-    data: dict = Body(...),
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    """
-    Cập nhật trạng thái hoàn thành lesson của người dùng trong khóa học
-
-    Args:
-        course_id: ID của khóa học
-        data: Dữ liệu chứa lessonId và trạng thái hoàn thành
-        db: Session database
-        current_user: Thông tin người dùng hiện tại
-
-    Raises:
-        HTTPException: Nếu có lỗi khi cập nhật trạng thái hoàn thành
-    """
-    lesson_id = data.get("lesson_id")
-    is_completed = data.get("is_completed")
-
-    if lesson_id is None or is_completed is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="lesson_id và is_completed là bắt buộc",
-        )
-
-    # Kiểm tra xem lesson có tồn tại trong khóa học không
-    lesson = (
-        db.query(Lesson)
-        .join(Topic)
-        .filter(Lesson.id == lesson_id, Topic.course_id == course_id)
-        .first()
-    )
-    if not lesson:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Không tìm thấy lesson hoặc khóa học",
-        )
-
-    # Cập nhật trạng thái hoàn thành lesson
-    user_lesson = (
-        db.query(UserLesson)
-        .filter(
-            UserLesson.lesson_id == lesson_id,
-            UserLesson.user_id == current_user.id,
-        )
-        .first()
-    )
-    if user_lesson:
-        user_lesson.is_completed = is_completed
-        user_lesson.completed_at = datetime.utcnow() if is_completed else None
-    else:
-        user_lesson = UserLesson(
-            user_id=current_user.id,
-            lesson_id=lesson_id,
-            is_completed=is_completed,
-            completed_at=datetime.utcnow() if is_completed else None,
-        )
-        db.add(user_lesson)
-
-    db.commit()
-
-
-@router.post(
-    "/lessons/{lesson_id}/complete",
-    responses={
-        200: {"description": "Cập nhật trạng thái hoàn thành lesson thành công"},
-        404: {"description": "Không tìm thấy lesson"},
-        403: {"description": "Chưa đăng ký khóa học"},
-    },
-)
-async def mark_lesson_completed(
-    lesson_id: int,
-    db: Session = Depends(get_db),
-    current_user: UserExcludeSecret = Depends(get_current_user),
-    course_service: CourseService = Depends(get_course_service),
-):
-    """
-    Đánh dấu lesson đã hoàn thành
-
-    Args:
-        lesson_id: ID của lesson
-        db: Session database
-        current_user: Thông tin người dùng hiện tại
-
-    Returns:
-        dict: Thông báo kết quả
-
-    Raises:
-        HTTPException: Nếu không tìm thấy lesson hoặc chưa đăng ký khóa học
-    """
-    # Kiểm tra lesson có tồn tại không
-    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
-    if not lesson:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy lesson với ID {lesson_id}",
-        )
-
-    # Lấy course_id thông qua topic
-    topic = db.query(Topic).filter(Topic.id == lesson.topic_id).first()
-    if not topic or not topic.course_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Không tìm thấy khóa học của lesson này",
-        )
-
-    if not course_service.is_enrolled(current_user.id, topic.course_id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn cần đăng ký khóa học trước khi có thể hoàn thành lesson",
-        )
-
-    # Kiểm tra xem đã có UserLesson chưa
-    user_lesson = (
-        db.query(UserLesson)
-        .filter(
-            UserLesson.user_id == current_user.id,
-            UserLesson.lesson_id == lesson_id,
-        )
-        .first()
-    )
-
-    if user_lesson:
-        # Cập nhật trạng thái
-        user_lesson.is_completed = True
-        user_lesson.progress = 100
-        user_lesson.completed_at = datetime.utcnow()
-    else:
-        # Tạo mới UserLesson
-        user_lesson = UserLesson(
-            user_id=current_user.id,
-            lesson_id=lesson_id,
-            is_completed=True,
-            progress=100,
-            completed_at=datetime.utcnow(),
-        )
-        db.add(user_lesson)
-
-    db.commit()
-
-    return {"message": "Lesson đã được đánh dấu hoàn thành thành công"}

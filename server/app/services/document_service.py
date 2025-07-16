@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app.core.agents.components.document_store import get_vector_store
 from app.core.config import settings
-from app.database.database import get_db
+from app.database.database import get_async_db
 from app.models.document_processing_job_model import DocumentProcessingJob
 from app.schemas.document_schema import DocumentStatus
 

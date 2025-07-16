@@ -6,14 +6,13 @@ python-multipart
 
 # Database drivers
 asyncpg                   # Async PostgreSQL driver
-psycopg                  # Psycopg 3 (modern driver, async + sync)
-# psycopg2-binary        # Legacy; commented out to avoid xung đột
 
 # ORM & migrations
 sqlalchemy
 alembic
 
 # Environment & settings
+uvicorn[standard]
 python-dotenv
 pydantic[email]
 pydantic-settings
@@ -38,3 +37,4 @@ langsmith
 unidecode
 boto3
 bidict
+passlib

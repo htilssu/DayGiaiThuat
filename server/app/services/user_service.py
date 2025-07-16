@@ -8,7 +8,7 @@ from fastapi import Depends, HTTPException, status
 from passlib.context import CryptContext
 
 from app.utils.string import remove_vi_accents
-from app.database.database import get_db
+from app.database.database import get_async_db
 
 from ..models.user_model import User
 from ..schemas.auth_schema import UserRegister
@@ -20,7 +20,7 @@ def get_password_context():
     return CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def get_user_service(db: Session = Depends(get_db)):
+def get_user_service(db: Session = Depends(get_async_db)):
     return UserService(db)
 
 
@@ -221,16 +221,11 @@ class UserService:
         if not user:
             return None
 
-        # Tạo ID cho hoạt động mới
-        activities = user.activities if user.activities else []
-        activity_id = len(activities) + 1
-
         # Tạo chuỗi định dạng ngày tháng
         activity_date = datetime.now().strftime("%d/%m/%Y")
 
         # Tạo hoạt động mới
         activity = {
-            "id": activity_id,
             "type": activity_data.get("type"),
             "name": activity_data.get("name"),
             "date": activity_date,
@@ -241,10 +236,6 @@ class UserService:
             activity["score"] = activity_data["score"]
         if "progress" in activity_data:
             activity["progress"] = activity_data["progress"]
-
-        # Thêm hoạt động mới
-        activities.append(activity)
-        user.activities = activities
 
         # Cập nhật thống kê
         await self._update_stats_after_activity(user, activity_data)

@@ -528,7 +528,7 @@ export default function CourseDetailPage() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {course.topics.map((topic: any, idx: number) => (
+                      {course.topics.map((topic, idx: number) => (
                         <details
                           key={topic.order}
                           className="group bg-foreground/5 rounded-xl overflow-hidden"
@@ -562,7 +562,7 @@ export default function CourseDetailPage() {
                             </div>
                           </summary>
                           <div className="border-t border-foreground/10">
-                            {topic.lessons?.map((lesson: any) => (
+                            {topic.lessons?.map((lesson) => (
                               <div
                                 key={lesson.id}
                                 className="flex items-center gap-4 p-4 hover:bg-foreground/5">
@@ -584,17 +584,35 @@ export default function CourseDetailPage() {
                                 <div className="flex-grow">
                                   <div className="flex items-center gap-2">
                                     <h4 className="font-medium">{lesson.title}</h4>
+                                    {lesson.sections && lesson.sections.length > 0 && (
+                                      <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                                        {lesson.sections.length} phần
+                                      </span>
+                                    )}
                                   </div>
                                   <p className="text-sm text-foreground/70 mt-1">
                                     {lesson.description}
                                   </p>
+                                  {lesson.sections && lesson.sections.length > 0 && (
+                                    <div className="mt-2">
+                                      <p className="text-xs text-foreground/60">
+                                        Các phần: {lesson.sections.map((section: any) => section.title).join(", ")}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-3 flex-shrink-0">
-                                  <Link
-                                    href={`/topics/${topic.id}/lessons/${lesson.id}`}
-                                    className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
-                                    Học ngay
-                                  </Link>
+                                  {lesson.isCompleted ? (
+                                    <span className="px-3 py-1 text-sm bg-primary text-white rounded border border-green-200">
+                                      Đã xong
+                                    </span>
+                                  ) : (
+                                    <Link
+                                      href={`/topics/${topic.id}/lessons/${lesson.id}`}
+                                      className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
+                                      Học ngay
+                                    </Link>
+                                  )}
                                 </div>
                               </div>
                             ))}

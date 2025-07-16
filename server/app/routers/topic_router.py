@@ -3,17 +3,15 @@ from typing import List
 
 from app.schemas.topic_schema import (
     CreateTopicSchema,
+    TopicDetailWithProgressResponse,
     UpdateTopicSchema,
     TopicResponse,
 )
-from app.schemas.enhanced_course_schema import (
-    TopicDetailWithProgressResponse,
-)
+
 from app.schemas.lesson_schema import LessonResponseSchema
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.services.topic_service import TopicService, get_topic_service
 from app.utils.utils import get_current_user_optional
-from app.services.course_service import CourseService, get_course_service
 
 router = APIRouter(prefix="/topics", tags=["Chủ đề"])
 
@@ -41,7 +39,7 @@ async def list_topics_for_course(
 async def get_topic_by_id(
     topic_id: int,
     current_user: UserExcludeSecret = Depends(get_current_user_optional),
-    enhanced_service: CourseService = Depends(get_course_service),
+    topic_service: TopicService = Depends(get_topic_service),
 ):
     """
     Lấy topic theo ID với lessons và progress nested
@@ -52,7 +50,7 @@ async def get_topic_by_id(
     - Progress summary
     """
     user_id = current_user.id if current_user else None
-    topic = await enhanced_service.get_topic_with_progress(topic_id, user_id)
+    topic = await topic_service.get_topic_with_progress(topic_id, user_id)
     return topic
 
 

@@ -3,9 +3,7 @@
 Test script để kiểm tra việc xóa course có cascade delete đúng không
 """
 
-import asyncio
-from sqlalchemy.orm import Session
-from app.database.database import get_db
+from app.database.database import get_async_db
 from app.models.course_model import Course
 from app.models.topic_model import Topic
 from app.models.lesson_model import Lesson, LessonSection
@@ -16,7 +14,7 @@ def test_course_cascade_delete():
     """
     Test function to check if course deletion properly cascades to topics, lessons, and sections
     """
-    db = next(get_db())
+    db = next(get_async_db())
 
     try:
         # Tìm một course có topics và lessons để test

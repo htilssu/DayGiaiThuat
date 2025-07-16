@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
-from app.database.database import get_db, get_independent_db_session
+from app.database.database import get_async_db, get_independent_db_session
 from app.services.test_generation_service import (
     TestGenerationService,
     get_test_generation_service,
@@ -76,7 +77,7 @@ async def run_course_composition_background(request: CourseCompositionRequestSch
 async def create_course(
     course_data: CourseCreate,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     course_service: CourseService = Depends(get_course_service),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
@@ -110,7 +111,7 @@ async def create_course(
 
         return new_course
     except SQLAlchemyError as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi tạo khóa học: {str(e)}",
@@ -132,7 +133,7 @@ async def create_course(
 async def update_course(
     course_id: int,
     course_data: CourseUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
@@ -151,7 +152,7 @@ async def update_course(
         HTTPException: Nếu không tìm thấy khóa học hoặc có lỗi khi cập nhật
     """
     # Tìm khóa học cần cập nhật
-    course = db.query(Course).filter(Course.id == course_id).first()
+    course = await db.execute(select(Course).filter(Course.id == course_id))
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -165,12 +166,12 @@ async def update_course(
             setattr(course, field, value)
 
         # Lưu thay đổi
-        db.commit()
-        db.refresh(course)
+        await db.commit()
+        await db.refresh(course)
 
         return course
     except SQLAlchemyError as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi cập nhật khóa học: {str(e)}",
@@ -251,7 +252,7 @@ async def bulk_delete_courses(
 )
 async def delete_course(
     course_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
@@ -273,7 +274,7 @@ async def delete_course(
     from app.models.user_course_model import UserCourse
 
     # Tìm khóa học cần xóa
-    course = db.query(Course).filter(Course.id == course_id).first()
+    course = await db.execute(select(Course).where(Course.id == course_id))
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -282,10 +283,10 @@ async def delete_course(
 
     # Kiểm tra xem khóa học có đang được sử dụng không
     enrollment_count = (
-        db.query(UserCourse).filter(UserCourse.course_id == course_id).count()
-    )
+        await db.execute(select(func.count()).where(UserCourse.course_id == course_id))
+    ).scalar()
 
-    if enrollment_count > 0:
+    if enrollment_count is not None and enrollment_count > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Khóa học đang có {enrollment_count} học viên đăng ký, không thể xóa",
@@ -293,21 +294,31 @@ async def delete_course(
 
     try:
         # Đếm số lượng items sẽ bị xóa để logging
-        topics_count = db.query(Topic).filter(Topic.course_id == course_id).count()
-        lessons_count = (
-            db.query(Lesson).join(Topic).filter(Topic.course_id == course_id).count()
+        topics_count = await db.execute(
+            select(func.count()).where(Topic.course_id == course_id)
         )
-        sections_count = (
-            db.query(LessonSection)
+        lessons_count = await db.execute(
+            select(func.count())
+            .where(Lesson.topic_id == Topic.id)
+            .join(Topic)
+            .filter(Topic.course_id == course_id)
+        )
+        sections_count = await db.execute(
+            select(func.count())
+            .where(LessonSection.lesson_id == Lesson.id)
             .join(Lesson)
             .join(Topic)
             .filter(Topic.course_id == course_id)
-            .count()
         )
-
+        topics_count = topics_count.scalar()
+        lessons_count = lessons_count.scalar()
+        sections_count = sections_count.scalar()
+        topics_count = topics_count or 0
+        lessons_count = lessons_count or 0
+        sections_count = sections_count or 0
         # Xóa khóa học (cascade sẽ tự động xóa topics, lessons, sections)
-        db.delete(course)
-        db.commit()
+        await db.delete(course)
+        await db.commit()
 
         return {
             "message": f"Đã xóa thành công khóa học '{course.title}' và tất cả dữ liệu liên quan",
@@ -319,11 +330,13 @@ async def delete_course(
             },
         }
     except SQLAlchemyError as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi xóa khóa học: {str(e)}",
         )
+    finally:
+        await db.close()
 
 
 @router.post(
@@ -360,7 +373,7 @@ async def create_test(
     },
 )
 async def get_all_courses_admin(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
@@ -382,7 +395,7 @@ async def get_all_courses_admin(
 )
 async def get_course_by_id_admin(
     course_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """

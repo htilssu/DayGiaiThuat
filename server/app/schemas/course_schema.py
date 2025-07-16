@@ -2,8 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from app.models.course_model import TestGenerationStatus
-from app.models.user_course_progress_model import ProgressStatus
-from app.schemas.topic_schema import TopicResponse
+from app.schemas.topic_schema import TopicResponse, TopicWithProgressResponse
 from pydantic import BaseModel, Field
 
 
@@ -199,6 +198,11 @@ class CourseListResponse(BaseModel):
     limit: int
     totalPages: int
 
+    class Config:
+        """Cấu hình cho Pydantic model"""
+
+        from_attributes = True
+
 
 # Rebuild model after TopicWithLessonsResponse is available
 def rebuild_course_models():
@@ -268,60 +272,6 @@ class BulkDeleteCoursesResponse(BaseModel):
     )
 
 
-class LessonWithProgressResponse(BaseModel):
-    """
-    Schema cho lesson với thông tin progress
-    """
-
-    id: int = Field(..., description="ID của lesson")
-    external_id: str = Field(..., description="External ID của lesson")
-    title: str = Field(..., description="Tiêu đề lesson")
-    description: str = Field(..., description="Mô tả lesson")
-    order: int = Field(..., description="Thứ tự lesson trong topic")
-
-    # Progress fields
-    status: ProgressStatus = Field(
-        default=ProgressStatus.NOT_STARTED, description="Trạng thái học tập"
-    )
-    last_viewed_at: Optional[datetime] = Field(
-        None, description="Thời điểm xem gần nhất"
-    )
-    completed_at: Optional[datetime] = Field(None, description="Thời điểm hoàn thành")
-    completion_percentage: float = Field(
-        default=0.0, description="Phần trăm hoàn thành"
-    )
-
-    class Config:
-        from_attributes = True
-
-
-class TopicWithProgressResponse(BaseModel):
-    """
-    Schema cho topic với lessons và progress nested
-    """
-
-    id: int = Field(..., description="ID của topic")
-    external_id: Optional[str] = Field(None, description="External ID của topic")
-    name: str = Field(..., description="Tên topic")
-    description: str = Field(..., description="Mô tả topic")
-    order: Optional[int] = Field(None, description="Thứ tự topic trong course")
-
-    # Nested lessons với progress
-    lessons: List[LessonWithProgressResponse] = Field(
-        default=[], description="Danh sách lessons với progress"
-    )
-
-    # Topic-level progress summary
-    topic_completion_percentage: float = Field(
-        default=0.0, description="Phần trăm hoàn thành topic"
-    )
-    completed_lessons: int = Field(default=0, description="Số lesson đã hoàn thành")
-    total_lessons: int = Field(default=0, description="Tổng số lesson trong topic")
-
-    class Config:
-        from_attributes = True
-
-
 class CourseDetailWithProgressResponse(CourseResponse):
     """
     Schema cho course detail với topics, lessons và progress nested
@@ -352,72 +302,6 @@ class CourseDetailWithProgressResponse(CourseResponse):
         None, description="Lesson hiện tại đang học"
     )
     last_activity_at: Optional[datetime] = Field(None, description="Hoạt động gần nhất")
-
-    class Config:
-        from_attributes = True
-
-
-class TopicDetailWithProgressResponse(BaseModel):
-    """
-    Schema cho topic detail với lessons và progress nested
-    """
-
-    id: int = Field(..., description="ID của topic")
-    external_id: Optional[str] = Field(None, description="External ID của topic")
-    name: str = Field(..., description="Tên topic")
-    description: str = Field(..., description="Mô tả topic")
-    order: Optional[int] = Field(None, description="Thứ tự topic trong course")
-    course_id: Optional[int] = Field(None, description="ID của course")
-
-    # Nested lessons với progress
-    lessons: List[LessonWithProgressResponse] = Field(
-        default=[], description="Danh sách lessons với progress"
-    )
-
-    # Topic-level progress summary
-    topic_completion_percentage: float = Field(
-        default=0.0, description="Phần trăm hoàn thành topic"
-    )
-    completed_lessons: int = Field(default=0, description="Số lesson đã hoàn thành")
-    total_lessons: int = Field(default=0, description="Tổng số lesson trong topic")
-
-    # Progress info (chỉ hiển thị khi user đã enroll course)
-    user_course_id: Optional[int] = Field(
-        None, description="ID của user course nếu đã đăng ký"
-    )
-
-    class Config:
-        from_attributes = True
-
-
-class LessonDetailWithProgressResponse(BaseModel):
-    """
-    Schema cho lesson detail với progress
-    """
-
-    id: int = Field(..., description="ID của lesson")
-    external_id: str = Field(..., description="External ID của lesson")
-    title: str = Field(..., description="Tiêu đề lesson")
-    description: str = Field(..., description="Mô tả lesson")
-    order: int = Field(..., description="Thứ tự lesson trong topic")
-    topic_id: int = Field(..., description="ID của topic")
-
-    # Progress fields
-    status: ProgressStatus = Field(
-        default=ProgressStatus.NOT_STARTED, description="Trạng thái học tập"
-    )
-    last_viewed_at: Optional[datetime] = Field(
-        None, description="Thời điểm xem gần nhất"
-    )
-    completed_at: Optional[datetime] = Field(None, description="Thời điểm hoàn thành")
-    completion_percentage: float = Field(
-        default=0.0, description="Phần trăm hoàn thành"
-    )
-
-    # Context info (chỉ hiển thị khi user đã enroll course)
-    user_course_id: Optional[int] = Field(
-        None, description="ID của user course nếu đã đăng ký"
-    )
 
     class Config:
         from_attributes = True

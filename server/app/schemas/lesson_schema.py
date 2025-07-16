@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
+from app.models.user_course_progress_model import ProgressStatus
+from datetime import datetime
 
 
 class LessonCompleteResponseSchema(BaseModel):
@@ -81,6 +83,42 @@ class LessonSectionSchema(BaseModel):
     )
 
 
+class LessonDetailWithProgressResponse(BaseModel):
+    """
+    Schema cho lesson detail với progress
+    """
+
+    id: int = Field(..., description="ID của lesson")
+    external_id: str = Field(..., description="External ID của lesson")
+    title: str = Field(..., description="Tiêu đề lesson")
+    description: str = Field(..., description="Mô tả lesson")
+    order: int = Field(..., description="Thứ tự lesson trong topic")
+    topic_id: int = Field(..., description="ID của topic")
+
+    # Progress fields
+    status: ProgressStatus = Field(
+        default=ProgressStatus.NOT_STARTED, description="Trạng thái học tập"
+    )
+    last_viewed_at: Optional[datetime] = Field(
+        None, description="Thời điểm xem gần nhất"
+    )
+    completed_at: Optional[datetime] = Field(None, description="Thời điểm hoàn thành")
+    completion_percentage: float = Field(
+        default=0.0, description="Phần trăm hoàn thành"
+    )
+
+    # Context info (chỉ hiển thị khi user đã enroll course)
+    user_course_id: Optional[int] = Field(
+        None, description="ID của user course nếu đã đăng ký"
+    )
+    sections: Optional[List[LessonSectionSchema]] = Field(
+        None, description="Danh sách các section của lesson"
+    )
+
+    class Config:
+        from_attributes = True
+
+
 class CreateLessonSchema(BaseModel):
     external_id: str
     title: str
@@ -112,6 +150,33 @@ class LessonResponseSchema(BaseModel):
     sections: List[LessonSectionSchema]
     exercises: List[ExerciseResponse] = []
     is_completed: Optional[bool] = False
+
+    class Config:
+        from_attributes = True
+
+
+class LessonWithProgressResponse(BaseModel):
+    """
+    Schema cho lesson với thông tin progress
+    """
+
+    id: int = Field(..., description="ID của lesson")
+    external_id: str = Field(..., description="External ID của lesson")
+    title: str = Field(..., description="Tiêu đề lesson")
+    description: str = Field(..., description="Mô tả lesson")
+    order: int = Field(..., description="Thứ tự lesson trong topic")
+
+    # Progress fields
+    status: ProgressStatus = Field(
+        default=ProgressStatus.NOT_STARTED, description="Trạng thái học tập"
+    )
+    last_viewed_at: Optional[datetime] = Field(
+        None, description="Thời điểm xem gần nhất"
+    )
+    completed_at: Optional[datetime] = Field(None, description="Thời điểm hoàn thành")
+    completion_percentage: float = Field(
+        default=0.0, description="Phần trăm hoàn thành"
+    )
 
     class Config:
         from_attributes = True

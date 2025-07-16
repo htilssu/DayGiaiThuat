@@ -28,7 +28,6 @@ def register_router(app: FastAPI):
     # User routes (không có prefix admin)
     app.include_router(auth_router.router)
     app.include_router(users_router.router)
-    app.include_router(courses_router.router)
     app.include_router(tutor_router.router)
     app.include_router(exercise_router.router)
     app.include_router(document_router.router)
@@ -39,6 +38,8 @@ def register_router(app: FastAPI):
     app.include_router(assessment_router.router)
     app.include_router(lesson_plan_router.router)
     app.include_router(lesson_router.router)
+    app.include_router(courses_router.router)
+
     # WebSocket routes
     app.include_router(websocket_router.router)
 

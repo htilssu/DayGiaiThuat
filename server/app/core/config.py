@@ -180,12 +180,12 @@ class Settings(BaseSettings):
     @property
     def DATABASE_URI(self) -> str:
         """
-        Tạo connection string cho database
+        Tạo connection string đồng bộ cho database sử dụng psycopg2
 
         Returns:
-            str: Connection string
+            str: Sync connection string
         """
-        # Sử dụng driver psycopg2 thay vì asyncpg cho SQLAlchemy đồng bộ
+        # Sử dụng driver psycopg2 cho SQLAlchemy đồng bộ
         return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     @property

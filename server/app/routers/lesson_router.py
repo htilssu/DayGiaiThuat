@@ -5,16 +5,12 @@ from app.schemas.lesson_schema import (
     LessonResponseSchema,
     UpdateLessonSchema,
 )
-from app.schemas.enhanced_course_schema import (
+from app.schemas.lesson_schema import (
     LessonDetailWithProgressResponse,
 )
 from app.utils.utils import get_current_user, get_current_user_optional
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.services.lesson_service import LessonService, get_lesson_service
-from app.services.enhanced_course_service import (
-    EnhancedCourseService,
-    get_enhanced_course_service,
-)
 from fastapi import APIRouter, Depends, HTTPException, status
 
 router = APIRouter(prefix="/lessons", tags=["Bài học"])
@@ -75,7 +71,7 @@ async def complete_lesson(
 async def get_lesson(
     lesson_id: int,
     current_user: UserExcludeSecret = Depends(get_current_user_optional),
-    enhanced_service: EnhancedCourseService = Depends(get_enhanced_course_service),
+    lesson_service: LessonService = Depends(get_lesson_service),
 ):
     """
     Lấy lesson theo ID với progress information
@@ -87,7 +83,7 @@ async def get_lesson(
     - User course context
     """
     user_id = current_user.id if current_user else None
-    lesson = await enhanced_service.get_lesson_with_progress(lesson_id, user_id)
+    lesson = await lesson_service.get_lesson_with_progress(lesson_id, user_id)
     return lesson
 
 

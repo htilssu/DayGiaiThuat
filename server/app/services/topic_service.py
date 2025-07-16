@@ -8,12 +8,15 @@ from app.database.database import get_async_db
 from app.models.topic_model import Topic
 from app.models.lesson_model import Lesson
 from app.schemas.topic_schema import (
+    TopicDetailWithProgressResponse,
     TopicResponse,
     CreateTopicSchema,
     UpdateTopicSchema,
 )
 from app.schemas.lesson_schema import LessonResponseSchema
 from app.utils.model_utils import convert_lesson_to_schema
+from app.models.user_course_model import UserCourse
+from app.models.user_course_progress_model import ProgressStatus, UserCourseProgress
 
 
 class TopicService:
@@ -107,6 +110,111 @@ class TopicService:
         topics = result.scalars().all()
 
         return [TopicResponse.model_validate(topic) for topic in topics]
+
+    async def get_topic_with_progress(
+        self, topic_id: int, user_id: Optional[int] = None
+    ) -> TopicDetailWithProgressResponse:
+        """Lấy topic với nested lessons và progress"""
+        # Get topic with lessons
+        topic = await self.db.execute(
+            select(Topic)
+            .options(selectinload(Topic.lessons))
+            .filter(Topic.id == topic_id)
+        )
+        topic = topic.scalar_one_or_none()
+
+        if not topic:
+            raise HTTPException(status_code=404, detail="Topic not found")
+
+        # Check enrollment
+        user_course_id = None
+        if user_id:
+            user_course = await self.db.execute(
+                select(UserCourse).filter(
+                    UserCourse.user_id == user_id,
+                    UserCourse.course_id == topic.course_id,
+                )
+            )
+            if user_course:
+                user_course_id = user_course.scalar_one_or_none()
+
+        # Get progress map for this topic
+        progress_map = {}
+        if user_course_id:
+            progress_records = await self.db.execute(
+                select(UserCourseProgress).filter(
+                    UserCourseProgress.user_course_id == user_course_id,
+                    UserCourseProgress.topic_id == topic_id,
+                )
+            )
+            progress_records = progress_records.scalars().all()
+            # Map progress by lesson_id
+            progress_map = {p.lesson_id: p for p in progress_records}
+
+        # Build enhanced lessons
+        enhanced_lessons = []
+        completed_lessons = 0
+
+        for lesson in sorted(topic.lessons, key=lambda x: x.order):
+            progress = progress_map.get(lesson.id)
+
+            lesson_status = ProgressStatus.NOT_STARTED
+            lesson_last_viewed = None
+            lesson_completed_at = None
+            lesson_completion = 0.0
+
+            if progress:
+                lesson_status = progress.status
+                lesson_last_viewed = progress.updated_at
+                lesson_completed_at = (
+                    progress.completed_at
+                    if progress.status == ProgressStatus.COMPLETED
+                    else None
+                )
+                lesson_completion = (
+                    100.0
+                    if progress.status == ProgressStatus.COMPLETED
+                    else (
+                        50.0 if progress.status == ProgressStatus.IN_PROGRESS else 0.0
+                    )
+                )
+
+                if lesson_status == ProgressStatus.COMPLETED:
+                    completed_lessons += 1
+
+            enhanced_lessons.append(
+                LessonWithProgressResponse(
+                    id=lesson.id,
+                    external_id=lesson.external_id,
+                    title=lesson.title,
+                    description=lesson.description,
+                    order=lesson.order,
+                    status=lesson_status,
+                    last_viewed_at=lesson_last_viewed,
+                    completed_at=lesson_completed_at,
+                    completion_percentage=lesson_completion,
+                )
+            )
+
+        # Calculate topic completion percentage
+        total_lessons = len(enhanced_lessons)
+        topic_completion_percentage = (
+            (completed_lessons / total_lessons * 100) if total_lessons > 0 else 0.0
+        )
+
+        return TopicDetailWithProgressResponse(
+            id=topic.id,
+            external_id=topic.external_id,
+            name=topic.name,
+            description=topic.description,
+            order=topic.order,
+            course_id=topic.course_id,
+            lessons=enhanced_lessons,
+            topic_completion_percentage=round(topic_completion_percentage, 2),
+            completed_lessons=completed_lessons,
+            total_lessons=total_lessons,
+            user_course_id=user_course_id.id if user_course_id else None,
+        )
 
     async def get_next_topic(self, current_topic_id: int) -> Optional[Topic]:
         """
