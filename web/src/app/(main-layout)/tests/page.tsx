@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Metadata } from 'next';
 import ClientPage from './components/ClientPage';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export const metadata: Metadata = {
     title: "Danh sách bài kiểm tra - AI Agent Giải Thuật",
@@ -10,5 +11,9 @@ export const metadata: Metadata = {
 };
 
 export default function TestsPage() {
-    return <ClientPage />;
+    return (
+        <Suspense fallback={<LoadingSpinner />}>
+            <ClientPage />
+        </Suspense>
+    );
 } 

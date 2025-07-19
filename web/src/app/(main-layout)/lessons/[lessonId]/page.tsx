@@ -20,16 +20,6 @@ export async function generateMetadata({ params }: LessonPageProps): Promise<Met
     };
 }
 
-// Temporary lesson data - thay thế bằng API call thực tế
-const getLessonData = (lessonId: string) => {
-    return {
-        id: lessonId,
-        title: `Bài học ${lessonId}`,
-        content: `Nội dung của bài học ${lessonId}`,
-        duration: 30,
-        completed: false
-    };
-};
 
 export default async function LessonPageRoute({ params }: LessonPageProps) {
     const { lessonId, topicId } = await params;

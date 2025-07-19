@@ -24,7 +24,6 @@ export default function CourseDetailPage() {
 
   const [course, setCourse] = useState<UserCourseDetail | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "content" | "reviews">("overview");
-  // Đã có course.topics từ API, không cần state topics/topicsLoading/topicsError/topicLessons
   const [isUnregistering, setIsUnregistering] = useState<boolean>(false);
   const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
@@ -608,7 +607,7 @@ export default function CourseDetailPage() {
                                     </span>
                                   ) : (
                                     <Link
-                                      href={`/topics/${topic.id}/lessons/${lesson.id}`}
+                                      href={`/lessons/${lesson.id}`}
                                       className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
                                       Học ngay
                                     </Link>

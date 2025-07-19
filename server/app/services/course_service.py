@@ -9,13 +9,14 @@ from app.database.database import get_async_db
 from app.models.user_course_model import UserCourse
 from app.models.user_course_progress_model import UserCourseProgress, ProgressStatus
 from app.models.topic_model import Topic
-from app.models.user_model import User
 from app.models.course_model import Course
 from app.schemas.course_schema import (
+    BulkDeleteCoursesResponse,
     CourseCreate,
     CourseDetailResponse,
     CourseDetailWithProgressResponse,
     TopicWithProgressResponse,
+    UserCourseListItem,
 )
 from app.schemas.lesson_schema import (
     LessonWithChildSchema,
@@ -86,7 +87,6 @@ class CourseService:
                         description=lesson.description,
                         order=lesson.order,
                         external_id=lesson.external_id,
-                        topic_id=lesson.topic_id,
                         sections=[
                             LessonSectionSchema(
                                 type=section.type,
@@ -100,6 +100,8 @@ class CourseService:
                         ],
                         exercises=[],
                         is_completed=False,
+                        next_lesson_id=None,
+                        prev_lesson_id=None,
                     )
                     for lesson in topic.lessons
                 ],
@@ -175,7 +177,15 @@ class CourseService:
             await self.db.commit()
             await self.db.refresh(new_course)
 
-            return new_course
+            # Tải lại course với topics để tránh lỗi lazy loading
+            result = await self.db.execute(
+                select(Course)
+                .options(selectinload(Course.topics))
+                .filter(Course.id == new_course.id)
+            )
+            course_with_topics = result.scalar_one()
+
+            return course_with_topics
         except SQLAlchemyError as e:
             await self.db.rollback()
             raise HTTPException(
@@ -378,14 +388,14 @@ class CourseService:
             }
             errors.append(f"Lỗi khi commit transaction: {str(e)}")
 
-        return {
-            "deleted_count": len(deleted_courses),
-            "failed_count": len(failed_courses),
-            "deleted_courses": deleted_courses,
-            "failed_courses": failed_courses,
-            "errors": errors,
-            "deleted_items": deleted_items,
-        }
+        return BulkDeleteCoursesResponse(
+            deleted_count=len(deleted_courses),
+            failed_count=len(failed_courses),
+            deleted_courses=deleted_courses,
+            failed_courses=failed_courses,
+            errors=errors,
+            deleted_items=deleted_items,
+        )
 
     async def enroll_course(self, user_id: int, course_id: int):
         """
@@ -455,25 +465,17 @@ class CourseService:
                 detail=f"Lỗi khi đăng ký khóa học: {str(e)}",
             )
 
-    async def get_user_courses(self, user_id: int):
+    async def get_user_courses(self, user_id: int) -> list[UserCourseListItem]:
         """
-        Lấy danh sách khóa học mà người dùng đã đăng ký
+        Lấy danh sách khóa học mà người dùng đã đăng ký, kèm progress
 
         Args:
             user_id: ID của người dùng
 
         Returns:
-            List[Course]: Danh sách khóa học
+            List[UserCourseListItem]: Danh sách khóa học với trường progress
         """
         try:
-            # Kiểm tra xem người dùng có tồn tại không
-            user = await self.db.execute(select(User).filter(User.id == user_id))
-            user = user.scalar_one_or_none()
-            if not user:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Không tìm thấy người dùng với ID {user_id}",
-                )
 
             # Lấy danh sách khóa học mà người dùng đã đăng ký
             enrollments = await self.db.execute(
@@ -481,12 +483,66 @@ class CourseService:
             )
             enrollments = enrollments.scalars().all()
             course_ids = [enrollment.course_id for enrollment in enrollments]
+
             courses = await self.db.execute(
-                select(Course).filter(Course.id.in_(course_ids))
+                select(Course)
+                .options(selectinload(Course.topics).selectinload(Topic.lessons))
+                .filter(Course.id.in_(course_ids))
             )
             courses = courses.scalars().all()
 
-            return courses
+            # Tính progress cho từng khóa học
+            result = []
+            for course in courses:
+                # Lấy user_course_id
+                user_course = next(
+                    (e for e in enrollments if e.course_id == course.id), None
+                )
+                user_course_id = user_course.id if user_course else None
+
+                # Đếm tổng số bài học
+                total_lessons = 0
+                for topic in course.topics:
+                    total_lessons += len(topic.lessons)
+
+                # Đếm số bài đã hoàn thành bằng một query duy nhất
+                completed_lessons = 0
+                if user_course_id:
+                    progress_records = await self.db.execute(
+                        select(func.count(UserCourseProgress.id)).filter(
+                            UserCourseProgress.user_course_id == user_course_id,
+                            UserCourseProgress.status == ProgressStatus.COMPLETED,
+                        )
+                    )
+                    completed_lessons = progress_records.scalar() or 0
+
+                progress = (
+                    (completed_lessons / total_lessons * 100)
+                    if total_lessons > 0
+                    else 0.0
+                )
+
+                result.append(
+                    UserCourseListItem(
+                        id=course.id,
+                        title=course.title,
+                        description=course.description,
+                        thumbnail_url=course.thumbnail_url,
+                        level=course.level,
+                        duration=course.duration,
+                        price=course.price,
+                        is_published=course.is_published,
+                        tags=course.tags,
+                        requirements=course.requirements,
+                        what_you_will_learn=course.what_you_will_learn,
+                        created_at=course.created_at,
+                        updated_at=course.updated_at,
+                        test_generation_status=course.test_generation_status,
+                        progress=round(progress, 2),
+                    )
+                )
+
+            return result
         except SQLAlchemyError as e:
             raise HTTPException(
                 status_code=500,
@@ -533,6 +589,20 @@ class CourseService:
                 {"thumbnail_url": thumbnail_url, "course_id": course_id},
             )
             await self.db.commit()
+
+            # Fetch and return the updated course with topics
+            result = await self.db.execute(
+                select(Course)
+                .options(selectinload(Course.topics))
+                .filter(Course.id == course_id)
+            )
+            updated_course = result.scalar_one_or_none()
+            if not updated_course:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Không tìm thấy khóa học với ID {course_id}",
+                )
+            return updated_course
         except SQLAlchemyError as e:
             await self.db.rollback()
             raise HTTPException(
@@ -693,9 +763,11 @@ class CourseService:
                         title=lesson.title,
                         description=lesson.description,
                         order=lesson.order,
-                        is_completed=lesson_status == ProgressStatus.COMPLETED,
                         next_lesson_id=None,
                         prev_lesson_id=None,
+                        sections=[],
+                        exercises=[],
+                        is_completed=lesson_status == ProgressStatus.COMPLETED,
                         status=lesson_status,
                         last_viewed_at=lesson_last_viewed,
                         completed_at=lesson_completed_at,
@@ -727,6 +799,24 @@ class CourseService:
             (completed_lessons / total_lessons * 100) if total_lessons > 0 else 0.0
         )
 
+        # Get current lesson details if exists
+        current_lesson = None
+        if current_lesson_id:
+            for topic in course.topics:
+                for lesson in topic.lessons:
+                    if lesson.id == current_lesson_id:
+                        current_lesson = {
+                            "id": lesson.id,
+                            "external_id": lesson.external_id,
+                            "title": lesson.title,
+                            "description": lesson.description,
+                            "order": lesson.order,
+                            "topic_id": topic.id,
+                        }
+                        break
+                if current_lesson:
+                    break
+
         # Build final response
         course_dict = {
             "id": course.id,
@@ -754,6 +844,7 @@ class CourseService:
             "not_started_lessons": not_started_lessons,
             "current_topic_id": current_topic_id,
             "current_lesson_id": current_lesson_id,
+            "current_lesson": current_lesson,
             "last_activity_at": last_activity_at,
         }
 

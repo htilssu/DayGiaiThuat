@@ -51,7 +51,7 @@ export default function LearnClient() {
     return (
         <Container size="lg" py="xl">
             <Title order={1} mb="xl" ta="center">
-                Khóa học của tôi
+                Tiếp tục học
             </Title>
 
             {courses.length === 0 ? (
@@ -64,7 +64,7 @@ export default function LearnClient() {
                         <Card shadow="sm" padding="lg" radius="md" withBorder key={course.id}>
                             <Card.Section>
                                 <Image
-                                    src={course.image_url || "https://via.placeholder.com/300x150?text=No+Image"}
+                                    src={course.thumbnailUrl || "https://via.placeholder.com/300x150?text=No+Image"}
                                     height={160}
                                     alt={course.title}
                                 />

@@ -45,6 +45,6 @@ async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
             data = await websocket.receive_json()
             await process_message(websocket, data)
     except WebSocketDisconnect:
+        if user_id in active_connections:
+            active_connections.pop(user_id)
         pass
-    finally:
-        active_connections.pop(user_id)

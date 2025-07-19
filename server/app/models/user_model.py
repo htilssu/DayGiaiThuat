@@ -5,7 +5,6 @@ from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
-    from app.models.lesson_model import UserLesson
     from app.models.user_state_model import UserState
     from app.models.test_session import TestSession
 
@@ -27,10 +26,6 @@ class User(Base):
         Boolean, default=False, server_default="false"
     )
 
-    # Relationships
-    user_lessons: Mapped[List["UserLesson"]] = relationship(
-        "UserLesson", back_populates="user"
-    )
     state: Mapped["UserState"] = relationship(back_populates="user")
     test_sessions: Mapped[List["TestSession"]] = relationship(
         "TestSession", back_populates="user"

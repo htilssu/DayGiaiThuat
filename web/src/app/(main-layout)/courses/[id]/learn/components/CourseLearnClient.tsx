@@ -121,8 +121,8 @@ export default function CourseLearnClient({ courseId }: CourseLearnClientProps) 
                                         <List.Item
                                             key={lesson.id}
                                             icon={
-                                                <ThemeIcon color={lesson.is_completed ? "green" : "gray"} size={24} radius="xl">
-                                                    {lesson.is_completed ? <IconCircleCheck size={16} /> : <IconCircleDashed size={16} />}
+                                                <ThemeIcon color={lesson.isCompleted ? "green" : "gray"} size={24} radius="xl">
+                                                    {lesson.isCompleted ? <IconCircleCheck size={16} /> : <IconCircleDashed size={16} />}
                                                 </ThemeIcon>
                                             }
                                         >

@@ -19,6 +19,10 @@ export interface Topic {
   updatedAt: string;
 }
 
+export interface TopicWithLessons extends Topic {
+  lessons: Lesson[];
+}
+
 /**
  * Lấy danh sách chủ đề kèm theo lessons theo khóa học
  * @param courseId - ID của khóa học

@@ -5,6 +5,7 @@ import { IconSend, IconRobot } from "@tabler/icons-react";
 import { TextInput, Text, ScrollArea } from "@mantine/core";
 import { GoogleGenAI } from "@google/genai";
 import LoadingDots from "./LoadingDots";
+import { tutorApi } from "@/lib/api/tutor";
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<
@@ -29,10 +30,6 @@ export default function ChatInterface() {
     }
   }, [messages, isLoading]);
 
-  const ai = new GoogleGenAI({
-    apiKey: "AIzaSyAoWvIFmtiL1MwP1y8ariEm61Zaq4-uNZo",
-  });
-
   const handleSend = async () => {
     if (!input.trim()) return;
 
@@ -42,32 +39,42 @@ export default function ChatInterface() {
     setIsLoading(true);
 
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-05-20",
-        contents: input,
-        config: {
-          systemInstruction:
-            "Bạn là một giảng viên dạy thuật toán chuyên nghiệp và thân thiện. Nhiệm vụ của bạn là giao tiếp và hỗ trợ giải đáp thắc mắc của học viên. Hãy trả lời 1 cách ngắn gọn và súc tích.",
-        },
-      });
+      const response = await tutorApi.sendChat(
+        "default-session", // Replace with actual session ID if needed
+        input,
+        "lesson", // Replace with actual type if needed
+        "default-context" // Replace with actual context ID if needed
+      );
 
-      if (response.text) {
-        const aiMessage = {
-          text: response.text,
-          isUser: false,
-        };
-        setMessages((prev) => [...prev, aiMessage]);
+      if (!response || !response.getReader) {
+        throw new Error("Invalid response from API");
       }
-    } catch (error) {
-      console.error("Error sending message:", error);
-      // Add error message to chat
-      setMessages((prev) => [
-        ...prev,
-        {
-          text: "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau.",
-          isUser: false,
-        },
-      ]);
+
+      const reader = response.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        let botMessage = '';
+
+        // Add empty bot message to update in real-time
+        setMessages(prev => [...prev, { text: '', isUser: false }]);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          console.log("Received chunk:", chunk);
+          botMessage += chunk;
+
+          // Update the last message (bot's response) in real-time
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = { text: botMessage, isUser: false };
+            return newMessages;
+          });
+        }
+      }
     } finally {
       setIsLoading(false);
     }
@@ -105,9 +112,8 @@ export default function ChatInterface() {
           {messages.map((message, index) => (
             <div
               key={index}
-              className={`flex ${
-                message.isUser ? "justify-end" : "justify-start"
-              } items-end gap-2`}>
+              className={`flex ${message.isUser ? "justify-end" : "justify-start"
+                } items-end gap-2`}>
               {!message.isUser && (
                 <div className="w-6 h-6 rounded-full bg-[rgb(var(--color-primary))] flex items-center justify-center">
                   <IconRobot size={14} className="text-white" />
@@ -116,10 +122,9 @@ export default function ChatInterface() {
               <div
                 className={`
                   max-w-[80%] p-3 rounded-2xl
-                  ${
-                    message.isUser
-                      ? "bg-[rgb(var(--color-primary))] text-white rounded-br-sm"
-                      : "bg-[rgb(var(--color-primary))]/10 rounded-bl-sm"
+                  ${message.isUser
+                    ? "bg-[rgb(var(--color-primary))] text-white rounded-br-sm"
+                    : "bg-[rgb(var(--color-primary))]/10 rounded-bl-sm"
                   }
                 `}>
                 <Text size="sm">{message.text}</Text>
@@ -154,10 +159,9 @@ export default function ChatInterface() {
               aria-label="Gửi tin nhắn"
               className={`
                 p-1.5 rounded-full mr-1
-                ${
-                  input.trim() && !isLoading
-                    ? "text-[rgb(var(--color-primary))] hover:bg-[rgb(var(--color-primary))]/10"
-                    : "text-gray-400"
+                ${input.trim() && !isLoading
+                  ? "text-[rgb(var(--color-primary))] hover:bg-[rgb(var(--color-primary))]/10"
+                  : "text-gray-400"
                 }
                 transition-colors duration-200
               `}>

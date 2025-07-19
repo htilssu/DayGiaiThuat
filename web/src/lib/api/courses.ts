@@ -142,7 +142,7 @@ async function unregisterCourse(courseId: number) {
  * @returns Danh sách khóa học đã đăng ký
  */
 export async function getEnrolledCourses(): Promise<EnrolledCourse[]> {
-  return get<EnrolledCourse[]>("/courses/user/enrolled");
+  return get<EnrolledCourse[]>("/courses/enrolled");
 }
 
 export async function getCourseTopics(courseId: number) {

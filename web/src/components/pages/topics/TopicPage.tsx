@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Lesson, topicsApi, TopicWithLessons } from "@/lib/api";
 import Link from "next/link";
-import { topicsApi, lessonsApi, Topic, Lesson } from "@/lib/api";
-import { TopicWithLessons } from "@/lib/api/types";
+import { useEffect, useState } from "react";
 
 interface TopicPageProps {
   topicId: string;
 }
 
 export default function TopicPage({ topicId }: TopicPageProps) {
-  const [topic, setTopic] = useState<TopicWithLessons>(null);
+  const [topic, setTopic] = useState<TopicWithLessons | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

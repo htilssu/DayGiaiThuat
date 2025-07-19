@@ -35,8 +35,8 @@ export interface QuizQuestion {
  * Kiểu dữ liệu cho yêu cầu tạo quiz
  */
 export interface CreateQuizRequest {
-  lesson_id: number;
-  question_count: number;
+  lessonId: number;
+  questionCount: number;
   difficulty: string;
 }
 

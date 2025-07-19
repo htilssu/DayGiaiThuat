@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 
 from app.database.database import get_async_db, get_independent_db_session
@@ -96,7 +97,7 @@ async def create_course(
         HTTPException: Nếu có lỗi khi tạo khóa học
     """
     try:
-        new_course = course_service.create_course(course_data)
+        new_course = await course_service.create_course(course_data)
 
         # Run course composition in the background
         composition_request = CourseCompositionRequestSchema(
@@ -152,7 +153,8 @@ async def update_course(
         HTTPException: Nếu không tìm thấy khóa học hoặc có lỗi khi cập nhật
     """
     # Tìm khóa học cần cập nhật
-    course = await db.execute(select(Course).filter(Course.id == course_id))
+    result = await db.execute(select(Course).filter(Course.id == course_id))
+    course = result.scalar_one_or_none()
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -169,7 +171,15 @@ async def update_course(
         await db.commit()
         await db.refresh(course)
 
-        return course
+        # Tải lại course với topics để tránh lỗi lazy loading
+        result = await db.execute(
+            select(Course)
+            .options(selectinload(Course.topics))
+            .filter(Course.id == course_id)
+        )
+        updated_course = result.scalar_one()
+
+        return updated_course
     except SQLAlchemyError as e:
         await db.rollback()
         raise HTTPException(
@@ -217,16 +227,9 @@ async def bulk_delete_courses(
             )
 
         # Thực hiện bulk delete
-        result = course_service.bulk_delete_courses(request.course_ids)
+        result = await course_service.bulk_delete_courses(request.course_ids)
 
-        return BulkDeleteCoursesResponse(
-            deleted_count=result["deleted_count"],
-            failed_count=result["failed_count"],
-            errors=result["errors"],
-            deleted_courses=result["deleted_courses"],
-            failed_courses=result["failed_courses"],
-            deleted_items=result["deleted_items"],
-        )
+        return result
 
     except HTTPException:
         # Re-raise HTTPException từ validation
@@ -275,6 +278,7 @@ async def delete_course(
 
     # Tìm khóa học cần xóa
     course = await db.execute(select(Course).where(Course.id == course_id))
+    course = course.scalar_one_or_none()
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -379,8 +383,12 @@ async def get_all_courses_admin(
     """
     Lấy tất cả khóa học bao gồm cả chưa được published (chỉ admin)
     """
-    courses = db.query(Course).order_by(Course.created_at.desc()).all()
-    return courses
+    result = await db.execute(
+        select(Course)
+        .options(selectinload(Course.topics))
+        .order_by(Course.created_at.desc())
+    )
+    return result.scalars().all()
 
 
 @router.get(
@@ -401,14 +409,17 @@ async def get_course_by_id_admin(
     """
     Lấy thông tin chi tiết của một khóa học (chỉ admin, bao gồm cả chưa published)
     """
-    course = db.query(Course).filter(Course.id == course_id).first()
+    result = await db.execute(select(Course).filter(Course.id == course_id))
+    course = result.scalar_one_or_none()
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Không tìm thấy khóa học với ID {course_id}",
         )
 
-    return course
+    from app.schemas.course_schema import CourseListItem
+
+    return CourseListItem.model_validate(course)
 
 
 @router.patch(
@@ -445,7 +456,7 @@ async def update_course_thumbnail(
     """
     try:
         # Cập nhật thumbnail thông qua service
-        updated_course = course_service.update_course_thumbnail(
+        updated_course = await course_service.update_course_thumbnail(
             course_id, thumbnail_data.thumbnail_url
         )
         return updated_course

@@ -1,4 +1,3 @@
-from app.models.lesson_model import Lesson, UserLesson
 from app.schemas.lesson_schema import (
     LessonWithChildSchema,
     LessonSectionSchema,
@@ -7,6 +6,8 @@ from app.schemas.lesson_schema import (
 )
 from sqlalchemy.orm import Session
 from typing import Optional
+
+from app.models.lesson_model import Lesson
 
 
 def model_to_dict(instance):

@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  experimental: {
+    turbopackPersistentCaching: true,
+    clientSegmentCache: true,
+    dynamicIO: true,
+    browserDebugInfoInTerminal: true,
+  },
   images: {
     remotePatterns: [
       {

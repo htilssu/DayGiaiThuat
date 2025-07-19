@@ -180,6 +180,43 @@ class CourseListItem(BaseModel):
         from_attributes = True
 
 
+class UserCourseListItem(BaseModel):
+    """
+    Schema cho item trong danh sách khóa học đã đăng ký của user, kèm progress
+    """
+
+    id: int = Field(..., description="ID của khóa học")
+    title: str = Field(..., description="Tiêu đề của khóa học")
+    description: Optional[str] = Field(None, description="Mô tả chi tiết về khóa học")
+    thumbnail_url: Optional[str] = Field(
+        None, description="Đường dẫn đến ảnh thumbnail của khóa học"
+    )
+    level: Optional[str] = Field("Beginner", description="Cấp độ khó của khóa học")
+    duration: Optional[int] = Field(
+        0, description="Thời lượng ước tính để hoàn thành khóa học (tính bằng phút)"
+    )
+    price: Optional[float] = Field(0.0, description="Giá của khóa học (0 nếu miễn phí)")
+    is_published: Optional[bool] = Field(
+        False, description="Trạng thái xuất bản của khóa học"
+    )
+    tags: Optional[str] = Field("", description="Các thẻ tag liên quan đến khóa học")
+    requirements: Optional[str] = Field(
+        None, description="Các yêu cầu cần có trước khi học (JSON string)"
+    )
+    what_you_will_learn: Optional[str] = Field(
+        None, description="Những gì người học sẽ đạt được sau khóa học (JSON string)"
+    )
+    created_at: datetime = Field(..., description="Thời điểm tạo khóa học")
+    updated_at: datetime = Field(..., description="Thời điểm cập nhật gần nhất")
+    test_generation_status: str = Field(
+        ..., description="Trạng thái tạo bài test đầu vào"
+    )
+    progress: float = Field(0.0, description="Phần trăm hoàn thành khóa học")
+
+    class Config:
+        from_attributes = True
+
+
 class CourseListResponse(BaseModel):
     """
     Schema cho response khi lấy danh sách khóa học với phân trang
@@ -300,6 +337,9 @@ class CourseDetailWithProgressResponse(CourseResponse):
     current_topic_id: Optional[int] = Field(None, description="Topic hiện tại đang học")
     current_lesson_id: Optional[int] = Field(
         None, description="Lesson hiện tại đang học"
+    )
+    current_lesson: Optional[dict] = Field(
+        None, description="Chi tiết lesson hiện tại đang học"
     )
     last_activity_at: Optional[datetime] = Field(None, description="Hoạt động gần nhất")
 

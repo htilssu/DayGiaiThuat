@@ -67,21 +67,19 @@ export default function ClientPage({ exercise }: { exercise: ExerciseDetail }) {
       {/* Tabs */}
       <div className="flex border-b border-foreground/10 mt-8 mb-6">
         <button
-          className={`px-4 py-2 font-medium text-sm ${
-            currentTab === "description"
+          className={`px-4 py-2 font-medium text-sm ${currentTab === "description"
               ? "text-primary border-b-2 border-primary"
               : "text-foreground/60 hover:text-foreground/90"
-          }`}
+            }`}
           onClick={() => setCurrentTab("description")}
         >
           Mô tả bài tập
         </button>
         <button
-          className={`px-4 py-2 font-medium text-sm ${
-            currentTab === "submission"
+          className={`px-4 py-2 font-medium text-sm ${currentTab === "submission"
               ? "text-primary border-b-2 border-primary"
               : "text-foreground/60 hover:text-foreground/90"
-          }`}
+            }`}
           onClick={() => setCurrentTab("submission")}
         >
           Làm bài
@@ -95,8 +93,6 @@ export default function ClientPage({ exercise }: { exercise: ExerciseDetail }) {
         ) : (
           <ExerciseSubmission
             exercise={exercise}
-            userCode={userCode}
-            setUserCode={setUserCode}
             onSubmit={handleSubmit}
           />
         )}

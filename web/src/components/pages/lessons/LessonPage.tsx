@@ -221,51 +221,6 @@ export default function LessonPage({ topicId, lessonId }: LessonPageProps) {
             )}
           </div>
         </div>
-
-        {/* Exercise */}
-        {lesson?.exercise && (
-          <div className="max-w-4xl mx-auto mt-12">
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-foreground/10">
-              <h2 className="text-2xl font-bold mb-4">Bài tập</h2>
-              <div className="mb-4">
-                <h3 className="text-xl font-semibold mb-2">
-                  {lesson.exercise.name}
-                </h3>
-                <p className="text-foreground/70 mb-4">
-                  {lesson.exercise.description}
-                </p>
-                {lesson.exercise.constraint && (
-                  <div className="mb-4 p-3 bg-foreground/5 rounded-lg">
-                    <strong>Ràng buộc:</strong> {lesson.exercise.constraint}
-                  </div>
-                )}
-                {lesson.exercise.suggest && (
-                  <div className="mb-4 p-3 bg-primary/10 rounded-lg">
-                    <strong>Gợi ý:</strong> {lesson.exercise.suggest}
-                  </div>
-                )}
-              </div>
-              <Link
-                href={`/exercises/${lesson.exercise.id}`}
-                className="inline-flex items-center px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition">
-                Làm bài tập
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 ml-2"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

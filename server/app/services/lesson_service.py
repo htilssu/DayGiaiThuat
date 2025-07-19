@@ -1,4 +1,5 @@
 from typing import List, Optional
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from fastapi import Depends
@@ -255,7 +256,7 @@ class LessonService:
                 topic_id=current_lesson.topic_id,
                 lesson_id=lesson_id,
                 status=ProgressStatus.COMPLETED,
-                completed_at=datetime.utcnow(),
+                completed_at=datetime.now(),
             )
             self.db.add(progress)
         await self.db.commit()
@@ -294,7 +295,7 @@ class LessonService:
                         next_lesson_id=first_lesson_of_next_topic.id,
                         is_completed=True,
                     )
-        # Nếu không có bài học tiếp theo hoặc chủ đề tiếp theo
+
         return LessonCompleteResponseSchema(
             lesson_id=lesson_id, next_lesson_id=None, is_completed=True
         )
@@ -424,7 +425,9 @@ class LessonService:
             title=lesson.title,
             description=lesson.description,
             order=lesson.order,
-            topic_id=lesson.topic_id,
+            is_completed=lesson_status == ProgressStatus.COMPLETED,
+            next_lesson_id=lesson.next_lesson_id,
+            prev_lesson_id=lesson.prev_lesson_id,
             sections=(
                 [
                     LessonSectionSchema(
@@ -440,7 +443,6 @@ class LessonService:
                 if lesson.sections
                 else []
             ),
-            status=lesson_status,
             last_viewed_at=lesson_last_viewed,
             completed_at=lesson_completed_at,
             completion_percentage=lesson_completion,

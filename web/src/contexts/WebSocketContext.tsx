@@ -36,7 +36,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
 
     const getWebSocketUrl = () => {
-        console.log(user);
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = process.env.NEXT_PUBLIC_API_URL?.replace(/^https?:\/\//, '') || 'localhost:8000';
         return `${protocol}//${host}/ws?token=${user?.id}`;
@@ -120,18 +119,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
             }
         };
     }, [user]);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            console.log(socket);
-        }, 1000);
-        loggingInterval.current = interval;
-        return () => {
-            if (loggingInterval.current) {
-                clearInterval(loggingInterval.current);
-            }
-        };
-    }, [socket]);
 
     const value: WebSocketContextType = {
         socket,

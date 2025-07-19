@@ -55,30 +55,7 @@ class Lesson(Base):
     sections: Mapped[List[LessonSection]] = relationship(
         "LessonSection", back_populates="lesson", cascade="all, delete-orphan"
     )
-    user_lessons: Mapped[List["UserLesson"]] = relationship(
-        "UserLesson", back_populates="lesson"
-    )
     topic: Mapped["Topic"] = relationship("Topic", back_populates="lessons")
     exercises: Mapped[List["Exercise"]] = relationship(
         "Exercise", back_populates="lesson", cascade="all, delete-orphan"
     )
-
-
-class UserLesson(Base):
-    __tablename__ = "user_lessons"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
-    lesson_id: Mapped[int] = mapped_column(Integer, ForeignKey("lessons.id"))
-    is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
-    progress: Mapped[int] = mapped_column(Integer, default=0)  # Tiến độ từ 0-100%
-    last_section_index: Mapped[int] = mapped_column(
-        Integer, default=0
-    )  # Phần cuối cùng đã xem
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, nullable=True
-    )  # Thời gian hoàn thành
-
-    # Relationships
-    lesson: Mapped[Lesson] = relationship("Lesson", back_populates="user_lessons")
-    user: Mapped["User"] = relationship("User", back_populates="user_lessons")

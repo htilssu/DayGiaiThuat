@@ -84,7 +84,7 @@ export function DocumentSearch() {
               label="Max Results"
               placeholder="5"
               value={limit}
-              onChange={(value) => setLimit(value || 5)}
+              onChange={(value) => setLimit(typeof value === "number" ? value : Number(value) || 5)}
               min={1}
               max={20}
               style={{ width: 120 }}

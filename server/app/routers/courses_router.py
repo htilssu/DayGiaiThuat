@@ -27,7 +27,7 @@ router = APIRouter(
 
 
 @router.get(
-    "/",
+    "",
     response_model=CourseListResponse,
     status_code=status.HTTP_200_OK,
     summary="Lấy danh sách khóa học",
@@ -101,6 +101,32 @@ async def get_courses(
         limit=limit,
         totalPages=total_pages,
     )
+
+
+@router.get(
+    "/enrolled",
+    responses={
+        200: {"description": "OK"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_enrolled_courses(
+    course_service: CourseService = Depends(get_course_service),
+    current_user: UserExcludeSecret = Depends(get_current_user),
+):
+    """
+    Lấy danh sách khóa học đã đăng ký của người dùng hiện tại
+
+    Args:
+        course_service: Service xử lý khóa học
+        current_user: Thông tin người dùng hiện tại
+
+    Returns:
+        List: Danh sách khóa học đã đăng ký
+    """
+    # Sử dụng service để lấy danh sách khóa học đã đăng ký
+    enrolled_courses = await course_service.get_user_courses(current_user.id)
+    return enrolled_courses
 
 
 @router.get(
@@ -179,32 +205,6 @@ async def enroll_course(
     # Sử dụng service để đăng ký khóa học
     result = await course_service.enroll_course(current_user.id, course_id)
     return result
-
-
-@router.get(
-    "/user/enrolled",
-    responses={
-        200: {"description": "OK"},
-        500: {"description": "Internal server error"},
-    },
-)
-async def get_enrolled_courses(
-    course_service: CourseService = Depends(get_course_service),
-    current_user=Depends(get_current_user),
-):
-    """
-    Lấy danh sách khóa học đã đăng ký của người dùng hiện tại
-
-    Args:
-        course_service: Service xử lý khóa học
-        current_user: Thông tin người dùng hiện tại
-
-    Returns:
-        List: Danh sách khóa học đã đăng ký
-    """
-    # Sử dụng service để lấy danh sách khóa học đã đăng ký
-    enrolled_courses = await course_service.get_user_courses(current_user.id)
-    return enrolled_courses
 
 
 @router.get(

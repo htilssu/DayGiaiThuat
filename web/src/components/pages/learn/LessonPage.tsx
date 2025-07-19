@@ -25,6 +25,7 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
     const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
     const [showExplanation, setShowExplanation] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);
+    const [nextLessonId, setNextLessonId] = useState<number | null>(null);
     const { socket, sendMessage } = useWebSocket();
     const router = useRouter();
     useEffect(() => {
@@ -102,7 +103,7 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
             setIsCompleted(true);
             const data = await lessonsApi.completeLesson(lesson.id);
             if (data.isCompleted) {
-                router.push(`/topics/${lesson.topicId}/lessons/${data.nextLessonId}`);
+                setNextLessonId(data.nextLessonId);
             }
         } else {
             setCurrentSectionIndex(currentSectionIndex + 1);
@@ -348,27 +349,28 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                             Bạn đã học xong bài {lesson.title}. Hãy tiếp tục với bài học tiếp theo để nâng cao kiến thức của mình.
                         </p>
                         <div className="flex flex-wrap justify-center gap-4">
-                            {lesson.nextLessonId ? (
+
+                            <Link
+                                href={`/topics/${lesson.topicId}`}
+                                className="px-6 py-3 bg-accent text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+                            >
+                                Quay lại chủ đề
+                            </Link>
+                            {nextLessonId ? (
                                 <Link
-                                    href={`/topics/${lesson.topicId}/lessons/${lesson.nextLessonId}`}
+                                    href={`/lessons/${nextLessonId}`}
                                     className="px-6 py-3 bg-primary text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
                                 >
-                                    Bài học tiếp theo
+                                    Bắt đầu bài học tiếp theo
                                 </Link>
                             ) : (
                                 <Link
-                                    href={`/topics/${lesson.topicId}`}
-                                    className="px-6 py-3 bg-primary text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+                                    href={`#`}
+                                    className="px-6 bg-gray-100 py-3 text-gray-400 font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
                                 >
-                                    Quay lại chủ đề
+                                    Bắt đầu bài học tiếp theo
                                 </Link>
                             )}
-                            <Link
-                                href={`/topics/${lesson.topicId}/lessons/${lesson.nextLessonId}`}
-                                className="px-6 py-3 bg-background border border-primary text-primary font-semibold rounded-lg hover:bg-primary/5 transition-all"
-                            >
-                                Bài học tiếp theo
-                            </Link>
                         </div>
                     </motion.div>
                 ) : (
