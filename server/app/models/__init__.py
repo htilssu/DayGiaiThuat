@@ -13,3 +13,5 @@ from app.models.course_model import Course
 from app.models.user_badge_model import UserBadge
 from app.models.lesson_generation_state_model import LessonGenerationState
 from app.models.document_processing_job_model import DocumentProcessingJob
+from app.models.discussion_model import Discussion
+from app.models.reply_model import Reply

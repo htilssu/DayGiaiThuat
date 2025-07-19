@@ -56,7 +56,6 @@ export interface UserCourseDetail {
   topics: Topic[];
 }
 
-
 /**
  * Kiểu dữ liệu cho đăng ký khóa học
  */
@@ -112,15 +111,17 @@ export async function getCourseById(id: number): Promise<UserCourseDetail> {
   return course;
 }
 
-
-
 /**
  * Đăng ký khóa học
  * @param courseId - ID của khóa học
  * @returns Thông tin đăng ký khóa học
  */
-export async function enrollCourse(courseId: number): Promise<CourseEnrollmentResponse> {
-  return post<CourseEnrollmentResponse>(`/courses/enroll`, { course_id: courseId });
+export async function enrollCourse(
+  courseId: number
+): Promise<CourseEnrollmentResponse> {
+  return post<CourseEnrollmentResponse>(`/courses/enroll`, {
+    course_id: courseId,
+  });
 }
 
 /**
@@ -131,9 +132,13 @@ export async function enrollCourse(courseId: number): Promise<CourseEnrollmentRe
 async function unregisterCourse(courseId: number) {
   return del(`/courses/enroll/${courseId}`)
     .then(() => ({ success: true, message: "Hủy đăng ký khóa học thành công" }))
-    .catch(error => {
+    .catch((error) => {
       console.error("Lỗi khi hủy đăng ký khóa học:", error);
-      return { success: false, message: error.response?.data?.detail || "Hủy đăng ký khóa học thất bại" };
+      return {
+        success: false,
+        message:
+          error.response?.data?.detail || "Hủy đăng ký khóa học thất bại",
+      };
     });
 }
 
@@ -163,7 +168,9 @@ export async function getCourseEntryTest(courseId: number): Promise<Test> {
  * @param courseId - ID của khóa học
  * @returns Test session đã được tạo
  */
-export async function startCourseEntryTest(courseId: number): Promise<TestSession> {
+export async function startCourseEntryTest(
+  courseId: number
+): Promise<TestSession> {
   return post<TestSession>(`/courses/${courseId}/entry-test/start`, {});
 }
 
@@ -187,4 +194,3 @@ export const coursesApi = {
   getCourseEntryTest,
   startCourseEntryTest,
 };
-
