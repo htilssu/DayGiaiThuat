@@ -103,7 +103,11 @@ async function submitExerciseCode(
 async function sendCodeToJudge(
   submission: Judge0SubmissionRequest
 ): Promise<Judge0SubmissionResponse> {
-  const JUDGE0_API_URL = "https://76941b3633ca.ngrok-free.app";
+  const JUDGE0_API_URL = "https://b5dfe06966c0.ngrok-free.app";
+
+  function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
 
   try {
     // Tạo submission
@@ -114,7 +118,6 @@ async function sendCodeToJudge(
       },
       body: JSON.stringify({
         source_code: submission.code,
-        // source_code: "console.log('Hello, World!');",
         language_id: getLanguageId(submission.language),
         stdin: submission.stdin || "",
       }),
@@ -129,23 +132,24 @@ async function sendCodeToJudge(
     const createData = await createResponse.json();
     const token = createData.token;
 
-    console.log("token:", token);
-
-    const resultResponse = await fetch(
-      `${JUDGE0_API_URL}/submissions/${token}`,
-      {
-        method: "get",
-        headers: new Headers({
-          "ngrok-skip-browser-warning": "69420",
-        }),
+    // Poll for result until status is 'Accepted'
+    let resultData;
+    while (true) {
+      const resultResponse = await fetch(
+        `${JUDGE0_API_URL}/submissions/${token}`,
+        {
+          method: "get",
+          headers: new Headers({
+            "ngrok-skip-browser-warning": "69420",
+          }),
+        }
+      );
+      resultData = await resultResponse.json();
+      if (resultData.status && resultData.status.description === "Accepted") {
+        break;
       }
-    );
-
-    console.log("resultResponse:", resultResponse);
-
-    const resultData = await resultResponse.json();
-
-    console.log("resultData:", resultData);
+      await sleep(500); // Wait 500ms before polling again
+    }
 
     return resultData;
   } catch (error) {

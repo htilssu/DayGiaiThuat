@@ -9,7 +9,7 @@ from app.schemas.reply_schema import (
     ReplyListResponse,
 )
 from app.services.reply_service import ReplyService
-from app.utils.oauth2.oauth2_cookie import get_current_user
+from app.utils.utils import get_current_user
 from app.models.user_model import User
 
 router = APIRouter(prefix="/replies", tags=["replies"])

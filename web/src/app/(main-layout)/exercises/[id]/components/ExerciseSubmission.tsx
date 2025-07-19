@@ -5,16 +5,12 @@ import {
   IconCircleCheck,
   IconCircleX,
   IconPlayerPlay,
-  IconCode,
 } from "@tabler/icons-react";
 import { ExerciseDetail, TestResult } from "./types";
 import AIChat from "./AIChat";
 import MonacoEditor from "@/components/ui/MonacoEditor";
 import { exercisesApi } from "@/lib/api";
-import type {
-  CodeSubmissionRequest,
-  CodeSubmissionResponse,
-} from "@/lib/api/types";
+import { sendAIChatRequest } from "@/lib/api/aiChat";
 import type { Judge0SubmissionRequest } from "@/lib/api/exercises";
 
 /**
@@ -33,18 +29,113 @@ export default function ExerciseSubmission({
   onSubmit: () => void;
 }) {
   const [testResults /*setTestResults*/] = useState<TestResult[]>([]);
-  const [isRunningTests, setIsRunningTests] = useState(false);
-  const [allTestsPassed /*setAllTestsPassed*/] = useState(false);
+  const [isRunningTests] = useState(false);
   const [callAIChat, setCallAIChat] = useState(false);
-  const calling = {
-    callAIChat,
-    setCallAIChat,
-  };
 
-  const [code, setCode] = useState(`function yourFunction() {
+  const initialCode = [
+    {
+      language: "javascript",
+      code: `function yourFunction(arr) {
+  if (arr.length <= 1) return arr;
+
+  const pivot = arr[arr.length - 1]; // Choose the last element as pivot
+  const left = [];
+  const right = [];
+
+  for (let i = 0; i < arr.length - 1; i++) {
+    if (arr[i] < pivot) {
+      left.push(arr[i]);
+    } else {
+      right.push(arr[i]);
+    }
+  }
+
+  return [...yourFunction(left), pivot, ...yourFunction(right)];
+}
+
+const input = require('fs').readFileSync(0, 'utf-8').trim();
+const arr = JSON.parse(input);
+
+console.log(JSON.stringify(yourFunction(arr)));`,
+    },
+    {
+      language: "python",
+      code: `def your_function():
+    # Write your code here
+    pass
+
+your_function()`,
+    },
+    {
+      language: "typescript",
+      code: `function yourFunction(): void {
   // Write your code here
   return;
-}`);
+}
+yourFunction();`,
+    },
+    {
+      language: "c",
+      code: `#include <stdio.h>
+
+int main() {
+    // Write your code here
+    return 0;
+}`,
+    },
+    {
+      language: "cpp",
+      code: `#include <iostream>
+using namespace std;
+
+int main() {
+    // Write your code here
+    return 0;
+}`,
+    },
+    {
+      language: "java",
+      code: `public class Main {
+    public static void main(String[] args) {
+        // Write your code here
+    }
+}`,
+    },
+    {
+      language: "csharp",
+      code: `using System;
+
+class Program {
+    static void Main(string[] args) {
+        // Write your code here
+    }
+}`,
+    },
+    {
+      language: "php",
+      code: `<?php
+// Write your code here
+?>`,
+    },
+    {
+      language: "ruby",
+      code: `def your_function
+  # Write your code here
+end
+
+your_function`,
+    },
+    {
+      language: "swift",
+      code: `func yourFunction() {
+    // Write your code here
+}
+
+yourFunction()`,
+    },
+  ];
+
+  const [code, setCode] = useState(initialCode[0].code);
   const [language, setLanguage] = useState("javascript");
   const [results, setResults] = useState<
     Array<{
@@ -56,69 +147,68 @@ export default function ExerciseSubmission({
     }>
   >([]);
   const [isRunningJudge0, setIsRunningJudge0] = useState(false);
+  const [aiResponse, setAiResponse] = useState<string>("");
+  const [allTestsPassed, setAllTestsPassed] = useState(false);
+
+  const calling = {
+    callAIChat,
+    setCallAIChat,
+    allTestsPassed,
+  };
 
   // Test Judge0 functionality
   const handleTestJudge0 = async () => {
     setIsRunningJudge0(true);
     try {
-      const submission: Judge0SubmissionRequest = {
-        code,
-        language,
-        stdin: "", // You can add input if needed
-      };
+      const testCases = exercise.testCases || [];
+      const judgeResults = await Promise.all(
+        testCases.map(async (test) => {
+          const submission: Judge0SubmissionRequest = {
+            code,
+            language,
+            stdin: test.input,
+          };
+          const result = await exercisesApi.sendCodeToJudge(submission);
+          const actualOutput = (result.stdout ?? "").trim();
+          const expectedOutput = (test.expectedOutput ?? "").trim();
+          const passed = actualOutput === expectedOutput;
+          return {
+            input: test.input,
+            expectedOutput,
+            actualOutput,
+            passed,
+            error: result.stderr || result.compile_output || "",
+          };
+        })
+      );
+      setResults(judgeResults);
 
-      const result = await exercisesApi.sendCodeToJudge(submission);
-      console.log("Judge0 result:", result);
-
-      // Show result to user
-      // if (result.stdout) {
-      //   alert(`Judge0 Output: ${result.stdout}`);
-      // } else if (result.stderr) {
-      //   alert(`Judge0 Error: ${result.stderr}`);
-      // } else if (result.compile_output) {
-      //   alert(`Compilation Error: ${result.compile_output}`);
-      // } else {
-      //   alert(`Status: ${result.status.description}`);
-      // }
+      // Gọi API ai-chat với kết quả test mới
+      const testsPassed = judgeResults.every((result) => result.passed);
+      setAllTestsPassed(testsPassed);
+      try {
+        const response = await sendAIChatRequest({
+          code,
+          results: judgeResults,
+          title: exercise.title,
+          allTestsPassed: testsPassed,
+        });
+        if (response.reply) {
+          setAiResponse(response.reply);
+        }
+      } catch (aiError) {
+        console.error("AI Chat error:", aiError);
+      }
+      console.log("result", judgeResults);
+      console.log("allTestsPassed", testsPassed);
     } catch (err) {
       console.error("Judge0 error:", err);
       alert("Error sending code to Judge0: " + err);
+      setResults([]);
     } finally {
+      setCallAIChat(true);
       setIsRunningJudge0(false);
     }
-  };
-
-  // Chạy test thực tế bằng API backend
-  const handleRunTests = async () => {
-    setIsRunningTests(true);
-    try {
-      const submission: CodeSubmissionRequest = {
-        code,
-        language,
-      };
-      const response: CodeSubmissionResponse =
-        await exercisesApi.submitExerciseCode(
-          typeof exercise.id === "string" ? Number(exercise.id) : exercise.id,
-          submission
-        );
-      setResults(
-        response.results.map((r) => ({
-          input: r.input,
-          expectedOutput: r.expectedOutput,
-          actualOutput: r.actualOutput,
-          passed: r.passed,
-          error: r.error || "",
-        }))
-      );
-      // Optionally update allTestsPassed state if you want to enable submit
-      // setAllTestsPassed(response.allPassed);
-    } catch {
-      setResults([]);
-      alert("Đã xảy ra lỗi khi chạy test. Vui lòng thử lại.");
-    } finally {
-      setIsRunningTests(false);
-    }
-    setCallAIChat(true);
   };
 
   // Xử lý nộp bài
@@ -140,6 +230,13 @@ export default function ExerciseSubmission({
     // Remove displayLineNumbers call
   }, [code]);
 
+  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedLang = e.target.value;
+    setLanguage(selectedLang);
+    const found = initialCode.find((item) => item.language === selectedLang);
+    if (found) setCode(found.code);
+  };
+
   return (
     <div className="space-y-6">
       {/* Editor and Chat */}
@@ -155,7 +252,7 @@ export default function ExerciseSubmission({
                   aria-label="Chọn ngôn ngữ lập trình"
                   className="w-full bg-transparent placeholder:text-primary text-primary text-sm border border-primary rounded-xl pl-4 pr-8 py-2 transition duration-300 ease focus:outline-none focus:border-primary hover:border-primary shadow-sm focus:shadow appearance-none cursor-pointer"
                   value={language}
-                  onChange={(e) => setLanguage(e.target.value)}>
+                  onChange={handleLanguageChange}>
                   <option value="javascript">JavaScript</option>
                   <option value="typescript">TypeScript</option>
                   <option value="python">Python</option>
@@ -183,7 +280,7 @@ export default function ExerciseSubmission({
               </div>
             </div>
 
-            <div className="flex relative h-96">
+            <div className="flex relative h-96 overflow-hidden rounded-b-lg">
               <MonacoEditor
                 value={code}
                 language={language}
@@ -199,9 +296,9 @@ export default function ExerciseSubmission({
               onClick={handleTestJudge0}
               disabled={isRunningTests}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-lg transition-colors ${
-                isRunningTests ? "opacity-60 cursor-not-allowed" : ""
+                isRunningJudge0 ? "opacity-60 cursor-not-allowed" : ""
               }`}>
-              {isRunningTests ? (
+              {isRunningJudge0 ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
                   <span>Đang chạy...</span>
@@ -242,6 +339,7 @@ export default function ExerciseSubmission({
             results={results}
             calling={calling}
             title={exercise.title}
+            aiResponse={aiResponse}
           />
         </div>
       </div>
@@ -367,7 +465,7 @@ export default function ExerciseSubmission({
         </div>
 
         {/* Submit button */}
-        {testResults.length > 0 && (
+        {results.length > 0 && (
           <div className="flex justify-end">
             <button
               onClick={handleSubmit}

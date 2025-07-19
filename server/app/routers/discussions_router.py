@@ -11,7 +11,7 @@ from app.schemas.discussion_schema import (
     DiscussionListResponse,
 )
 from app.services.discussion_service import DiscussionService
-from app.utils.oauth2.oauth2_cookie import get_current_user
+from app.utils.utils import get_current_user
 from app.models.user_model import User
 
 router = APIRouter(prefix="/discussions", tags=["discussions"])
