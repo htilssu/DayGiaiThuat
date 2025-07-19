@@ -9,6 +9,8 @@ export default function AIChat({
   calling,
   title,
   aiResponse,
+  isLoading,
+  setIsLoading,
 }: {
   code: string;
   results: TestResult[];
@@ -19,6 +21,8 @@ export default function AIChat({
   };
   title: string;
   aiResponse?: string;
+  isLoading: boolean;
+  setIsLoading: (value: boolean) => void;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<
@@ -31,7 +35,6 @@ export default function AIChat({
     },
   ]);
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async () => {
     // e.preventDefault();
