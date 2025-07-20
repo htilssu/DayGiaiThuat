@@ -1,11 +1,12 @@
 name: Build
+
 on:
   pull_request:
-  path:
-    - web/**
-    - '.github/workflows/build-frontend.yml'
-
-
+    branches:
+      - main
+    paths:
+      - web/**
+      - '.github/workflows/build-fe.yml'
 jobs:
   build:
     runs-on: ubuntu-latest
