@@ -1,10 +1,10 @@
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 
-from app.schemas.exercise_schema import CreateExerciseSchema
 from app.schemas.exercise_schema import (
     CreateExerciseSchema,
     CodeSubmissionRequest,
     CodeSubmissionResponse,
+    ExerciseDetail,
     TestCaseResult,
 )
 from app.core.agents.exercise_agent import ExerciseDetail as ExerciseSchema
@@ -16,6 +16,7 @@ from app.core.agents.exercise_agent import (
 from app.services.topic_service import TopicService, get_topic_service
 from app.database.repository import Repository
 from app.database.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 import asyncio
@@ -48,11 +49,11 @@ class ExerciseService:
         self,
         exercise_agent: GenerateExerciseQuestionAgent,
         topic_service: TopicService,
-        repository: Repository[ExerciseModel],
+        session: AsyncSession,
     ):
         self.exercise_agent = exercise_agent
+        self.db = session
         self.topic_service = topic_service
-        self.repository = repository
 
     async def get_exercise(self, exercise_id: int) -> ExerciseModel:
         """
@@ -64,7 +65,12 @@ class ExerciseService:
         Returns:
             ExerciseModel: Thông tin bài tập
         """
-        exercise = await self.repository.get(exercise_id)
+        exercise = await self.db.get(ExerciseModel, exercise_id)
+        if not exercise:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Không tìm thấy bài tập với ID {exercise_id}",
+            )
         return exercise
 
     async def create_exercise(
@@ -94,11 +100,11 @@ class ExerciseService:
         )
 
         exercise_model = ExerciseModel.exercise_from_schema(exercise_detail)
-        exercise_model.topic_id = topic.id
 
-        await self.repository.create_async(exercise_model)
+        self.db.add(exercise_model)
+        await self.db.commit()
 
-        return exercise_model
+        return ExerciseDetail.model_validate(exercise_model)
 
     async def evaluate_submission(
         self, exercise_id: int, submission: CodeSubmissionRequest

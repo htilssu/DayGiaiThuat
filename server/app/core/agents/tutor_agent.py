@@ -107,7 +107,9 @@ class TutorAgent(BaseAgent):
             tags=["lesson", "generator", f"session:{session_id}"],
         )
 
-        async for chunk in runnable.astream({"input": question,"intermediate_steps": []}, config=run_config):
+        async for chunk in runnable.astream(
+            {"input": question, "intermediate_steps": []}, config=run_config
+        ):
             # Debug: In ra thông tin chunk để hiểu cấu trúc
             print(f"Chunk type: {type(chunk)}")
             print(

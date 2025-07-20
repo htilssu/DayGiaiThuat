@@ -6,6 +6,7 @@ python-multipart
 
 # Database drivers
 asyncpg                   # Async PostgreSQL driver
+psycopg2-binary
 
 # ORM & migrations
 sqlalchemy

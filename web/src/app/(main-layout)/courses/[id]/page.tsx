@@ -64,7 +64,6 @@ export default function CourseDetailPage() {
     try {
       return JSON.parse(jsonString);
     } catch (error) {
-      console.error("Lỗi khi parse JSON:", error);
       return [];
     }
   };
@@ -239,6 +238,7 @@ export default function CourseDetailPage() {
 
   // Phân tích dữ liệu từ JSON
   const requirements = parseJsonString(course.requirements);
+  console.log(course.requirements)
   const whatYouWillLearn = parseJsonString(course.whatYouWillLearn);
 
   return (

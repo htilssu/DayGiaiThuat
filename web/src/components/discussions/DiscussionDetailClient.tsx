@@ -62,7 +62,7 @@ export default function DiscussionDetailClient({ id }: Props) {
                 </Group>
             </Card>
 
-            <ReplySection discussionId={discussion.id} />
+            <ReplySection />
         </Container>
     );
 }
