@@ -1,6 +1,7 @@
 import random
 from functools import lru_cache
 from datetime import datetime
+from sqlalchemy import select
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 
@@ -10,9 +11,9 @@ from passlib.context import CryptContext
 from app.utils.string import remove_vi_accents
 from app.database.database import get_async_db
 
-from ..models.user_model import User
-from ..schemas.auth_schema import UserRegister
-from ..schemas.user_profile_schema import UserUpdate
+from app.models.user_model import User
+from app.schemas.auth_schema import UserRegister
+from app.schemas.user_profile_schema import UserUpdate
 
 
 @lru_cache(maxsize=1)
@@ -63,7 +64,9 @@ class UserService:
         Returns:
             Optional[User]: Thông tin người dùng hoặc None nếu không tìm thấy
         """
-        return self.db.query(User).filter(User.email == email).first()
+        return self.db.execute(
+            select(User).where(User.email == email)
+        ).scalar_one_or_none()
 
     async def get_user_by_username(self, username: str) -> Optional[User]:
         """
@@ -592,93 +595,6 @@ class UserService:
         await self._check_account_age_badge(user)
 
         return user
-
-    async def _check_problem_solved_badge(self, user: User) -> None:
-        """
-        Kiểm tra và cấp huy hiệu liên quan đến số bài giải được
-
-        Args:
-            user (User): Thông tin người dùng
-        """
-        stats = user.stats if user.stats else {}
-        problems_solved = stats.get("problems_solved", 0)
-
-        # Danh sách huy hiệu problems_solved
-        problem_badges = [
-            {
-                "id": 30,
-                "name": "Coder tập sự",
-                "icon": "💻",
-                "description": "Giải được 10 bài tập",
-                "threshold": 10,
-            },
-            {
-                "id": 31,
-                "name": "Coder chuyên nghiệp",
-                "icon": "👨‍💻",
-                "description": "Giải được 50 bài tập",
-                "threshold": 50,
-            },
-            {
-                "id": 32,
-                "name": "Coder huyền thoại",
-                "icon": "🧙‍♂️",
-                "description": "Giải được 100 bài tập",
-                "threshold": 100,
-            },
-        ]
-
-        # Kiểm tra từng huy hiệu
-        for badge_data in problem_badges:
-            if problems_solved >= badge_data["threshold"]:
-                # Xóa trường threshold trước khi thêm huy hiệu
-                badge_info = {k: v for k, v in badge_data.items() if k != "threshold"}
-                await self.add_badge(user.id, badge_info)
-
-    async def _check_account_age_badge(self, user: User) -> None:
-        """
-        Kiểm tra và cấp huy hiệu liên quan đến tuổi tài khoản
-
-        Args:
-            user (User): Thông tin người dùng
-        """
-        if not user.created_at:
-            return
-
-        # Tính số ngày kể từ khi tạo tài khoản
-        account_age_days = (datetime.now() - user.created_at).days
-
-        # Danh sách huy hiệu account_age
-        age_badges = [
-            {
-                "id": 40,
-                "name": "Thành viên mới",
-                "icon": "👶",
-                "description": "Tài khoản đã tồn tại 30 ngày",
-                "threshold": 30,
-            },
-            {
-                "id": 41,
-                "name": "Thành viên trung thành",
-                "icon": "👨",
-                "description": "Tài khoản đã tồn tại 180 ngày",
-                "threshold": 180,
-            },
-            {
-                "id": 42,
-                "name": "Thành viên lâu năm",
-                "icon": "👴",
-                "description": "Tài khoản đã tồn tại 365 ngày",
-                "threshold": 365,
-            },
-        ]
-
-        # Kiểm tra từng huy hiệu
-        for badge_data in age_badges:
-            if account_age_days >= badge_data["threshold"]:
-                # Xóa trường threshold trước khi thêm huy hiệu
-                badge_info = {k: v for k, v in badge_data.items() if k != "threshold"}
-                await self.add_badge(user.id, badge_info)
 
     async def _random_username(self, first_name: str, last_name: str) -> str:
         fullname = f"{first_name.lower()}{last_name.lower()}"
