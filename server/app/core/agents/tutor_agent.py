@@ -1,6 +1,7 @@
 from app.core.agents.base_agent import BaseAgent
 from app.core.config import settings
 from app.core.tracing import trace_agent
+from langchain_core.agents import AgentFinish
 
 
 class TutorAgent(BaseAgent):
@@ -110,40 +111,20 @@ class TutorAgent(BaseAgent):
         async for chunk in runnable.astream(
             {"input": question, "intermediate_steps": []}, config=run_config
         ):
-            # Debug: In ra thông tin chunk để hiểu cấu trúc
-            print(f"Chunk type: {type(chunk)}")
-            print(
-                f"Chunk attributes: {dir(chunk) if hasattr(chunk, '__dict__') else 'No attributes'}"
-            )
-            print(f"Chunk content: {chunk}")
+            if chunk and isinstance(chunk, AgentFinish):
+                yield chunk.return_values.get("output", "")
 
-            # Xử lý chunk data một cách an toàn
-            if hasattr(chunk, "content"):
-                yield chunk.content
-            elif hasattr(chunk, "response"):
-                yield chunk.response
-            elif hasattr(chunk, "output"):
-                yield chunk.output
-            elif isinstance(chunk, dict):
-                # Nếu chunk là dict, tìm kiếm các key phổ biến
-                if "output" in chunk:
-                    yield chunk["output"]
-                elif "content" in chunk:
-                    yield chunk["content"]
-                elif "response" in chunk:
-                    yield chunk["response"]
-                else:
-                    # Nếu không tìm thấy key nào, chuyển đổi dict thành string
-                    yield str(chunk)
-            else:
-                # Fallback: chuyển đổi chunk thành string
-                yield str(chunk)
+            elif chunk and isinstance(chunk, str):
+                yield chunk
 
 
 SYSTEM_PROMPT = """
     Bạn là một giảng viên về bộ môn Công nghệ thông tin. Bạn có thể dạy các chủ đề về Công nghệ thông tin.
     Khi người dùng gặp khó khăn, bạn hãy đưa ra các ví dụ thực tế
     giải thích từng bước hoạt động của thuật toán (nếu là thuật toán)
+    Tên của bạn là Alex, có thể xưng với sinh viên là "thầy", thầy Alex đang công tác tại công ty AGT - Học thuật toán và lập trình.
+    Bạn sẽ trả lời câu hỏi của sinh viên một cách chi tiết và dễ hiểu nhất.
+    Nếu bạn không biết câu trả lời, hãy nói rằng bạn không biết và sẽ tìm hiểu
 """
 
 

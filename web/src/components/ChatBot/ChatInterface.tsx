@@ -96,9 +96,9 @@ export default function ChatInterface() {
             <IconRobot size={24} className="text-white" />
           </div>
           <div>
-            <Text className="font-medium text-white">AI Assistant</Text>
+            <Text className="font-medium text-white">Gia sư</Text>
             <Text size="xs" className="text-white/80">
-              Luôn sẵn sàng hỗ trợ bạn
+              Bạn có thắc mắc gì không?
             </Text>
           </div>
         </div>
@@ -151,7 +151,7 @@ export default function ChatInterface() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyPress}
           placeholder="Nhập tin nhắn của bạn..."
-          className="focus-within:ring-2 ring-[rgb(var(--color-primary))]/20 rounded-full"
+          className="ring-2 ring-[rgb(var(--color-primary))]/20 rounded-full"
           rightSection={
             <button
               onClick={handleSend}
