@@ -103,7 +103,7 @@ async function submitExerciseCode(
 async function sendCodeToJudge(
   submission: Judge0SubmissionRequest
 ): Promise<Judge0SubmissionResponse> {
-  const JUDGE0_API_URL = "https://b5dfe06966c0.ngrok-free.app";
+  const JUDGE0_API_URL = "https://3b947351b5b5.ngrok-free.app";
 
   function sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms));

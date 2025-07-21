@@ -193,14 +193,14 @@ Sau khi cấu hình xong:
 
 ### Troubleshooting
 
-#### Ảnh upload thành công nhưng không hiển thị:
+#### Ảnh upload thành công nhưng không hiển thị
 
 1. **Kiểm tra Public Access**: Đảm bảo bucket đã bật public access
 2. **Kiểm tra URL format**: URL phải có format `https://[bucket].r2.dev/[file-path]`
 3. **Kiểm tra CORS**: Nếu có lỗi CORS, cần cấu hình CORS policy
 4. **Restart frontend**: Next.js cần restart để áp dụng thay đổi cấu hình
 
-#### Lỗi upload:
+#### Lỗi upload
 
 1. **Kiểm tra credentials**: Access key và secret key đúng chưa
 2. **Kiểm tra permissions**: Token có quyền write vào bucket không
