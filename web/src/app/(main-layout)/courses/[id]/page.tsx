@@ -238,7 +238,6 @@ export default function CourseDetailPage() {
 
   // Phân tích dữ liệu từ JSON
   const requirements = parseJsonString(course.requirements);
-  console.log(course.requirements)
   const whatYouWillLearn = parseJsonString(course.whatYouWillLearn);
 
   return (
