@@ -52,20 +52,12 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "default"
     DEV_MODE: Optional[bool] = True
-
-    # Uvicorn settings
-    UVICORN_HOST: str = "0.0.0.0"
-    UVICORN_PORT: int = 8000
-    UVICORN_WORKERS: int = 1  # Trong dev mode chỉ dùng 1 worker
-    UVICORN_RELOAD: bool = True
-    UVICORN_LOG_LEVEL: str = "info"
-    UVICORN_ACCESS_LOG: bool = True
-
     # CORS
     BACKEND_CORS_ORIGINS: List[str]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    def assemble_cors_origins(self, v: str | List[str]) -> List[str]:
+    @classmethod
+    def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
         """
         Xử lý giá trị BACKEND_CORS_ORIGINS từ biến môi trường
 
@@ -100,8 +92,8 @@ class Settings(BaseSettings):
 
     # Cookie settings
     COOKIE_DOMAIN: Optional[str] = ""  # Sử dụng chuỗi rỗng thay vì None
-    COOKIE_SECURE: bool = False  # True trong production
-    COOKIE_SAMESITE: str = "lax"  # 'lax', 'strict', or 'none'
+    COOKIE_SECURE: bool = True  # True trong production
+    COOKIE_SAMESITE: str = "none"  # 'lax', 'strict', or 'none'
     COOKIE_NAME: str = "access_token"
     COOKIE_HTTPONLY: bool = True
     COOKIE_MAX_AGE: int = 60 * 60 * 30 * 24  # 30 ngày

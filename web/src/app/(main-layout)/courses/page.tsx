@@ -6,37 +6,26 @@ import Link from "next/link";
 import { coursesApi, CourseListItem } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/lib/store";
+import { useQuery } from "@tanstack/react-query";
 
 /**
  * Component hiển thị danh sách khóa học
  */
 export default function CourseListPage() {
-  const [courses, setCourses] = useState<CourseListItem[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const router = useRouter();
   const userState = useAppSelector((state) => state.user);
-
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        setIsLoading(true);
-        const response = await coursesApi.getCourses(currentPage, 6);
-        setCourses(response.items);
-        setTotalPages(response.totalPages);
-        setError(null);
-      } catch (err) {
-        console.error("Lỗi khi tải khóa học:", err);
-        setError("Không thể tải danh sách khóa học. Vui lòng thử lại sau.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchCourses();
-  }, [currentPage]);
+  const { data: courses, isLoading } = useQuery({
+    queryKey: ['courses', currentPage],
+    queryFn: async () => {
+      const data = await coursesApi.getCourses(currentPage, 6)
+      setTotalPages(data.totalPages)
+      return data.items as CourseListItem[];
+    },
+    enabled: !!userState.user,
+  });
 
   // Xử lý chuyển trang
   const handlePageChange = (page: number) => {
@@ -201,8 +190,8 @@ export default function CourseListPage() {
                     key={page}
                     onClick={() => handlePageChange(page)}
                     className={`px-4 py-2 rounded-lg transition ${currentPage === page
-                        ? "bg-primary text-white"
-                        : "border border-foreground/20 hover:bg-foreground/5"
+                      ? "bg-primary text-white"
+                      : "border border-foreground/20 hover:bg-foreground/5"
                       }`}
                   >
                     {page}
