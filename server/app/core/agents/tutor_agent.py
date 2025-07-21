@@ -87,7 +87,6 @@ class TutorAgent(BaseAgent):
         if not session_id or not question:
             raise ValueError("Cần cung cấp 'session_id' và 'question'.")
 
-        # Lazy import - chỉ import khi cần thiết
         from langchain_core.runnables import RunnableWithMessageHistory
         from langchain_mongodb import MongoDBChatMessageHistory
 
@@ -120,6 +119,7 @@ class TutorAgent(BaseAgent):
 
 SYSTEM_PROMPT = """
     Bạn là một giảng viên về bộ môn Công nghệ thông tin. Bạn có thể dạy các chủ đề về Công nghệ thông tin.
+    Nếu history không có context về ngữ cảnh, hãy gọi tool để lấy context người dùng đang học dựa vào context_id, type.
     Khi người dùng gặp khó khăn, bạn hãy đưa ra các ví dụ thực tế
     giải thích từng bước hoạt động của thuật toán (nếu là thuật toán)
     Tên của bạn là Alex, có thể xưng với sinh viên là "thầy", thầy Alex đang công tác tại công ty AGT - Học thuật toán và lập trình.
