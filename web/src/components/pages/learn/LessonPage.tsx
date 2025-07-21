@@ -390,16 +390,17 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                         {renderSection(currentSection as any)}
 
                         <div className="flex justify-between mt-8">
-                            <button
-                                onClick={handlePrev}
-                                disabled={currentSectionIndex === 0}
-                                className={`px-4 py-2 rounded-lg ${currentSectionIndex === 0
-                                    ? "text-gray-400 cursor-not-allowed"
-                                    : "bg-foreground/15"
-                                    }`}
-                            >
-                                Quay lại
-                            </button>
+                            {currentSectionIndex > 0 ? (
+                                <button
+                                    onClick={handlePrev}
+                                    className={`px-4 py-2 rounded-lg ${currentSectionIndex === 0
+                                        ? "text-gray-400 cursor-not-allowed"
+                                        : "bg-foreground/15"
+                                        }`}
+                                >
+                                    Quay lại
+                                </button>
+                            ) : <div></div>}
                             <button
                                 onClick={handleNext}
                                 disabled={isQuiz && selectedAnswer === null}

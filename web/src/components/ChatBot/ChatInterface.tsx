@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { IconSend, IconRobot } from "@tabler/icons-react";
-import { TextInput, Text, ScrollArea } from "@mantine/core";
-import { GoogleGenAI } from "@google/genai";
-import LoadingDots from "./LoadingDots";
 import { tutorApi } from "@/lib/api/tutor";
+import { ScrollArea, Text, TextInput } from "@mantine/core";
+import { IconRobot, IconSend } from "@tabler/icons-react";
+import { useEffect, useRef, useState } from "react";
+import LoadingDots from "./LoadingDots";
+import { useAppSelector } from "@/lib/store";
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<
@@ -19,6 +19,7 @@ export default function ChatInterface() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const viewport = useRef<HTMLDivElement>(null);
+  const tutorState = useAppSelector((state) => state.tutor);
 
   useEffect(() => {
     // Scroll to bottom whenever messages change or loading state changes
@@ -38,12 +39,17 @@ export default function ChatInterface() {
     setInput("");
     setIsLoading(true);
 
+    if (tutorState.contextId) {
+      console.log("Context ID is set:", tutorState.contextId);
+      return;
+    }
+
     try {
       const response = await tutorApi.sendChat(
-        "default-session", // Replace with actual session ID if needed
+        tutorState.sessionId!,
         input,
-        "lesson", // Replace with actual type if needed
-        "default-context" // Replace with actual context ID if needed
+        tutorState.type,
+        tutorState.contextId!
       );
 
       if (!response || !response.getReader) {
