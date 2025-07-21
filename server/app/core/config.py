@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: List[str]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
+    def assemble_cors_origins(self, v: str | List[str]) -> List[str]:
         """
         Xử lý giá trị BACKEND_CORS_ORIGINS từ biến môi trường
 
