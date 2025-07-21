@@ -1,16 +1,19 @@
 "use client";
 
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import Link from "next/link";
+import { CodeBlock } from "@/components/ui/CodeBlock";
+import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { socketType, useWebSocket } from "@/contexts/WebSocketContext";
 import { lessonsApi } from "@/lib/api";
 import { Lesson, LessonSection } from "@/lib/api/lessons";
-import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
-import { CodeBlock } from "@/components/ui/CodeBlock";
 import { processLessonContent } from "@/lib/contentUtils";
-import { socketType, useWebSocket } from "@/contexts/WebSocketContext";
+import { useAppDispatch, useAppSelector } from "@/lib/store";
+import { setState } from "@/lib/store/tutor";
+import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 interface LessonPageProps {
     topicId: string;
@@ -18,7 +21,8 @@ interface LessonPageProps {
 }
 
 export function LessonPage({ topicId, lessonId }: LessonPageProps) {
-    const [lesson, setLesson] = useState<Lesson | null>(null);
+    const tutor = useAppSelector(state => state.tutor);
+    const dispatch = useAppDispatch();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
@@ -26,29 +30,31 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
     const [showExplanation, setShowExplanation] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);
     const [nextLessonId, setNextLessonId] = useState<number | null>(null);
-    const { socket, sendMessage } = useWebSocket();
-    const router = useRouter();
-    useEffect(() => {
-        async function fetchLesson() {
-            setIsLoading(true);
-            setError(null);
-            try {
-                sendMessage({
-                    type: socketType.LEARN_START_LESSON,
-                    data: {
-                        lessonId: lessonId
-                    }
-                });
-                const data = await lessonsApi.getLessonById(Number(lessonId));
-                setLesson(data);
-            } catch (err: any) {
-                setError("Không thể tải thông tin bài học. Vui lòng thử lại sau.");
-            } finally {
-                setIsLoading(false);
+    const { data: lesson } = useQuery({
+        queryKey: ["lesson", lessonId],
+        queryFn: async (): Promise<Lesson> => {
+            const data = await lessonsApi.getLessonById(Number(lessonId));
+            if (!data) {
+                throw new Error("Lesson not found");
             }
-        }
-        fetchLesson();
-    }, [lessonId]);
+            setIsLoading(false);
+            dispatch(setState({
+                sessionId: null,
+                type: "lesson",
+                contextId: data.id.toString()
+            }));
+            setCurrentSectionIndex(0);
+            setSelectedAnswer(null);
+            setShowExplanation(false);
+            setIsCompleted(data.isCompleted || false);
+            setNextLessonId(data.nextLessonId || null);
+            if (data.isCompleted) {
+                setCurrentSectionIndex((data?.sections?.length ?? 1) - 1);
+            }
+            return data;
+        },
+    });
+    const router = useRouter();
 
     if (isLoading) {
         return (
