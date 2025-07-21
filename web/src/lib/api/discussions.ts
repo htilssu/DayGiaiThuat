@@ -1,70 +1,76 @@
+import { get, post, patch, del } from "./client";
+
 export interface Discussion {
-    id: string;
-    title: string;
-    content: string;
-    author: string;
-    category: string;
-    createdAt: string;
-    replies: number;
+  id: number;
+  title: string;
+  content: string;
+  author: string;
+  category: string;
+  createdAt: string;
+  updatedAt: string;
+  replies: number;
 }
 
 export interface DiscussionsResponse {
-    discussions: Discussion[];
-    totalPages: number;
-    currentPage: number;
-    total: number;
+  discussions: Discussion[];
+  total: number;
+  page: number;
+  totalPages: number;
 }
 
 export interface GetDiscussionsParams {
-    search?: string;
-    sortBy?: "newest" | "oldest" | "most-replies";
-    page?: number;
-    limit?: number;
+  search?: string;
+  category?: string;
+  sortBy?: "newest" | "oldest" | "most-replies";
+  page?: number;
+  limit?: number;
+}
+
+export interface CreateDiscussionParams {
+  title: string;
+  content: string;
+  category: string;
+}
+
+export interface UpdateDiscussionParams {
+  title?: string;
+  content?: string;
+  category?: string;
 }
 
 export const discussionsApi = {
-    getDiscussions: async (params: GetDiscussionsParams): Promise<DiscussionsResponse> => {
-        // Mock data
-        const mockDiscussions: Discussion[] = [
-            {
-                id: "1",
-                title: "Hỏi về thuật toán sắp xếp nào tốt nhất?",
-                content: "Tôi đang học về các thuật toán sắp xếp...",
-                author: "Nguyễn Văn A",
-                category: "Thuật toán",
-                createdAt: new Date().toISOString(),
-                replies: 5
-            },
-            {
-                id: "2",
-                title: "Làm thế nào để tối ưu hóa code Python?",
-                content: "Cần lời khuyên về việc tối ưu hóa code...",
-                author: "Trần Thị B",
-                category: "Python",
-                createdAt: new Date().toISOString(),
-                replies: 3
-            }
-        ];
+  getDiscussions: async (
+    params: GetDiscussionsParams = {}
+  ): Promise<DiscussionsResponse> => {
+    // Build query string
+    const query = new URLSearchParams();
+    if (params.search) query.append("search", params.search);
+    if (params.category) query.append("category", params.category);
+    if (params.sortBy) query.append("sort_by", params.sortBy);
+    if (params.page) query.append("page", params.page.toString());
+    if (params.limit) query.append("limit", params.limit.toString());
+    const url = `/discussions?${query.toString()}`;
+    return get<DiscussionsResponse>(url);
+  },
 
-        return Promise.resolve({
-            discussions: mockDiscussions,
-            totalPages: 1,
-            currentPage: 1,
-            total: mockDiscussions.length
-        });
-    },
+  getDiscussion: async (id: number): Promise<Discussion> => {
+    return get<Discussion>(`/discussions/${id}`);
+  },
 
-    getDiscussion: async (id: string): Promise<Discussion> => {
-        const mockDiscussion: Discussion = {
-            id,
-            title: `Thảo luận ${id}`,
-            content: "Nội dung thảo luận...",
-            author: "User",
-            category: "General",
-            createdAt: new Date().toISOString(),
-            replies: 0
-        };
+  createDiscussion: async (
+    data: CreateDiscussionParams
+  ): Promise<Discussion> => {
+    return post<Discussion>("/discussions", data);
+  },
 
-        return Promise.resolve(mockDiscussion);
-    }
-}; 
+  updateDiscussion: async (
+    id: number,
+    data: UpdateDiscussionParams
+  ): Promise<Discussion> => {
+    return patch<Discussion>(`/discussions/${id}`, data);
+  },
+
+  deleteDiscussion: async (id: number): Promise<void> => {
+    return del<void>(`/discussions/${id}`);
+  },
+};

@@ -11,6 +11,7 @@ export * from "./exercises";
 export * from "./quizzes";
 export * from "./test";
 export * from "./upload";
+export * from "./discussions";
 
 // Admin APIs
 export * from "./admin-courses";

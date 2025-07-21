@@ -1,50 +1,33 @@
 "use client";
 import { useState } from "react";
 import { Card, Group, Textarea, Button, Text, Avatar } from "@mantine/core";
+import { repliesApi, type Reply } from "@/lib/api/replies";
 
-interface Reply {
-  id: number;
-  author: string;
-  content: string;
-  createdAt: string;
+interface ReplySectionProps {
+  replies: Reply[];
+  reloadReplies: () => Promise<void>;
+  discussionId: number;
 }
 
-export default function ReplySection() {
-  const [replies, setReplies] = useState<Reply[]>([
-    {
-      id: 1,
-      author: "Jane Doe",
-      content:
-        "Great question! I think binary search is all about keeping track of your left and right pointers.",
-      createdAt: new Date(Date.now() - 3600 * 1000 * 2).toISOString(),
-    },
-    {
-      id: 2,
-      author: "John Smith",
-      content: "Check out the lesson linked above, it helped me a lot!",
-      createdAt: new Date(Date.now() - 3600 * 1000 * 1).toISOString(),
-    },
-  ]);
+export default function ReplySection({
+  replies,
+  reloadReplies,
+  discussionId,
+}: ReplySectionProps) {
   const [input, setInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
     setIsSubmitting(true);
-    setTimeout(() => {
-      setReplies([
-        ...replies,
-        {
-          id: replies.length + 1,
-          author: "You",
-          content: input,
-          createdAt: new Date().toISOString(),
-        },
-      ]);
+    try {
+      await repliesApi.createReply({ discussionId, content: input });
       setInput("");
+      await reloadReplies();
+    } finally {
       setIsSubmitting(false);
-    }, 500);
+    }
   };
 
   return (
@@ -84,7 +67,6 @@ export default function ReplySection() {
                 <Text size="xs" c="dimmed">
                   {new Date(reply.createdAt).toLocaleString()}
                 </Text>
-                {/* <Text mt={4}>{reply.content}</Text> */}
               </div>
             </Group>
             <div className="mt-4 text-foreground/80 text-base prose max-w-none">

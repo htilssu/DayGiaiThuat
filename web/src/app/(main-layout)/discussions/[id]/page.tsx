@@ -1,9 +1,13 @@
-import { discussions } from "@/data/discussions";
+"use client";
+
+import { discussionsApi } from "@/lib/api";
+import { repliesApi, type Reply } from "@/lib/api/replies";
 import { notFound } from "next/navigation";
 import { Container, Title, Group, Badge, Text, Card } from "@mantine/core";
 import { IconMessageCircle } from "@tabler/icons-react";
 import ReactMarkdown from "react-markdown";
 import ReplySection from "@/components/discussions/Reply";
+import { useEffect, useState } from "react";
 
 interface Props {
   params: { id: string };
@@ -11,9 +15,41 @@ interface Props {
 
 export default function DiscussionDetailPage({ params }: Props) {
   const id = Number(params.id);
-  const discussion = discussions.find((d) => d.id === id);
+  const [discussion, setDiscussion] = useState<
+    import("@/lib/api/discussions").Discussion | null
+  >(null);
+  const [replies, setReplies] = useState<Reply[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notFoundFlag, setNotFoundFlag] = useState(false);
 
-  if (!discussion) return notFound();
+  const fetchDiscussion = async () => {
+    try {
+      const data = await discussionsApi.getDiscussion(id);
+      setDiscussion(data);
+    } catch {
+      setNotFoundFlag(true);
+    }
+  };
+
+  const fetchReplies = async () => {
+    try {
+      const data = await repliesApi.getRepliesByDiscussion(id);
+      setReplies(data.replies);
+    } catch {
+      setReplies([]);
+    }
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([fetchDiscussion(), fetchReplies()]).finally(() =>
+      setLoading(false)
+    );
+    // eslint-disable-next-line
+  }, [id]);
+
+  if (notFoundFlag) return notFound();
+  if (loading || !discussion) return null;
 
   return (
     <Container size="sm" py="xl">
@@ -56,7 +92,11 @@ export default function DiscussionDetailPage({ params }: Props) {
             </div>
           </div>
         </Group>
-        <ReplySection />
+        <ReplySection
+          replies={replies}
+          reloadReplies={fetchReplies}
+          discussionId={id}
+        />
       </Card>
     </Container>
   );

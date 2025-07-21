@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel
@@ -27,7 +26,7 @@ class DiscussionFilters(BaseModel):
     """Schema for discussion filters"""
     search: Optional[str] = None
     category: Optional[str] = None
-    sort_by: Optional[str] = "newest"  # newest, oldest, most-replies
+    sortBy: Optional[str] = "newest"  # newest, oldest, most-replies
     page: Optional[int] = 1
     limit: Optional[int] = 10
 
@@ -35,11 +34,10 @@ class DiscussionFilters(BaseModel):
 class DiscussionResponse(DiscussionBase):
     """Schema for discussion response"""
     id: int
-    user_id: int
     author: str  # username of the author
-    replies_count: int
-    created_at: datetime
-    updated_at: datetime
+    replies: int
+    createdAt: str  # ISO string for frontend compatibility
+    updatedAt: str
 
     class Config:
         from_attributes = True
@@ -50,7 +48,7 @@ class DiscussionListResponse(BaseModel):
     discussions: List[DiscussionResponse]
     total: int
     page: int
-    total_pages: int
+    totalPages: int
 
     class Config:
         from_attributes = True 
