@@ -13,8 +13,11 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
-export default function DiscussionDetailPage({ params }: Props) {
-  const id = Number(params.id);
+export default async function DiscussionDetailPage({ params }: Props) {
+  const { id } = await params;
+  if (!id) return notFound();
+  if (isNaN(Number(id))) return notFound();
+  const idNumber = Number(id);
   const [discussion, setDiscussion] = useState<
     import("@/lib/api/discussions").Discussion | null
   >(null);
@@ -24,7 +27,7 @@ export default function DiscussionDetailPage({ params }: Props) {
 
   const fetchDiscussion = async () => {
     try {
-      const data = await discussionsApi.getDiscussion(id);
+      const data = await discussionsApi.getDiscussion(idNumber);
       setDiscussion(data);
     } catch {
       setNotFoundFlag(true);
@@ -33,7 +36,7 @@ export default function DiscussionDetailPage({ params }: Props) {
 
   const fetchReplies = async () => {
     try {
-      const data = await repliesApi.getRepliesByDiscussion(id);
+      const data = await repliesApi.getRepliesByDiscussion(idNumber);
       setReplies(data.replies);
     } catch {
       setReplies([]);
@@ -95,7 +98,7 @@ export default function DiscussionDetailPage({ params }: Props) {
         <ReplySection
           replies={replies}
           reloadReplies={fetchReplies}
-          discussionId={id}
+          discussionId={idNumber}
         />
       </Card>
     </Container>
