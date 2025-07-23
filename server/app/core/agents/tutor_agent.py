@@ -1,7 +1,15 @@
+from langchain_core.tools import Tool
+
 from app.core.agents.base_agent import BaseAgent
 from app.core.config import settings
 from app.core.tracing import trace_agent
 from langchain_core.agents import AgentFinish
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.lesson_model import Lesson
+from sqlalchemy import select
+
+from app.utils.model_utils import model_to_dict
 
 
 class TutorAgent(BaseAgent):
@@ -9,11 +17,28 @@ class TutorAgent(BaseAgent):
     context: context ngữ cảnh hiện tại để llm có thể hiểu được
     """
 
-    def __init__(self):
+    def __init__(self, db: AsyncSession):
         super().__init__()
         self.available_args = ["session_id", "question", "type", "context_id"]
         self._prompt = None
+        self.db = db
         self._agent = None
+
+    @property
+    def tools(self):
+        """Lazy initialization của tools"""
+        if self._tools is None:
+            # Lazy import - chỉ import khi cần thiết
+            from langchain.agents import Tool
+
+            self._tools = [
+                Tool(
+                    name="get_context",
+                    func=self.get_context,
+                    description="Lấy context người dùng đang học dựa vào context_id và type.",
+                )
+            ]
+        return self._tools
 
     @property
     def prompt(self):
@@ -36,6 +61,36 @@ class TutorAgent(BaseAgent):
                 ]
             )
         return self._prompt
+
+    async def get_context(self, context_id, context_type):
+        """
+        Lấy context người dùng đang học dựa vào context_id và type.
+        """
+        if not context_id or not context_type:
+            raise ValueError("Cần cung cấp 'context_id' và 'type'.")
+
+        if context_type not in ["lesson", "exercise"]:
+            raise ValueError("Type phải là 'lesson' hoặc 'exercise'.")
+
+        if context_type == "lesson":
+            context = await self.db.execute(
+                select(Lesson).where(Lesson.id == context_id)
+            )
+            context = context.scalar_one_or_none()
+            if not context:
+                raise ValueError(f"Không tìm thấy lesson với id {context_id}.")
+            return model_to_dict(context)
+        elif context_type == "exercise":
+            from app.models.exercise_model import Exercise
+
+            context = await self.db.execute(
+                select(Exercise).where(Exercise.id == context_id)
+            )
+            context = context.scalar_one_or_none()
+            if not context:
+                raise ValueError(f"Không tìm thấy exercise với id {context_id}.")
+            return model_to_dict(context)
+        return None
 
     @property
     def agent(self):
@@ -126,10 +181,3 @@ SYSTEM_PROMPT = """
     Bạn sẽ trả lời câu hỏi của sinh viên một cách chi tiết và dễ hiểu nhất.
     Nếu bạn không biết câu trả lời, hãy nói rằng bạn không biết và sẽ tìm hiểu
 """
-
-
-def get_tutor_agent():
-    """
-    Hàm để lấy instance của TutorAgent.
-    """
-    return TutorAgent()

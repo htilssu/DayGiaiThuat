@@ -39,3 +39,8 @@ unidecode
 boto3
 bidict
 passlib
+pinecone
+protobuf
+langchain
+pytest
+botocore

@@ -3,9 +3,10 @@ import uuid
 
 from starlette.responses import StreamingResponse
 
+from app.database.database import AsyncSessionLocal
 from app.schemas.tutor_schema import AskTutorSchema
 from app.utils.utils import get_current_user
-from app.core.agents.tutor_agent import TutorAgent, get_tutor_agent
+from app.core.agents.tutor_agent import TutorAgent
 from app.schemas.user_profile_schema import UserExcludeSecret
 
 
@@ -16,8 +17,10 @@ router = APIRouter(prefix="/tutor", tags=["Giáo viên"])
 async def post_tutor(
     data: AskTutorSchema,
     user: UserExcludeSecret = Depends(get_current_user),
-    tutor_agent: TutorAgent = Depends(get_tutor_agent),
 ):
+    async with AsyncSessionLocal() as db:
+        tutor_agent = TutorAgent(db)
+
     if data.session_id is None:
         data.session_id = str(uuid.uuid4())
 

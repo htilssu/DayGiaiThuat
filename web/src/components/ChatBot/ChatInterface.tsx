@@ -6,6 +6,7 @@ import { IconRobot, IconSend } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import LoadingDots from "./LoadingDots";
 import { useAppSelector } from "@/lib/store";
+import { MarkdownRenderer } from "../ui/MarkdownRenderer";
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<
@@ -39,12 +40,8 @@ export default function ChatInterface() {
     setInput("");
     setIsLoading(true);
 
-    if (tutorState.contextId) {
-      console.log("Context ID is set:", tutorState.contextId);
-      return;
-    }
-
     try {
+      console.log("Sending message to tutor API:", input);
       const response = await tutorApi.sendChat(
         tutorState.sessionId!,
         input,
@@ -133,7 +130,7 @@ export default function ChatInterface() {
                     : "bg-[rgb(var(--color-primary))]/10 rounded-bl-sm"
                   }
                 `}>
-                <Text size="sm">{message.text}</Text>
+                <MarkdownRenderer content={message.text} />
               </div>
             </div>
           ))}

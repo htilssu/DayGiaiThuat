@@ -94,7 +94,7 @@ export default function CoursesListPage() {
             ) : (
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {courses!.map((course) => (
+                        {courses?.map((course) => (
                             <div
                                 key={course.id}
                                 className="group bg-background rounded-xl overflow-hidden border border-foreground/10 hover:border-primary transition-all duration-300 h-full flex flex-col cursor-pointer"

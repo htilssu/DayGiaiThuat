@@ -9,7 +9,7 @@ class BaseAgent(object):
 
     def __init__(self):
         self.available_args = []
-        self.tools = []
+        self._tools = []
         self._base_llm = None
         self._callback_manager = get_callback_manager("default")
 
