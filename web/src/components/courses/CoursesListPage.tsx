@@ -1,9 +1,11 @@
+'use client';
+
 import { CourseListItem, coursesApi } from "@/lib/api/courses";
 import { useAppSelector } from "@/lib/store";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Image } from "next/image";
+import { Key, useState } from "react";
+import Image from "next/image";
 
 export default function CoursesListPage() {
     const [error, setError] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export default function CoursesListPage() {
             {/* Danh sách khóa học */}
             {isLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {[...Array(6)].map((_, i) => (
+                    {[...Array(6)].map((_: any, i: Key | null | undefined) => (
                         <div
                             key={i}
                             className="bg-foreground/5 rounded-xl p-4 h-96 animate-pulse"></div>

@@ -1,9 +1,10 @@
-import { CourseListItem, coursesApi } from "@/lib/api";
-import { useAppSelector } from "@/lib/store";
-import { useQuery } from "@tanstack/react-query";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import CoursesListPage from "@/components/courses/CoursesListPage";
+
+export const metadata = {
+  title: "Danh sách khóa học",
+  description: "Khám phá các khóa học về giải thuật và lập trình",
+  authors: [{ name: "AI Agent Giải Thuật Team" }],
+};
 
 /**
  * Component hiển thị danh sách khóa học
