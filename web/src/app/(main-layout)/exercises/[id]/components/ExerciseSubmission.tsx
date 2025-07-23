@@ -137,6 +137,7 @@ yourFunction()`,
 
   const [code, setCode] = useState(initialCode[0].code);
   const [language, setLanguage] = useState("javascript");
+  const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<
     Array<{
       input: string;
@@ -159,6 +160,7 @@ yourFunction()`,
   // Test Judge0 functionality
   const handleTestJudge0 = async () => {
     setIsRunningJudge0(true);
+    setIsLoading(true);
     try {
       const testCases = exercise.testCases || [];
       const judgeResults = await Promise.all(
@@ -208,6 +210,7 @@ yourFunction()`,
     } finally {
       setCallAIChat(true);
       setIsRunningJudge0(false);
+      setIsLoading(false);
     }
   };
 
@@ -340,6 +343,8 @@ yourFunction()`,
             calling={calling}
             title={exercise.title}
             aiResponse={aiResponse}
+            isLoading={isLoading}
+            setIsLoading={setIsLoading}
           />
         </div>
       </div>

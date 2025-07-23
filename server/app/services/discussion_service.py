@@ -37,11 +37,10 @@ class DiscussionService:
             title=db_discussion.title,
             content=db_discussion.content,
             category=db_discussion.category,
-            user_id=db_discussion.user_id,
             author=author.username if author else "Unknown",
-            replies_count=0,
-            created_at=db_discussion.created_at,
-            updated_at=db_discussion.updated_at,
+            replies=0,
+            createdAt=db_discussion.created_at.isoformat() if db_discussion.created_at else None,
+            updatedAt=db_discussion.updated_at.isoformat() if db_discussion.updated_at else None,
         )
 
     @staticmethod
@@ -67,9 +66,9 @@ class DiscussionService:
         total = query.count()
         
         # Apply sorting
-        if filters.sort_by == "oldest":
+        if filters.sortBy == "oldest":
             query = query.order_by(asc(Discussion.created_at))
-        elif filters.sort_by == "most-replies":
+        elif filters.sortBy == "most-replies":
             query = query.outerjoin(Reply).group_by(Discussion.id).order_by(
                 desc(func.count(Reply.id))
             )
@@ -92,11 +91,10 @@ class DiscussionService:
                     title=discussion.title,
                     content=discussion.content,
                     category=discussion.category,
-                    user_id=discussion.user_id,
                     author=discussion.user.username if discussion.user else "Unknown",
-                    replies_count=replies_count,
-                    created_at=discussion.created_at,
-                    updated_at=discussion.updated_at,
+                    replies=replies_count,
+                    createdAt=discussion.created_at.isoformat() if discussion.created_at else None,
+                    updatedAt=discussion.updated_at.isoformat() if discussion.updated_at else None,
                 )
             )
         
@@ -106,7 +104,7 @@ class DiscussionService:
             discussions=discussion_responses,
             total=total,
             page=filters.page,
-            total_pages=total_pages,
+            totalPages=total_pages,
         )
 
     @staticmethod
@@ -126,11 +124,10 @@ class DiscussionService:
             title=discussion.title,
             content=discussion.content,
             category=discussion.category,
-            user_id=discussion.user_id,
             author=discussion.user.username if discussion.user else "Unknown",
-            replies_count=replies_count,
-            created_at=discussion.created_at,
-            updated_at=discussion.updated_at,
+            replies=replies_count,
+            createdAt=discussion.created_at.isoformat() if discussion.created_at else None,
+            updatedAt=discussion.updated_at.isoformat() if discussion.updated_at else None,
         )
 
     @staticmethod
@@ -166,11 +163,10 @@ class DiscussionService:
             title=discussion.title,
             content=discussion.content,
             category=discussion.category,
-            user_id=discussion.user_id,
             author=author.username if author else "Unknown",
-            replies_count=replies_count,
-            created_at=discussion.created_at,
-            updated_at=discussion.updated_at,
+            replies=replies_count,
+            createdAt=discussion.created_at.isoformat() if discussion.created_at else None,
+            updatedAt=discussion.updated_at.isoformat() if discussion.updated_at else None,
         )
 
     @staticmethod
