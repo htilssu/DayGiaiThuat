@@ -1,7 +1,7 @@
 /**
  * Interface mô tả cấu trúc dữ liệu bài tập chi tiết
  * @interface ExerciseDetail
- * @property {string} id - ID duy nhất của bài tập
+ * @property {number} id - ID duy nhất của bài tập
  * @property {string} title - Tiêu đề bài tập
  * @property {string} description - Mô tả ngắn gọn về bài tập
  * @property {string} category - Danh mục của bài tập
@@ -14,7 +14,7 @@
  * @property {TestCase[]} testCases - Danh sách các test case
  */
 export interface ExerciseDetail {
-  id: string;
+  id: number;
   title: string;
   description: string;
   category: string;

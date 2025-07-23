@@ -75,3 +75,19 @@ async def submit_exercise_code(
     Nhận code, chạy với các test case và trả về kết quả từng test case.
     """
     return await exercise_service.evaluate_submission(exercise_id, submission)
+
+
+@router.post(
+    "/{exercise_id}/judge0-submit",
+    summary="Nộp code bài tập và chấm điểm tự động qua Judge0",
+    response_model=CodeSubmissionResponse,
+)
+async def submit_exercise_code_judge0(
+    exercise_id: int,
+    submission: CodeSubmissionRequest = Body(...),
+    exercise_service: ExerciseService = Depends(get_exercise_service),
+):
+    """
+    Nhận code, chạy với các test case qua Judge0 và trả về kết quả từng test case.
+    """
+    return await exercise_service.evaluate_submission_with_judge0(exercise_id, submission)
