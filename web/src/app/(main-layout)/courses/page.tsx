@@ -1,15 +1,16 @@
-import CoursesListPage from "@/components/courses/CoursesListPage";
+import { EnrolledCoursesPage } from "../../../components/pages/courses/EnrolledCoursesPage";
+import { Metadata } from "next";
 
-export const metadata = {
-  title: "Danh sách khóa học",
-  description: "Khám phá các khóa học về giải thuật và lập trình",
+export const metadata: Metadata = {
+  title: "Khóa học của tôi - AI Agent Giải Thuật",
+  description: "Quản lý và tiếp tục học các khóa học đã đăng ký",
   authors: [{ name: "AI Agent Giải Thuật Team" }],
+  keywords: ["khóa học", "học tập", "giải thuật", "lập trình", "tiến độ"],
 };
 
 /**
- * Component hiển thị danh sách khóa học
+ * Component hiển thị khóa học đã đăng ký của người dùng
  */
-export default function Page() {
-
-  return <CoursesListPage />
+export default function CoursesPageRoute() {
+  return <EnrolledCoursesPage />;
 }

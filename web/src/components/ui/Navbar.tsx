@@ -113,9 +113,7 @@ export default function Navbar() {
         <nav className="hidden md:block">
           <ul className="flex items-center gap-8">
             <NavItem href="/" label="Trang chủ" isActive={pathname === "/"} />
-            <NavItem
-              href="/courses"
-              label="Khóa học"
+            <CoursesDropdown
               isActive={
                 pathname === "/courses" || pathname.startsWith("/courses/")
               }
@@ -270,10 +268,14 @@ export default function Navbar() {
             />
             <MobileNavItem
               href="/courses"
-              label="Khóa học"
-              isActive={
-                pathname === "/courses" || pathname.startsWith("/courses/")
-              }
+              label="Khóa học của tôi"
+              isActive={pathname === "/courses"}
+              onClick={() => setIsMenuOpen(false)}
+            />
+            <MobileNavItem
+              href="/courses/explore"
+              label="Khám phá khóa học"
+              isActive={pathname === "/courses/explore"}
               onClick={() => setIsMenuOpen(false)}
             />
             <MobileNavItem
@@ -450,5 +452,97 @@ function MobileNavItem({
         <span className="absolute inset-0 bg-primary/5 -z-10 rounded-md"></span>
       )}
     </Link>
+  );
+}
+
+/**
+ * Dropdown menu cho khóa học
+ */
+function CoursesDropdown({ isActive }: { isActive: boolean }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLLIElement>(null);
+  const pathname = usePathname();
+
+  // Xử lý close dropdown khi click bên ngoài
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <li className="relative group" ref={dropdownRef}>
+      <button
+        className={`relative px-1 py-2 font-medium theme-transition flex items-center gap-1 ${isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
+          } transition-colors`}
+        onClick={() => setIsOpen(!isOpen)}
+        onMouseEnter={() => setIsOpen(true)}
+      >
+        Khóa học
+        <svg
+          className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+            }`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+
+        {/* Indicator thanh dưới chân - active */}
+        {isActive && (
+          <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary rounded-full animate-fade-in theme-transition"></span>
+        )}
+
+        {/* Indicator thanh dưới chân - hover */}
+        {!isActive && (
+          <span className="absolute -bottom-1 left-1/2 right-1/2 h-0.5 bg-[rgb(var(--color-primary))] rounded-full transition-all duration-300 group-hover:left-0 group-hover:right-0 theme-transition"></span>
+        )}
+      </button>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div
+          className="absolute top-full left-0 mt-2 w-48 bg-background border border-border rounded-lg shadow-lg z-50 theme-transition"
+          onMouseLeave={() => setIsOpen(false)}
+        >
+          <div className="py-2">
+            <Link
+              href="/courses"
+              className={`block px-4 py-2 text-sm theme-transition ${pathname === "/courses"
+                  ? "text-primary bg-primary/10"
+                  : "text-foreground/80 hover:text-primary hover:bg-primary/5"
+                }`}
+              onClick={() => setIsOpen(false)}
+            >
+              Khóa học của tôi
+            </Link>
+            <Link
+              href="/courses/explore"
+              className={`block px-4 py-2 text-sm theme-transition ${pathname === "/courses/explore"
+                  ? "text-primary bg-primary/10"
+                  : "text-foreground/80 hover:text-primary hover:bg-primary/5"
+                }`}
+              onClick={() => setIsOpen(false)}
+            >
+              Khám phá khóa học
+            </Link>
+          </div>
+        </div>
+      )}
+    </li>
   );
 }

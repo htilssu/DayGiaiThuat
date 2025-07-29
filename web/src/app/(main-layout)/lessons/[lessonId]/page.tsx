@@ -1,6 +1,5 @@
-import { Metadata } from "next";
 import { LessonPage } from "@/components/pages/learn/LessonPage";
-import { notFound } from "next/navigation";
+import { Metadata } from "next";
 
 interface LessonPageProps {
     params: Promise<{
