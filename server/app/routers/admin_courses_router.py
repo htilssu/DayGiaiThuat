@@ -1,29 +1,30 @@
-from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
-from sqlalchemy import func, select
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-from pydantic import BaseModel
-
+from app.core.agents.course_composition_agent import CourseCompositionAgent
 from app.database.database import get_async_db, get_independent_db_session
+from app.models.course_model import Course
+from app.models.topic_model import Topic
+from app.schemas.course_schema import (
+    BulkDeleteCoursesRequest,
+    BulkDeleteCoursesResponse,
+    CourseCompositionRequestSchema,
+    CourseCreate,
+    CourseOnlyResponse,
+    CourseResponse,
+    CourseUpdate,
+)
+from app.schemas.user_profile_schema import UserExcludeSecret
+from app.services.course_service import CourseService, get_course_service
 from app.services.test_generation_service import (
     TestGenerationService,
     get_test_generation_service,
 )
-from app.models.course_model import Course
-from app.schemas.course_schema import (
-    CourseCreate,
-    CourseResponse,
-    CourseUpdate,
-    CourseCompositionRequestSchema,
-    BulkDeleteCoursesRequest,
-    BulkDeleteCoursesResponse,
-)
-from app.schemas.user_profile_schema import UserExcludeSecret
-from app.core.agents.course_composition_agent import CourseCompositionAgent
-
-from app.services.course_service import CourseService, get_course_service
 from app.utils.utils import get_current_user
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi.params import Query
+from pydantic import BaseModel
+from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 router = APIRouter(
     prefix="/admin/courses",
@@ -85,16 +86,13 @@ async def create_course(
     """
     Tạo một khóa học mới (chỉ admin)
 
-    Args:
-        course_data: Dữ liệu để tạo khóa học
-        db: Session database
-        admin_user: Thông tin admin đã xác thực
-
-    Returns:
-        CourseResponse: Thông tin của khóa học vừa tạo
-
     Raises:
         HTTPException: Nếu có lỗi khi tạo khóa học
+        :param course_data:
+        :param admin_user:
+        :param course_service:
+        :param db:
+        :param background_tasks:
     """
     try:
         new_course = await course_service.create_course(course_data)
@@ -174,12 +172,12 @@ async def update_course(
         # Tải lại course với topics để tránh lỗi lazy loading
         result = await db.execute(
             select(Course)
-            .options(selectinload(Course.topics))
+            .options(selectinload(Course.topics).selectinload(Topic.lessons))
             .filter(Course.id == course_id)
         )
         updated_course = result.scalar_one()
 
-        return updated_course
+        return CourseOnlyResponse.model_validate(updated_course)
     except SQLAlchemyError as e:
         await db.rollback()
         raise HTTPException(
@@ -255,7 +253,11 @@ async def bulk_delete_courses(
 )
 async def delete_course(
     course_id: int,
+    force: int = Query(
+        default=0, ge=0, le=1, description="Force delete without checking enrollments"
+    ),
     db: AsyncSession = Depends(get_async_db),
+    course_service: CourseService = Depends(get_course_service),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
@@ -271,9 +273,14 @@ async def delete_course(
 
     Returns:
         dict: Thông tin về quá trình xóa bao gồm số lượng items đã xóa
+        :param course_id:
+        :param admin_user:
+        :param course_service:
+        :param db:
+        :param force:
     """
-    from app.models.topic_model import Topic
     from app.models.lesson_model import Lesson, LessonSection
+    from app.models.topic_model import Topic
     from app.models.user_course_model import UserCourse
 
     # Tìm khóa học cần xóa
@@ -289,11 +296,24 @@ async def delete_course(
     enrollment_count = (
         await db.execute(select(func.count()).where(UserCourse.course_id == course_id))
     ).scalar()
+    if force == 0:
+        enrollment_count = (
+            await db.execute(
+                select(func.count()).where(UserCourse.course_id == course_id)
+            )
+        ).scalar()
+
+    else:
+        enrollment_count = 0
 
     if enrollment_count is not None and enrollment_count > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Khóa học đang có {enrollment_count} học viên đăng ký, không thể xóa",
+            detail={
+                "message": f"Khóa học '{course.title}' đang được sử dụng bởi {enrollment_count} người dùng. Không thể xóa.",
+                "type": "course_in_use",
+                "id": course_id,
+            },
         )
 
     try:
@@ -303,15 +323,15 @@ async def delete_course(
         )
         lessons_count = await db.execute(
             select(func.count())
-            .where(Lesson.topic_id == Topic.id)
-            .join(Topic)
+            .select_from(Lesson)
+            .join(Topic, Lesson.topic_id == Topic.id)
             .filter(Topic.course_id == course_id)
         )
         sections_count = await db.execute(
             select(func.count())
-            .where(LessonSection.lesson_id == Lesson.id)
-            .join(Lesson)
-            .join(Topic)
+            .select_from(LessonSection)
+            .join(Lesson, LessonSection.lesson_id == Lesson.id)
+            .join(Topic, Lesson.topic_id == Topic.id)
             .filter(Topic.course_id == course_id)
         )
         topics_count = topics_count.scalar()

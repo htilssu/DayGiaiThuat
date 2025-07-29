@@ -41,7 +41,7 @@ class TopicService:
 
         return TopicResponse.model_validate(topic)
 
-    async def get_topic_by_id(self, topic_id: int) -> Optional[TopicResponse]:
+    async def get_topic_by_id(self, topic_id: int) -> Optional[Topic]:
         """
         Get a topic by ID.
         """
@@ -52,7 +52,7 @@ class TopicService:
         if not topic:
             return None
 
-        return TopicResponse.model_validate(topic)
+        return topic
 
     async def update_topic(
         self, topic_id: int, topic_data: UpdateTopicSchema

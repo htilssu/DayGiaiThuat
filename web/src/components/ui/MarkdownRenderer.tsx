@@ -1,7 +1,9 @@
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { ReactElement } from 'react';
+import '@/styles/markdown-table.css';
 
 interface MarkdownRendererProps {
   content: string;
@@ -19,6 +21,7 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
   return (
     <div className={`prose prose-slate max-w-none ${className}`}>
       <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
         components={{
           code: ({ node, inline, className, children, ...props }: CodeProps) => {
             const match = /language-(\w+)/.exec(className || '');
@@ -70,7 +73,7 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
             </blockquote>
           ),
           strong: ({ children }) => (
-            <strong className="font-semibold text-gray-900">{children}</strong>
+            <strong className="font-semibold">{children}</strong>
           ),
           em: ({ children }) => (
             <em className="italic text-gray-700">{children}</em>
@@ -86,31 +89,57 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
             </a>
           ),
           table: ({ children }) => (
-            <div className="overflow-x-auto mb-4">
-              <table className="min-w-full border border-gray-300 rounded-lg overflow-hidden">
+            <div className="markdown-table-wrapper overflow-x-auto mb-6">
+              <table className="markdown-table">
                 {children}
               </table>
             </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-gray-100">{children}</thead>
+            <thead>{children}</thead>
           ),
           tbody: ({ children }) => (
-            <tbody className="divide-y divide-gray-200">{children}</tbody>
+            <tbody>{children}</tbody>
           ),
-          tr: ({ children }) => (
-            <tr>{children}</tr>
-          ),
-          th: ({ children }) => (
-            <th className="px-4 py-2 text-left font-semibold text-gray-900 border-b border-gray-300">
+          tr: ({ children, ...props }) => (
+            <tr {...props}>
               {children}
-            </th>
+            </tr>
           ),
-          td: ({ children }) => (
-            <td className="px-4 py-2 text-gray-700 border-b border-gray-200">
-              {children}
-            </td>
-          ),
+          th: ({ children, style, ...props }) => {
+            // Handle text alignment from markdown table syntax
+            const textAlign = style?.textAlign || 'left';
+            const alignmentClass =
+              textAlign === 'center' ? 'table-cell-center' :
+                textAlign === 'right' ? 'table-cell-right' : 'table-cell-left';
+
+            return (
+              <th
+                className={alignmentClass}
+                style={style}
+                {...props}
+              >
+                {children}
+              </th>
+            );
+          },
+          td: ({ children, style, ...props }) => {
+            // Handle text alignment from markdown table syntax
+            const textAlign = style?.textAlign || 'left';
+            const alignmentClass =
+              textAlign === 'center' ? 'table-cell-center' :
+                textAlign === 'right' ? 'table-cell-right' : 'table-cell-left';
+
+            return (
+              <td
+                className={alignmentClass}
+                style={style}
+                {...props}
+              >
+                {children}
+              </td>
+            );
+          },
           hr: () => (
             <hr className="my-6 border-gray-300" />
           ),

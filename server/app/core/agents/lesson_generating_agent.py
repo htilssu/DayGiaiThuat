@@ -1,9 +1,13 @@
 import json
 from app.core.agents.base_agent import BaseAgent
-from app.core.agents.components.llm_model import create_new_creative_llm_model
+from app.core.agents.components.llm_model import (
+    create_new_creative_llm_model,
+    get_llm_model,
+)
 from app.core.agents.components.document_store import get_vector_store
 from app.core.config import settings
 from app.core.tracing import trace_agent
+from app.schemas import AgentCreateLessonSchema
 from app.schemas.lesson_schema import CreateLessonSchema
 
 SYSTEM_PROMPT_TEMPLATE = """
@@ -23,6 +27,7 @@ LƯU Ý QUAN TRỌNG:
   layout tạo ra phải không được có lesson trùng với các topic khác ,dựa vào tài liệu đã thu thập. 1 đoạn văn bản string, không phải json.
 
 """
+
 STRUCTURE_PROMPT_TEMPLATE = """Bạn là một chuyên gia thiết kế chương trình học. Hãy tạo cấu trúc cho nhiều bài giảng (lesson) dựa vào đầu vào.
 
 Hướng dẫn về từng loại section:
@@ -31,6 +36,7 @@ Hướng dẫn về từng loại section:
 - "text": Phần văn bản thuần túy
 - "code": Phần code mẫu hoặc ví dụ lập trình
 - "image": Phần hình ảnh minh họa
+- "exercise": Phần bài tập thực hành để học viên áp dụng kiến thức đã học
 
 Đối với section loại "quiz":
 - "options" phải là một object có các key là A, B, C, D (không bọc bằng dấu nháy).
@@ -55,9 +61,10 @@ Hướng dẫn về từng loại section:
 # Quan trọng:
 - Phải dựa vào layout của bài giảng từ đầu vào, không được tự ý thay đổi cấu trúc.
 - Bài giảng hoặc giới thiệu luôn nằm ở đầu tiên, sau đó là các phần khác.
+- Trường exercise là phần bài tập vận dụng (nó là phần có cấu trúc của section exercise), section exercise sẽ trình bày mô tả, ngữ cảnh bài tập, hướng dẫn thực hiện và các yêu cầu cụ thể.
 - Dưới mỗi bài giảng, cần có phần tóm tắt ngắn gọn các điểm chính đã học,phải thêm ví dụ và phần triển khai để người dùng hiểu rõ hơn.
 - Phải có phần bài tập ví dụ (bài tập này phải được giải thích kỹ),sau bài tập ví dụ đó có 1 bài tập vận dụng để học viên thực hành, Phần vận dụng hoặc bài tập sẽ nằm sau phần lý thuyết liên quan.
-- Type của section phải là một trong các giá trị sau: "text", "code", "quiz", "manipulate","teaching", "image".
+- Type của section phải là một trong các giá trị sau: "text", "code", "quiz", "manipulate","teaching", "image", "exercise".
 {format_instructions}
 """
 
@@ -96,7 +103,6 @@ class LessonGeneratingAgent(BaseAgent):
         self._init_agent()
 
     def _init_parsers_and_chains(self):
-        """Khởi tạo parsers và chains."""
         from langchain_core.output_parsers import PydanticOutputParser
         from langchain_core.messages import SystemMessage
         from langchain_core.prompts import (
@@ -109,10 +115,9 @@ class LessonGeneratingAgent(BaseAgent):
 
         class ListCreateLessonSchema(BaseModel):
             """
-            Danh sách các bài giảng được tạo ra.
-            """
+            Danh sách các bài giảng được tạo ra."""
 
-            list_schema: List[CreateLessonSchema]
+            list_schema: List[AgentCreateLessonSchema]
 
         self.structure_parser = PydanticOutputParser(
             pydantic_object=ListCreateLessonSchema
@@ -129,9 +134,7 @@ class LessonGeneratingAgent(BaseAgent):
                 HumanMessagePromptTemplate.from_template("{input}"),
             ]
         )
-        self.generate_structure_chain = (
-            self.generate_structure_prompt | create_new_creative_llm_model()
-        )
+        self.generate_structure_chain = self.generate_structure_prompt | get_llm_model()
 
         # Chain for generating section content
         self.generate_content_prompt = ChatPromptTemplate.from_messages(

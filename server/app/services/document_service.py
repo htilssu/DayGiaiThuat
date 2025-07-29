@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app.core.agents.components.document_store import get_vector_store
 from app.core.config import settings
-from app.database.database import get_async_db
+from app.database.database import get_independent_db_session
 from app.models.document_processing_job_model import DocumentProcessingJob
 from app.schemas.document_schema import DocumentStatus
 
@@ -36,25 +36,25 @@ class DocumentService:
         """
         Tạo record DocumentProcessingJob trong database
         """
-        db = next(get_db())
-        try:
-            job = DocumentProcessingJob(
-                id=document_id,
-                job_id=job_id,
-                filename=filename,
-                document_url=document_url,
-                course_id=course_id,
-                status="IN_QUEUE",
-            )
-            db.add(job)
-            db.commit()
-            db.refresh(job)
-            return job
-        except Exception as e:
-            db.rollback()
-            raise Exception(f"Failed to create document processing job: {str(e)}")
-        finally:
-            db.close()
+        async with get_independent_db_session() as db:
+            try:
+                job = DocumentProcessingJob(
+                    id=document_id,
+                    job_id=job_id,
+                    filename=filename,
+                    document_url=document_url,
+                    course_id=course_id,
+                    status="IN_QUEUE",
+                )
+                db.add(job)
+                await db.commit()
+                await db.refresh(job)
+                return job
+            except Exception as e:
+                await db.rollback()
+                raise Exception(f"Failed to create document processing job: {str(e)}")
+            finally:
+                await db.close()
 
     async def update_job_status(
         self,

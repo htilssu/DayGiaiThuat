@@ -28,10 +28,13 @@ import { IconPlus, IconChevronRight, IconPencil, IconTrash, IconAlertCircle } fr
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Course, CourseCreatePayload, getAllCoursesAdmin, createCourseAdmin, deleteCourseAdmin, bulkDeleteCoursesAdmin } from "@/lib/api/admin-courses";
+import { Course, CourseCreatePayload, getAllCoursesAdmin, createCourseAdmin, deleteCourseAdmin, bulkDeleteCoursesAdmin, adminCoursesApi } from "@/lib/api/admin-courses";
 import { AdminTopic } from "@/lib/api/admin-topics";
 import { notifications } from '@mantine/notifications';
 import TestGenerationStatus from './TestGenerationStatus';
+import { useAppDispatch, useAppSelector } from "@/lib/store";
+import { addModal, removeModal } from "@/lib/store/modalStore";
+import { coursesApi } from "@/lib/api";
 
 export default function CourseAdminClient() {
     const [opened, { open, close }] = useDisclosure(false);
@@ -39,6 +42,7 @@ export default function CourseAdminClient() {
     const [bulkDeleteModalOpened, { open: openBulkDeleteModal, close: closeBulkDeleteModal }] = useDisclosure(false);
     const router = useRouter();
     const queryClient = useQueryClient();
+    const dispatch = useAppDispatch();
 
     // Use useQuery to cache courses data
     const {
@@ -93,14 +97,46 @@ export default function CourseAdminClient() {
                 color: 'green',
             });
         },
-        onError: (err) => {
+        onError: (err: Error & { data: { type: string; id: number } }) => {
+            if (err.data?.type === 'course_in_use') {
+                dispatch(addModal({
+                    id: `force-delete-course-${err.data.id}`,
+                    title: "Xác nhận xóa khóa học",
+                    description: err.message,
+                    confirmText: "Xóa",
+                    cancelText: "Hủy",
+                    onConfirm: () => {
+                        adminCoursesApi.forceDeleteCourse(err.data.id).then(() => {
+                            notifications.show({
+                                title: 'Thành công',
+                                message: 'Khóa học đã được xóa thành công!',
+                                color: 'green',
+                            });
+                            queryClient.invalidateQueries({
+                                queryKey: ['admin', 'courses'],
+                            });
+                        }
+
+                        ).catch((error) => {
+                            notifications.show({
+                                title: 'Lỗi',
+                                message: error.message,
+                                color: 'red',
+                            });
+                        });
+                        dispatch(removeModal(`force-delete-course-${err.data.id}`));
+                    },
+                    onCancel: () => {
+                        dispatch(removeModal(`force-delete-course-${err.data.id}`));
+                    }
+                }));
+            }
             notifications.show({
-                title: 'Lỗi',
+                title: 'Cảnh báo',
                 message: err.message,
-                color: 'red',
+                color: 'yellow',
             });
-            console.error(err);
-        }
+        },
     });
 
     // Mutation for bulk deleting courses
@@ -166,9 +202,19 @@ export default function CourseAdminClient() {
     };
 
     const handleDeleteCourse = async (courseId: number) => {
-        if (confirm('Bạn có chắc chắn muốn xóa khóa học này không?')) {
-            deleteCourseMutation.mutate(courseId);
-        }
+        dispatch(addModal({
+            id: `delete-course-${courseId}`,
+            title: "Xác nhận xóa khóa học",
+            description: "Bạn có chắc chắn muốn xóa khóa học này? Hành động này không thể hoàn tác.",
+            confirmText: "Xóa",
+            cancelText: "Hủy",
+            onConfirm: () => {
+                deleteCourseMutation.mutate(courseId);
+            },
+            onCancel: () => {
+                dispatch(removeModal(`delete-course-${courseId}`));
+            }
+        }));
     };
 
     const handleSelectCourse = (courseId: number, checked: boolean) => {

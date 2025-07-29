@@ -13,9 +13,6 @@ from app.utils.model_utils import model_to_dict
 
 
 class TutorAgent(BaseAgent):
-    """
-    context: context ngữ cảnh hiện tại để llm có thể hiểu được
-    """
 
     def __init__(self, db: AsyncSession):
         super().__init__()
@@ -26,9 +23,7 @@ class TutorAgent(BaseAgent):
 
     @property
     def tools(self):
-        """Lazy initialization của tools"""
         if self._tools is None:
-            # Lazy import - chỉ import khi cần thiết
             from langchain.agents import Tool
 
             self._tools = [
@@ -42,9 +37,7 @@ class TutorAgent(BaseAgent):
 
     @property
     def prompt(self):
-        """Lazy initialization của prompt template"""
         if self._prompt is None:
-            # Lazy import - chỉ import khi cần thiết
             from langchain_core.prompts import (
                 ChatPromptTemplate,
                 HumanMessagePromptTemplate,
@@ -63,9 +56,6 @@ class TutorAgent(BaseAgent):
         return self._prompt
 
     async def get_context(self, context_id, context_type):
-        """
-        Lấy context người dùng đang học dựa vào context_id và type.
-        """
         if not context_id or not context_type:
             raise ValueError("Cần cung cấp 'context_id' và 'type'.")
 
@@ -94,9 +84,7 @@ class TutorAgent(BaseAgent):
 
     @property
     def agent(self):
-        """Lazy initialization của agent"""
         if self._agent is None:
-            # Lazy import - chỉ import khi cần thiết
             from langchain.agents import create_tool_calling_agent
 
             self._agent = create_tool_calling_agent(

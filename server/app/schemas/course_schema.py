@@ -127,6 +127,10 @@ class CourseResponse(CourseBase):
         from_attributes = True
 
 
+class CourseOnlyResponse(CourseBase):
+    pass
+
+
 class CourseDetailResponse(CourseResponse):
     """
     Schema cho response chi tiết khóa học bao gồm cả topics và lessons

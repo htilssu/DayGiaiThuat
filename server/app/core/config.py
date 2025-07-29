@@ -93,7 +93,7 @@ class Settings(BaseSettings):
     # Cookie settings
     COOKIE_DOMAIN: Optional[str] = ""  # Sử dụng chuỗi rỗng thay vì None
     COOKIE_SECURE: bool = True  # True trong production
-    COOKIE_SAMESITE: str = "none"  # 'lax', 'strict', or 'none'
+    COOKIE_SAMESITE: str = "lax"  # 'lax', 'strict', or 'none'
     COOKIE_NAME: str = "access_token"
     COOKIE_HTTPONLY: bool = True
     COOKIE_MAX_AGE: int = 60 * 60 * 30 * 24  # 30 ngày

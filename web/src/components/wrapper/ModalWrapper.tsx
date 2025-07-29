@@ -56,7 +56,7 @@ export default function ModalWrapper({
                     dispatch(removeModal(modal.id));
                   }}
                   className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90">
-                  {modal.confirmText || "Create"}
+                  {modal.confirmText || "Ok"}
                 </button>
               </div>
             </div>

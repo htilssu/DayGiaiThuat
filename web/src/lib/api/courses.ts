@@ -183,6 +183,7 @@ export async function checkEnrollmentStatus(courseId: number): Promise<{ isEnrol
   return get<{ isEnrolled: boolean }>(`/courses/${courseId}/check-enrollment`);
 }
 
+
 export const coursesApi = {
   getCourses,
   getCourseById,

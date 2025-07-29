@@ -3,6 +3,8 @@ from typing import Optional, List, Dict, Any
 from app.models.user_course_progress_model import ProgressStatus
 from datetime import datetime
 
+from app.schemas.exercise_schema import ExerciseDetail
+
 
 class LessonCompleteResponseSchema(BaseModel):
     lesson_id: int
@@ -24,7 +26,6 @@ class LessonBase(BaseModel):
         prev_lesson_id: ID của lesson trước đó (nếu có)
     """
 
-    id: int = Field(..., description="ID của lesson")
     external_id: str = Field(..., description="External ID của lesson")
     title: str = Field(..., description="Tiêu đề lesson")
     description: str = Field(..., description="Mô tả lesson")
@@ -34,6 +35,7 @@ class LessonBase(BaseModel):
 
 
 class LessonResponseSchema(LessonBase):
+    id: int = Field(..., description="ID của lesson")
     is_completed: Optional[bool] = False
 
 
@@ -110,24 +112,16 @@ class LessonSectionSchema(BaseModel):
     )
 
 
-class CreateLessonSchema(BaseModel):
-    external_id: str
-    title: str
-    description: str
+class CreateLessonSchema(LessonBase):
     topic_id: int
-    order: int
-    next_lesson_id: Optional[str] = None
-    prev_lesson_id: Optional[str] = None
     sections: List[LessonSectionSchema]
 
+class AgentCreateLessonSchema(CreateLessonSchema):
+    exercises: List[ExerciseBase]
 
-class UpdateLessonSchema(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    order: Optional[int] = None
-    next_lesson_id: Optional[str] = None
-    prev_lesson_id: Optional[str] = None
 
+class UpdateLessonSchema(LessonBase):
+    pass
 
 class LessonWithChildSchema(LessonResponseSchema):
     sections: List[LessonSectionSchema] = Field(

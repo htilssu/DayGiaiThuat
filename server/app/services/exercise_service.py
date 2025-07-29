@@ -1,25 +1,31 @@
-from fastapi import Depends, HTTPException
+import asyncio
+from json import dump
+from typing import Any, Coroutine
 
-from app.schemas.exercise_schema import (
-    CreateExerciseSchema,
-    CodeSubmissionRequest,
-    CodeSubmissionResponse,
-    ExerciseDetail,
-    TestCaseResult,
-)
 from app.core.agents.exercise_agent import ExerciseDetail as ExerciseSchema
-from app.models.exercise_model import Exercise as ExerciseModel
 from app.core.agents.exercise_agent import (
     GenerateExerciseQuestionAgent,
     get_exercise_agent,
 )
-from app.services.topic_service import TopicService, get_topic_service
+from app.database.database import get_async_db, get_db
 from app.database.repository import Repository
-from app.database.database import get_db
+from app.models import Exercise
+from app.models.exercise_model import Exercise as ExerciseModel
+from app.models.lesson_model import Lesson
+from app.schemas.exercise_schema import (
+    CodeSubmissionRequest,
+    CodeSubmissionResponse,
+    CreateExerciseSchema,
+    ExerciseDetail,
+    TestCaseResult,
+)
+from app.schemas.lesson_schema import LessonBase
+from app.services.topic_service import TopicService, get_topic_service
+from fastapi import Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
-
-import asyncio
+from sqlalchemy.orm import Session, selectinload
 
 
 async def run_code_in_docker(
@@ -55,7 +61,7 @@ class ExerciseService:
         self.db = session
         self.topic_service = topic_service
 
-    async def get_exercise(self, exercise_id: int) -> ExerciseModel:
+    async def get_exercise(self, exercise_id: int) -> type[Exercise]:
         """
         Lấy thông tin bài tập theo ID
 
@@ -88,6 +94,35 @@ class ExerciseService:
         """
         # Lấy thông tin chủ đề
         topic = await self.topic_service.get_topic_by_id(create_data.topic_id)
+        lesson = await self.db.execute(
+            select(Lesson)
+            .where(Lesson.id == create_data.lesson_id)
+            .options(selectinload(Lesson.sections))
+        )
+        lesson = lesson.scalar_one_or_none()
+
+        class SectionA(BaseModel):
+            content: str
+            answer: str | None = None
+            explanation: str | None = None
+
+        class LessonA(BaseModel):
+            name: str | None = None
+            description: str | None = None
+            sections: list[SectionA]
+
+        lesson_schema = LessonA(
+            name=lesson.title if lesson else None,
+            description=lesson.description if lesson else None,
+            sections=[
+                SectionA(
+                    content=section.content,
+                    answer=section.answer,
+                    explanation=section.explanation,
+                )
+                for section in lesson.sections
+            ],
+        )
 
         if not topic:
             raise ValueError(f"Không tìm thấy chủ đề với ID {create_data.topic_id}")
@@ -97,6 +132,7 @@ class ExerciseService:
             session_id=create_data.session_id,
             topic=topic.name,
             difficulty=create_data.difficulty,
+            lesson=lesson_schema.model_dump() if lesson else None,
         )
 
         exercise_model = ExerciseModel.exercise_from_schema(exercise_detail)
@@ -104,7 +140,7 @@ class ExerciseService:
         self.db.add(exercise_model)
         await self.db.commit()
 
-        return ExerciseDetail.model_validate(exercise_model)
+        return exercise_detail
 
     async def evaluate_submission(
         self, exercise_id: int, submission: CodeSubmissionRequest
@@ -148,9 +184,8 @@ class ExerciseService:
 
 
 def get_exercise_service(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     topic_service: TopicService = Depends(get_topic_service),
     exercise_agent: GenerateExerciseQuestionAgent = Depends(get_exercise_agent),
 ):
-    repository = Repository(ExerciseModel, db)
-    return ExerciseService(exercise_agent, topic_service, repository)
+    return ExerciseService(exercise_agent, topic_service, db)

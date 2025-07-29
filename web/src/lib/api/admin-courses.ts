@@ -109,6 +109,10 @@ export async function createCourseTestAdmin(courseId: number) {
     return post(`/admin/courses/${courseId}/test`);
 }
 
+async function forceDeleteCourse(courseId: number) {
+    return del(`/admin/courses/${courseId}?force=1`)
+}
+
 export const adminCoursesApi = {
     getAllCoursesAdmin,
     getCourseByIdAdmin,
@@ -117,4 +121,5 @@ export const adminCoursesApi = {
     deleteCourseAdmin,
     bulkDeleteCoursesAdmin,
     createCourseTestAdmin,
+    forceDeleteCourse
 }; 

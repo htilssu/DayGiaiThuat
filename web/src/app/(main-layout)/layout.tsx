@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import "../globals.css";
 import Navbar from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
+import { Analytics } from '@vercel/analytics/next';
 import { Suspense } from "react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
@@ -28,6 +29,7 @@ export default function MainLayout({
       <Suspense fallback={<div className="flex justify-center items-center h-64"><LoadingSpinner /></div>}>
         <Footer />
       </Suspense>
+      <Analytics />
     </div>
   );
 }

@@ -24,7 +24,6 @@ export default function CourseDetailPage() {
 
   const [course, setCourse] = useState<UserCourseDetail | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "content" | "reviews">("overview");
-  const [isUnregistering, setIsUnregistering] = useState<boolean>(false);
   const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
 
@@ -163,48 +162,6 @@ export default function CourseDetailPage() {
     }
   };
 
-  // Xử lý hủy đăng ký khóa học
-  const handleUnregisterCourse = async () => {
-    try {
-      setIsUnregistering(true);
-      const response = await coursesApi.unregisterCourse(courseId);
-
-      if (response.success) {
-        // Cập nhật trạng thái đăng ký
-        setIsEnrolled(false);
-
-        // Hiển thị thông báo hủy đăng ký thành công
-        dispatch(addModal({
-          id: uuidv4(),
-          title: "Hủy đăng ký thành công",
-          description: "Bạn đã hủy đăng ký khóa học thành công!",
-          onConfirm: () => { },
-          onCancel: () => { },
-        }));
-      } else {
-        // Hiển thị thông báo lỗi
-        dispatch(addModal({
-          id: uuidv4(),
-          title: "Hủy đăng ký thất bại",
-          description: response.message || "Có lỗi xảy ra khi hủy đăng ký khóa học. Vui lòng thử lại sau.",
-          onConfirm: () => { },
-          onCancel: () => { },
-        }));
-      }
-    } catch (err) {
-      console.error("Lỗi khi hủy đăng ký khóa học:", err);
-      // Hiển thị thông báo lỗi
-      dispatch(addModal({
-        id: uuidv4(),
-        title: "Hủy đăng ký thất bại",
-        description: "Có lỗi xảy ra khi hủy đăng ký khóa học. Vui lòng thử lại sau.",
-        onConfirm: () => { },
-        onCancel: () => { },
-      }));
-    } finally {
-      setIsUnregistering(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -312,12 +269,6 @@ export default function CourseDetailPage() {
                       className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium text-center">
                       Tiếp tục học
                     </Link>
-                    <button
-                      onClick={handleUnregisterCourse}
-                      disabled={isUnregistering}
-                      className="px-8 py-3 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive/20 transition font-medium disabled:opacity-70 disabled:cursor-not-allowed">
-                      {isUnregistering ? "Đang xử lý..." : "Hủy đăng ký"}
-                    </button>
                   </>
                 ) : (
                   <button

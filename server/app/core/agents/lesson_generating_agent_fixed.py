@@ -47,6 +47,7 @@ Hướng dẫn về từng loại section:
 
 # QUAN TRỌNG:
 - type của section phải là một trong các giá trị sau: "text", "code", "quiz", "teaching", "image".
+- Khi kết thúc (không gọi tool nữa), hãy trả về một JSON có định dạng như sau:
 {format_instructions}
 """
 

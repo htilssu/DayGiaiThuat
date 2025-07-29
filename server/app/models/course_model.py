@@ -79,7 +79,7 @@ class Course(Base):
         "Topic", back_populates="course", cascade="all, delete-orphan"
     )
     user_states: Mapped[List["UserState"]] = relationship(
-        back_populates="current_course"
+        back_populates="current_course", cascade="all, delete-orphan"
     )
     tests: Mapped[List["Test"]] = relationship(
         "Test", back_populates="course", cascade="all, delete-orphan"

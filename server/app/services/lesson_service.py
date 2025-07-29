@@ -11,6 +11,7 @@ from app.database.database import get_async_db
 from app.models.lesson_model import Lesson, LessonSection
 from app.models.lesson_generation_state_model import LessonGenerationState
 from app.models.user_course_model import UserCourse
+from app.schemas import AgentCreateLessonSchema
 from app.schemas.lesson_schema import (
     CreateLessonSchema,
     LessonDetailWithProgressResponse,
@@ -97,6 +98,9 @@ class LessonService:
         Create a new lesson with sections.
         """
         # Create lesson
+        if isinstance(lesson_data, AgentCreateLessonSchema):
+            exercises = lesson_data.exercises
+
         lesson = Lesson(
             external_id=lesson_data.external_id,
             title=lesson_data.title,

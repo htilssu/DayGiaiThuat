@@ -1,63 +1,89 @@
-from app.core.agents.base_agent import BaseAgent
-from app.core.agents.components.document_store import get_vector_store
-from app.schemas.course_schema import (
-    CourseCompositionRequestSchema,
-    CourseCompositionResponseSchema,
-)
-from app.core.agents.lesson_generating_agent import LessonGeneratingAgent
-from app.models.topic_model import Topic
-from app.services.lesson_service import LessonService
-from sqlalchemy.ext.asyncio import AsyncSession
-from langchain_core.tools import Tool
-from app.core.tracing import trace_agent
 import json
 import uuid
 
+from langchain.output_parsers import OutputFixingParser
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.tools import Tool
+from pydantic import BaseModel, Field
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.agents.base_agent import BaseAgent
+from app.core.agents.components.document_store import get_vector_store
+from app.core.agents.lesson_generating_agent import LessonGeneratingAgent
+from app.core.tracing import trace_agent
+from app.models import Course
+from app.models.topic_model import Topic
+from app.schemas.course_schema import (
+    CourseCompositionRequestSchema,
+)
+from app.services.lesson_service import LessonService
+
+
+class CourseAgentResponse(BaseModel):
+    duration: int = Field(..., description="Thời gian cần để hoàn thành khóa học")
+
 
 SYSTEM_PROMPT = """
-            Bạn là chuyên gia giáo dục về lập trình và giải thuật. Dựa trên thông tin khóa học và tài liệu tham khảo được lấy từ retrieval_tool, hãy phân tích và tạo danh sách các chủ đề (topics) cho khóa học.
+Bạn là chuyên gia giáo dục về lập trình và giải thuật. Dựa trên thông tin khóa học và tài liệu tham khảo được lấy từ retrieval_tool, hãy phân tích và tạo danh sách các chủ đề (topics) cho khóa học.
 
-            Hãy tạo danh sách topics theo thứ tự logic học tập (từ cơ bản đến nâng cao), mỗi topic phải:
-            1. Có tên rõ ràng, dễ hiểu
-            2. Mô tả chi tiết nội dung sẽ học
-            3. Liệt kê các kiến thức tiên quyết (nếu có)
-            4. Sắp xếp theo thứ tự học tập hợp lý
-            # Danh sách tools:
-            - course_context_retriever: Truy vấn RAG để lấy nội dung liên quan đến khóa học.
-            - save_topics_to_db: Lưu danh sách các topic đã được tạo vào cơ sở dữ liệu. đối số là json array string của danh sách topic bắt buộc phải có dạng:
-                ```json
-                    [
-                        {
-                            "name": "Tên topic",
-                            "description": "Mô tả chi tiết topic",
-                            "prerequisites": ["Kiến thức tiên quyết 1", "Kiến thức tiên quyết 2"],
-                            "order": 1
-                        }
-                    ]
-                ```
+Hãy tạo danh sách topics theo thứ tự logic học tập (từ cơ bản đến nâng cao), mỗi topic phải:
+1. Có tên rõ ràng, dễ hiểu
+2. Mô tả chi tiết nội dung sẽ học
+3. Liệt kê các kiến thức tiên quyết (nếu có)
+4. Sắp xếp theo thứ tự học tập hợp lý
 
-            # Workflow:
-            - Sử dụng tool course_context_retriever để lấy thông tin từ tài liệu. có thể gọi nhiều lần để lấy được nhiều thông tin.
-            - Sau khi lấy được thông tin từ tài liệu, tạo 1 danh sách topic theo định dạng sau:
-                ```json
-                    [
-                        {
-                            "name": "Tên topic",
-                            "description": "Mô tả chi tiết topic",
-                            "prerequisites": ["Kiến thức tiên quyết 1", "Kiến thức tiên quyết 2"],
-                            "order": 1
-                        }
-                    ]
-                ```
-                và gọi tool save_topics_to_db để lưu topic vào cơ sở dữ liệu.
+# Danh sách tools:
+- course_context_retriever: Truy vấn RAG để lấy nội dung liên quan đến khóa học.
+- save_topics_to_db: Lưu danh sách các topic đã được tạo vào cơ sở dữ liệu. đối số là json array string của danh sách topic bắt buộc phải có dạng:
+    ```json
+    [
+        {{
+            "name": "Tên topic",
+            "description": "Mô tả chi tiết topic",
+            "prerequisites": ["Kiến thức tiên quyết 1", "Kiến thức tiên quyết 2"],
+            "order": 1
+        }}
+    ]
+    ```
 
-            Lưu ý:
-            - Topics phải bao quát toàn bộ nội dung khóa học
-            - Đảm bảo tính logic và liên kết giữa các topics
-            - Phù hợp với cấp độ khóa học
-            - Không vượt quá số lượng topics tối đa
-            - Phải luôn tuân thủ đầu ra, không được trả lời lan man, không được yêu cầu thêm thông tin
-            """
+# Workflow:
+- Sử dụng tool course_context_retriever để lấy thông tin từ tài liệu. có thể gọi nhiều lần để lấy được nhiều thông tin.
+- Sau khi lấy được thông tin từ tài liệu, tạo 1 danh sách topic theo định dạng sau:
+    ```json
+    [
+        {{
+            "name": "Tên topic",
+            "description": "Mô tả chi tiết topic",
+            "prerequisites": ["Kiến thức tiên quyết 1", "Kiến thức tiên quyết 2"],
+            "order": 1
+        }}
+    ]
+    ```
+    và gọi tool save_topics_to_db để lưu topic vào cơ sở dữ liệu.
+- Sau khi tạo xong danh sách topic, trả về kết quả theo định dạng sau:
+    ```json
+    {{
+        "duration": "Thời gian ước lượng hoàn thành khóa học"
+    }}
+    ```
+
+instruction: {instruction}
+
+Lưu ý:
+- Topics phải bao quát toàn bộ nội dung khóa học
+- Đảm bảo tính logic và liên kết giữa các topics
+- Phù hợp với cấp độ khóa học
+- Không vượt quá số lượng topics tối đa
+- Phải luôn tuân thủ đầu ra, không được trả lời lan man, không được yêu cầu thêm thông tin
+"""
+
+
+SYSTEM_PROMPT = SYSTEM_PROMPT.format(
+    instruction=PydanticOutputParser(
+        pydantic_object=CourseAgentResponse
+    ).get_format_instructions()
+)
 
 
 class CourseCompositionAgent(BaseAgent):
@@ -67,6 +93,7 @@ class CourseCompositionAgent(BaseAgent):
 
     def __init__(self, db_session: AsyncSession):
         super().__init__()
+        self.current_course_id = None
         self.db_session = db_session
         self.vector_store = get_vector_store("document")
         self._setup_tools()
@@ -88,6 +115,8 @@ class CourseCompositionAgent(BaseAgent):
             coroutine=self._astore_topic,
             description="Lưu danh sách các topic đã được tạo vào cơ sở dữ liệu.",
         )
+
+        self.output_parser = PydanticOutputParser(pydantic_object=CourseAgentResponse)
 
         # Comment out output fixing parser for now as output_parser is not defined
         # self.output_fixing_parser = OutputFixingParser.from_llm(
@@ -113,7 +142,6 @@ class CourseCompositionAgent(BaseAgent):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
-        # Chạy phương thức bất đồng bộ trong event loop
         return loop.run_until_complete(self._astore_topic(t))
 
     async def _astore_topic(self, t: str):
@@ -139,11 +167,14 @@ class CourseCompositionAgent(BaseAgent):
     async def _get_topics_by_course_id(self, course_id: int) -> list[Topic]:
         """Lấy danh sách topics theo course_id từ database"""
         from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
         from app.models.topic_model import Topic
 
         try:
             result = await self.db_session.execute(
-                select(Topic).where(Topic.course_id == course_id)
+                select(Topic)
+                .options(selectinload(Topic.lessons))
+                .where(Topic.course_id == course_id)
             )
             return [topic for topic in result.scalars().all()]
         except Exception as e:
@@ -183,7 +214,6 @@ class CourseCompositionAgent(BaseAgent):
 
     @trace_agent(project_name="default", tags=["course", "composition"])
     async def act(self, request: CourseCompositionRequestSchema) -> None:
-        """Tự động soạn toàn bộ khóa học: tạo topics và lessons"""
         from langchain_core.runnables import RunnableConfig
 
         errors = []
@@ -202,18 +232,35 @@ class CourseCompositionAgent(BaseAgent):
                 tags=["course", "composition", f"course:{request.course_id}"],
             )
 
-            input = f"""
+            request_input = f"""
             Khóa học: {request.course_title}
             Mô tả: {request.course_description}
             Cấp độ: {request.course_level}
             """
             result = await self.agent_executor.ainvoke(
-                {"input": input}, config=run_config
+                {"input": request_input}, config=run_config
             )
 
             if not result or not result.get("output"):
                 errors.append("Không thể tạo topics cho khóa học")
                 return
+
+            try:
+                agent_response = self.output_parser.parse(result["output"])
+                await self.db_session.execute(
+                    update(Course)
+                    .where(Course.id == request.course_id)
+                    .values(duration=agent_response.duration)
+                )
+            except Exception:
+                agent_response = OutputFixingParser.from_llm(
+                    self.base_llm, parser=self.output_parser
+                ).parse(result["output"])
+                await self.db_session.execute(
+                    update(Course)
+                    .where(Course.id == request.course_id)
+                    .values(duration=agent_response.duration)
+                )
 
             topics_from_db = await self._get_topics_by_course_id(request.course_id)
 

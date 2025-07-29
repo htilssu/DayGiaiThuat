@@ -36,11 +36,11 @@ export const handleApiError = (error: AxiosError) => {
     let errorMessage = "Lỗi phản hồi từ server";
 
     if (responseData) {
-      if (responseData.detail) {
+      if (responseData) {
         errorMessage =
           typeof responseData.detail === "string"
             ? responseData.detail
-            : JSON.stringify(responseData.detail);
+            : responseData.detail?.message;
       } else if (responseData.message) {
         errorMessage = responseData.message;
       } else if (typeof responseData === "string") {
@@ -50,7 +50,7 @@ export const handleApiError = (error: AxiosError) => {
 
     return {
       status: error.response.status,
-      data: error.response.data,
+      data: { ...(error.response.data as any).detail },
       message: errorMessage,
     };
   } else if (error.request) {

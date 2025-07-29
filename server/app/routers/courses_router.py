@@ -229,16 +229,33 @@ async def get_user_topics(
     Returns:
         List[TopicWithUserState]: Danh sách topic kèm trạng thái
     """
+    # Kiểm tra khóa học có tồn tại không
     course = await course_service.get_course(course_id, current_user.id)
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Không tìm thấy khóa học với ID {course_id}",
         )
-    topics = course.topics
+
+    # Sử dụng topic_service để lấy topics theo course_id thay vì từ course.topics
+    topics = await topic_service.get_topics_by_course_id(course_id)
     if not topics:
         return []
-    return topics
+
+    # Chuyển đổi từ TopicResponse sang TopicWithUserState
+    result = []
+    for topic in topics:
+        result.append(
+            TopicWithUserState(
+                id=topic.id,
+                name=topic.name,
+                description=topic.description,
+                course_id=topic.course_id,
+                user_topic_state=None,  # TODO: implement user topic state logic if needed
+            )
+        )
+
+    return result
 
 
 @router.get(

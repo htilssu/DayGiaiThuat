@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { Analytics } from '@vercel/analytics/next';
 import "../globals.css";
 
 
@@ -22,6 +23,7 @@ export default function BlankLayout({
       className={`antialiased min-h-screen flex flex-col theme-transition bg-background text-foreground`}
     >
       {children}
+      <Analytics />
     </div>
   );
 }

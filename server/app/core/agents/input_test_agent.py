@@ -12,6 +12,9 @@ from google.api_core.exceptions import (
     ServiceUnavailable,
 )
 
+from app.database.database import get_independent_db_session
+from sqlalchemy import select
+
 logger = logging.getLogger(__name__)
 
 AGENT_PROMPT = """
@@ -76,8 +79,10 @@ class InputTestAgent(BaseAgent):
         from langchain_core.tools import Tool
 
         async def get_course_by_id(course_id: int):
-            course: Course = self.course_service.get_course(course_id)
-            return model_to_dict(course)
+            async with get_independent_db_session() as db:
+                result = await db.execute(select(Course).filter(Course.id == course_id))
+                course = result.scalars().first()
+                return model_to_dict(course)
 
         self.tools = [
             Tool.from_function(

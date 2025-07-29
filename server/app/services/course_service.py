@@ -64,7 +64,11 @@ class CourseService:
         Returns:
             Course: Thông tin chi tiết của khóa học
         """
-        result = await self.db.execute(select(Course).filter(Course.id == course_id))
+        result = await self.db.execute(
+            select(Course)
+            .options(selectinload(Course.topics).selectinload(Topic.lessons))
+            .filter(Course.id == course_id)
+        )
         course = result.scalar_one_or_none()
         if course is None:
             raise HTTPException(
@@ -327,28 +331,18 @@ class CourseService:
                 lessons_count_result = await self.db.execute(
                     select(func.count())
                     .select_from(Lesson)
-                    .join(Topic)
+                    .join(Topic, Lesson.topic_id == Topic.id)
                     .where(Topic.course_id == course_id)
                 )
                 lessons_count = lessons_count_result.scalar_one()
                 sections_count_result = await self.db.execute(
                     select(func.count())
                     .select_from(LessonSection)
-                    .join(Lesson)
-                    .join(Topic)
+                    .join(Lesson, LessonSection.lesson_id == Lesson.id)
+                    .join(Topic, Lesson.topic_id == Topic.id)
                     .where(Topic.course_id == course_id)
                 )
                 sections_count = sections_count_result.scalar_one()
-
-                # Xóa khóa học (cascade sẽ tự động xóa topics, lessons, sections)
-                await self.db.delete(course)
-                deleted_courses.append(course_id)
-
-                # Cập nhật thống kê
-                deleted_items["courses"] += 1
-                deleted_items["topics"] += topics_count
-                deleted_items["lessons"] += lessons_count
-                deleted_items["lesson_sections"] += sections_count
 
                 # Xóa khóa học (cascade sẽ tự động xóa topics, lessons, sections)
                 await self.db.delete(course)
