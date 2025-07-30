@@ -119,89 +119,19 @@ async function submitExerciseCode(
 }
 
 /**
- * Gửi code đến Judge0 để chạy và nhận kết quả
- * @param submission - Code, ngôn ngữ và input
- * @returns Kết quả từ Judge0
+ * Gửi code đến backend để chấm qua Judge0 và nhận kết quả
+ * @param exerciseId - ID của bài tập
+ * @param submission - Code, ngôn ngữ
+ * @returns Kết quả chấm từng test case từ backend
  */
-
 async function sendCodeToJudge(
-  submission: Judge0SubmissionRequest
-): Promise<Judge0SubmissionResponse> {
-  const JUDGE0_API_URL = "https://3b947351b5b5.ngrok-free.app";
-
-  function sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  try {
-    // Tạo submission
-    const createResponse = await fetch(`${JUDGE0_API_URL}/submissions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        source_code: submission.code,
-        language_id: getLanguageId(submission.language),
-        stdin: submission.stdin || "",
-      }),
-    });
-
-    if (!createResponse.ok) {
-      throw new Error(
-        `Failed to create submission: ${createResponse.statusText}`
-      );
-    }
-
-    const createData = await createResponse.json();
-    const token = createData.token;
-
-    // Poll for result until status is 'Accepted'
-    let resultData;
-    while (true) {
-      const resultResponse = await fetch(
-        `${JUDGE0_API_URL}/submissions/${token}`,
-        {
-          method: "get",
-          headers: new Headers({
-            "ngrok-skip-browser-warning": "69420",
-          }),
-        }
-      );
-      resultData = await resultResponse.json();
-      if (resultData.status && resultData.status.description === "Accepted") {
-        break;
-      }
-      await sleep(500); // Wait 500ms before polling again
-    }
-
-    return resultData;
-  } catch (error) {
-    console.error("Judge0 API error:", error);
-    throw error;
-  }
-}
-
-/**
- * Map ngôn ngữ lập trình sang Judge0 language ID
- * @param language - Tên ngôn ngữ
- * @returns Judge0 language ID
- */
-function getLanguageId(language: string): number {
-  const languageMap: Record<string, number> = {
-    javascript: 63, // Node.js
-    typescript: 74, // TypeScript
-    python: 71, // Python
-    csharp: 51, // C#
-    c: 50, // C
-    cpp: 54, // C++
-    java: 62, // Java
-    php: 68, // PHP
-    ruby: 72, // Ruby
-    swift: 83, // Swift
-  };
-
-  return languageMap[language.toLowerCase()] || 63; // Default to JavaScript
+  exerciseId: number,
+  submission: CodeSubmissionRequest
+): Promise<CodeSubmissionResponse> {
+  return post<CodeSubmissionResponse>(
+    `/exercise/${exerciseId}/judge0-submit`,
+    submission
+  );
 }
 
 export const exercisesApi = {

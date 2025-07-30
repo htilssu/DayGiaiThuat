@@ -1,14 +1,13 @@
 import asyncio
-from json import dump
-from typing import Any, Coroutine
+import os
 
+import requests
 from app.core.agents.exercise_agent import ExerciseDetail as ExerciseSchema
 from app.core.agents.exercise_agent import (
     GenerateExerciseQuestionAgent,
     get_exercise_agent,
 )
-from app.database.database import get_async_db, get_db
-from app.database.repository import Repository
+from app.database.database import get_async_db
 from app.models import Exercise
 from app.models.exercise_model import Exercise as ExerciseModel
 from app.models.lesson_model import Lesson
@@ -16,16 +15,29 @@ from app.schemas.exercise_schema import (
     CodeSubmissionRequest,
     CodeSubmissionResponse,
     CreateExerciseSchema,
-    ExerciseDetail,
     TestCaseResult,
 )
-from app.schemas.lesson_schema import LessonBase
 from app.services.topic_service import TopicService, get_topic_service
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import selectinload
+
+JUDGE0_API_URL = os.getenv("JUDGE0_API_URL")
+
+
+def get_language_id(language: str) -> int:
+    # Map your language strings to Judge0 language IDs
+    language_map = {
+        "python": 71,
+        "javascript": 63,
+        "c": 50,
+        "cpp": 54,
+        "java": 62,
+        # Add more mappings as needed
+    }
+    return language_map.get(language.lower(), 71)
 
 
 async def run_code_in_docker(
@@ -180,6 +192,75 @@ class ExerciseService:
             )
             if not passed:
                 all_passed = False
+        return CodeSubmissionResponse(results=results, all_passed=all_passed)
+
+    async def evaluate_submission_with_judge0(
+        self, exercise_id: int, submission: CodeSubmissionRequest
+    ) -> CodeSubmissionResponse:
+        """
+        Chấm code của học sinh với các test case của bài tập sử dụng Judge0.
+        """
+        exercise = await self.get_exercise(exercise_id)
+        if not exercise:
+            raise ValueError(f"Không tìm thấy bài tập với ID {exercise_id}")
+
+        test_cases = getattr(exercise, "case", None)
+        if not test_cases:
+            raise ValueError("Bài tập không có test case để kiểm tra")
+
+        results = []
+        all_passed = True
+
+        for test_case in test_cases:
+            input_data = getattr(test_case, "input_data", None) or getattr(
+                test_case, "input", None
+            )
+            expected_output = getattr(test_case, "output_data", None) or getattr(
+                test_case, "output", None
+            )
+
+            # Submit to Judge0
+            response = requests.post(
+                f"{JUDGE0_API_URL}/submissions?base64_encoded=false&wait=true",
+                headers={"Content-Type": "application/json"},
+                json={
+                    "source_code": submission.code,
+                    "language_id": get_language_id(submission.language),
+                    "stdin": input_data,
+                },
+            )
+
+            if not response.ok:
+                results.append(
+                    TestCaseResult(
+                        input=input_data,
+                        expected_output=expected_output,
+                        actual_output="",
+                        passed=False,
+                        error=f"Judge0 error: {response.text}",
+                    )
+                )
+                all_passed = False
+                continue
+
+            result_data = response.json()
+            actual_output = (result_data.get("stdout") or "").strip()
+            error = result_data.get("stderr") or result_data.get("compile_output") or ""
+            passed = actual_output == (expected_output or "").strip() and not error
+
+            results.append(
+                TestCaseResult(
+                    input=input_data,
+                    expected_output=expected_output,
+                    actual_output=actual_output,
+                    passed=passed,
+                    error=error,
+                )
+            )
+
+            if not passed:
+                all_passed = False
+
         return CodeSubmissionResponse(results=results, all_passed=all_passed)
 
 

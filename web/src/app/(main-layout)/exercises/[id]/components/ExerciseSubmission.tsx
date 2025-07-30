@@ -11,7 +11,6 @@ import AIChat from "./AIChat";
 import MonacoEditor from "@/components/ui/MonacoEditor";
 import { exercisesApi } from "@/lib/api";
 import { sendAIChatRequest } from "@/lib/api/aiChat";
-import type { Judge0SubmissionRequest } from "@/lib/api/exercises";
 
 /**
  * Component cho phần nộp bài tập và chạy test
@@ -162,46 +161,36 @@ yourFunction()`,
     setIsRunningJudge0(true);
     setIsLoading(true);
     try {
-      const testCases = exercise.testCases || [];
-      const judgeResults = await Promise.all(
-        testCases.map(async (test) => {
-          const submission: Judge0SubmissionRequest = {
-            code,
-            language,
-            stdin: test.input,
-          };
-          const result = await exercisesApi.sendCodeToJudge(submission);
-          const actualOutput = (result.stdout ?? "").trim();
-          const expectedOutput = (test.expectedOutput ?? "").trim();
-          const passed = actualOutput === expectedOutput;
-          return {
-            input: test.input,
-            expectedOutput,
-            actualOutput,
-            passed,
-            error: result.stderr || result.compile_output || "",
-          };
-        })
+      // Call backend API for Judge0 submission
+      const response = await exercisesApi.sendCodeToJudge(Number(exercise.id), {
+        code,
+        language,
+      });
+      // Ensure error is always a string
+      setResults(
+        response.results.map((r) => ({
+          ...r,
+          error: r.error ?? "",
+        }))
       );
-      setResults(judgeResults);
 
       // Gọi API ai-chat với kết quả test mới
-      const testsPassed = judgeResults.every((result) => result.passed);
+      const testsPassed = response.results.every((result) => result.passed);
       setAllTestsPassed(testsPassed);
       try {
-        const response = await sendAIChatRequest({
+        const aiRes = await sendAIChatRequest({
           code,
-          results: judgeResults,
+          results: response.results,
           title: exercise.title,
           allTestsPassed: testsPassed,
         });
-        if (response.reply) {
-          setAiResponse(response.reply);
+        if (aiRes.reply) {
+          setAiResponse(aiRes.reply);
         }
       } catch (aiError) {
         console.error("AI Chat error:", aiError);
       }
-      console.log("result", judgeResults);
+      console.log("result", response.results);
       console.log("allTestsPassed", testsPassed);
     } catch (err) {
       console.error("Judge0 error:", err);

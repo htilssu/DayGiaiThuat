@@ -144,6 +144,9 @@ class Settings(BaseSettings):
     SEEDERS_TO_RUN: Optional[List[str]] = None
     FORCE_SEEDERS: bool = False
 
+    # Judge0
+    JUDGE0_API_URL: str
+
     @field_validator("SEEDERS_TO_RUN", mode="before")
     def assemble_seeders_to_run(
         cls, v: Optional[Union[str, List[str]]]

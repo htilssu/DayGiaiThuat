@@ -1,5 +1,5 @@
 export interface ExerciseItem {
-  id: string;
+  id: number;
   title: string;
   description: string;
   category: string;
@@ -14,7 +14,7 @@ export interface ExerciseItem {
 
 export const exercisesData: ExerciseItem[] = [
   {
-    id: "ex-001",
+    id: 1,
     title: "Tìm kiếm nhị phân",
     description:
       "Cài đặt thuật toán tìm kiếm nhị phân và phân tích độ phức tạp",
@@ -98,7 +98,7 @@ print(binary_search(arr, target))  # Kết quả mong đợi: 3`,
     ],
   },
   {
-    id: "ex-002",
+    id: 2,
     title: "Sắp xếp nhanh (Quick Sort)",
     description: "Cài đặt thuật toán sắp xếp nhanh với phân hoạch Lomuto",
     category: "Sắp xếp",
@@ -188,7 +188,7 @@ print(quick_sort(arr))  # Kết quả mong đợi: [2, 3, 5, 6, 7, 9, 10, 11, 12
     ],
   },
   {
-    id: "ex-003",
+    id: 3,
     title: "Cây nhị phân tìm kiếm",
     description:
       "Cài đặt cấu trúc dữ liệu cây nhị phân tìm kiếm với các thao tác cơ bản",
@@ -221,7 +221,7 @@ Viết các hàm cơ bản cho cây nhị phân tìm kiếm (BST): thêm, tìm k
     ],
   },
   {
-    id: "ex-004",
+    id: 4,
     title: "Thuật toán Dijkstra",
     description: "Tìm đường đi ngắn nhất trên đồ thị có trọng số không âm",
     category: "Đồ thị",
@@ -246,7 +246,7 @@ Cài đặt thuật toán Dijkstra để tìm đường đi ngắn nhất từ m
     ],
   },
   {
-    id: "ex-005",
+    id: 5,
     title: "Quy hoạch động - Dãy con tăng dài nhất",
     description:
       "Giải quyết bài toán tìm dãy con tăng dài nhất bằng quy hoạch động",
@@ -269,7 +269,7 @@ Tìm độ dài dãy con tăng dài nhất trong một dãy số nguyên.
     ],
   },
   {
-    id: "ex-006",
+    id: 6,
     title: "Số Fibonacci",
     description:
       "Cài đặt các phương pháp tính số Fibonacci và so sánh hiệu suất",
