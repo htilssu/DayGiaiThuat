@@ -79,6 +79,8 @@ export interface CourseEnrollmentResponse {
 export interface EnrolledCourse extends UserCourseDetail {
   progress: number;
   status: string;
+  currentTopicId?: number | null;
+  currentLessonId?: number | null;
 }
 
 /**

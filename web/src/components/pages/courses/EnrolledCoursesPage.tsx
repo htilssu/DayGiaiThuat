@@ -57,8 +57,14 @@ export function EnrolledCoursesPage() {
         router.push(`/courses/${courseId}`);
     };
 
-    const handleLearnClick = (courseId: number) => {
-        router.push(`/courses/${courseId}/learn`);
+    const handleLearnClick = (course: EnrolledCourse) => {
+        if (course.currentLessonId) {
+            // Nếu có bài học hiện tại, chuyển đến bài học đó
+            router.push(`/lessons/${course.currentLessonId}`);
+        } else {
+            // Nếu không có bài học hiện tại, chuyển đến trang học tổng quát
+            router.push(`/courses/${course.id}/learn`);
+        }
     };
 
     const handleExploreMore = () => {
@@ -90,9 +96,10 @@ export function EnrolledCoursesPage() {
             {/* Header */}
             <Box mb="xl">
                 <Group justify="space-between" align="center" mb="md">
-                    <Title order={1}>Khóa học của tôi</Title>
+                    <Title order={1}>Khóa học của bạn</Title>
                     <Button
                         variant="outline"
+                        className="border-primary text-primary hover:bg-primary/10"
                         rightSection={<IconArrowRight size={16} />}
                         onClick={handleExploreMore}
                     >
@@ -115,7 +122,15 @@ export function EnrolledCoursesPage() {
                     <Text size="lg" c="dimmed" mb="xl">
                         Hãy khám phá và đăng ký các khóa học thú vị để bắt đầu hành trình học tập
                     </Text>
-                    <Button size="lg" onClick={handleExploreMore}>
+                    <Button
+                        size="lg"
+                        style={{
+                            backgroundColor: 'rgb(var(--color-primary))',
+                            borderColor: 'rgb(var(--color-primary))',
+                            color: 'white'
+                        }}
+                        onClick={handleExploreMore}
+                    >
                         Khám phá khóa học
                     </Button>
                 </Box>
@@ -161,21 +176,21 @@ export function EnrolledCoursesPage() {
                                                 <Text size="sm" fw={500}>Tiến độ</Text>
                                                 <Text size="sm">{Math.round(course.progress)}%</Text>
                                             </Group>
-                                            <Progress value={course.progress} color="blue" />
+                                            <Progress value={course.progress} className="[&_.mantine-Progress-bar]:bg-primary" />
                                         </Box>
                                     )}
 
                                     {/* Course Stats */}
                                     <Group gap="xs" mb="md">
-                                        <Badge variant="light" color="blue" leftSection={<IconBook size={12} />}>
+                                        <Badge variant="light" className="text-primary border-primary/20" leftSection={<IconBook size={12} />}>
                                             {course.topics?.length || 0} chủ đề
                                         </Badge>
                                         {course.duration && (
-                                            <Badge variant="light" color="green" leftSection={<IconClock size={12} />}>
+                                            <Badge variant="light" className="text-secondary border-secondary/20" leftSection={<IconClock size={12} />}>
                                                 {formatDuration(course.duration)}
                                             </Badge>
                                         )}
-                                        <Badge variant="light" color="orange" leftSection={<IconTrophy size={12} />}>
+                                        <Badge variant="light" className="text-accent border-accent/20" leftSection={<IconTrophy size={12} />}>
                                             {course.level}
                                         </Badge>
                                     </Group>
@@ -184,9 +199,14 @@ export function EnrolledCoursesPage() {
                                     <Button
                                         fullWidth
                                         variant="filled"
+                                        style={{
+                                            backgroundColor: 'rgb(var(--color-primary))',
+                                            borderColor: 'rgb(var(--color-primary))',
+                                            color: 'white'
+                                        }}
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            handleLearnClick(course.id);
+                                            handleLearnClick(course);
                                         }}
                                     >
                                         Tiếp tục học

@@ -92,7 +92,7 @@ export default function Footer() {
                   <Link
                     href="/courses"
                     className="text-foreground/70 hover:text-primary transition-colors">
-                    Khóa học của tôi
+                    Khóa học của bạn
                   </Link>
                 </li>
                 <li>

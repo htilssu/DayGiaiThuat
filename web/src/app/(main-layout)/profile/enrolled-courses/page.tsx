@@ -40,7 +40,7 @@ export default function EnrolledCoursesPage() {
         return (
             <div className="py-10 px-4">
                 <div className="max-w-6xl mx-auto">
-                    <h1 className="text-3xl font-bold mb-8">Khóa học của tôi</h1>
+                    <h1 className="text-3xl font-bold mb-8">Khóa học của bạn</h1>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {[...Array(3)].map((_, i) => (
                             <div key={i} className="bg-foreground/5 rounded-xl overflow-hidden animate-pulse">
@@ -61,7 +61,7 @@ export default function EnrolledCoursesPage() {
         return (
             <div className="py-10 px-4">
                 <div className="max-w-6xl mx-auto">
-                    <h1 className="text-3xl font-bold mb-8">Khóa học của tôi</h1>
+                    <h1 className="text-3xl font-bold mb-8">Khóa học của bạn</h1>
                     <div className="bg-foreground/5 rounded-xl p-10 text-center">
                         <h2 className="text-2xl font-bold mb-4 text-accent">{error}</h2>
                         <button
@@ -79,7 +79,7 @@ export default function EnrolledCoursesPage() {
         return (
             <div className="py-10 px-4">
                 <div className="max-w-6xl mx-auto">
-                    <h1 className="text-3xl font-bold mb-8">Khóa học của tôi</h1>
+                    <h1 className="text-3xl font-bold mb-8">Khóa học của bạn</h1>
                     <div className="bg-foreground/5 rounded-xl p-10 text-center">
                         <h2 className="text-2xl font-bold mb-4">Bạn chưa đăng ký khóa học nào</h2>
                         <p className="mb-6 text-foreground/70">
@@ -99,7 +99,7 @@ export default function EnrolledCoursesPage() {
     return (
         <div className="py-10 px-4">
             <div className="max-w-6xl mx-auto">
-                <h1 className="text-3xl font-bold mb-8">Khóa học của tôi</h1>
+                <h1 className="text-3xl font-bold mb-8">Khóa học của bạn</h1>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {courses.map((course) => (
                         <div

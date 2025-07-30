@@ -34,3 +34,4 @@ applyTo: '**/web/**'
         ```
 - Sử dùng các class màu như .text-primary, ..., hãy đọc file `web\src\app\globals.css` để biết các class màu đã được định nghĩa.
 - Đang sử dụng pnpm để quản lý package, hãy sử dụng lệnh `pnpm install` để cài đặt package mới.
+- Các tên biến tạo ra phải là camelCase biến response api cũng thế.

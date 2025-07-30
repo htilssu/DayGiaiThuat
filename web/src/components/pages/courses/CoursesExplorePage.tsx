@@ -1,28 +1,29 @@
 "use client";
 
-import { useState, useEffect, Key } from "react";
-import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { CourseListItem, coursesApi } from "@/lib/api/courses";
 import { useAppSelector } from "@/lib/store";
 import {
-    Container,
-    Title,
-    Text,
-    Grid,
-    Card,
-    Badge,
-    Button,
-    Loader,
     Alert,
-    Group,
+    Badge,
     Box,
+    Button,
+    Card,
+    Container,
     Divider,
+    Grid,
+    Group,
+    Loader,
     Pagination,
+    Select,
+    Text,
     TextInput,
-    Select
+    Title
 } from "@mantine/core";
-import { IconSearch, IconBook, IconClock, IconTrophy } from "@tabler/icons-react";
-import { coursesApi, CourseListItem } from "@/lib/api/courses";
+import { IconBook, IconClock, IconSearch, IconTrophy } from "@tabler/icons-react";
+import { useQuery } from "@tanstack/react-query";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export function CoursesExplorePage() {
     const [error, setError] = useState<string | null>(null);
@@ -43,20 +44,17 @@ export function CoursesExplorePage() {
         enabled: !!userState.user,
     });
 
-    // Xử lý chuyển trang
     const handlePageChange = (page: number) => {
         setCurrentPage(page);
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    // Chuyển đổi phút thành định dạng giờ:phút
     const formatDuration = (minutes: number) => {
         const hours = Math.floor(minutes / 60);
         const mins = minutes % 60;
         return `${hours > 0 ? `${hours} giờ ` : ""}${mins > 0 ? `${mins} phút` : ""}`;
     };
 
-    // Xử lý khi click vào course card - navigate tới trang chi tiết
     const handleCourseClick = (courseId: number) => {
         router.push(`/courses/${courseId}`);
     };
@@ -67,14 +65,8 @@ export function CoursesExplorePage() {
 
     return (
         <Container size="xl" py="xl">
-            {/* Header Banner */}
-            <Box mb="xl" p="xl" style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                borderRadius: '16px',
-                color: 'white',
-                textAlign: 'center'
-            }}>
-                <Title order={1} mb="md" style={{ color: 'white' }}>
+            <Box mb="xl" p="xl" className="bg-primary/90 rounded-lg text-white text-center">
+                <Title order={1} mb="md" className="text-white">
                     Khám phá khóa học
                 </Title>
                 <Text size="xl" mb="lg" style={{ color: 'rgba(255, 255, 255, 0.9)' }}>
@@ -83,14 +75,13 @@ export function CoursesExplorePage() {
                 <Button
                     size="lg"
                     variant="white"
-                    color="blue"
+                    color="black"
                     onClick={handleGoToMyCourses}
                 >
-                    Xem khóa học của tôi
+                    Xem khóa học của bạn
                 </Button>
             </Box>
 
-            {/* Filter & Search */}
             <Box mb="xl">
                 <Grid>
                     <Grid.Col span={{ base: 12, md: 8 }}>
@@ -122,7 +113,6 @@ export function CoursesExplorePage() {
 
             <Divider mb="xl" />
 
-            {/* Danh sách khóa học */}
             {isLoading ? (
                 <Grid>
                     {[...Array(6)].map((_, i) => (
@@ -159,59 +149,68 @@ export function CoursesExplorePage() {
                                         e.currentTarget.style.transform = 'translateY(0)';
                                     }}
                                 >
-                                    {/* Course Image */}
                                     <Card.Section>
-                                        <div style={{
-                                            height: 200,
-                                            backgroundImage: course.thumbnailUrl
-                                                ? `url(${course.thumbnailUrl})`
-                                                : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                            backgroundSize: 'cover',
-                                            backgroundPosition: 'center',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                        }}>
-                                            {!course.thumbnailUrl && (
-                                                <IconBook size={48} color="white" />
+                                        <div style={{ position: 'relative', height: '200px', overflow: 'hidden' }}>
+                                            {course.thumbnailUrl ? (
+                                                <Image
+                                                    src={course.thumbnailUrl}
+                                                    alt={course.title}
+                                                    fill
+                                                    style={{ objectFit: 'cover' }}
+                                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                                />
+                                            ) : (
+                                                <div
+                                                    className="w-full h-full flex items-center justify-center text-white text-5xl font-bold"
+                                                    style={{
+                                                        background: 'linear-gradient(135deg, rgb(var(--color-primary) / 0.8) 0%, rgb(var(--color-primary) / 0.9) 100%)',
+                                                        textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                                                    }}
+                                                >
+                                                    {course.title
+                                                        .split(' ')
+                                                        .slice(0, 2)
+                                                        .map(word => word.charAt(0).toUpperCase())
+                                                        .join('')}
+                                                </div>
                                             )}
                                         </div>
                                     </Card.Section>
 
                                     <Box pt="md">
-                                        {/* Course Title */}
                                         <Title order={4} lineClamp={2} mb="xs">
                                             {course.title}
                                         </Title>
 
-                                        {/* Course Description */}
                                         <Text size="sm" c="dimmed" lineClamp={3} mb="md">
                                             {course.description}
                                         </Text>
 
-                                        {/* Course Stats */}
                                         <Group gap="xs" mb="md">
-                                            <Badge variant="light" color="green" leftSection={<IconClock size={12} />}>
+                                            <Badge variant="light" className="text-primary border-primary/20" leftSection={<IconClock size={12} />}>
                                                 {formatDuration(course.duration)}
                                             </Badge>
-                                            <Badge variant="light" color="orange" leftSection={<IconTrophy size={12} />}>
+                                            <Badge variant="light" className="text-accent border-accent/20" leftSection={<IconTrophy size={12} />}>
                                                 {course.level}
                                             </Badge>
                                         </Group>
 
-                                        {/* Price */}
                                         {course.price !== undefined && (
                                             <Group justify="space-between" mb="md">
-                                                <Text size="lg" fw={700} c="blue">
+                                                <Text size="lg" fw={700} className="text-primary">
                                                     {course.price === 0 ? 'Miễn phí' : `${course.price.toLocaleString()} VNĐ`}
                                                 </Text>
                                             </Group>
                                         )}
 
-                                        {/* Action Button */}
                                         <Button
                                             fullWidth
                                             variant="filled"
+                                            style={{
+                                                backgroundColor: 'rgb(var(--color-primary))',
+                                                borderColor: 'rgb(var(--color-primary))',
+                                                color: 'white'
+                                            }}
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleCourseClick(course.id);
@@ -237,7 +236,8 @@ export function CoursesExplorePage() {
                         </Box>
                     )}
                 </>
-            )}
-        </Container>
+            )
+            }
+        </Container >
     );
 }

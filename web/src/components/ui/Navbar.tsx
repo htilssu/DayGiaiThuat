@@ -268,7 +268,7 @@ export default function Navbar() {
             />
             <MobileNavItem
               href="/courses"
-              label="Khóa học của tôi"
+              label="Khóa học của bạn"
               isActive={pathname === "/courses"}
               onClick={() => setIsMenuOpen(false)}
             />
@@ -480,8 +480,8 @@ function CoursesDropdown({ isActive }: { isActive: boolean }) {
 
   return (
     <li className="relative group" ref={dropdownRef}>
-      <button
-        className={`relative px-1 py-2 font-medium theme-transition flex items-center gap-1 ${isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
+      <div
+        className={`relative d-flex px-1 py-2 font-medium theme-transition flex items-center gap-1 ${isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
           } transition-colors`}
         onClick={() => setIsOpen(!isOpen)}
         onMouseEnter={() => setIsOpen(true)}
@@ -511,7 +511,7 @@ function CoursesDropdown({ isActive }: { isActive: boolean }) {
         {!isActive && (
           <span className="absolute -bottom-1 left-1/2 right-1/2 h-0.5 bg-[rgb(var(--color-primary))] rounded-full transition-all duration-300 group-hover:left-0 group-hover:right-0 theme-transition"></span>
         )}
-      </button>
+      </div>
 
       {/* Dropdown Menu */}
       {isOpen && (
@@ -523,18 +523,18 @@ function CoursesDropdown({ isActive }: { isActive: boolean }) {
             <Link
               href="/courses"
               className={`block px-4 py-2 text-sm theme-transition ${pathname === "/courses"
-                  ? "text-primary bg-primary/10"
-                  : "text-foreground/80 hover:text-primary hover:bg-primary/5"
+                ? "text-primary bg-primary/10"
+                : "text-foreground/80 hover:text-primary hover:bg-primary/5"
                 }`}
               onClick={() => setIsOpen(false)}
             >
-              Khóa học của tôi
+              Khóa học của bạn
             </Link>
             <Link
               href="/courses/explore"
               className={`block px-4 py-2 text-sm theme-transition ${pathname === "/courses/explore"
-                  ? "text-primary bg-primary/10"
-                  : "text-foreground/80 hover:text-primary hover:bg-primary/5"
+                ? "text-primary bg-primary/10"
+                : "text-foreground/80 hover:text-primary hover:bg-primary/5"
                 }`}
               onClick={() => setIsOpen(false)}
             >
