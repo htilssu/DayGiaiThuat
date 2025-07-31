@@ -120,18 +120,18 @@ export default function Navbar() {
                 pathname === "/courses" || pathname.startsWith("/courses/")
               }
             />
-            <NavItem
+            {/* <NavItem
               href="/learn"
               label="Bài học"
               isActive={pathname === "/learn" || pathname.startsWith("/learn/")}
-            />
-            <NavItem
+            /> */}
+            {/* <NavItem
               href="/exercises"
               label="Bài tập"
               isActive={
                 pathname === "/exercises" || pathname.startsWith("/exercises/")
               }
-            />
+            /> */}
             <NavItem
               href="/discussions"
               label="Thảo luận"
@@ -139,6 +139,11 @@ export default function Navbar() {
                 pathname === "/discussions" ||
                 pathname.startsWith("/discussions/")
               }
+            />
+            <NavItem
+              href="/contact"
+              label="Liên hệ"
+              isActive={pathname === "/contact"}
             />
             <NavItem
               href="/about"
@@ -273,14 +278,14 @@ export default function Navbar() {
               }
               onClick={() => setIsMenuOpen(false)}
             />
-            <MobileNavItem
+            {/* <MobileNavItem
               href="/exercises"
               label="Bài tập"
               isActive={
                 pathname === "/exercises" || pathname.startsWith("/exercises/")
               }
               onClick={() => setIsMenuOpen(false)}
-            />
+            /> */}
             <MobileNavItem
               href="/discussions"
               label="Thảo luận"
@@ -291,8 +296,14 @@ export default function Navbar() {
               onClick={() => setIsMenuOpen(false)}
             />
             <MobileNavItem
+              href="/contact"
+              label="Liên hệ"
+              isActive={pathname === "/contact"}
+              onClick={() => setIsMenuOpen(false)}
+            />
+            <MobileNavItem
               href="/about"
-              label="Giới thiệu"
+              label="FAQ"
               isActive={pathname === "/about"}
               onClick={() => setIsMenuOpen(false)}
             />

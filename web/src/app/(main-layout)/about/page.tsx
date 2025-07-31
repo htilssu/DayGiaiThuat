@@ -73,8 +73,8 @@ export default function FAQPage() {
   return (
     <div className="min-h-screen py-16 bg-gradient-to-br from-primary/5 via-background to-background">
       <div className="max-w-3xl mx-auto px-4">
-        <h1 className="text-4xl md:text-5xl font-bold text-center mb-8 bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-primary">
-          Câu hỏi thường gặp (FAQ)
+        <h1 className="py-2 text-4xl md:text-5xl font-bold text-center mb-8 bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-primary">
+          Câu hỏi thường gặp
         </h1>
         <p className="text-lg text-foreground/80 text-center mb-12">
           Dưới đây là những thắc mắc phổ biến về cách sử dụng nền tảng học giải
