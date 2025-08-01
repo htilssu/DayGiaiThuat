@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 
-from app.schemas.exercise_schema import CreateExerciseSchema
-from app.services.exercise_service import ExerciseService
+from app.schemas.exercise_schema import CreateExerciseSchema, CodeSubmissionRequest, CodeSubmissionResponse
+from app.services.exercise_service import ExerciseService, get_exercise_service
 
-router = APIRouter(prefix="/exercise", tags=["exercise"])
+router = APIRouter(prefix="/exercise", tags=["Bài tập"])
 
 
 @router.post(
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/exercise", tags=["exercise"])
 )
 async def create_exercise(
     data: CreateExerciseSchema,
-    exercise_service: ExerciseService = Depends(ExerciseService),
+    exercise_service: ExerciseService = Depends(get_exercise_service),
 ):
     """
     Tạo bài tập mới sử dụng AI agent
@@ -41,7 +41,7 @@ async def create_exercise(
 )
 async def get_exercise(
     exercise_id: int,
-    exercise_service: ExerciseService = Depends(ExerciseService),
+    exercise_service: ExerciseService = Depends(get_exercise_service),
 ):
     """
     Lấy thông tin bài tập theo ID
@@ -59,3 +59,35 @@ async def get_exercise(
             status_code=404, detail=f"Không tìm thấy bài tập với ID {exercise_id}"
         )
     return exercise
+
+
+@router.post(
+    "/{exercise_id}/submit",
+    summary="Nộp code bài tập và chấm điểm tự động",
+    response_model=CodeSubmissionResponse,
+)
+async def submit_exercise_code(
+    exercise_id: int,
+    submission: CodeSubmissionRequest = Body(...),
+    exercise_service: ExerciseService = Depends(get_exercise_service),
+):
+    """
+    Nhận code, chạy với các test case và trả về kết quả từng test case.
+    """
+    return await exercise_service.evaluate_submission(exercise_id, submission)
+
+
+@router.post(
+    "/{exercise_id}/judge0-submit",
+    summary="Nộp code bài tập và chấm điểm tự động qua Judge0",
+    response_model=CodeSubmissionResponse,
+)
+async def submit_exercise_code_judge0(
+    exercise_id: int,
+    submission: CodeSubmissionRequest = Body(...),
+    exercise_service: ExerciseService = Depends(get_exercise_service),
+):
+    """
+    Nhận code, chạy với các test case qua Judge0 và trả về kết quả từng test case.
+    """
+    return await exercise_service.evaluate_submission_with_judge0(exercise_id, submission)

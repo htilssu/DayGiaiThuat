@@ -1,12 +1,12 @@
 from typing import Any
+from sqlalchemy import select
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
-from sqlalchemy.orm import Session
-
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user_model import User as UserModel
 from app.schemas.auth_schema import UserRegister, UserLogin, LoginResponse
+from app.database.database import get_async_db
 from app.utils.utils import (
-    get_db,
     verify_password,
     create_access_token,
     set_auth_cookie,
@@ -16,7 +16,7 @@ from app.services.user_service import UserService, get_user_service
 
 router = APIRouter(
     prefix="/auth",
-    tags=["authentication"],
+    tags=["Xác thực"],
     responses={
         404: {"description": "Not found"},
         500: {"description": "Internal server error"},
@@ -68,7 +68,7 @@ async def register(
     },
 )
 async def login(
-    response: Response, data: UserLogin, db: Session = Depends(get_db)
+    response: Response, data: UserLogin, db: AsyncSession = Depends(get_async_db)
 ) -> Any:
     """
     Đăng nhập và lấy token
@@ -82,9 +82,15 @@ async def login(
     # Tìm user theo username hoặc email
     is_email = "@" in data.username
     if is_email:
-        user = db.query(UserModel).filter(UserModel.email == data.username).first()
+        result = await db.execute(
+            select(UserModel).where(UserModel.email == data.username)
+        )
+        user = result.scalars().first()
     else:
-        user = db.query(UserModel).filter(UserModel.username == data.username).first()
+        result = await db.execute(
+            select(UserModel).where(UserModel.username == data.username)
+        )
+        user = result.scalars().first()
 
     if not user:
         raise HTTPException(

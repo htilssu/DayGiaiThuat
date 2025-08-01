@@ -11,7 +11,7 @@ interface StatsSectionProps {
 export function StatsSection({ visible, stats }: StatsSectionProps) {
     return (
         <section
-            className={`py-20 bg-gradient-to-br from-primary/90 to-secondary/90 text-white transition-all duration-700 ${visible ? "opacity-100" : "opacity-0 translate-y-10"
+            className={`py-20 bg-primary/90 rounded-2xl text-white transition-all duration-700 ${visible ? "opacity-100" : "opacity-0 translate-y-10"
                 }`}
         >
             <div className="container mx-auto px-4">

@@ -1,6 +1,8 @@
 "use client";
 
-import { Paper, Title } from "@mantine/core";
+import { Paper, Title, Button, Grid, Group } from "@mantine/core";
+import { IconBook, IconSchool, IconUsers, IconFileText } from "@tabler/icons-react";
+import Link from "next/link";
 
 interface StatsCard {
   title: string;
@@ -125,6 +127,65 @@ export default function Overview() {
 
   return (
     <div className="space-y-8">
+      {/* Quick Actions */}
+      <Paper className="p-6 bg-white/50 border border-primary/10">
+        <Title order={3} className="mb-4 ">
+          Quản lý nhanh
+        </Title>
+        <Grid>
+          <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+            <Button
+              component={Link}
+              href="/admin/course"
+              variant="light"
+              size="lg"
+              fullWidth
+              leftSection={<IconSchool size={20} />}
+              className="h-16"
+            >
+              Quản lý Khóa học
+            </Button>
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+            <Button
+              component={Link}
+              href="/admin/topics"
+              variant="light"
+              size="lg"
+              fullWidth
+              leftSection={<IconBook size={20} />}
+              className="h-16"
+            >
+              Quản lý Topics
+            </Button>
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+            <Button
+              variant="light"
+              size="lg"
+              fullWidth
+              leftSection={<IconUsers size={20} />}
+              className="h-16"
+              disabled
+            >
+              Quản lý Người dùng
+            </Button>
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
+            <Button
+              variant="light"
+              size="lg"
+              fullWidth
+              leftSection={<IconFileText size={20} />}
+              className="h-16"
+              disabled
+            >
+              Báo cáo
+            </Button>
+          </Grid.Col>
+        </Grid>
+      </Paper>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
@@ -140,11 +201,10 @@ export default function Overview() {
                 {stat.value}
               </p>
               <span
-                className={`text-sm px-2 py-1 rounded-full ${
-                  stat.isIncrease
-                    ? "bg-primary/20 text-primary"
-                    : "bg-red-100 text-red-700"
-                }`}>
+                className={`text-sm px-2 py-1 rounded-full ${stat.isIncrease
+                  ? "bg-primary/20 text-primary"
+                  : "bg-red-100 text-red-700"
+                  }`}>
                 {stat.change}
               </span>
             </div>
@@ -155,7 +215,7 @@ export default function Overview() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Activity */}
         <Paper className="lg:col-span-1 p-6 bg-white/50 border border-primary/10">
-          <Title order={3} className="mb-6 text-gradient-theme">
+          <Title order={3} className="mb-6 ">
             Recent Activity
           </Title>
           <div className="space-y-6">
@@ -180,7 +240,7 @@ export default function Overview() {
         {/* Data Table */}
         <Paper className="lg:col-span-2 p-6 bg-white/50 border border-primary/10">
           <div className="flex justify-between items-center mb-6">
-            <Title order={3} className="text-gradient-theme">
+            <Title order={3} className="">
               Recent Users
             </Title>
             <button className="text-primary hover:text-primary/80 text-sm font-medium transition-colors">

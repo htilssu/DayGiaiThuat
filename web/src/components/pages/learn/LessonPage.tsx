@@ -1,47 +1,116 @@
 "use client";
 
-import { useState } from "react";
+
+import { CodeBlock } from "@/components/ui/CodeBlock";
+import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
+import { socketType, useWebSocket } from "@/contexts/WebSocketContext";
+import { lessonsApi } from "@/lib/api";
+import { Lesson, LessonSection } from "@/lib/api/lessons";
+import { processLessonContent } from "@/lib/contentUtils";
+import { useAppDispatch, useAppSelector } from "@/lib/store";
+import { setState } from "@/lib/store/tutor";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import Link from "next/link";
-
-interface LessonSection {
-    type: "text" | "code" | "image" | "quiz";
-    content: string;
-    options?: string[];
-    answer?: number;
-    explanation?: string;
-}
-
-interface Lesson {
-    id: string;
-    title: string;
-    description: string;
-    topicId: string;
-    topicTitle: string;
-    sections: LessonSection[];
-    nextLessonId?: string;
-    prevLessonId?: string;
-}
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 interface LessonPageProps {
-    lesson: Lesson;
+    topicId: string;
+    lessonId: string;
 }
 
-export function LessonPage({ lesson }: LessonPageProps) {
+export function LessonPage({ topicId, lessonId }: LessonPageProps) {
+    const tutor = useAppSelector(state => state.tutor);
+    const dispatch = useAppDispatch();
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
-    const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+    const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
     const [showExplanation, setShowExplanation] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);
+    const [nextLessonId, setNextLessonId] = useState<number | null>(null);
+    const { data: lesson } = useQuery({
+        queryKey: ["lesson", lessonId],
+        queryFn: async (): Promise<Lesson> => {
+            const data = await lessonsApi.getLessonById(Number(lessonId));
+            if (!data) {
+                throw new Error("Lesson not found");
+            }
+            setIsLoading(false);
+            dispatch(setState({
+                sessionId: null,
+                type: "lesson",
+                contextId: data.id.toString()
+            }));
+            setCurrentSectionIndex(0);
+            setSelectedAnswer(null);
+            setShowExplanation(false);
+            setIsCompleted(data.isCompleted || false);
+            setNextLessonId(data.nextLessonId || null);
+            if (data.isCompleted) {
+                setCurrentSectionIndex((data?.sections?.length ?? 1) - 1);
+            }
+            return data;
+        },
+    });
+    const router = useRouter();
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="h-8 w-1/2 mx-auto bg-foreground/10 rounded mb-4 animate-pulse"></div>
+                    <div className="h-6 w-1/3 mx-auto bg-foreground/10 rounded mb-2 animate-pulse"></div>
+                    <div className="h-4 w-1/4 mx-auto bg-foreground/10 rounded mb-6 animate-pulse"></div>
+                    <div className="h-40 w-full bg-foreground/10 rounded mb-6 animate-pulse"></div>
+                </div>
+            </div>
+        );
+    }
+
+
+    if (error || !lesson) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold mb-4 text-accent">{error || "Bài học không tồn tại"}</h2>
+                    <p className="text-foreground/70 mb-6">Không tìm thấy bài học hoặc bài học đã bị xóa.</p>
+                    <Link href={topicId ? `/topics/${topicId}` : "/learn"} className="px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition">
+                        Quay lại chủ đề
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    if (!lesson.sections || !Array.isArray(lesson.sections) || lesson.sections.length === 0) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold mb-4 text-accent">Bài học không có nội dung</h2>
+                    <p className="text-foreground/70 mb-6">Hiện tại bài học này chưa có nội dung hoặc đã bị xóa.</p>
+                    <Link href={topicId ? `/topics/${topicId}` : "/learn"} className="px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition">
+                        Quay lại chủ đề
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     const currentSection = lesson.sections[currentSectionIndex];
     const isLastSection = currentSectionIndex === lesson.sections.length - 1;
     const isQuiz = currentSection?.type === "quiz";
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (isQuiz && selectedAnswer === null) return;
 
         if (isLastSection) {
             setIsCompleted(true);
+            const data = await lessonsApi.completeLesson(lesson.id);
+            if (data.isCompleted) {
+                setNextLessonId(data.nextLessonId);
+            }
         } else {
             setCurrentSectionIndex(currentSectionIndex + 1);
             setSelectedAnswer(null);
@@ -57,65 +126,146 @@ export function LessonPage({ lesson }: LessonPageProps) {
         }
     };
 
-    const handleAnswerSelect = (index: number) => {
-        setSelectedAnswer(index);
+    const handleAnswerSelect = (answerKey: string) => {
+        setSelectedAnswer(answerKey);
         if (isQuiz) {
             setShowExplanation(true);
         }
     };
 
     const renderSection = (section: LessonSection) => {
+        const { content, isMarkdown, isHtml, language } = processLessonContent(section.content, section.type);
+
         switch (section.type) {
             case "text":
+                if (isMarkdown) {
+                    return (
+                        <MarkdownRenderer
+                            content={content}
+                            className="prose-lg"
+                        />
+                    );
+                } else if (isHtml) {
+                    return (
+                        <div className="prose prose-slate max-w-none prose-lg">
+                            <div dangerouslySetInnerHTML={{ __html: content }} />
+                        </div>
+                    );
+                } else {
+                    return (
+                        <div className="prose prose-slate max-w-none prose-lg">
+                            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{content}</p>
+                        </div>
+                    );
+                }
+            case "teaching":
                 return (
-                    <div className="prose max-w-none">
-                        <div dangerouslySetInnerHTML={{ __html: section.content }} />
+                    <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                        <div className="flex items-center mb-4">
+                            <svg className="w-6 h-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                            <h3 className="text-lg font-semibold text-blue-800">Bài giảng</h3>
+                        </div>
+                        {isMarkdown ? (
+                            <MarkdownRenderer
+                                content={content}
+                                className="prose-blue"
+                            />
+                        ) : isHtml ? (
+                            <div className="prose prose-blue max-w-none">
+                                <div dangerouslySetInnerHTML={{ __html: content }} />
+                            </div>
+                        ) : (
+                            <div className="prose prose-blue max-w-none">
+                                <p className="text-blue-900 leading-relaxed whitespace-pre-wrap">{content}</p>
+                            </div>
+                        )}
                     </div>
                 );
             case "code":
                 return (
-                    <pre className="bg-foreground/5 p-4 rounded-lg overflow-x-auto">
-                        <code>{section.content}</code>
-                    </pre>
+                    <div className="space-y-4">
+                        <div className="flex items-center mb-4">
+                            <svg className="w-5 h-5 text-gray-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                            </svg>
+                            <h4 className="text-lg font-semibold text-gray-700">Ví dụ Code</h4>
+                        </div>
+                        <CodeBlock
+                            code={content}
+                            language={language}
+                            showLineNumbers={true}
+                            className="max-w-full"
+                        />
+                    </div>
                 );
             case "image":
                 return (
                     <div className="flex justify-center">
-                        <img src={section.content} alt="Lesson illustration" className="max-w-full rounded-lg" />
+                        <img src={section.content} alt="Lesson illustration" className="max-w-full rounded-lg shadow-md" />
                     </div>
                 );
             case "quiz":
                 return (
-                    <div>
-                        <h3 className="text-xl font-semibold mb-4">Câu hỏi:</h3>
-                        <p className="mb-6">{section.content}</p>
+                    <div className="bg-amber-50 p-6 rounded-lg border border-amber-200">
+                        <div className="flex items-center mb-4">
+                            <svg className="w-6 h-6 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <h3 className="text-lg font-semibold text-amber-800">Câu hỏi kiểm tra</h3>
+                        </div>
+                        <div className="mb-6">
+                            {isMarkdown ? (
+                                <MarkdownRenderer
+                                    content={content}
+                                    className="prose-amber mb-4"
+                                />
+                            ) : (
+                                <p className="text-amber-900 leading-relaxed whitespace-pre-wrap">{content}</p>
+                            )}
+                        </div>
                         <div className="space-y-3">
-                            {section.options?.map((option, index) => (
-                                <div
-                                    key={index}
-                                    onClick={() => handleAnswerSelect(index)}
-                                    className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedAnswer === index
-                                        ? selectedAnswer === section.answer
-                                            ? "border-green-500 bg-green-50"
-                                            : "border-red-500 bg-red-50"
-                                        : "border-gray-200 hover:border-primary/50"
-                                        }`}
-                                >
-                                    <div className="flex items-center">
+                            {section.options && typeof section.options === 'object'
+                                ? Object.entries(section.options).map(([key, value]: [string, any]) => {
+                                    const isSelected = selectedAnswer === key;
+                                    const isCorrect = key === section.answer;
+                                    const isIncorrect = isSelected && !isCorrect;
+
+                                    return (
                                         <div
-                                            className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${selectedAnswer === index
-                                                ? selectedAnswer === section.answer
-                                                    ? "bg-green-500 text-white"
-                                                    : "bg-red-500 text-white"
-                                                : "bg-foreground/10"
+                                            key={key}
+                                            onClick={() => handleAnswerSelect(key)}
+                                            className={`p-4 border rounded-lg cursor-pointer transition-all ${isSelected
+                                                ? isCorrect
+                                                    ? "border-green-500 bg-green-50"
+                                                    : "border-red-500 bg-red-50"
+                                                : "border-gray-200 hover:border-primary/50 hover:bg-gray-50"
                                                 }`}
                                         >
-                                            {String.fromCharCode(65 + index)}
+                                            <div className="flex items-center">
+                                                <div
+                                                    className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 text-sm font-semibold ${isSelected
+                                                        ? isCorrect
+                                                            ? "bg-green-500 text-white"
+                                                            : "bg-red-500 text-white"
+                                                        : "bg-gray-200 text-gray-700"
+                                                        }`}
+                                                >
+                                                    {key}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <MarkdownRenderer
+                                                        content={String(value)}
+                                                        className="prose-sm mb-0"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
-                                        <span>{option}</span>
-                                    </div>
-                                </div>
-                            ))}
+                                    );
+                                })
+                                : <p className="text-red-500">Không có lựa chọn nào được cung cấp cho câu hỏi này.</p>
+                            }
                         </div>
 
                         {showExplanation && (
@@ -133,21 +283,24 @@ export function LessonPage({ lesson }: LessonPageProps) {
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 mr-2" viewBox="0 0 20 20" fill="currentColor">
                                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                             </svg>
-                                            <span className="font-semibold">Chính xác!</span>
+                                            <span className="font-semibold text-green-800">Chính xác!</span>
                                         </>
                                     ) : (
                                         <>
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600 mr-2" viewBox="0 0 20 20" fill="currentColor">
                                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                                             </svg>
-                                            <span className="font-semibold">Chưa chính xác!</span>
+                                            <span className="font-semibold text-red-800">Chưa chính xác!</span>
                                         </>
                                     )}
                                 </div>
-                                <p>{section.explanation}</p>
+                                <MarkdownRenderer
+                                    content={section.explanation || "Không có giải thích."}
+                                    className="prose-sm"
+                                />
                                 {selectedAnswer !== section.answer && (
-                                    <p className="mt-2 font-semibold">
-                                        Đáp án đúng là: {String.fromCharCode(65 + (section.answer || 0))}
+                                    <p className="mt-2 font-semibold text-gray-700">
+                                        Đáp án đúng là: <span className="text-green-600">{section.answer}</span>
                                     </p>
                                 )}
                             </motion.div>
@@ -155,7 +308,11 @@ export function LessonPage({ lesson }: LessonPageProps) {
                     </div>
                 );
             default:
-                return <p>Không hỗ trợ loại nội dung này</p>;
+                return (
+                    <div className="bg-gray-100 p-4 rounded-lg border border-gray-300 text-center">
+                        <p className="text-gray-600">Không hỗ trợ loại nội dung: <span className="font-mono">{section.type}</span></p>
+                    </div>
+                );
         }
     };
 
@@ -166,10 +323,8 @@ export function LessonPage({ lesson }: LessonPageProps) {
                 <div className="mb-8">
                     <div className="flex items-center mb-2">
                         <Link href={`/topics/${lesson.topicId}`} className="text-primary hover:underline">
-                            {lesson.topicTitle}
+                            {`Chủ đề ${lesson.order}`}
                         </Link>
-                        <span className="mx-2">•</span>
-                        <span>Bài {lesson.id}</span>
                     </div>
                     <h1 className="text-3xl md:text-4xl font-bold">{lesson.title}</h1>
                     <p className="text-foreground/70 mt-2">{lesson.description}</p>
@@ -200,27 +355,28 @@ export function LessonPage({ lesson }: LessonPageProps) {
                             Bạn đã học xong bài {lesson.title}. Hãy tiếp tục với bài học tiếp theo để nâng cao kiến thức của mình.
                         </p>
                         <div className="flex flex-wrap justify-center gap-4">
-                            {lesson.nextLessonId ? (
+
+                            <Link
+                                href={`/topics/${lesson.topicId}`}
+                                className="px-6 py-3 bg-accent text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+                            >
+                                Quay lại chủ đề
+                            </Link>
+                            {nextLessonId ? (
                                 <Link
-                                    href={`/topics/${lesson.topicId}/lessons/${lesson.nextLessonId}`}
+                                    href={`/lessons/${nextLessonId}`}
                                     className="px-6 py-3 bg-primary text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
                                 >
-                                    Bài học tiếp theo
+                                    Bắt đầu bài học tiếp theo
                                 </Link>
                             ) : (
                                 <Link
-                                    href={`/topics/${lesson.topicId}`}
-                                    className="px-6 py-3 bg-primary text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+                                    href={`#`}
+                                    className="px-6 bg-gray-100 py-3 text-gray-400 font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
                                 >
-                                    Quay lại chủ đề
+                                    Bắt đầu bài học tiếp theo
                                 </Link>
                             )}
-                            <Link
-                                href="/learn"
-                                className="px-6 py-3 bg-background border border-primary text-primary font-semibold rounded-lg hover:bg-primary/5 transition-all"
-                            >
-                                Lộ trình học tập
-                            </Link>
                         </div>
                     </motion.div>
                 ) : (
@@ -231,19 +387,20 @@ export function LessonPage({ lesson }: LessonPageProps) {
                         exit={{ opacity: 0, x: -20 }}
                         className="bg-white rounded-xl p-6 md:p-8 shadow-sm border border-foreground/10"
                     >
-                        {renderSection(currentSection)}
+                        {renderSection(currentSection as any)}
 
                         <div className="flex justify-between mt-8">
-                            <button
-                                onClick={handlePrev}
-                                disabled={currentSectionIndex === 0}
-                                className={`px-4 py-2 rounded-lg ${currentSectionIndex === 0
-                                    ? "text-gray-400 cursor-not-allowed"
-                                    : "bg-foreground/15"
-                                    }`}
-                            >
-                                Quay lại
-                            </button>
+                            {currentSectionIndex > 0 ? (
+                                <button
+                                    onClick={handlePrev}
+                                    className={`px-4 py-2 rounded-lg ${currentSectionIndex === 0
+                                        ? "text-gray-400 cursor-not-allowed"
+                                        : "bg-foreground/15"
+                                        }`}
+                                >
+                                    Quay lại
+                                </button>
+                            ) : <div></div>}
                             <button
                                 onClick={handleNext}
                                 disabled={isQuiz && selectedAnswer === null}
@@ -260,7 +417,7 @@ export function LessonPage({ lesson }: LessonPageProps) {
 
                 {/* Section indicators */}
                 <div className="flex justify-center mt-8">
-                    {lesson.sections.map((_, index) => (
+                    {lesson.sections.map((_, index: number) => (
                         <div
                             key={index}
                             className={`w-3 h-3 rounded-full mx-1 ${index === currentSectionIndex

@@ -1,19 +1,51 @@
 from fastapi import APIRouter, Depends
-import httpx
+import uuid
 
+from starlette.responses import StreamingResponse
+
+from app.database.database import AsyncSessionLocal
 from app.schemas.tutor_schema import AskTutorSchema
 from app.utils.utils import get_current_user
+from app.core.agents.tutor_agent import TutorAgent
+from app.schemas.user_profile_schema import UserExcludeSecret
 
-router = APIRouter(prefix="/tutor", tags=["tutor"])
+
+router = APIRouter(prefix="/tutor", tags=["Giáo viên"])
 
 
-@router.post("/ask", response_model=None)
-async def post_tutor(user=Depends(get_current_user), data: AskTutorSchema = None):
-    http_client = httpx.AsyncClient()
-    response = await http_client.post(
-        "http://localhost:5678/webhook/2d57a76b-98c7-431d-9cae-83bfc6543a9f",
-        json=data.model_dump(),
-        timeout=300,
+@router.post("/chat", response_model=None)
+async def post_tutor(
+    data: AskTutorSchema,
+    user: UserExcludeSecret = Depends(get_current_user),
+):
+    async with AsyncSessionLocal() as db:
+        tutor_agent = TutorAgent(db)
+
+    if data.session_id is None:
+        data.session_id = str(uuid.uuid4())
+
+    async def tutor_data_streamer():
+        try:
+            async for chunk in tutor_agent.act_stream(
+                type=data.type,
+                context_id=data.context_id,
+                session_id=data.session_id,
+                question=data.question,
+            ):
+                if chunk:  # Chỉ yield khi chunk có giá trị
+                    if isinstance(chunk, str):
+                        yield chunk.encode("utf-8")
+                    else:
+                        yield str(chunk).encode("utf-8")
+        except Exception as e:
+            error_message = f"Error: {str(e)}"
+            yield error_message.encode("utf-8")
+
+    return StreamingResponse(
+        tutor_data_streamer(),
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
     )
-
-    return {"status_code": response.status_code, "data": response.json()}

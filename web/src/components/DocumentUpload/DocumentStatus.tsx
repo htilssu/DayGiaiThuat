@@ -48,7 +48,7 @@ export function DocumentStatus({ document }: DocumentStatusProps) {
 
   return (
     <Paper className="border border-primary/10 bg-white/50 rounded-lg" p="md">
-      <Group position="apart">
+      <Group justify="space-between">
         <Group>
           <ThemeIcon className={getIconColor()} size="lg" radius="xl">
             {getStatusIcon()}

@@ -1,18 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..services.password_service import PasswordService, get_password_service
-
 from ..schemas.password_schema import ChangePasswordSchema
-
 from ..models.user_model import User
-from ..schemas.user_profile_schema import UserUpdate, UserResponse
+from ..schemas.user_profile_schema import UserUpdate, UserResponse, UserProfileResponse
 from ..services.user_service import UserService, get_user_service
+from ..services.profile_service import ProfileService, get_profile_service
 from ..utils.utils import get_current_user, verify_password
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(prefix="/users", tags=["Người dùng"])
 
 
-@router.get("/", response_model=UserResponse)
+@router.get("", response_model=UserResponse)
 async def get_current_user_info(
     current_user: User = Depends(get_current_user),
 ):
@@ -201,3 +200,15 @@ async def check_user_badges(
         )
 
     return updated_user
+
+
+@router.get("/me/profile", response_model=UserProfileResponse)
+async def get_user_profile(
+    current_user: User = Depends(get_current_user),
+    profile_service: ProfileService = Depends(get_profile_service),
+):
+    """
+    Lấy thông tin profile đầy đủ của người dùng hiện tại
+    bao gồm thống kê, tiến độ học tập, khóa học đã đăng ký, huy hiệu và lịch sử hoạt động
+    """
+    return await profile_service.get_user_profile(current_user.id)

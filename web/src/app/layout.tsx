@@ -1,24 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ThemeInitializer from "../components/ThemeInitializer";
 import HeadScripts from "./head-scripts";
-import { AuthProvider } from "@/contexts/AuthContext";
-import "@mantine/core/styles.css";
 import { MantineThemeProvider } from "@/components/MantineThemeProvider";
 import ChatBot from "@/components/ChatBot/ChatBot";
 import StoreWrapper from "@/components/wrapper/StoreWrapper";
 import ModalWrapper from "@/components/wrapper/ModalWrapper";
+import ClientWrapper from "@/components/wrapper/ClientWrapper";
+import { WebSocketProvider } from "@/contexts/WebSocketContext";
+import { Toaster } from "react-hot-toast";
+import WebSocketNotification from "@/components/ui/WebSocketNotification";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Ứng dụng học giải thuật thông minh",
@@ -53,15 +45,43 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} antialiased transition-theme min-h-screen bg-background text-foreground`}>
+        className={`antialiased transition-theme min-h-screen bg-background text-foreground`}>
         <StoreWrapper>
-          <ThemeInitializer />
-          <MantineThemeProvider>
-            <ModalWrapper>
-              {children}
-            </ModalWrapper>
-            <ChatBot />
-          </MantineThemeProvider>
+          <ClientWrapper>
+            <WebSocketProvider>
+              <ThemeInitializer />
+              <MantineThemeProvider>
+                <ModalWrapper>
+                  {children}
+                </ModalWrapper>
+                <ChatBot />
+                <WebSocketNotification />
+                <Toaster
+                  position="top-right"
+                  toastOptions={{
+                    duration: 4000,
+                    style: {
+                      background: 'var(--card)',
+                      color: 'var(--card-foreground)',
+                      border: '1px solid var(--border)',
+                    },
+                    success: {
+                      iconTheme: {
+                        primary: 'var(--primary)',
+                        secondary: 'var(--primary-foreground)',
+                      },
+                    },
+                    error: {
+                      iconTheme: {
+                        primary: 'var(--destructive)',
+                        secondary: 'var(--destructive-foreground)',
+                      },
+                    },
+                  }}
+                />
+              </MantineThemeProvider>
+            </WebSocketProvider>
+          </ClientWrapper>
         </StoreWrapper>
       </body>
     </html>

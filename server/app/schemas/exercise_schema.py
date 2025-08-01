@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 
 class GetExerciseSchema(BaseModel):
-    topic: str
+    lesson_id: int
     session_id: str
     difficulty: Optional[str] = None
 
@@ -53,12 +53,56 @@ class ExerciseDetail(BaseModel):
 
 
 class UpdateExerciseSchema(BaseModel):
-    topic_id: Optional[int] = None
+    lesson_id: Optional[int] = None
     session_id: Optional[str] = None
     difficulty: Optional[str] = None
 
 
 class CreateExerciseSchema(BaseModel):
-    topic_id: int
+    lesson_id: int
     session_id: str
     difficulty: str
+    topic_id: int
+
+
+class ExerciseResponse(BaseModel):
+    """
+    Schema cho response khi truy vấn thông tin bài tập
+    
+    Attributes:
+        id: ID của bài tập
+        name: Tên bài tập
+        description: Mô tả chi tiết về bài tập
+        difficulty: Độ khó của bài tập
+        constraint: Các ràng buộc hoặc yêu cầu của bài tập
+        suggest: Gợi ý để giải bài tập
+        lesson_id: ID của bài học liên quan
+    """
+    id: int = Field(..., description="ID của bài tập")
+    name: str = Field(..., description="Tên bài tập")
+    description: str = Field(..., description="Mô tả chi tiết về bài tập")
+    difficulty: str = Field(..., description="Độ khó của bài tập")
+    constraint: Optional[str] = Field(None, description="Các ràng buộc hoặc yêu cầu của bài tập")
+    suggest: Optional[str] = Field(None, description="Gợi ý để giải bài tập")
+    lesson_id: int = Field(..., description="ID của bài học liên quan")
+
+    class Config:
+        from_attributes = True
+
+
+class CodeSubmissionRequest(BaseModel):
+    code: str = Field(..., description="User's submitted code")
+    language: str = Field(..., description="Programming language (e.g., python, javascript, java, cpp, etc.)")
+
+
+class TestCaseResult(BaseModel):
+    input: str
+    expected_output: str
+    actual_output: str
+    passed: bool
+    error: str | None = None
+
+
+class CodeSubmissionResponse(BaseModel):
+    results: list[TestCaseResult]
+    all_passed: bool

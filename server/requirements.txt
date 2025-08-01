@@ -1,33 +1,52 @@
+# Core async web stack
+fastapi
 uvicorn
-passlib[bcrypt]~=1.7.4
-sqlalchemy~=2.0.23
-pydantic[email]~=2.11.4
-python-dotenv
+starlette
+python-multipart
+
+# Database drivers
+asyncpg                   # Async PostgreSQL driver
 psycopg2-binary
-alembic~=1.15.2
-pydantic-settings~=2.9.1
-tenacity
-pytest~=8.3.5
-pytest-asyncio~=0.26.0
-pytest-cov~=4.1.0
-pytest-socket~=0.7.0
-httpx~=0.25.1
-python-jose~=3.4.0
+
+# ORM & migrations
+sqlalchemy
+alembic
+
+# Environment & settings
+uvicorn[standard]
+python-dotenv
+pydantic[email]
+pydantic-settings
+
+# Security
 bcrypt
-fastapi[standard]~=0.115.10
-psycopg
-langchain[langchain_core]~=0.3.25
-langchain[google-genai]
+python-jose
+
+# HTTP client
+httpx
+
+langchain-core
+langchain-community
+langchain-openai
 langchain-pinecone
 langchain-mongodb
-langchain-openai
-langchain-docling
+langchain-google-genai
 langchain-experimental
+langsmith
+
+# Other tools
+unidecode
+boto3
+bidict
+passlib
+pinecone
+protobuf
+langchain
+pytest
+botocore
 langchain-core~=0.3.59
 langchain-google-genai~=2.1.4
 starlette~=0.47.2
 PyYAML~=6.0.2
 openai~=1.78.0
 pinecone~=6.0.2
-langsmith~=0.3.42
-langchain-community~=0.3.23

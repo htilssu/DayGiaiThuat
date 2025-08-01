@@ -7,6 +7,7 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
 import { useAppDispatch, useAppSelector } from "@/lib/store";
 import { removeUser } from "@/lib/store/userStore";
 import { authApi } from "@/lib/api";
+import WebSocketStatus from "./WebSocketStatus";
 /**
  * Component Navbar chứa menu điều hướng và các tùy chọn người dùng
  * @returns {React.ReactNode} Navbar component
@@ -103,7 +104,7 @@ export default function Navbar() {
             <span
               className={`absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full border-2  animate-pulse-slow theme-transition`}></span>
           </div>
-          <span className="font-bold text-xl text-gradient-theme theme-transition">
+          <span className="font-bold text-xl theme-transition">
             {appName}
           </span>
         </Link>
@@ -112,27 +113,23 @@ export default function Navbar() {
         <nav className="hidden md:block">
           <ul className="flex items-center gap-8">
             <NavItem href="/" label="Trang chủ" isActive={pathname === "/"} />
-            <NavItem
-              href="/courses"
-              label="Khóa học"
+            <CoursesDropdown
               isActive={
                 pathname === "/courses" || pathname.startsWith("/courses/")
               }
             />
-            <NavItem
+            {/* <NavItem
               href="/learn"
-              label="Học bài"
-              isActive={
-                pathname === "/learn" || pathname.startsWith("/learn/")
-              }
-            />
-            <NavItem
+              label="Bài học"
+              isActive={pathname === "/learn" || pathname.startsWith("/learn/")}
+            /> */}
+            {/* <NavItem
               href="/exercises"
               label="Bài tập"
               isActive={
                 pathname === "/exercises" || pathname.startsWith("/exercises/")
               }
-            />
+            /> */}
             <NavItem
               href="/discussions"
               label="Thảo luận"
@@ -142,8 +139,13 @@ export default function Navbar() {
               }
             />
             <NavItem
+              href="/contact"
+              label="Liên hệ"
+              isActive={pathname === "/contact"}
+            />
+            <NavItem
               href="/about"
-              label="Giới thiệu"
+              label="FAQ"
               isActive={pathname === "/about"}
             />
           </ul>
@@ -152,6 +154,9 @@ export default function Navbar() {
         {/* Actions */}
         <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-3">
+            {/* WebSocket Status */}
+            <WebSocketStatus showText={false} className="mr-2" />
+
             {/* Theme Toggle */}
             <ThemeToggle />
 
@@ -268,20 +273,24 @@ export default function Navbar() {
             />
             <MobileNavItem
               href="/courses"
-              label="Khóa học"
-              isActive={
-                pathname === "/courses" || pathname.startsWith("/courses/")
-              }
+              label="Khóa học của bạn"
+              isActive={pathname === "/courses"}
               onClick={() => setIsMenuOpen(false)}
             />
             <MobileNavItem
+              href="/courses/explore"
+              label="Khám phá khóa học"
+              isActive={pathname === "/courses/explore"}
+              onClick={() => setIsMenuOpen(false)}
+            />
+            {/* <MobileNavItem
               href="/exercises"
               label="Bài tập"
               isActive={
                 pathname === "/exercises" || pathname.startsWith("/exercises/")
               }
               onClick={() => setIsMenuOpen(false)}
-            />
+            /> */}
             <MobileNavItem
               href="/discussions"
               label="Thảo luận"
@@ -292,8 +301,14 @@ export default function Navbar() {
               onClick={() => setIsMenuOpen(false)}
             />
             <MobileNavItem
+              href="/contact"
+              label="Liên hệ"
+              isActive={pathname === "/contact"}
+              onClick={() => setIsMenuOpen(false)}
+            />
+            <MobileNavItem
               href="/about"
-              label="Giới thiệu"
+              label="FAQ"
               isActive={pathname === "/about"}
               onClick={() => setIsMenuOpen(false)}
             />
@@ -448,5 +463,97 @@ function MobileNavItem({
         <span className="absolute inset-0 bg-primary/5 -z-10 rounded-md"></span>
       )}
     </Link>
+  );
+}
+
+/**
+ * Dropdown menu cho khóa học
+ */
+function CoursesDropdown({ isActive }: { isActive: boolean }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLLIElement>(null);
+  const pathname = usePathname();
+
+  // Xử lý close dropdown khi click bên ngoài
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <li className="relative group" ref={dropdownRef}>
+      <div
+        className={`relative d-flex px-1 py-2 font-medium theme-transition flex items-center gap-1 ${isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
+          } transition-colors`}
+        onClick={() => setIsOpen(!isOpen)}
+        onMouseEnter={() => setIsOpen(true)}
+      >
+        Khóa học
+        <svg
+          className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+            }`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+
+        {/* Indicator thanh dưới chân - active */}
+        {isActive && (
+          <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary rounded-full animate-fade-in theme-transition"></span>
+        )}
+
+        {/* Indicator thanh dưới chân - hover */}
+        {!isActive && (
+          <span className="absolute -bottom-1 left-1/2 right-1/2 h-0.5 bg-[rgb(var(--color-primary))] rounded-full transition-all duration-300 group-hover:left-0 group-hover:right-0 theme-transition"></span>
+        )}
+      </div>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div
+          className="absolute top-full left-0 mt-2 w-48 bg-background border border-border rounded-lg shadow-lg z-50 theme-transition"
+          onMouseLeave={() => setIsOpen(false)}
+        >
+          <div className="py-2">
+            <Link
+              href="/courses"
+              className={`block px-4 py-2 text-sm theme-transition ${pathname === "/courses"
+                ? "text-primary bg-primary/10"
+                : "text-foreground/80 hover:text-primary hover:bg-primary/5"
+                }`}
+              onClick={() => setIsOpen(false)}
+            >
+              Khóa học của bạn
+            </Link>
+            <Link
+              href="/courses/explore"
+              className={`block px-4 py-2 text-sm theme-transition ${pathname === "/courses/explore"
+                ? "text-primary bg-primary/10"
+                : "text-foreground/80 hover:text-primary hover:bg-primary/5"
+                }`}
+              onClick={() => setIsOpen(false)}
+            >
+              Khám phá khóa học
+            </Link>
+          </div>
+        </div>
+      )}
+    </li>
   );
 }

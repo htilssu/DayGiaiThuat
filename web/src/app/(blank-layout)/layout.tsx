@@ -1,16 +1,7 @@
 import { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from '@vercel/analytics/next';
 import "../globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Đăng nhập/Đăng ký - AI Agent Giải Thuật",
@@ -29,9 +20,10 @@ export default function BlankLayout({
 }>) {
   return (
     <div
-      className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col theme-transition bg-background text-foreground`}
+      className={`antialiased min-h-screen flex flex-col theme-transition bg-background text-foreground`}
     >
       {children}
+      <Analytics />
     </div>
   );
 }

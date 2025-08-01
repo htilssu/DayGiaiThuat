@@ -1,0 +1,17 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install dependencies
+RUN pip install --no-cache-dir docling
+RUN docling-tools models download
+RUN pip install --no-cache-dir runpod
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy your handler file
+COPY main.py .
+COPY . .
+EXPOSE 8001
+# Start the container
+CMD ["python3", "-u", "main.py", "--rp_serve_api" ,"--rp_api_port", "8001", "--rp_api_host", "0.0.0.0"]

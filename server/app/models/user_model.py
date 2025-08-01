@@ -1,8 +1,14 @@
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from app.database.database import Base
 from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+if TYPE_CHECKING:
+    from app.models.user_state_model import UserState
+    from app.models.test_session import TestSession
+    from app.models.discussion_model import Discussion
+    from app.models.reply_model import Reply
 
 
 class User(Base):
@@ -18,12 +24,17 @@ class User(Base):
     avatar: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     bio: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_admin: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false"
+    )
 
-    # Relationships
-    user_topics: Mapped[List["UserTopic"]] = relationship(
-        "UserTopic", back_populates="user"
-    )
-    user_lessons: Mapped[List["UserLesson"]] = relationship(
-        "UserLesson", back_populates="user"
-    )
     state: Mapped["UserState"] = relationship(back_populates="user")
+    test_sessions: Mapped[List["TestSession"]] = relationship(
+        "TestSession", back_populates="user"
+    )
+    discussions: Mapped[List["Discussion"]] = relationship(
+        "Discussion", back_populates="user"
+    )
+    replies: Mapped[List["Reply"]] = relationship(
+        "Reply", back_populates="user"
+    )

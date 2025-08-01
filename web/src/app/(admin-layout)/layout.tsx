@@ -2,19 +2,14 @@
 
 import { AdminHeader } from "@/components/admin/Header";
 import Footer from "@/components/ui/Footer";
-import { Geist, Geist_Mono } from "next/font/google";
+import { MantineThemeProvider } from "@/components/MantineThemeProvider";
+import StoreWrapper from "@/components/wrapper/StoreWrapper";
+import ModalWrapper from "@/components/wrapper/ModalWrapper";
+import ClientWrapper from "@/components/wrapper/ClientWrapper";
+import ThemeInitializer from "@/components/ThemeInitializer";
 import { useEffect } from "react";
 import "../globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export default function AdminLayout({
   children,
@@ -41,13 +36,11 @@ export default function AdminLayout({
   }, []);
 
   return (
-    <div
-      className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-background text-foreground transition-theme`}>
+    <div className={`antialiased min-h-screen flex flex-col bg-background text-foreground transition-theme`}>
       <AdminHeader />
       <main className="flex-grow container mx-auto px-4 sm:px-6 py-8 md:py-12">
         {children}
       </main>
-      <Footer />
     </div>
   );
 }

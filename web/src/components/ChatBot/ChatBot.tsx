@@ -4,12 +4,14 @@ import { useState } from "react";
 import { IconMessage, IconX } from "@tabler/icons-react";
 import { Paper, ActionIcon, Transition } from "@mantine/core";
 import ChatInterface from "./ChatInterface";
+import { useAppSelector } from "@/lib/store";
 
 export default function ChatBot() {
   const [isOpen, setIsOpen] = useState(false);
+  const userState = useAppSelector((state) => state.user);
 
   return (
-    <div className="fixed bottom-16 right-4 z-50">
+    <div className={`fixed bottom-16 right-4 z-50 ${userState.user === null ? "hidden" : "block"}`}>
       <Transition
         mounted={isOpen}
         transition="slide-up"
@@ -51,6 +53,6 @@ export default function ChatBot() {
           <span className="text-sm font-medium">Chat</span>
         </button>
       </div>
-    </div>
+    </div >
   );
 }

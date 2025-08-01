@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import {
-  Box,
   Text,
   Group,
   Stack,
@@ -86,14 +85,14 @@ export function DocumentUpload() {
     <Stack gap="md">
       <Dropzone
         onDrop={handleDrop}
-        onReject={(files) => {
+        onReject={() => {
           notifications.show({
             title: "Error",
             message: "Some files were rejected",
             color: "red",
           });
         }}
-        maxSize={5 * 1024 ** 2} // 5MB
+        // maxSize={5 * 1024 ** 2} // 5MB
         accept={["application/pdf", "text/plain", ".doc", ".docx"]}
         className="bg-white/50 border-primary/20 hover:border-primary/40 transition-colors">
         <Group

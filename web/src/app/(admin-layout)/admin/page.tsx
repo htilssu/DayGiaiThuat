@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Chat } from "@/components/Chat";
+import { AdminChat } from "@/components/Chat";
 import { Container, Paper, Tabs, Title } from "@mantine/core";
 import Overview from "@/components/admin/Overview";
 import { DocumentUpload } from "@/components/DocumentUpload";
@@ -43,7 +43,7 @@ export default function AdminDashboard() {
               value="chat"
               leftSection={<IconMessage size={16} />}
               className="font-medium">
-              Chat
+              AI Assistant
             </Tabs.Tab>
             <Tabs.Tab
               value="add-documents"
@@ -59,18 +59,18 @@ export default function AdminDashboard() {
 
           <Tabs.Panel value="chat">
             <Container size="lg" className="px-0">
-              <Title order={2} className="mb-6 text-gradient-theme">
-                AI Assistant
+              <Title order={2} className="mb-6">
+                AI Content Creator
               </Title>
               <Paper className="p-4 bg-white/50 border border-primary/10">
-                <Chat />
+                <AdminChat />
               </Paper>
             </Container>
           </Tabs.Panel>
 
           <Tabs.Panel value="add-documents">
             <Container size="lg" className="px-0">
-              <Title order={2} className="mb-6 text-gradient-theme">
+              <Title order={2} className="mb-6 ">
                 Upload Documents
               </Title>
               <Paper className="p-4 bg-white/50 border border-primary/10">

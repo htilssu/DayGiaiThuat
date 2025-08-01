@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database.database import Base, get_db
 from app.models.user_model import User
-from app.routers.router_router import register_router
+from server.app.routers.router import register_router
 from app.core.config import settings
 from app.utils.oauth2.token import create_access_token
 

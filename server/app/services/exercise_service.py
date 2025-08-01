@@ -1,18 +1,56 @@
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+import asyncio
+import os
 
-from app.schemas.exercise_schema import (
-    CreateExerciseSchema,
-)
+import requests
 from app.core.agents.exercise_agent import ExerciseDetail as ExerciseSchema
-from app.models.exercise_model import Exercise as ExerciseModel
 from app.core.agents.exercise_agent import (
     GenerateExerciseQuestionAgent,
     get_exercise_agent,
 )
-from app.services.topic_service import TopicService
-from app.database.repository import Repository
-from app.database.session import get_db
+from app.database.database import get_async_db
+from app.models import Exercise
+from app.models.exercise_model import Exercise as ExerciseModel
+from app.models.lesson_model import Lesson
+from app.schemas.exercise_schema import (
+    CodeSubmissionRequest,
+    CodeSubmissionResponse,
+    CreateExerciseSchema,
+    TestCaseResult,
+)
+from app.services.topic_service import TopicService, get_topic_service
+from fastapi import Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+JUDGE0_API_URL = os.getenv("JUDGE0_API_URL")
+
+
+def get_language_id(language: str) -> int:
+    # Map your language strings to Judge0 language IDs
+    language_map = {
+        "python": 71,
+        "javascript": 63,
+        "c": 50,
+        "cpp": 54,
+        "java": 62,
+        # Add more mappings as needed
+    }
+    return language_map.get(language.lower(), 71)
+
+
+async def run_code_in_docker(
+    code: str, language: str, input_data: str, expected_output: str
+) -> tuple[str, bool, str | None]:
+    """
+    Placeholder for running code in Docker for the given language and input.
+    Returns (actual_output, passed, error)
+    """
+    # TODO: Implement Docker-based code execution for each language
+    # For now, just echo input as output and always pass
+    await asyncio.sleep(0.1)
+    return input_data, input_data.strip() == expected_output.strip(), None
 
 
 class ExerciseService:
@@ -27,13 +65,15 @@ class ExerciseService:
 
     def __init__(
         self,
-        exercise_agent: GenerateExerciseQuestionAgent = Depends(get_exercise_agent),
+        exercise_agent: GenerateExerciseQuestionAgent,
+        topic_service: TopicService,
+        session: AsyncSession,
     ):
         self.exercise_agent = exercise_agent
-        self.topic_service = TopicService()
-        self.repository = Repository(ExerciseModel)
+        self.db = session
+        self.topic_service = topic_service
 
-    async def get_exercise(self, exercise_id: int) -> ExerciseModel:
+    async def get_exercise(self, exercise_id: int) -> type[Exercise]:
         """
         Lấy thông tin bài tập theo ID
 
@@ -43,7 +83,12 @@ class ExerciseService:
         Returns:
             ExerciseModel: Thông tin bài tập
         """
-        exercise = await self.repository.get(exercise_id)
+        exercise = await self.db.get(ExerciseModel, exercise_id)
+        if not exercise:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Không tìm thấy bài tập với ID {exercise_id}",
+            )
         return exercise
 
     async def create_exercise(
@@ -61,6 +106,35 @@ class ExerciseService:
         """
         # Lấy thông tin chủ đề
         topic = await self.topic_service.get_topic_by_id(create_data.topic_id)
+        lesson = await self.db.execute(
+            select(Lesson)
+            .where(Lesson.id == create_data.lesson_id)
+            .options(selectinload(Lesson.sections))
+        )
+        lesson = lesson.scalar_one_or_none()
+
+        class SectionA(BaseModel):
+            content: str
+            answer: str | None = None
+            explanation: str | None = None
+
+        class LessonA(BaseModel):
+            name: str | None = None
+            description: str | None = None
+            sections: list[SectionA]
+
+        lesson_schema = LessonA(
+            name=lesson.title if lesson else None,
+            description=lesson.description if lesson else None,
+            sections=[
+                SectionA(
+                    content=section.content,
+                    answer=section.answer,
+                    explanation=section.explanation,
+                )
+                for section in lesson.sections
+            ],
+        )
 
         if not topic:
             raise ValueError(f"Không tìm thấy chủ đề với ID {create_data.topic_id}")
@@ -70,11 +144,129 @@ class ExerciseService:
             session_id=create_data.session_id,
             topic=topic.name,
             difficulty=create_data.difficulty,
+            lesson=lesson_schema.model_dump() if lesson else None,
         )
 
         exercise_model = ExerciseModel.exercise_from_schema(exercise_detail)
-        exercise_model.topic_id = topic.id
 
-        await self.repository.create_async(exercise_model)
+        self.db.add(exercise_model)
+        await self.db.commit()
 
-        return exercise_model
+        return exercise_detail
+
+    async def evaluate_submission(
+        self, exercise_id: int, submission: CodeSubmissionRequest
+    ) -> CodeSubmissionResponse:
+        """
+        Chấm code của học sinh với các test case của bài tập.
+        """
+        exercise = await self.get_exercise(exercise_id)
+        if not exercise:
+            raise ValueError(f"Không tìm thấy bài tập với ID {exercise_id}")
+
+        # Assume exercise has a .case attribute with test cases (list of TestCase)
+        test_cases = getattr(exercise, "case", None)
+        if not test_cases:
+            raise ValueError("Bài tập không có test case để kiểm tra")
+
+        results = []
+        all_passed = True
+        for test_case in test_cases:
+            input_data = getattr(test_case, "input_data", None) or getattr(
+                test_case, "input", None
+            )
+            expected_output = getattr(test_case, "output_data", None) or getattr(
+                test_case, "output", None
+            )
+            actual_output, passed, error = await run_code_in_docker(
+                submission.code, submission.language, input_data, expected_output
+            )
+            results.append(
+                TestCaseResult(
+                    input=input_data,
+                    expected_output=expected_output,
+                    actual_output=actual_output,
+                    passed=passed,
+                    error=error,
+                )
+            )
+            if not passed:
+                all_passed = False
+        return CodeSubmissionResponse(results=results, all_passed=all_passed)
+
+    async def evaluate_submission_with_judge0(
+        self, exercise_id: int, submission: CodeSubmissionRequest
+    ) -> CodeSubmissionResponse:
+        """
+        Chấm code của học sinh với các test case của bài tập sử dụng Judge0.
+        """
+        exercise = await self.get_exercise(exercise_id)
+        if not exercise:
+            raise ValueError(f"Không tìm thấy bài tập với ID {exercise_id}")
+
+        test_cases = getattr(exercise, "case", None)
+        if not test_cases:
+            raise ValueError("Bài tập không có test case để kiểm tra")
+
+        results = []
+        all_passed = True
+
+        for test_case in test_cases:
+            input_data = getattr(test_case, "input_data", None) or getattr(
+                test_case, "input", None
+            )
+            expected_output = getattr(test_case, "output_data", None) or getattr(
+                test_case, "output", None
+            )
+
+            # Submit to Judge0
+            response = requests.post(
+                f"{JUDGE0_API_URL}/submissions?base64_encoded=false&wait=true",
+                headers={"Content-Type": "application/json"},
+                json={
+                    "source_code": submission.code,
+                    "language_id": get_language_id(submission.language),
+                    "stdin": input_data,
+                },
+            )
+
+            if not response.ok:
+                results.append(
+                    TestCaseResult(
+                        input=input_data,
+                        expected_output=expected_output,
+                        actual_output="",
+                        passed=False,
+                        error=f"Judge0 error: {response.text}",
+                    )
+                )
+                all_passed = False
+                continue
+
+            result_data = response.json()
+            actual_output = (result_data.get("stdout") or "").strip()
+            error = result_data.get("stderr") or result_data.get("compile_output") or ""
+            passed = actual_output == (expected_output or "").strip() and not error
+
+            results.append(
+                TestCaseResult(
+                    input=input_data,
+                    expected_output=expected_output,
+                    actual_output=actual_output,
+                    passed=passed,
+                    error=error,
+                )
+            )
+
+            if not passed:
+                all_passed = False
+
+        return CodeSubmissionResponse(results=results, all_passed=all_passed)
+
+
+def get_exercise_service(
+    db: AsyncSession = Depends(get_async_db),
+    topic_service: TopicService = Depends(get_topic_service),
+    exercise_agent: GenerateExerciseQuestionAgent = Depends(get_exercise_agent),
+):
+    return ExerciseService(exercise_agent, topic_service, db)

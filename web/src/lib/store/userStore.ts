@@ -27,10 +27,13 @@ export const userSlice = createSlice({
         loadingUser: (state) => {
             state.isInitial = false;
             state.isLoading = true;
+        },
+        reloadUser: (state) => {
+            state.isInitial = true;
         }
     }
 })
 
-export const { loadingUser, removeUser, setUser } = userSlice.actions
+export const { loadingUser, removeUser, setUser, reloadUser } = userSlice.actions
 
 export default userSlice.reducer

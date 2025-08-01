@@ -36,14 +36,27 @@ class Settings(BaseSettings):
         RUN_SEEDERS_ON_STARTUP (bool): Chạy seeder khi khởi động
         SEEDERS_TO_RUN (List[str]): Danh sách các seeder cần chạy
         FORCE_SEEDERS (bool): Xóa dữ liệu cũ trước khi tạo mới
+        S3_ACCESS_KEY_ID (str): S3 Access Key ID
+        S3_SECRET_ACCESS_KEY (str): S3 Secret Access Key
+        S3_REGION (str): S3 Region
+        S3_BUCKET_NAME (str): Tên bucket S3
+        S3_COURSE_IMAGE_PREFIX (str): Prefix cho ảnh khóa học trong S3
+        S3_USER_AVATAR_PREFIX (str): Prefix cho avatar người dùng trong S3
+        S3_PUBLIC_URL (str): URL công khai cho bucket S3
+        S3_ENDPOINT_URL (str): URL endpoint cho Cloudflare R2
+        UVICORN_WORKERS (int): Số workers cho uvicorn
+        UVICORN_HOST (str): Host cho uvicorn
+        UVICORN_PORT (int): Port cho uvicorn
+        UVICORN_RELOAD (bool): Auto reload cho uvicorn
     """
 
-    PROJECT_NAME: str
+    PROJECT_NAME: str = "default"
     DEV_MODE: Optional[bool] = True
     # CORS
     BACKEND_CORS_ORIGINS: List[str]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
     def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
         """
         Xử lý giá trị BACKEND_CORS_ORIGINS từ biến môi trường
@@ -79,7 +92,7 @@ class Settings(BaseSettings):
 
     # Cookie settings
     COOKIE_DOMAIN: Optional[str] = ""  # Sử dụng chuỗi rỗng thay vì None
-    COOKIE_SECURE: bool = False  # True trong production
+    COOKIE_SECURE: bool = True  # True trong production
     COOKIE_SAMESITE: str = "lax"  # 'lax', 'strict', or 'none'
     COOKIE_NAME: str = "access_token"
     COOKIE_HTTPONLY: bool = True
@@ -96,11 +109,43 @@ class Settings(BaseSettings):
     LANGSMITH_TRACING: bool = False
     LANGSMITH_PROJECT: str = "default"
 
+    # File Upload Settings
+    UPLOAD_DIR: str = "uploads"  # Thư mục lưu file tạm thời
+
+    # Document Processing Settings
+    DOCUMENT_PROCESSING_ENDPOINT: Optional[str] = (
+        None  # External API endpoint for document processing
+    )
+    DOCUMENT_PROCESSING_TIMEOUT: int = 300  # Timeout cho API call (seconds)
+    S3_DOCUMENT_PREFIX: str = "documents/"  # Prefix cho documents trong S3
+    BASE_URL: str = "http://localhost:8000"  # Base URL for webhook callbacks
+
+    # AWS/S3 Boto3 Settings (fix for MissingContentLength error)
+    AWS_REQUEST_CHECKSUM_CALCULATION: str = "when_required"
+    AWS_RESPONSE_CHECKSUM_VALIDATION: str = "when_required"
+
+    # AWS S3 Settings / Cloudflare R2 Settings
+    S3_ACCESS_KEY_ID: Optional[str] = None
+    S3_SECRET_ACCESS_KEY: Optional[str] = None
+    S3_REGION: Optional[str] = (
+        None  # Cho Cloudflare R2, có thể là "auto" hoặc region cụ thể
+    )
+    S3_BUCKET_NAME: Optional[str] = None
+    S3_ENDPOINT_URL: Optional[str] = (
+        None  # Cho Cloudflare R2: https://[account-id].r2.cloudflarestorage.com
+    )
+    S3_COURSE_IMAGE_PREFIX: str = "course-images/"
+    S3_USER_AVATAR_PREFIX: str = "user-avatars/"
+    S3_PUBLIC_URL: Optional[str] = None  # CloudFront URL hoặc S3 public URL
+
     # Migration và Seeder
     RUN_MIGRATIONS_ON_STARTUP: bool = False
     RUN_SEEDERS_ON_STARTUP: bool = False
     SEEDERS_TO_RUN: Optional[List[str]] = None
     FORCE_SEEDERS: bool = False
+
+    # Judge0
+    JUDGE0_API_URL: str
 
     @field_validator("SEEDERS_TO_RUN", mode="before")
     def assemble_seeders_to_run(
@@ -130,13 +175,39 @@ class Settings(BaseSettings):
     @property
     def DATABASE_URI(self) -> str:
         """
-        Tạo connection string cho database
+        Tạo connection string đồng bộ cho database sử dụng psycopg2
 
         Returns:
-            str: Connection string
+            str: Sync connection string
         """
-        # Sử dụng driver psycopg2 thay vì asyncpg cho SQLAlchemy đồng bộ
+        # Sử dụng driver psycopg2 cho SQLAlchemy đồng bộ
         return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+    @property
+    def ASYNC_DATABASE_URI(self) -> str:
+        """
+        Tạo connection string bất đồng bộ cho database sử dụng asyncpg
+
+        Returns:
+            str: Async connection string
+        """
+        # Sử dụng driver asyncpg cho SQLAlchemy bất đồng bộ
+        return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+    @property
+    def S3_ENABLED(self) -> bool:
+        """
+        Kiểm tra xem S3/R2 đã được cấu hình đúng chưa
+
+        Returns:
+            bool: True nếu S3/R2 đã được cấu hình đầy đủ
+        """
+        return bool(
+            self.S3_ACCESS_KEY_ID
+            and self.S3_SECRET_ACCESS_KEY
+            and self.S3_BUCKET_NAME
+            and self.S3_REGION
+        )
 
     class Config:
         case_sensitive = True

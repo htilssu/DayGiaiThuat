@@ -1,73 +1,92 @@
 from datetime import datetime
-import logging
+from typing import AsyncGenerator
+from contextlib import asynccontextmanager
 
-from alembic import command
-from alembic.config import Config
-from sqlalchemy import create_engine, func
-from sqlalchemy.orm import sessionmaker, DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 from app.core.config import settings
 
-# Tạo logger
-logger = logging.getLogger(__name__)
-
-# Tạo engine để kết nối database với timeout ngắn hơn để tránh treo ứng dụng nếu không kết nối được
-engine = create_engine(
-    settings.DATABASE_URI,
+# Tạo engine bất đồng bộ với cấu hình tối ưu
+# asyncpg không hỗ trợ connect_timeout, sử dụng server_settings
+async_engine = create_async_engine(
+    settings.ASYNC_DATABASE_URI,
     pool_pre_ping=True,  # Kiểm tra kết nối trước khi sử dụng
-    connect_args={"connect_timeout": 5},  # Timeout 5 giây
+    connect_args={
+        "server_settings": {
+            "application_name": "ai_agent_giai_thuat",
+        },
+        "command_timeout": 5,  # Timeout cho asyncpg commands
+    },
+    pool_timeout=30,  # Timeout để lấy connection từ pool
+    pool_recycle=3600,  # Recycle connections mỗi giờ
 )
 
-# Tạo SessionLocal class để tạo session cho mỗi request
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Tạo AsyncSessionLocal class với tối ưu hóa
+AsyncSessionLocal = async_sessionmaker(
+    async_engine,
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,
+    class_=AsyncSession,
+)
 
 
 # Tạo Base class để kế thừa cho các model
 class Base(DeclarativeBase):
     created_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), nullable=False
+        server_default=func.now(), nullable=False, index=True
     )
     updated_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), onupdate=func.now(), nullable=False
+        server_default=func.now(), onupdate=func.now(), nullable=False, index=True
     )
+
+
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Tạo và trả về một database session bất đồng bộ mới cho mỗi request
+    và đảm bảo đóng kết nối sau khi xử lý xong.
+
+    Yields:
+        AsyncSession: Async database session
+    """
+    async with AsyncSessionLocal() as session:
+        yield session
+
+
+@asynccontextmanager
+async def get_independent_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Tạo một session DB độc lập, không phụ thuộc vào request,
+    dành cho các background task.
+    """
+    async with AsyncSessionLocal() as session:
+        yield session
+
+
+async def check_async_db_connection() -> bool:
+    """
+    Kiểm tra kết nối database bất đồng bộ
+
+    Returns:
+        bool: True nếu kết nối thành công
+    """
+    try:
+        async with async_engine.connect() as conn:
+            result = await conn.execute(func.now())
+            result.fetchone()
+        return True
+    except Exception as e:
+        print(f"Database async connection error: {e}")
+        return False
 
 
 def get_db():
     """
-    Tạo và trả về một database session mới cho mỗi request
-    và đảm bảo đóng kết nối sau khi xử lý xong.
-
-    Yields:
-        Session: Database session
+    Legacy sync database dependency - DEPRECATED
+    Use get_async_db() instead for all new code
     """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def run_migrations():
-    """
-    Chạy migration tự động khi ứng dụng khởi động sử dụng Alembic API
-
-    Returns:
-        bool: True nếu migration thành công, False nếu có lỗi
-    """
-    try:
-        logger.info("Bắt đầu chạy migrations...")
-
-        alembic_cfg = Config("alembic.ini")
-
-        # Đặt URL kết nối database
-        alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URI)
-
-        # Chạy migration để cập nhật schema lên phiên bản mới nhất
-        with engine.connect():
-            command.upgrade(alembic_cfg, "head")
-
-        logger.info("Migration hoàn tất thành công!")
-        return True
-    except Exception as e:
-        logger.error(f"Lỗi trong quá trình migration: {str(e)}")
-        return False
+    raise NotImplementedError(
+        "Synchronous database access is deprecated. Use get_async_db() instead."
+    )
