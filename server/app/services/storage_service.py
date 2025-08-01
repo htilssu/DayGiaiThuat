@@ -54,7 +54,7 @@ class StorageService:
                 client_config["endpoint_url"] = settings.S3_ENDPOINT_URL
 
             # retry if cannot connect to s3
-            for i in range(3):
+            for i in range(self.RETRY_ATTEMPTS):
                 try:
                     self.s3_client = boto3.client("s3", **client_config)
                     break
