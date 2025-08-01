@@ -519,7 +519,7 @@ class CourseService:
                 # Tìm bài học hiện tại (bài học đầu tiên chưa hoàn thành)
                 current_topic_id = None
                 current_lesson_id = None
-                
+
                 if user_course_id and total_lessons > 0:
                     # Tìm tất cả các bài học đã hoàn thành
                     completed_lesson_records = await self.db.execute(
@@ -529,24 +529,28 @@ class CourseService:
                         )
                     )
                     completed_lesson_ids = set(completed_lesson_records.scalars().all())
-                    
+
                     # Tìm bài học đầu tiên chưa hoàn thành
                     found_current = False
                     for topic in sorted(course.topics, key=lambda t: t.order):
                         if found_current:
                             break
-                        for lesson in sorted(topic.lessons, key=lambda lesson: lesson.order):
+                        for lesson in sorted(
+                            topic.lessons, key=lambda lesson: lesson.order
+                        ):
                             if lesson.id not in completed_lesson_ids:
                                 current_topic_id = topic.id
                                 current_lesson_id = lesson.id
                                 found_current = True
                                 break
-                    
+
                     # Nếu tất cả bài học đã hoàn thành, lấy bài học cuối cùng
                     if not found_current and course.topics:
                         last_topic = max(course.topics, key=lambda t: t.order)
                         if last_topic.lessons:
-                            last_lesson = max(last_topic.lessons, key=lambda lesson: lesson.order)
+                            last_lesson = max(
+                                last_topic.lessons, key=lambda lesson: lesson.order
+                            )
                             current_topic_id = last_topic.id
                             current_lesson_id = last_lesson.id
 

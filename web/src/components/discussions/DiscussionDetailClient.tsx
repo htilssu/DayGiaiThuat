@@ -1,20 +1,47 @@
 "use client";
 
-import { discussions } from "@/data/discussions";
 import { Container, Title, Group, Badge, Text, Card } from "@mantine/core";
 import { IconMessageCircle } from "@tabler/icons-react";
 import ReactMarkdown from "react-markdown";
 import ReplySection from "@/components/discussions/Reply";
+import { repliesApi, type Reply } from "@/lib/api/replies";
+import { useDiscussion } from "@/hooks/useDiscussions";
 import { notFound } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 
 interface Props {
     id: number;
 }
 
 export default function DiscussionDetailClient({ id }: Props) {
-    const discussion = discussions.find((d) => d.id === id);
+    const { data: discussion, isLoading: discussionLoading, error: discussionError } = useDiscussion(id);
 
-    if (!discussion) return notFound();
+    // Use React Query to fetch replies data
+    const { data: repliesData, isLoading: repliesLoading, refetch: reloadReplies } = useQuery({
+        queryKey: ['replies', id],
+        queryFn: () => repliesApi.getRepliesByDiscussion(id),
+        staleTime: 1 * 60 * 1000, // Consider data fresh for 1 minute
+    });
+
+    if (discussionError) {
+        return notFound();
+    }
+
+    if (discussionLoading) {
+        return (
+            <Container size="sm" py="xl">
+                <Card withBorder className="bg-background/50 border-foreground/10 theme-transition p-6">
+                    <Text>Loading discussion...</Text>
+                </Card>
+            </Container>
+        );
+    }
+
+    if (!discussion) {
+        return notFound();
+    }
+
+    const replies = repliesData?.replies || [];
 
     return (
         <Container size="sm" py="xl">
@@ -62,7 +89,12 @@ export default function DiscussionDetailClient({ id }: Props) {
                 </Group>
             </Card>
 
-            <ReplySection />
+            <ReplySection
+                replies={replies}
+                reloadReplies={async () => { await reloadReplies(); }}
+                discussionId={id}
+                isLoading={repliesLoading}
+            />
         </Container>
     );
 }

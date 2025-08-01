@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
     Container,
     Title,
@@ -21,80 +21,71 @@ import {
     IconMessageCircle,
     IconCalendar,
 } from "@tabler/icons-react";
-import { discussionsApi, type Discussion } from "@/lib/api/discussions";
+import { useDiscussions } from "@/hooks/useDiscussions";
 import { useRouter } from "next/navigation";
-import { discussions as mockDiscussions } from "@/data/discussions";
 import Link from "next/link";
 
 export default function DiscussionsClient() {
     const router = useRouter();
-    const [discussions, setDiscussions] = useState<Discussion[]>([]);
-    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [sortBy, setSortBy] = useState<string>("newest");
     const [categoryFilter, setCategoryFilter] = useState<string>("all");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    useEffect(() => {
-        const fetchDiscussions = async () => {
-            try {
-                setLoading(true);
-                // For now, using mock data
-                setDiscussions(
-                    mockDiscussions.map(discussion => ({
-                        ...discussion,
-                        id: String(discussion.id),
-                    }))
-                );
-            } catch (error) {
-                console.error("Error fetching discussions:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+    // Use React Query to fetch discussions
+    const {
+        data: discussionsData,
+        isLoading: loading,
+        error,
+        refetch
+    } = useDiscussions({
+        search: searchTerm || undefined,
+        category: categoryFilter !== "all" ? categoryFilter : undefined,
+        sortBy: sortBy as "newest" | "oldest" | "most-replies",
+        page: currentPage,
+        limit: itemsPerPage,
+    });
 
-        fetchDiscussions();
-    }, []);
+    const discussions = discussionsData?.discussions || [];
+    const totalPages = discussionsData?.totalPages || 1;
 
     const handleCreateNew = () => {
         router.push("/discussions/new");
     };
 
-    // Filter and sort discussions
-    const filteredDiscussions = discussions
-        .filter((discussion) => {
-            const matchesSearch = discussion.title
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase());
-            const matchesCategory =
-                categoryFilter === "all" || discussion.category === categoryFilter;
-            return matchesSearch && matchesCategory;
-        })
-        .sort((a, b) => {
-            switch (sortBy) {
-                case "newest":
-                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-                case "oldest":
-                    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-                case "replies":
-                    return b.replies - a.replies;
-                default:
-                    return 0;
-            }
-        });
+    const handleSearch = () => {
+        setCurrentPage(1); // Reset to first page when searching
+        refetch();
+    };
 
-    // Pagination
-    const totalPages = Math.ceil(filteredDiscussions.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedDiscussions = filteredDiscussions.slice(
-        startIndex,
-        startIndex + itemsPerPage
-    );
+    const handleFilterChange = (value: string | null) => {
+        setCategoryFilter(value || "all");
+        setCurrentPage(1); // Reset to first page when filtering
+    };
 
+    const handleSortChange = (value: string | null) => {
+        setSortBy(value || "newest");
+        setCurrentPage(1); // Reset to first page when sorting
+    };
+
+    // Get unique categories from current discussions for filter options
     const categories = Array.from(
         new Set(discussions.map((d) => d.category))
     );
+
+    if (error) {
+        return (
+            <Container size="lg" py="xl">
+                <Card withBorder className="bg-background/50 border-foreground/10 theme-transition p-6">
+                    <Text className="text-foreground">Error loading discussions. Please try again.</Text>
+                    <Button onClick={() => refetch()} mt="md" className="bg-primary hover:bg-primary/90">
+                        Retry
+                    </Button>
+                </Card>
+            </Container>
+        );
+    }
 
     return (
         <Container size="lg" py="xl">
@@ -113,29 +104,42 @@ export default function DiscussionsClient() {
             {/* Search and Filter Controls */}
             <Card withBorder mb="xl" className="border-border">
                 <Stack gap="md">
-                    <TextInput
-                        placeholder="Search discussions..."
-                        leftSection={<IconSearch size={16} />}
-                        value={searchTerm}
-                        onChange={(event) => setSearchTerm(event.currentTarget.value)}
-                        className="flex-1"
-                    />
+                    <Group>
+                        <TextInput
+                            placeholder="Search discussions..."
+                            leftSection={<IconSearch size={16} />}
+                            value={searchTerm}
+                            onChange={(event) => setSearchTerm(event.currentTarget.value)}
+                            className="flex-1"
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                    handleSearch();
+                                }
+                            }}
+                        />
+                        <Button
+                            onClick={handleSearch}
+                            className="bg-primary hover:bg-primary/90"
+                        >
+                            Search
+                        </Button>
+                    </Group>
                     <Group>
                         <Select
                             placeholder="Sort by"
                             value={sortBy}
-                            onChange={(value) => setSortBy(value || "newest")}
+                            onChange={handleSortChange}
                             data={[
                                 { value: "newest", label: "Newest" },
                                 { value: "oldest", label: "Oldest" },
-                                { value: "replies", label: "Most Replies" },
+                                { value: "most-replies", label: "Most Replies" },
                             ]}
                             className="min-w-[150px]"
                         />
                         <Select
                             placeholder="Category"
                             value={categoryFilter}
-                            onChange={(value) => setCategoryFilter(value || "all")}
+                            onChange={handleFilterChange}
                             data={[
                                 { value: "all", label: "All Categories" },
                                 ...categories.map((cat) => ({ value: cat, label: cat })),
@@ -153,7 +157,7 @@ export default function DiscussionsClient() {
                 </Group>
             ) : (
                 <div>
-                    {paginatedDiscussions.length === 0 ? (
+                    {discussions.length === 0 ? (
                         <Card withBorder className="border-border">
                             <Text ta="center" py="xl" className="text-muted-foreground">
                                 No discussions found.
@@ -161,7 +165,7 @@ export default function DiscussionsClient() {
                         </Card>
                     ) : (
                         <Stack gap="md">
-                            {paginatedDiscussions.map((discussion) => (
+                            {discussions.map((discussion) => (
                                 <Link
                                     key={discussion.id}
                                     href={`/discussions/${discussion.id}`}

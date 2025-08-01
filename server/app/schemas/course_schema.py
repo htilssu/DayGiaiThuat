@@ -217,7 +217,9 @@ class UserCourseListItem(BaseModel):
     )
     progress: float = Field(0.0, description="Phần trăm hoàn thành khóa học")
     current_topic_id: Optional[int] = Field(None, description="ID của chủ đề hiện tại")
-    current_lesson_id: Optional[int] = Field(None, description="ID của bài học hiện tại")
+    current_lesson_id: Optional[int] = Field(
+        None, description="ID của bài học hiện tại"
+    )
 
     class Config:
         from_attributes = True
