@@ -37,6 +37,6 @@ jobs:
           DOCKERHUB_USERNAME: ${{vars.DOCKERHUB_USERNAME}}
         with:
           host: ${{ secrets.HOST_IP }}
-          username: linuxserver.io
+          username: ${{secrets.HOST_USERNAME}}
           key: ${{ secrets.HOST_PASSWORD }}
           script: ${{github.workspace}}/.github/scripts/deploy.sh
