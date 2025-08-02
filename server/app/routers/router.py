@@ -3,8 +3,6 @@ from fastapi import FastAPI
 
 def register_router(app: FastAPI):
     """Register all routers with lazy loading for faster startup"""
-
-    # Lazy import để tăng tốc startup
     from app.routers import (
         admin_courses_router,
         admin_topics_router,
@@ -21,7 +19,6 @@ def register_router(app: FastAPI):
         replies_router,
         test_generation_router,
         test_router,
-        topic_router,
         tutor_router,
         upload_router,
         users_router,
