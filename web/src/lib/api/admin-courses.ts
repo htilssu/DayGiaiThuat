@@ -166,19 +166,20 @@ export interface CourseReview {
     courseDescription: string;
     draft: {
         id: number;
-        course_id: number;
-        agent_content: string; // JSON string chứa topics, lessons
+        courseId: number;
+        agentContent: string; // JSON string chứa topics, lessons
+        sessionId: string;
         status: string;
-        created_at: string;
-        updated_at: string;
+        createdAt: string;
+        updatedAt: string;
     } | null;
     chatMessages: Array<{
         id: number;
-        course_id: number;
-        user_id: number;
+        courseId: number;
+        userId: number;
         message: string;
-        is_agent: boolean;
-        created_at: string;
+        isAgent: boolean;
+        createdAt: string;
     }>;
 }
 
@@ -214,7 +215,7 @@ export interface ReviewChatResponse {
  * Kiểu dữ liệu cho request approve/reject
  */
 export interface ReviewApprovalRequest {
-    action: 'approve' | 'reject';
+    approved: boolean;
     feedback?: string;
 }
 

@@ -18,11 +18,13 @@ interface AdminChatProps {
   // Optional props for future extensibility
   placeholder?: string;
   height?: string | number;
+  courseId?: number;
 }
 
 export default function AdminChat({
   placeholder = "Nhập tin nhắn cho AI Agent...",
-  height = "500px"
+  height = "500px",
+  courseId
 }: AdminChatProps) {
   const {
     messages,
@@ -31,7 +33,7 @@ export default function AdminChat({
     isLoading,
     handleSend,
     messagesEndRef
-  } = useAdminChat();
+  } = useAdminChat(courseId);
 
   const handleKeyPress = (event: React.KeyboardEvent) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -41,9 +43,16 @@ export default function AdminChat({
   };
 
   return (
-    <Stack h={height} gap={0}>
-      <ScrollArea flex={1} p="md">
+    <Stack h={height} gap={0} style={{ position: 'relative' }}>
+      <ScrollArea flex={1} p="md" style={{ height: '100%' }}>
         <Stack gap="md">
+          {messages.length === 0 && (
+            <Box ta="center" py="xl">
+              <Text size="sm" c="dimmed" style={{ fontWeight: 400 }}>
+                Chưa có tin nhắn nào. Hãy bắt đầu trò chuyện với AI Agent!
+              </Text>
+            </Box>
+          )}
           {messages.map((message, index) => (
             <ChatMessageComponent key={index} message={message} />
           ))}

@@ -16,13 +16,14 @@ import {
     Paper,
     ActionIcon,
     Tooltip,
+    Modal,
+    Textarea,
 } from "@mantine/core";
 import { useState, useEffect } from "react";
-import { IconCheck, IconX, IconRefresh, IconAlertCircle, IconMessageCircle, IconRobot } from "@tabler/icons-react";
+import { IconCheck, IconX, IconRefresh, IconAlertCircle, IconRobot } from "@tabler/icons-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { notifications } from '@mantine/notifications';
 import { useRouter } from "next/navigation";
-import AdminChat from "@/components/Chat/AdminChat";
 import { getCourseReview, approveRejectCourse, CourseReview } from "@/lib/api/admin-courses";
 
 interface CourseReviewPageClientProps {
@@ -30,7 +31,8 @@ interface CourseReviewPageClientProps {
 }
 
 export default function CourseReviewPageClient({ courseId }: CourseReviewPageClientProps) {
-    const [showChat, setShowChat] = useState(false);
+    const [showRejectModal, setShowRejectModal] = useState(false);
+    const [rejectFeedback, setRejectFeedback] = useState('');
     const router = useRouter();
 
     // Fetch course review data from API
@@ -42,15 +44,24 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
 
     // Mutation for approve/reject
     const approveRejectMutation = useMutation({
-        mutationFn: (action: 'approve' | 'reject') =>
-            approveRejectCourse(parseInt(courseId), { action }),
-        onSuccess: (data) => {
+        mutationFn: ({ approved, feedback }: { approved: boolean; feedback?: string }) =>
+            approveRejectCourse(parseInt(courseId), { approved, feedback }),
+        onSuccess: (data, variables) => {
             notifications.show({
                 title: 'Thành công',
                 message: data.message,
                 color: 'green',
             });
-            router.push('/admin/course');
+
+            // Chỉ chuyển về trang course khi approve, reject thì ở lại trang hiện tại
+            if (variables.approved) {
+                router.push('/admin/course');
+            } else {
+                // Reject - ở lại trang hiện tại và refetch data
+                setShowRejectModal(false);
+                setRejectFeedback('');
+                refetch();
+            }
         },
         onError: (error: any) => {
             notifications.show({
@@ -58,19 +69,36 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
                 message: error.message || 'Có lỗi xảy ra',
                 color: 'red',
             });
+            setShowRejectModal(false);
         },
     });
 
     const handleApproveContent = () => {
-        approveRejectMutation.mutate('approve');
+        approveRejectMutation.mutate({ approved: true });
     };
 
     const handleRejectContent = () => {
-        approveRejectMutation.mutate('reject');
-        setShowChat(true);
+        setShowRejectModal(true);
+    };
+
+    const handleConfirmReject = () => {
+        if (!rejectFeedback.trim()) {
+            notifications.show({
+                title: 'Lỗi',
+                message: 'Vui lòng nhập lý do từ chối',
+                color: 'red',
+            });
+            return;
+        }
+
+        approveRejectMutation.mutate({
+            approved: false,
+            feedback: rejectFeedback.trim()
+        });
+
         notifications.show({
             title: 'Nội dung bị từ chối',
-            message: 'Hãy chat với AI để yêu cầu tạo lại nội dung',
+            message: 'Đã gửi yêu cầu tạo lại nội dung với feedback của bạn',
             color: 'orange',
         });
     };
@@ -102,7 +130,7 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
         <Container size="xl" py="xl">
             <Grid>
                 {/* Left Column - Course Info & Generated Content */}
-                <Grid.Col span={showChat ? 8 : 12}>
+                <Grid.Col span={12}>
                     <Stack gap="lg">
                         {/* Course Basic Info */}
                         <Card withBorder shadow="sm" p="lg">
@@ -130,7 +158,7 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
                                 <Text size="sm" c="dimmed">Course ID: {reviewData.courseId}</Text>
                                 {reviewData.draft && (
                                     <Text size="sm" c="dimmed">
-                                        Cập nhật lần cuối: {new Date(reviewData.draft.updated_at).toLocaleString('vi-VN')}
+                                        Cập nhật lần cuối: {new Date(reviewData.draft.updatedAt).toLocaleString('vi-VN')}
                                     </Text>
                                 )}
                             </Stack>
@@ -146,13 +174,6 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
                                     </Group>
                                 </Title>
                                 <Group>
-                                    <Button
-                                        variant="outline"
-                                        leftSection={<IconMessageCircle size={16} />}
-                                        onClick={() => setShowChat(!showChat)}
-                                    >
-                                        {showChat ? 'Ẩn Chat' : 'Chat với AI'}
-                                    </Button>
                                     <Tooltip label="Tải lại nội dung">
                                         <ActionIcon
                                             variant="light"
@@ -181,7 +202,7 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
                                     {(() => {
                                         let generatedContent;
                                         try {
-                                            generatedContent = JSON.parse(reviewData.draft.agent_content);
+                                            generatedContent = JSON.parse(reviewData.draft.agentContent);
                                         } catch (e) {
                                             console.error('Error parsing draft content:', e);
                                             return (
@@ -281,7 +302,7 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
 
                             {/* Action Buttons */}
                             {reviewData.draft && (
-                                <Group justify="center">
+                                <Group justify="center" mt={20}>
                                     <Button
                                         color="red"
                                         variant="outline"
@@ -304,29 +325,54 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
                         </Card>
                     </Stack>
                 </Grid.Col>
-
-                {/* Right Column - Chat */}
-                {showChat && (
-                    <Grid.Col span={4}>
-                        <Card withBorder shadow="sm" p="lg" style={{ height: '80vh', display: 'flex', flexDirection: 'column' }}>
-                            <Group justify="space-between" mb="md">
-                                <Title order={3}>Chat với AI Agent</Title>
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    onClick={() => setShowChat(false)}
-                                >
-                                    <IconX size={16} />
-                                </ActionIcon>
-                            </Group>
-
-                            <div style={{ flex: 1 }}>
-                                <AdminChat />
-                            </div>
-                        </Card>
-                    </Grid.Col>
-                )}
             </Grid>
+
+            {/* Reject Feedback Modal */}
+            <Modal
+                opened={showRejectModal}
+                onClose={() => setShowRejectModal(false)}
+                title="Từ chối nội dung và yêu cầu tạo lại"
+                size="md"
+                centered
+            >
+                <Stack gap="md">
+                    <Text size="sm" c="dimmed">
+                        Vui lòng nhập lý do từ chối và yêu cầu cụ thể để AI có thể tạo lại nội dung phù hợp hơn:
+                    </Text>
+
+                    <Textarea
+                        label="Lý do từ chối và yêu cầu tạo lại"
+                        placeholder="Ví dụ: Nội dung quá khó cho người mới bắt đầu, cần thêm ví dụ thực tế, sắp xếp lại thứ tự topics..."
+                        value={rejectFeedback}
+                        onChange={(event) => setRejectFeedback(event.currentTarget.value)}
+                        minRows={4}
+                        maxRows={8}
+                        autosize
+                        required
+                    />
+
+                    <Group justify="flex-end" gap="sm">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setShowRejectModal(false);
+                                setRejectFeedback('');
+                            }}
+                            disabled={approveRejectMutation.isPending}
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            color="red"
+                            onClick={handleConfirmReject}
+                            loading={approveRejectMutation.isPending}
+                            leftSection={<IconX size={16} />}
+                        >
+                            Từ chối và gửi yêu cầu
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
         </Container>
     );
 }

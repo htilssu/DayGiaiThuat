@@ -20,8 +20,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
         <Avatar>
           {isUser ? <IconUser size="1.5rem" /> : <IconRobot size="1.5rem" />}
         </Avatar>
-        <Paper p="md" withBorder style={{ borderRadius: "1rem" }}>
-          <Text size="sm">{message.content}</Text>
+        <Paper p="md" withBorder style={{ borderRadius: "1rem", minWidth: '120px' }}>
+          <Text size="sm" style={{ lineHeight: 1.4, wordBreak: 'break-word' }}>
+            {message.content}
+          </Text>
         </Paper>
       </Box>
     </Box>
