@@ -8,7 +8,6 @@ export function useAdminChat() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -34,23 +33,40 @@ export function useAdminChat() {
     setInput("");
     setIsLoading(true);
 
+    try {
+      // TODO: Implement AI chat logic here
+      // For now, just simulate a response
+      setTimeout(() => {
+        const aiMessage: ChatMessage = {
+          role: "assistant",
+          content:
+            "This is a placeholder response. AI integration coming soon.",
+          timestamp: new Date().toISOString(),
+        };
+        addMessage(aiMessage);
+        setIsLoading(false);
+      }, 1000);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setIsLoading(false);
+    }
+  };
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    };
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
-    return {
-      messages,
-      input,
-      setInput,
-      isLoading,
-      messagesEndRef,
-      handleSend,
-      handleKeyPress,
-      addMessage,
-    };
-  }
+  return {
+    messages,
+    input,
+    setInput,
+    isLoading,
+    messagesEndRef,
+    handleSend,
+    handleKeyPress,
+    addMessage,
+  };
 }
