@@ -162,16 +162,24 @@ export async function generateCourseTopics(request: GenerateTopicsRequest): Prom
  */
 export interface CourseReview {
     courseId: number;
-    status: 'draft' | 'reviewing' | 'approved' | 'rejected';
-    generatedContent: {
-        topics: any[];
-        lessons: any[];
-        exercises: any[];
-        tests: any[];
-    };
-    feedback?: string;
-    createdAt: string;
-    updatedAt: string;
+    courseTitle: string;
+    courseDescription: string;
+    draft: {
+        id: number;
+        course_id: number;
+        agent_content: string; // JSON string chứa topics, lessons
+        status: string;
+        created_at: string;
+        updated_at: string;
+    } | null;
+    chatMessages: Array<{
+        id: number;
+        course_id: number;
+        user_id: number;
+        message: string;
+        is_agent: boolean;
+        created_at: string;
+    }>;
 }
 
 /**

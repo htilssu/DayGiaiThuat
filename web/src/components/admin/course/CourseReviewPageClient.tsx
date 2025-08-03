@@ -110,30 +110,28 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
                                 <Title order={2} c="blue">Thông tin khóa học</Title>
                                 <Badge
                                     color={
-                                        reviewData.status === 'approved' ? 'green' :
-                                            reviewData.status === 'rejected' ? 'red' :
-                                                reviewData.status === 'reviewing' ? 'yellow' : 'gray'
+                                        reviewData.draft?.status === 'approved' ? 'green' :
+                                            reviewData.draft?.status === 'rejected' ? 'red' :
+                                                reviewData.draft?.status === 'reviewing' ? 'yellow' : 'gray'
                                     }
                                     size="lg"
                                 >
-                                    {
-                                        reviewData.status === 'approved' ? 'Đã duyệt' :
-                                            reviewData.status === 'rejected' ? 'Bị từ chối' :
-                                                reviewData.status === 'reviewing' ? 'Đang review' : 'Nháp'
-                                    }
+                                    {reviewData.draft ? (
+                                        reviewData.draft.status === 'approved' ? 'Đã duyệt' :
+                                            reviewData.draft.status === 'rejected' ? 'Bị từ chối' :
+                                                reviewData.draft.status === 'reviewing' ? 'Đang review' : 'Nháp'
+                                    ) : 'Đang tạo'}
                                 </Badge>
                             </Group>
 
                             <Stack gap="sm">
+                                <Text size="lg" fw={500}>{reviewData.courseTitle}</Text>
+                                <Text size="sm" c="dimmed">{reviewData.courseDescription}</Text>
                                 <Text size="sm" c="dimmed">Course ID: {reviewData.courseId}</Text>
-                                <Text size="sm" c="dimmed">
-                                    Cập nhật lần cuối: {new Date(reviewData.updatedAt).toLocaleString('vi-VN')}
-                                </Text>
-                                {reviewData.feedback && (
-                                    <Paper withBorder p="sm" bg="yellow.0">
-                                        <Text fw={500} size="sm" mb="xs">Phản hồi:</Text>
-                                        <Text size="sm">{reviewData.feedback}</Text>
-                                    </Paper>
+                                {reviewData.draft && (
+                                    <Text size="sm" c="dimmed">
+                                        Cập nhật lần cuối: {new Date(reviewData.draft.updated_at).toLocaleString('vi-VN')}
+                                    </Text>
                                 )}
                             </Stack>
                         </Card>
@@ -144,7 +142,7 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
                                 <Title order={2} c="violet">
                                     <Group gap="xs">
                                         <IconRobot size={24} />
-                                        Nội dung do AI tạo
+                                        Nội dung do Agent tạo
                                     </Group>
                                 </Title>
                                 <Group>
@@ -167,103 +165,142 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
                                 </Group>
                             </Group>
 
-                            <Stack gap="md">
-                                {/* Topics */}
-                                <Paper withBorder p="md">
-                                    <Title order={4} mb="sm">Topics ({reviewData.generatedContent.topics.length})</Title>
-                                    <Stack gap="xs">
-                                        {reviewData.generatedContent.topics.map((topic: any, index: number) => (
-                                            <Group key={topic.id || index} justify="space-between">
-                                                <div>
-                                                    <Text fw={500}>{topic.name}</Text>
-                                                    <Text size="sm" c="dimmed">{topic.description}</Text>
-                                                </div>
-                                                {topic.duration && (
-                                                    <Text size="sm" c="dimmed">{topic.duration} phút</Text>
+                            {!reviewData.draft ? (
+                                <Paper withBorder p="xl" style={{ textAlign: 'center' }}>
+                                    <Stack gap="md" align="center">
+                                        <IconRobot size={48} style={{ color: 'var(--mantine-color-violet-6)' }} />
+                                        <Text size="lg" fw={500}>Đang tạo nội dung khóa học...</Text>
+                                        <Text size="sm" c="dimmed">
+                                            AI Agent đang phân tích và tạo nội dung cho khóa học này.
+                                            Vui lòng chờ trong giây lát hoặc chat với AI để theo dõi tiến trình.
+                                        </Text>
+                                    </Stack>
+                                </Paper>
+                            ) : (
+                                <Stack gap="md">
+                                    {(() => {
+                                        let generatedContent;
+                                        try {
+                                            generatedContent = JSON.parse(reviewData.draft.agent_content);
+                                        } catch (e) {
+                                            console.error('Error parsing draft content:', e);
+                                            return (
+                                                <Alert icon={<IconAlertCircle size={16} />} title="Lỗi" color="red">
+                                                    Không thể phân tích nội dung đã tạo
+                                                </Alert>
+                                            );
+                                        }
+
+                                        return (
+                                            <>
+                                                {/* Topics */}
+                                                {generatedContent.topics && (
+                                                    <Paper withBorder p="md">
+                                                        <Title order={4} mb="sm">Topics ({generatedContent.topics.length})</Title>
+                                                        <Stack gap="xs">
+                                                            {generatedContent.topics.map((topic: any, index: number) => (
+                                                                <Group key={topic.id || index} justify="space-between">
+                                                                    <div>
+                                                                        <Text fw={500}>{topic.name}</Text>
+                                                                        <Text size="sm" c="dimmed">{topic.description}</Text>
+                                                                    </div>
+                                                                    {topic.duration && (
+                                                                        <Text size="sm" c="dimmed">{topic.duration} phút</Text>
+                                                                    )}
+                                                                </Group>
+                                                            ))}
+                                                        </Stack>
+                                                    </Paper>
                                                 )}
-                                            </Group>
-                                        ))}
-                                    </Stack>
-                                </Paper>
 
-                                {/* Lessons */}
-                                <Paper withBorder p="md">
-                                    <Title order={4} mb="sm">Bài học ({reviewData.generatedContent.lessons.length})</Title>
-                                    <Stack gap="xs">
-                                        {reviewData.generatedContent.lessons.map((lesson: any, index: number) => (
-                                            <Group key={lesson.id || index} justify="space-between">
-                                                <Text>{lesson.name}</Text>
-                                                {lesson.duration && (
-                                                    <Text size="sm" c="dimmed">{lesson.duration} phút</Text>
+                                                {/* Lessons */}
+                                                {generatedContent.lessons && (
+                                                    <Paper withBorder p="md">
+                                                        <Title order={4} mb="sm">Bài học ({generatedContent.lessons.length})</Title>
+                                                        <Stack gap="xs">
+                                                            {generatedContent.lessons.map((lesson: any, index: number) => (
+                                                                <Group key={lesson.id || index} justify="space-between">
+                                                                    <Text>{lesson.name}</Text>
+                                                                    {lesson.duration && (
+                                                                        <Text size="sm" c="dimmed">{lesson.duration} phút</Text>
+                                                                    )}
+                                                                </Group>
+                                                            ))}
+                                                        </Stack>
+                                                    </Paper>
                                                 )}
-                                            </Group>
-                                        ))}
-                                    </Stack>
-                                </Paper>
 
-                                {/* Exercises */}
-                                <Paper withBorder p="md">
-                                    <Title order={4} mb="sm">Bài tập ({reviewData.generatedContent.exercises.length})</Title>
-                                    <Stack gap="xs">
-                                        {reviewData.generatedContent.exercises.map((exercise: any, index: number) => (
-                                            <Group key={exercise.id || index} justify="space-between">
-                                                <div>
-                                                    <Text>{exercise.name}</Text>
-                                                    <Text size="sm" c="dimmed">{exercise.description}</Text>
-                                                </div>
-                                                {exercise.difficulty && (
-                                                    <Badge size="sm" color={
-                                                        exercise.difficulty === 'Easy' ? 'green' :
-                                                            exercise.difficulty === 'Medium' ? 'yellow' : 'red'
-                                                    }>
-                                                        {exercise.difficulty}
-                                                    </Badge>
+                                                {/* Exercises */}
+                                                {generatedContent.exercises && (
+                                                    <Paper withBorder p="md">
+                                                        <Title order={4} mb="sm">Bài tập ({generatedContent.exercises.length})</Title>
+                                                        <Stack gap="xs">
+                                                            {generatedContent.exercises.map((exercise: any, index: number) => (
+                                                                <Group key={exercise.id || index} justify="space-between">
+                                                                    <div>
+                                                                        <Text>{exercise.name}</Text>
+                                                                        <Text size="sm" c="dimmed">{exercise.description}</Text>
+                                                                    </div>
+                                                                    {exercise.difficulty && (
+                                                                        <Badge size="sm" color={
+                                                                            exercise.difficulty === 'Easy' ? 'green' :
+                                                                                exercise.difficulty === 'Medium' ? 'yellow' : 'red'
+                                                                        }>
+                                                                            {exercise.difficulty}
+                                                                        </Badge>
+                                                                    )}
+                                                                </Group>
+                                                            ))}
+                                                        </Stack>
+                                                    </Paper>
                                                 )}
-                                            </Group>
-                                        ))}
-                                    </Stack>
-                                </Paper>
 
-                                {/* Tests */}
-                                <Paper withBorder p="md">
-                                    <Title order={4} mb="sm">Bài kiểm tra ({reviewData.generatedContent.tests.length})</Title>
-                                    <Stack gap="xs">
-                                        {reviewData.generatedContent.tests.map((test: any, index: number) => (
-                                            <Group key={test.id || index} justify="space-between">
-                                                <Text>{test.name}</Text>
-                                                <Text size="sm" c="dimmed">
-                                                    {test.questions} câu hỏi - {test.duration} phút
-                                                </Text>
-                                            </Group>
-                                        ))}
-                                    </Stack>
-                                </Paper>
+                                                {/* Tests */}
+                                                {generatedContent.tests && (
+                                                    <Paper withBorder p="md">
+                                                        <Title order={4} mb="sm">Bài kiểm tra ({generatedContent.tests.length})</Title>
+                                                        <Stack gap="xs">
+                                                            {generatedContent.tests.map((test: any, index: number) => (
+                                                                <Group key={test.id || index} justify="space-between">
+                                                                    <Text>{test.name}</Text>
+                                                                    <Text size="sm" c="dimmed">
+                                                                        {test.questions} câu hỏi - {test.duration} phút
+                                                                    </Text>
+                                                                </Group>
+                                                            ))}
+                                                        </Stack>
+                                                    </Paper>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+                                </Stack>
+                            )}
 
-                                <Divider />
+                            <Divider />
 
-                                {/* Action Buttons */}
-                                {reviewData.status !== 'approved' && (
-                                    <Group justify="center">
-                                        <Button
-                                            color="red"
-                                            variant="outline"
-                                            leftSection={<IconX size={16} />}
-                                            onClick={handleRejectContent}
-                                            loading={approveRejectMutation.isPending}
-                                        >
-                                            Từ chối và yêu cầu tạo lại
-                                        </Button>
-                                        <Button
-                                            color="green"
-                                            leftSection={<IconCheck size={16} />}
-                                            onClick={handleApproveContent}
-                                            loading={approveRejectMutation.isPending}
-                                        >
-                                            Chấp nhận và lưu nội dung
-                                        </Button>
-                                    </Group>
-                                )}
-                            </Stack>
+                            {/* Action Buttons */}
+                            {reviewData.draft && (
+                                <Group justify="center">
+                                    <Button
+                                        color="red"
+                                        variant="outline"
+                                        leftSection={<IconX size={16} />}
+                                        onClick={handleRejectContent}
+                                        loading={approveRejectMutation.isPending}
+                                    >
+                                        Từ chối và yêu cầu tạo lại
+                                    </Button>
+                                    <Button
+                                        color="green"
+                                        leftSection={<IconCheck size={16} />}
+                                        onClick={handleApproveContent}
+                                        loading={approveRejectMutation.isPending}
+                                    >
+                                        Chấp nhận và lưu nội dung
+                                    </Button>
+                                </Group>
+                            )}
                         </Card>
                     </Stack>
                 </Grid.Col>
@@ -284,11 +321,7 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
                             </Group>
 
                             <div style={{ flex: 1 }}>
-                                <AdminChat
-                                    courseId={courseId}
-                                    reviewData={reviewData}
-                                    onContentUpdate={() => refetch()}
-                                />
+                                <AdminChat />
                             </div>
                         </Card>
                     </Grid.Col>

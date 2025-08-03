@@ -28,7 +28,7 @@ class CourseDraft(Base):
     )
 
     # Relationship
-    course = relationship("Course", back_populates="draft")
+    course = relationship("Course", back_populates="drafts")
 
 
 class CourseReviewChat(Base):

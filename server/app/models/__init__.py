@@ -11,6 +11,7 @@ from app.models.topic_model import Topic
 from app.models.skill_model import Skill
 from app.models.badge_model import Badge
 from app.models.course_model import Course
+from app.models.course_draft_model import CourseDraft, CourseReviewChat
 from app.models.user_badge_model import UserBadge
 from app.models.lesson_generation_state_model import LessonGenerationState
 from app.models.document_processing_job_model import DocumentProcessingJob

@@ -16,7 +16,8 @@ from app.schemas.course_review_schema import (
     CourseReviewResponse,
     SendChatMessageRequest,
     ApproveDraftRequest,
-    CourseReviewChatMessage
+    CourseReviewChatMessage,
+    CourseDraftResponse
 )
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.services.course_service import CourseService, get_course_service
@@ -62,37 +63,19 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
     return current_user
 
 
-async def run_course_composition_background(request: CourseCompositionRequestSchema):
+async def run_course_composition_background(request: CourseCompositionRequestSchema, db: AsyncSession):
     """
     Hàm chạy trong background để tạo nội dung khóa học.
     Agent mới trả về danh sách topics thay vì lưu trực tiếp vào database.
     """
-    agent = CourseCompositionAgent()
-    result = agent.act(request)
+    agent = CourseCompositionAgent(db)
+    await agent.act(request)
 
     # Log kết quả để debug
     import logging
 
     logger = logging.getLogger(__name__)
-    logger.info(f"Course composition result: {result}")
-
-    # Lưu kết quả vào CourseDraft
-    try:
-        async with get_independent_db_session() as session:
-            # Tạo mới CourseDraft
-            course_draft = CourseDraft(
-                course_id=request.course_id,
-                agent_content=json.dumps(result),  # Lưu kết quả agent dưới dạng JSON
-                status="pending"
-            )
-            session.add(course_draft)
-            await session.commit()
-
-            logger.info(f"Saved course draft: {course_draft.id} for course: {request.course_id}")
-    except Exception as e:
-        logger.error(f"Error saving course draft: {str(e)}")
-
-    return result
+    logger.info(f"Course composition completed for course: {request.course_id}")
 
 
 @router.post(
@@ -136,7 +119,7 @@ async def create_course(
             course_level=new_course.level,
         )
         background_tasks.add_task(
-            run_course_composition_background, composition_request
+            run_course_composition_background, composition_request, db
         )
 
         return new_course
@@ -570,7 +553,7 @@ async def get_course_review(
         course_id=course.id,
         course_title=course.title,
         course_description=course.description,
-        draft=draft,
+        draft=CourseDraftResponse.model_validate(draft) if draft else None,
         chat_messages=[CourseReviewChatMessage.model_validate(msg) for msg in chat_messages]
     )
 
@@ -747,38 +730,18 @@ async def save_agent_content_to_db(course_id: int, agent_content: dict, db: Asyn
     """
     Lưu nội dung agent tạo ra vào database chính
     """
-    from app.models.lesson_model import Lesson, LessonSection
-
-    # Parse và lưu topics, lessons
-    for topic_data in agent_content.get("topics", []):
+    # Parse và lưu topics
+    for index, topic_data in enumerate(agent_content.get("topics", [])):
         # Tạo topic
         topic = Topic(
             course_id=course_id,
-            title=topic_data.get("title"),
+            name=topic_data.get("name"),
             description=topic_data.get("description"),
-            order=topic_data.get("order", 0)
+            prerequisites=topic_data.get("prerequisites", []),
+            order=index + 1  # Sắp xếp theo thứ tự trong list
         )
         db.add(topic)
-        await db.flush()  # Để có topic.id
 
-        # Tạo lessons cho topic
-        for lesson_data in topic_data.get("lessons", []):
-            lesson = Lesson(
-                topic_id=topic.id,
-                title=lesson_data.get("title"),
-                content=lesson_data.get("content"),
-                order=lesson_data.get("order", 0)
-            )
-            db.add(lesson)
-            await db.flush()  # Để có lesson.id
-
-            # Tạo lesson sections nếu có
-            for section_data in lesson_data.get("sections", []):
-                section = LessonSection(
-                    lesson_id=lesson.id,
-                    title=section_data.get("title"),
-                    content=section_data.get("content"),
-                    order=section_data.get("order", 0)
-                )
-                db.add(section)
+    # Commit tất cả các thay đổi
+    await db.commit()
 

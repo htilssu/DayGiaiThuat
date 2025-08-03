@@ -88,6 +88,6 @@ class Course(Base):
     document_processing_jobs: Mapped[List["DocumentProcessingJob"]] = relationship(
         back_populates="course"
     )
-    draft: Mapped["CourseDraft"] = relationship(
+    drafts: Mapped[List["CourseDraft"]] = relationship(
         "CourseDraft", back_populates="course", cascade="all, delete-orphan"
     )

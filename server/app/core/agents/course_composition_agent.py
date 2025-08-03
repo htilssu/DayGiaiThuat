@@ -1,24 +1,24 @@
 import json
-import uuid
+from datetime import datetime
 
 from langchain.output_parsers import OutputFixingParser
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.tools import Tool
 from pydantic import BaseModel, Field
+
+from langchain_core.runnables.history import RunnableWithMessageHistory
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
-from app.core.agents.lesson_generating_agent import LessonGeneratingAgent
 from app.core.tracing import trace_agent
 from app.models import Course
-from app.models.topic_model import Topic
+from app.models.course_draft_model import CourseDraft
 from app.schemas.course_schema import (
     CourseCompositionRequestSchema,
 )
 from app.schemas.topic_schema import TopicBase
-from app.services.lesson_service import LessonService
 
 
 class CourseAgentResponse(BaseModel):
@@ -40,13 +40,14 @@ Hãy tạo danh sách topics theo thứ tự logic học tập (từ cơ bản �
 
 # Danh sách tools:
 - course_context_retriever: Truy vấn RAG để lấy nội dung liên quan đến khóa học.
+- save_topics_to_draft: Lưu topics đã tạo vào draft để chờ admin review.
 
 # Workflow:
 - Sử dụng tool course_context_retriever để lấy thông tin từ tài liệu. có thể gọi nhiều lần để lấy được nhiều thông tin.
 - Sau khi lấy được thông tin từ tài liệu, tạo thông tin khóa học theo định dạng JSON sau:
 ```json
     {{
-        duration: "Thời gian ước lượng hoàn thành khóa học",
+        duration: "Thời gian ước lượng hoàn thành khóa học (số nguyên, đơn vị ngày)",
         topics: [{{
             "name": "Tên topic",
             "description": "Mô tả chi tiết nội dung sẽ học",
@@ -55,6 +56,7 @@ Hãy tạo danh sách topics theo thứ tự logic học tập (từ cơ bản �
         }}]
     }}
 ```
+- Sau khi tạo xong nội dung, sử dụng tool save_topics_to_draft để lưu vào draft.
 
 instruction:
 {instruction}
@@ -99,10 +101,10 @@ class CourseCompositionAgent(BaseAgent):
         )
 
         self.store_topic_tool = Tool(
-            name="save_topics_to_db",
+            name="save_topics_to_draft",
             func=self._store_topic,
             coroutine=self._astore_topic,
-            description="Lưu danh sách các topic đã được tạo vào cơ sở dữ liệu.",
+            description="Lưu danh sách các topic đã được tạo vào draft để chờ admin review và approve.",
         )
 
         self.output_parser = PydanticOutputParser(pydantic_object=CourseAgentResponse)
@@ -121,40 +123,43 @@ class CourseCompositionAgent(BaseAgent):
 
         return loop.run_until_complete(self._astore_topic(t))
 
-    async def _astore_topic(self, t: str):
-        """Lưu topic vào cơ sở dữ liệu (bất đồng bộ)"""
+    async def _astore_topic(self, topics_json: str):
+        """Lưu topics vào draft thay vì trực tiếp vào Topic table"""
         if not self.db_session:
             raise ValueError("db_session chưa được khởi tạo.")
+
         try:
-            topics = json.loads(t)
-            for topic_data in topics:
-                if hasattr(self, "current_course_id") and self.current_course_id:
-                    topic_data["course_id"] = self.current_course_id
-                new_topic = Topic(**topic_data)
-                self.db_session.add(new_topic)
+            from sqlalchemy import select
+
+            existing_draft_result = await self.db_session.execute(
+                select(CourseDraft).filter(
+                    CourseDraft.course_id == self.current_course_id
+                )
+            )
+            existing_draft = existing_draft_result.scalar_one_or_none()
+
+            if existing_draft:
+                # Cập nhật draft hiện có
+                existing_draft.agent_content = topics_json
+                existing_draft.status = "pending"
+                existing_draft.updated_at = datetime.utcnow()
+            else:
+                # Tạo draft mới
+                new_draft = CourseDraft(
+                    course_id=self.current_course_id,
+                    agent_content=topics_json,
+                    status="pending",
+                )
+                self.db_session.add(new_draft)
+
             await self.db_session.commit()
+            print(f"✅ Đã lưu topics vào draft cho course {self.current_course_id}")
+            return True
+
         except Exception as e:
-            print(f"Lỗi khi lưu topic vào cơ sở dữ liệu: {e}")
+            print(f"❌ Lỗi khi lưu topics vào draft: {e}")
             await self.db_session.rollback()
             return False
-        return True
-
-    async def _get_topics_by_course_id(self, course_id: int) -> list[Topic]:
-        """Lấy danh sách topics theo course_id từ database"""
-        from sqlalchemy import select
-        from sqlalchemy.orm import selectinload
-        from app.models.topic_model import Topic
-
-        try:
-            result = await self.db_session.execute(
-                select(Topic)
-                .options(selectinload(Topic.lessons))
-                .where(Topic.course_id == course_id)
-            )
-            return [topic for topic in result.scalars().all()]
-        except Exception as e:
-            print(f"Lỗi khi lấy topics từ database: {e}")
-            return []
 
     def _init_agent(self):
         """Khởi tạo agent với lazy import"""
@@ -212,6 +217,20 @@ class CourseCompositionAgent(BaseAgent):
             Mô tả: {request.course_description}
             Cấp độ: {request.course_level}
             """
+            from app.core.config import settings
+            from langchain.memory.chat_message_histories import (
+                MongoDBChatMessageHistory,
+            )
+
+            runnable_history = RunnableWithMessageHistory(
+                runnable=self.agent_executor,
+                get_session_history=lambda: MongoDBChatMessageHistory(
+                    settings.MONGO_URI,
+                    session_id,
+                    self.mongodb_db_name,
+                    self.mongodb_collection_name,
+                ),
+            )
             result = await self.agent_executor.ainvoke(
                 {"input": request_input}, config=run_config
             )
@@ -222,42 +241,41 @@ class CourseCompositionAgent(BaseAgent):
 
             try:
                 agent_response = self.output_parser.parse(result["output"])
+
+                # Cập nhật duration của course
                 await self.db_session.execute(
                     update(Course)
                     .where(Course.id == request.course_id)
                     .values(duration=agent_response.duration)
                 )
+
+                # Lưu topics vào draft để chờ review
+                topics_json = json.dumps(
+                    agent_response.model_dump(), ensure_ascii=False, indent=2
+                )
+                await self._astore_topic(topics_json)
+
+                print(
+                    f"✅ Đã tạo và lưu vào draft cho khóa học: {request.course_title}"
+                )
+
             except Exception:
                 agent_response = OutputFixingParser.from_llm(
                     self.base_llm, parser=self.output_parser
                 ).parse(result["output"])
+
+                # Cập nhật duration của course
                 await self.db_session.execute(
                     update(Course)
                     .where(Course.id == request.course_id)
                     .values(duration=agent_response.duration)
                 )
 
-            topics_from_db = await self._get_topics_by_course_id(request.course_id)
-
-            from app.services.topic_service import TopicService
-
-            topic_service = TopicService(self.db_session)
-            lesson_service = LessonService(self.db_session, topic_service)
-            session_id = str(uuid.uuid4())
-
-            for topic in topics_from_db:
-                lesson_data = await LessonGeneratingAgent().act(
-                    topic_name=topic.name,
-                    lesson_title=f"Bài giảng {topic.name}",
-                    lesson_description=topic.description,
-                    difficulty_level=request.course_level,
-                    max_sections=5,
-                    session_id=session_id,
+                # Lưu topics vào draft để chờ review
+                topics_json = json.dumps(
+                    agent_response.model_dump(), ensure_ascii=False, indent=2
                 )
-
-                for lesson in lesson_data:
-                    lesson.topic_id = topic.id
-                    await lesson_service.create_lesson(lesson)
+                await self._astore_topic(topics_json)
 
         except Exception as e:
             print(f"❌ Lỗi khi soạn khóa học: {e}")

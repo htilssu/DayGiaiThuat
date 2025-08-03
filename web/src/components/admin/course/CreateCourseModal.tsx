@@ -52,7 +52,6 @@ export default function CreateCourseModal({ opened, onClose, onSuccess }: Create
         },
     });
 
-    // Mutation for creating course
     const createCourseMutation = useMutation({
         mutationFn: async (data: CourseCreatePayload) => {
             setIsCreating(true);
@@ -66,17 +65,14 @@ export default function CreateCourseModal({ opened, onClose, onSuccess }: Create
                 color: 'green',
             });
 
-            // Redirect to review page with course data
             const courseData = {
                 ...form.values,
                 courseId: createdCourse.id
             };
 
-            // Store course data in sessionStorage to pass to review page
             sessionStorage.setItem('pendingCourseData', JSON.stringify(courseData));
 
-            // Navigate to review page
-            router.push(`/admin/course/${createdCourse.id}/review-topics`);
+            router.push(`/admin/course/${createdCourse.id}/review`);
 
             handleClose();
             onSuccess();
