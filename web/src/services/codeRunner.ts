@@ -45,9 +45,9 @@ export function runTests(code: string, testCases: TestCase[]): TestResult[] {
         return {
           input: testCase.input,
           expectedOutput: testCase.expectedOutput,
-          actualOutput: `Error: ${error.message}`,
+          actualOutput: `Error: ${error instanceof Error ? error.message : String(error)}`,
           passed: false,
-          error: `Error: ${error.message}`,
+          error: `Error: ${error instanceof Error ? error.message : String(error)}`,
         };
       }
     });
@@ -56,9 +56,9 @@ export function runTests(code: string, testCases: TestCase[]): TestResult[] {
       {
         input: "N/A",
         expectedOutput: "N/A",
-        actualOutput: `Error: ${error.message}`,
+        actualOutput: `Error: ${error instanceof Error ? error.message : String(error)}`,
         passed: false,
-        error: `Error: ${error.message}`,
+        error: `Error: ${error instanceof Error ? error.message : String(error)}`,
       },
     ];
   }

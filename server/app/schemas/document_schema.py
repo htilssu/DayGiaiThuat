@@ -1,5 +1,6 @@
+from typing import Optional, Any, Dict, List
 from pydantic import BaseModel
-from typing import Optional
+from datetime import datetime
 
 
 class DocumentStatus(BaseModel):
@@ -8,6 +9,7 @@ class DocumentStatus(BaseModel):
     status: str  # "processing", "completed", "failed"
     createdAt: str
     error: Optional[str] = None
+    chunks_count: Optional[int] = None
 
 
 class DocumentResponse(BaseModel):
@@ -15,13 +17,53 @@ class DocumentResponse(BaseModel):
     filename: str
     status: str
     createdAt: str
+    job_id: Optional[str] = None
+    course_id: Optional[int] = None
 
 
-class SearchResult(BaseModel):
+class DocumentProcessingJobResponse(BaseModel):
+    id: str
+    job_id: str
+    filename: str
+    status: str
+    course_id: Optional[int] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    processed_at: Optional[datetime] = None
+
+
+class RunpodWebhookRequest(BaseModel):
+    """Schema for Runpod webhook request"""
+
+    id: str  # Job ID
+    status: str  # COMPLETED, FAILED, etc.
+    output: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    executionTime: Optional[int] = None
+    delayTime: Optional[int] = None
+
+
+class DocumentSearchResult(BaseModel):
     content: str
-    metadata: dict
+    metadata: Dict[str, Any]
+    score: float
 
 
-class SearchResponse(BaseModel):
+class DocumentSearchResponse(BaseModel):
+    results: List[DocumentSearchResult]
+    total: int
     query: str
-    results: list[SearchResult]
+
+
+class DocumentStatistics(BaseModel):
+    total_documents: int
+    processing_documents: int
+    completed_documents: int
+    failed_documents: int
+    total_chunks: int
+
+
+class StoreByTextRequest(BaseModel):
+    text: str
+    course_id: Optional[int] = None

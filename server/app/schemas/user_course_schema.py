@@ -1,5 +1,8 @@
 from datetime import datetime
+from typing import Optional
 from pydantic import BaseModel, Field
+
+from app.schemas.user_course_progress_schema import CourseProgressSummary
 
 
 class UserCourseBase(BaseModel):
@@ -29,11 +32,17 @@ class UserCourseResponse(UserCourseBase):
 
     Attributes:
         id: ID của đăng ký
+        current_topic: Topic hiện tại (cached field)
+        current_lesson: Lesson hiện tại (cached field)
+        current_section: Section hiện tại (cached field)
         created_at: Thời điểm đăng ký
         updated_at: Thời điểm cập nhật gần nhất
     """
 
     id: int = Field(..., description="ID của đăng ký")
+    current_topic: int = Field(..., description="Topic hiện tại")
+    current_lesson: int = Field(..., description="Lesson hiện tại")
+    current_section: int = Field(..., description="Section hiện tại")
     created_at: datetime = Field(..., description="Thời điểm đăng ký")
     updated_at: datetime = Field(..., description="Thời điểm cập nhật gần nhất")
 
@@ -41,6 +50,16 @@ class UserCourseResponse(UserCourseBase):
         """Cấu hình cho Pydantic model"""
 
         from_attributes = True
+
+
+class UserCourseWithProgressResponse(UserCourseResponse):
+    """
+    Schema cho response khi truy vấn thông tin đăng ký khóa học kèm theo tiến độ
+    """
+
+    progress_summary: Optional[CourseProgressSummary] = Field(
+        None, description="Tóm tắt tiến độ học tập"
+    )
 
 
 class CourseEnrollmentResponse(BaseModel):

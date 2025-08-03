@@ -18,6 +18,9 @@ import {
     Switch,
     LoadingOverlay,
     Alert,
+    Checkbox,
+    Text,
+    Divider,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
@@ -25,15 +28,21 @@ import { IconPlus, IconChevronRight, IconPencil, IconTrash, IconAlertCircle } fr
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Course, CourseCreatePayload, getAllCoursesAdmin, createCourseAdmin, deleteCourseAdmin } from "@/lib/api/admin-courses";
+import { Course, CourseCreatePayload, getAllCoursesAdmin, createCourseAdmin, deleteCourseAdmin, bulkDeleteCoursesAdmin, adminCoursesApi } from "@/lib/api/admin-courses";
 import { AdminTopic } from "@/lib/api/admin-topics";
 import { notifications } from '@mantine/notifications';
 import TestGenerationStatus from './TestGenerationStatus';
+import { useAppDispatch, useAppSelector } from "@/lib/store";
+import { addModal, removeModal } from "@/lib/store/modalStore";
+import { coursesApi } from "@/lib/api";
 
 export default function CourseAdminClient() {
     const [opened, { open, close }] = useDisclosure(false);
+    const [selectedCourses, setSelectedCourses] = useState<number[]>([]);
+    const [bulkDeleteModalOpened, { open: openBulkDeleteModal, close: closeBulkDeleteModal }] = useDisclosure(false);
     const router = useRouter();
     const queryClient = useQueryClient();
+    const dispatch = useAppDispatch();
 
     // Use useQuery to cache courses data
     const {
@@ -88,10 +97,82 @@ export default function CourseAdminClient() {
                 color: 'green',
             });
         },
+        onError: (err: Error & { data: { type: string; id: number } }) => {
+            if (err.data?.type === 'course_in_use') {
+                dispatch(addModal({
+                    id: `force-delete-course-${err.data.id}`,
+                    title: "Xác nhận xóa khóa học",
+                    description: err.message,
+                    confirmText: "Xóa",
+                    cancelText: "Hủy",
+                    onConfirm: () => {
+                        adminCoursesApi.forceDeleteCourse(err.data.id).then(() => {
+                            notifications.show({
+                                title: 'Thành công',
+                                message: 'Khóa học đã được xóa thành công!',
+                                color: 'green',
+                            });
+                            queryClient.invalidateQueries({
+                                queryKey: ['admin', 'courses'],
+                            });
+                        }
+
+                        ).catch((error) => {
+                            notifications.show({
+                                title: 'Lỗi',
+                                message: error.message,
+                                color: 'red',
+                            });
+                        });
+                        dispatch(removeModal(`force-delete-course-${err.data.id}`));
+                    },
+                    onCancel: () => {
+                        dispatch(removeModal(`force-delete-course-${err.data.id}`));
+                    }
+                }));
+            }
+            notifications.show({
+                title: 'Cảnh báo',
+                message: err.message,
+                color: 'yellow',
+            });
+        },
+    });
+
+    // Mutation for bulk deleting courses
+    const bulkDeleteMutation = useMutation({
+        mutationFn: bulkDeleteCoursesAdmin,
+        onSuccess: (result) => {
+            // Update cache by removing deleted courses
+            queryClient.setQueryData(['admin', 'courses'], (old: Course[] = []) =>
+                old.filter(course => !result.deletedCourses.includes(course.id))
+            );
+
+            // Show success notification
+            notifications.show({
+                title: 'Thành công',
+                message: `Đã xóa ${result.deletedCount} khóa học thành công!`,
+                color: 'green',
+            });
+
+            // Show errors if any
+            if (result.failedCount > 0) {
+                notifications.show({
+                    title: 'Cảnh báo',
+                    message: `${result.failedCount} khóa học không thể xóa.`,
+                    color: 'yellow',
+                });
+                console.error('Bulk delete errors:', result.errors);
+            }
+
+            // Reset selections and close modal
+            setSelectedCourses([]);
+            closeBulkDeleteModal();
+        },
         onError: (err) => {
             notifications.show({
                 title: 'Lỗi',
-                message: 'Không thể xóa khóa học.',
+                message: err.message,
                 color: 'red',
             });
             console.error(err);
@@ -121,19 +202,67 @@ export default function CourseAdminClient() {
     };
 
     const handleDeleteCourse = async (courseId: number) => {
-        if (confirm('Bạn có chắc chắn muốn xóa khóa học này không?')) {
-            deleteCourseMutation.mutate(courseId);
+        dispatch(addModal({
+            id: `delete-course-${courseId}`,
+            title: "Xác nhận xóa khóa học",
+            description: "Bạn có chắc chắn muốn xóa khóa học này? Hành động này không thể hoàn tác.",
+            confirmText: "Xóa",
+            cancelText: "Hủy",
+            onConfirm: () => {
+                deleteCourseMutation.mutate(courseId);
+            },
+            onCancel: () => {
+                dispatch(removeModal(`delete-course-${courseId}`));
+            }
+        }));
+    };
+
+    const handleSelectCourse = (courseId: number, checked: boolean) => {
+        if (checked) {
+            setSelectedCourses(prev => [...prev, courseId]);
+        } else {
+            setSelectedCourses(prev => prev.filter(id => id !== courseId));
         }
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedCourses(courses.map(course => course.id));
+        } else {
+            setSelectedCourses([]);
+        }
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedCourses.length === 0) {
+            notifications.show({
+                title: 'Cảnh báo',
+                message: 'Vui lòng chọn ít nhất một khóa học để xóa.',
+                color: 'yellow',
+            });
+            return;
+        }
+        openBulkDeleteModal();
+    };
+
+    const confirmBulkDelete = () => {
+        bulkDeleteMutation.mutate(selectedCourses);
     };
 
     const courseRows = courses.map((course) => (
         <Table.Tr key={course.id}>
+            <Table.Td>
+                <Checkbox
+                    checked={selectedCourses.includes(course.id)}
+                    onChange={(event) => handleSelectCourse(course.id, event.currentTarget.checked)}
+                />
+            </Table.Td>
             <Table.Td>{course.id}</Table.Td>
             <Table.Td>
                 <div>
                     <div className="font-medium text-gray-900">{course.title}</div>
                     {course.description && (
-                        <div className="text-sm text-gray-500 mt-1 line-clamp-2">
+                        <div className="text-sm text-gray-500 mt-1 line-clamp-2 md:max-w-64">
                             {course.description}
                         </div>
                     )}
@@ -218,18 +347,38 @@ export default function CourseAdminClient() {
                     <Title order={2} className="text-gray-800">
                         Quản lý Khóa học
                     </Title>
-                    <Button
-                        leftSection={<IconPlus size={16} />}
-                        onClick={open}
-                        loading={createCourseMutation.isPending}
-                    >
-                        Tạo khóa học mới
-                    </Button>
+                    <Group>
+                        {selectedCourses.length > 0 && (
+                            <Button
+                                color="red"
+                                variant="light"
+                                leftSection={<IconTrash size={16} />}
+                                onClick={handleBulkDelete}
+                                loading={bulkDeleteMutation.isPending}
+                            >
+                                Xóa {selectedCourses.length} khóa học
+                            </Button>
+                        )}
+                        <Button
+                            leftSection={<IconPlus size={16} />}
+                            onClick={open}
+                            loading={createCourseMutation.isPending}
+                        >
+                            Tạo khóa học mới
+                        </Button>
+                    </Group>
                 </Group>
 
                 <Table>
                     <Table.Thead>
                         <Table.Tr>
+                            <Table.Th>
+                                <Checkbox
+                                    checked={selectedCourses.length === courses.length && courses.length > 0}
+                                    indeterminate={selectedCourses.length > 0 && selectedCourses.length < courses.length}
+                                    onChange={(event) => handleSelectAll(event.currentTarget.checked)}
+                                />
+                            </Table.Th>
                             <Table.Th>ID</Table.Th>
                             <Table.Th>Thông tin khóa học</Table.Th>
                             <Table.Th>Cấp độ</Table.Th>
@@ -333,6 +482,38 @@ export default function CourseAdminClient() {
                             </Button>
                         </Group>
                     </form>
+                </Modal>
+
+                {/* Bulk Delete Confirmation Modal */}
+                <Modal
+                    opened={bulkDeleteModalOpened}
+                    onClose={closeBulkDeleteModal}
+                    title="Xác nhận xóa nhiều khóa học"
+                    size="md"
+                >
+                    <Text mb="md">
+                        Bạn có chắc chắn muốn xóa <strong>{selectedCourses.length}</strong> khóa học đã chọn không?
+                    </Text>
+                    <Text size="sm" c="dimmed" mb="xl">
+                        Hành động này không thể hoàn tác. Các khóa học đang có học viên đăng ký sẽ không thể xóa.
+                    </Text>
+
+                    <Group justify="flex-end">
+                        <Button
+                            variant="outline"
+                            onClick={closeBulkDeleteModal}
+                            disabled={bulkDeleteMutation.isPending}
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            color="red"
+                            onClick={confirmBulkDelete}
+                            loading={bulkDeleteMutation.isPending}
+                        >
+                            Xóa {selectedCourses.length} khóa học
+                        </Button>
+                    </Group>
                 </Modal>
             </Paper>
         </Container>

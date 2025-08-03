@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { lessonsApi } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { lessonsApi, Lesson } from "@/lib/api";
+import { useState } from "react";
 
 interface LessonPageProps {
   topicId: string;
@@ -10,33 +11,17 @@ interface LessonPageProps {
 }
 
 export default function LessonPage({ topicId, lessonId }: LessonPageProps) {
-  const [lesson, setLesson] = useState<Lesson | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { data: lesson, isLoading: isLessonLoading, error: lessonError } = useQuery({
+    queryKey: ["lesson", lessonId],
+    queryFn: () => lessonsApi.getLessonById(Number(lessonId)),
+    enabled: !!lessonId,
+    staleTime: 1000 * 60 * 5,
+    retry: 3,
+  })
 
-  useEffect(() => {
-    const fetchLessonData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
 
-        // Fetch lesson by external ID
-        const lessonData = await lessonsApi.getLessonByExternalId(lessonId);
-        setLesson(lessonData);
-      } catch (err) {
-        console.error("Lỗi khi tải dữ liệu bài học:", err);
-        setError("Không thể tải thông tin bài học. Vui lòng thử lại sau.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (lessonId) {
-      fetchLessonData();
-    }
-  }, [lessonId]);
-
-  if (isLoading) {
+  if (isLessonLoading) {
     return (
       <div className="min-h-screen pb-20">
         <div className="container mx-auto px-4 py-8">
@@ -183,9 +168,9 @@ export default function LessonPage({ topicId, lessonId }: LessonPageProps) {
         {/* Navigation */}
         <div className="mb-8 flex justify-between items-center">
           <div>
-            {lesson.prev_lesson_id && (
+            {lesson?.prevLessonId && (
               <Link
-                href={`/topics/${topicId}/lessons/${lesson.prev_lesson_id}`}
+                href={`/topics/${topicId}/lessons/${lesson.prevLessonId}`}
                 className="inline-flex items-center px-4 py-2 bg-foreground/5 rounded-lg hover:bg-foreground/10 transition">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -205,9 +190,9 @@ export default function LessonPage({ topicId, lessonId }: LessonPageProps) {
             )}
           </div>
           <div>
-            {lesson.next_lesson_id && (
+            {lesson?.nextLessonId && (
               <Link
-                href={`/topics/${topicId}/lessons/${lesson.next_lesson_id}`}
+                href={`/topics/${topicId}/lessons/${lesson.nextLessonId}`}
                 className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition">
                 Bài tiếp theo
                 <svg
@@ -231,56 +216,11 @@ export default function LessonPage({ topicId, lessonId }: LessonPageProps) {
         {/* Lesson Content */}
         <div className="max-w-4xl mx-auto">
           <div className="space-y-6">
-            {lesson.sections.map((section, index) =>
+            {lesson?.sections?.map((section, index) =>
               renderSection(section, index)
             )}
           </div>
         </div>
-
-        {/* Exercise */}
-        {lesson.exercise && (
-          <div className="max-w-4xl mx-auto mt-12">
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-foreground/10">
-              <h2 className="text-2xl font-bold mb-4">Bài tập</h2>
-              <div className="mb-4">
-                <h3 className="text-xl font-semibold mb-2">
-                  {lesson.exercise.name}
-                </h3>
-                <p className="text-foreground/70 mb-4">
-                  {lesson.exercise.description}
-                </p>
-                {lesson.exercise.constraint && (
-                  <div className="mb-4 p-3 bg-foreground/5 rounded-lg">
-                    <strong>Ràng buộc:</strong> {lesson.exercise.constraint}
-                  </div>
-                )}
-                {lesson.exercise.suggest && (
-                  <div className="mb-4 p-3 bg-primary/10 rounded-lg">
-                    <strong>Gợi ý:</strong> {lesson.exercise.suggest}
-                  </div>
-                )}
-              </div>
-              <Link
-                href={`/exercises/${lesson.exercise.id}`}
-                className="inline-flex items-center px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition">
-                Làm bài tập
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 ml-2"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

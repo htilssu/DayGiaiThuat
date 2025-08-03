@@ -50,21 +50,13 @@ class Settings(BaseSettings):
         UVICORN_RELOAD (bool): Auto reload cho uvicorn
     """
 
-    PROJECT_NAME: str
+    PROJECT_NAME: str = "default"
     DEV_MODE: Optional[bool] = True
-
-    # Uvicorn settings
-    UVICORN_HOST: str = "0.0.0.0"
-    UVICORN_PORT: int = 8000
-    UVICORN_WORKERS: int = 1  # Trong dev mode chỉ dùng 1 worker
-    UVICORN_RELOAD: bool = True
-    UVICORN_LOG_LEVEL: str = "info"
-    UVICORN_ACCESS_LOG: bool = True
-
     # CORS
     BACKEND_CORS_ORIGINS: List[str]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
     def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
         """
         Xử lý giá trị BACKEND_CORS_ORIGINS từ biến môi trường
@@ -100,7 +92,7 @@ class Settings(BaseSettings):
 
     # Cookie settings
     COOKIE_DOMAIN: Optional[str] = ""  # Sử dụng chuỗi rỗng thay vì None
-    COOKIE_SECURE: bool = False  # True trong production
+    COOKIE_SECURE: bool = True  # True trong production
     COOKIE_SAMESITE: str = "lax"  # 'lax', 'strict', or 'none'
     COOKIE_NAME: str = "access_token"
     COOKIE_HTTPONLY: bool = True
@@ -119,6 +111,14 @@ class Settings(BaseSettings):
 
     # File Upload Settings
     UPLOAD_DIR: str = "uploads"  # Thư mục lưu file tạm thời
+
+    # Document Processing Settings
+    DOCUMENT_PROCESSING_ENDPOINT: Optional[str] = (
+        None  # External API endpoint for document processing
+    )
+    DOCUMENT_PROCESSING_TIMEOUT: int = 300  # Timeout cho API call (seconds)
+    S3_DOCUMENT_PREFIX: str = "documents/"  # Prefix cho documents trong S3
+    BASE_URL: str = "http://localhost:8000"  # Base URL for webhook callbacks
 
     # AWS/S3 Boto3 Settings (fix for MissingContentLength error)
     AWS_REQUEST_CHECKSUM_CALCULATION: str = "when_required"
@@ -175,12 +175,12 @@ class Settings(BaseSettings):
     @property
     def DATABASE_URI(self) -> str:
         """
-        Tạo connection string cho database
+        Tạo connection string đồng bộ cho database sử dụng psycopg2
 
         Returns:
-            str: Connection string
+            str: Sync connection string
         """
-        # Sử dụng driver psycopg2 thay vì asyncpg cho SQLAlchemy đồng bộ
+        # Sử dụng driver psycopg2 cho SQLAlchemy đồng bộ
         return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     @property

@@ -6,9 +6,10 @@
 import { post } from "./client";
 
 export interface AdminFileUploadResponse {
-    success: boolean;
+    key: string;
     url: string;
-    message: string;
+    content_type: string;
+    size: number;
 }
 
 /**
@@ -25,7 +26,7 @@ export const uploadCourseImageAdmin = async (
     formData.append("file", file);
 
     return post<AdminFileUploadResponse>(
-        `/admin/courses/${courseId}/upload-image`,
+        `/admin/upload/course-image/${courseId}`,
         formData,
         {
             headers: {

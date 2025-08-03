@@ -1,6 +1,4 @@
 from app.core.agents.base_agent import BaseAgent
-from fastapi import Depends
-from app.services.course_service import CourseService, get_course_service
 from app.models.course_model import Course
 from app.utils.model_utils import model_to_dict
 from pydantic import BaseModel, Field, ValidationError
@@ -13,6 +11,9 @@ from google.api_core.exceptions import (
     DeadlineExceeded,
     ServiceUnavailable,
 )
+
+from app.database.database import get_independent_db_session
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +57,8 @@ class InputTestAgentOutput(BaseModel):
 
 
 class InputTestAgent(BaseAgent):
-    def __init__(self, course_service: CourseService):
+    def __init__(self):
         super().__init__()
-        self.course_service = course_service
         self.available_args = ["course_id"]
         self._output_parser = None
         self._output_fix_parser = None
@@ -79,8 +79,10 @@ class InputTestAgent(BaseAgent):
         from langchain_core.tools import Tool
 
         async def get_course_by_id(course_id: int):
-            course: Course = self.course_service.get_course(course_id)
-            return model_to_dict(course)
+            async with get_independent_db_session() as db:
+                result = await db.execute(select(Course).filter(Course.id == course_id))
+                course = result.scalars().first()
+                return model_to_dict(course)
 
         self.tools = [
             Tool.from_function(
@@ -283,5 +285,5 @@ class InputTestAgent(BaseAgent):
             raise Exception(f"Lỗi tạo bài kiểm tra: {str(e)}")
 
 
-def get_input_test_agent(course_service: CourseService = Depends(get_course_service)):
-    return InputTestAgent(course_service)
+def get_input_test_agent():
+    return InputTestAgent()

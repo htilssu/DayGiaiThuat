@@ -4,7 +4,7 @@ from app.core.config import settings
 
 
 @lru_cache(maxsize=1)
-def get_gemini_embedding_model():
+def get_embedding_model():
     """
     Trả về một instance được cache của model embedding Gemini
 

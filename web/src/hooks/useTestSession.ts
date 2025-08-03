@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { testApi, TestSessionWithTest, TestAnswer } from '@/lib/api';
 
-type TestState = 'loading' | 'landing' | 'quiz' | 'submitted' | 'error';
+type TestState = 'loading' | 'quiz' | 'submitted' | 'error';
 
 export interface UseTestSessionReturn {
     // States
     state: TestState;
-    testSession: TestSessionWithTest | null;
+    testSession: TestSessionWithTest | undefined;
     currentQuestionIndex: number;
     timeRemaining: number;
     answers: Record<string, TestAnswer>;
@@ -16,7 +16,7 @@ export interface UseTestSessionReturn {
 
     // Actions
     startTest: () => Promise<void>;
-    submitAnswer: (questionId: string, answer: TestAnswer) => Promise<void>;
+    submitAnswer: (questionId: string, answer: TestAnswer, options?: { immediate?: boolean }) => void;
     submitTest: () => Promise<void>;
     nextQuestion: () => void;
     previousQuestion: () => void;
@@ -26,6 +26,9 @@ export interface UseTestSessionReturn {
     formatTime: (seconds: number) => string;
     getProgress: () => number;
     canSubmit: () => boolean;
+
+    // WebSocket connection status
+    connectionStatus: 'connecting' | 'connected' | 'disconnected';
 }
 
 export function useTestSession(sessionId: string): UseTestSessionReturn {
@@ -38,10 +41,13 @@ export function useTestSession(sessionId: string): UseTestSessionReturn {
     const [answers, setAnswers] = useState<Record<string, TestAnswer>>({});
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
 
     // Refs
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const debounceTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
 
     // Fetch test session
     const {
@@ -82,15 +88,10 @@ export function useTestSession(sessionId: string): UseTestSessionReturn {
             setCurrentQuestionIndex(testSession.currentQuestionIndex);
             setAnswers(testSession.answers || {});
 
-            // Determine initial state
-            if (testSession.status === 'pending') {
-                setState('landing');
-            } else if (testSession.status === 'in_progress') {
-                setState('quiz');
-                startTimer();
-                connectWebSocket();
-            }
         }
+        setState('quiz');
+        startTimer();
+        connectWebSocket();
     }, [testSession, sessionLoading, sessionError]);
 
     // Timer
@@ -122,40 +123,112 @@ export function useTestSession(sessionId: string): UseTestSessionReturn {
     const connectWebSocket = useCallback(() => {
         if (!sessionId) return;
 
+        // Cleanup existing connection
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.close();
+        }
+
+        setConnectionStatus('connecting');
+
         try {
-            const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000'}/tests/ws/test-sessions/${sessionId}`;
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = process.env.NEXT_PUBLIC_API_URL?.replace('http://', '').replace('https://', '') ||
+                window.location.host.replace(':3000', ':8000');
+            const wsUrl = `${protocol}//${host}/tests/ws/test-sessions/${sessionId}`;
+
             wsRef.current = new WebSocket(wsUrl);
 
             wsRef.current.onopen = () => {
-                console.log('WebSocket connected');
+                setConnectionStatus('connected');
+
+                // Send sync message
+                if (wsRef.current) {
+                    wsRef.current.send(JSON.stringify({
+                        type: 'sync',
+                        currentQuestionIndex,
+                        answers
+                    }));
+                }
             };
 
             wsRef.current.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
 
-                    if (data.type === 'session_update') {
-                        setTimeRemaining(data.timeRemainingSeconds);
-                    } else if (data.type === 'auto_submit') {
-                        setState('submitted');
-                        stopTimer();
+                    switch (data.type) {
+                        case 'pong':
+                            // Heartbeat response
+                            break;
+
+                        case 'answer_saved':
+                            break;
+
+                        case 'session_update':
+                            if (data.timeRemainingSeconds !== undefined) {
+                                setTimeRemaining(data.timeRemainingSeconds);
+                            }
+                            break;
+
+                        case 'auto_submit':
+                            setState('submitted');
+                            stopTimer();
+                            break;
+
+                        case 'error':
+                            console.error('WebSocket error:', data.message);
+                            break;
+
+                        default:
+                            console.log('Unknown message type:', data.type);
                     }
                 } catch (error) {
-                    console.error('WebSocket message parse error:', error);
+                    console.error('Error parsing WebSocket message:', error);
                 }
             };
 
-            wsRef.current.onclose = () => {
-                console.log('WebSocket disconnected');
+            wsRef.current.onclose = (event) => {
+                setConnectionStatus('disconnected');
+
+                // Auto-reconnect after 3 seconds if not intentional close
+                if (event.code !== 1000 && event.code !== 1001) {
+                    reconnectTimeoutRef.current = setTimeout(() => {
+                        connectWebSocket();
+                    }, 3000);
+                }
             };
 
             wsRef.current.onerror = (error) => {
                 console.error('WebSocket error:', error);
+                setConnectionStatus('disconnected');
             };
+
         } catch (error) {
             console.error('WebSocket connection error:', error);
+            setConnectionStatus('disconnected');
+        }
+    }, [sessionId, currentQuestionIndex, answers]);
+
+    // Send answer via WebSocket
+    const sendAnswerViaSocket = useCallback((questionId: string, answer: TestAnswer) => {
+        if (!sessionId) return;
+
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+                type: 'save_answer',
+                question_id: questionId,
+                answer
+            }));
+        } else {
+            console.warn('⚠️ WebSocket not connected, cannot save answer');
         }
     }, [sessionId]);
+
+    // Get question type for debounce logic
+    const getQuestionType = useCallback((questionId: string): 'single_choice' | 'essay' | null => {
+        if (!testSession?.test) return null;
+        const question = testSession.test.questions.find(q => q.id === questionId);
+        return question?.type || null;
+    }, [testSession]);
 
     // Start test mutation
     const startTestMutation = useMutation({
@@ -172,20 +245,7 @@ export function useTestSession(sessionId: string): UseTestSessionReturn {
         }
     });
 
-    // Submit answer mutation
-    const submitAnswerMutation = useMutation({
-        mutationFn: ({ questionId, answer }: { questionId: string; answer: TestAnswer }) =>
-            testApi.submitSessionAnswer(sessionId, questionId, answer),
-        onSuccess: () => {
-            // Update session data
-            queryClient.invalidateQueries({ queryKey: ['testSession', sessionId] });
-        },
-        onError: (error: any) => {
-            console.error('Submit answer error:', error);
-        }
-    });
-
-    // Submit test mutation
+    // Submit test mutation (vẫn dùng HTTP cho final submission)
     const submitTestMutation = useMutation({
         mutationFn: () => testApi.submitTestSession(sessionId, answers),
         onSuccess: () => {
@@ -203,37 +263,119 @@ export function useTestSession(sessionId: string): UseTestSessionReturn {
         }
     });
 
+    // Cleanup
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
+            // Cleanup debounce timeouts
+            Object.values(debounceTimeouts.current).forEach(timeout => {
+                clearTimeout(timeout);
+            });
+        };
+    }, []);
+
     // Actions
     const startTest = useCallback(async () => {
-        if (state !== 'landing') return;
         startTestMutation.mutate();
-    }, [state, startTestMutation]);
+    }, [startTestMutation]);
 
-    const submitAnswer = useCallback(async (questionId: string, answer: TestAnswer) => {
+    const submitAnswer = useCallback((questionId: string, answer: TestAnswer, options?: { immediate?: boolean }) => {
+        // Cập nhật state local ngay lập tức
         setAnswers(prev => ({ ...prev, [questionId]: answer }));
-        submitAnswerMutation.mutate({ questionId, answer });
-    }, [submitAnswerMutation]);
+
+        const questionType = getQuestionType(questionId);
+        const immediate = options?.immediate || false;
+
+        // Clear existing debounce timeout for this question
+        if (debounceTimeouts.current[questionId]) {
+            clearTimeout(debounceTimeouts.current[questionId]);
+            delete debounceTimeouts.current[questionId];
+        }
+
+        if (immediate || questionType === 'single_choice') {
+            // Send immediately for multiple choice or when explicitly requested
+            sendAnswerViaSocket(questionId, answer);
+        } else if (questionType === 'essay') {
+            // Debounce for essay questions (1.5 seconds)
+            debounceTimeouts.current[questionId] = setTimeout(() => {
+                sendAnswerViaSocket(questionId, answer);
+                delete debounceTimeouts.current[questionId];
+            }, 1500);
+        } else {
+            // Fallback - send immediately if question type unknown
+            sendAnswerViaSocket(questionId, answer);
+        }
+    }, [sendAnswerViaSocket, getQuestionType]);
 
     const submitTest = useCallback(async () => {
         if (isSubmitting) return;
         setIsSubmitting(true);
-        submitTestMutation.mutate();
-    }, [isSubmitting, submitTestMutation]);
+
+        // Clear all pending debounce timeouts and send immediately
+        Object.entries(debounceTimeouts.current).forEach(([questionId, timeout]) => {
+            clearTimeout(timeout);
+            const currentAnswer = answers[questionId];
+            if (currentAnswer) {
+                sendAnswerViaSocket(questionId, currentAnswer);
+            }
+        });
+        debounceTimeouts.current = {};
+
+        // Wait a bit for final answers to be sent
+        setTimeout(() => {
+            submitTestMutation.mutate();
+        }, 500);
+    }, [isSubmitting, submitTestMutation, answers, sendAnswerViaSocket]);
 
     const nextQuestion = useCallback(() => {
         if (!testSession?.test) return;
         const maxIndex = testSession.test.questions.length - 1;
-        setCurrentQuestionIndex(prev => Math.min(prev + 1, maxIndex));
-    }, [testSession]);
+        const newIndex = Math.min(currentQuestionIndex + 1, maxIndex);
+        setCurrentQuestionIndex(newIndex);
+
+        // Sync với server
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+                type: 'updateQuestionIndex',
+                questionIndex: newIndex
+            }));
+        }
+    }, [testSession, currentQuestionIndex]);
 
     const previousQuestion = useCallback(() => {
-        setCurrentQuestionIndex(prev => Math.max(prev - 1, 0));
-    }, []);
+        const newIndex = Math.max(currentQuestionIndex - 1, 0);
+        setCurrentQuestionIndex(newIndex);
+
+        // Sync với server
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+                type: 'updateQuestionIndex',
+                questionIndex: newIndex
+            }));
+        }
+    }, [currentQuestionIndex]);
 
     const goToQuestion = useCallback((index: number) => {
         if (!testSession?.test) return;
         const maxIndex = testSession.test.questions.length - 1;
-        setCurrentQuestionIndex(Math.max(0, Math.min(index, maxIndex)));
+        const newIndex = Math.max(0, Math.min(index, maxIndex));
+        setCurrentQuestionIndex(newIndex);
+
+        // Sync với server
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+                type: 'updateQuestionIndex',
+                questionIndex: newIndex
+            }));
+        }
     }, [testSession]);
 
     // Utils
@@ -250,23 +392,14 @@ export function useTestSession(sessionId: string): UseTestSessionReturn {
 
     const getProgress = useCallback((): number => {
         if (!testSession?.test) return 0;
-        return (Object.keys(answers).length / testSession.test.questions.length) * 100;
-    }, [answers, testSession]);
+        const answeredQuestions = Object.keys(answers).length;
+        return (answeredQuestions / testSession.test.questions.length) * 100;
+    }, [testSession, answers]);
 
     const canSubmit = useCallback((): boolean => {
         if (!testSession?.test) return false;
-        return Object.keys(answers).length >= testSession.test.questions.length * 0.5; // At least 50% answered
-    }, [answers, testSession]);
-
-    // Cleanup
-    useEffect(() => {
-        return () => {
-            stopTimer();
-            if (wsRef.current) {
-                wsRef.current.close();
-            }
-        };
-    }, [stopTimer]);
+        return Object.keys(answers).length > 0;
+    }, [testSession, answers]);
 
     return {
         // States
@@ -277,6 +410,7 @@ export function useTestSession(sessionId: string): UseTestSessionReturn {
         answers,
         error,
         isSubmitting,
+        connectionStatus,
 
         // Actions
         startTest,

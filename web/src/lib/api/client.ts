@@ -36,36 +36,30 @@ export const handleApiError = (error: AxiosError) => {
     let errorMessage = "Lỗi phản hồi từ server";
 
     if (responseData) {
-      console.log(responseData);
-      if (responseData.detail) {
-        // FastAPI thường trả về lỗi trong trường 'detail'
+      if (responseData) {
         errorMessage =
           typeof responseData.detail === "string"
             ? responseData.detail
-            : JSON.stringify(responseData.detail);
+            : responseData.detail?.message;
       } else if (responseData.message) {
-        // Hoặc trường 'message'
         errorMessage = responseData.message;
       } else if (typeof responseData === "string") {
-        // Nếu responseData là string
         errorMessage = responseData;
       }
     }
 
     return {
       status: error.response.status,
-      data: error.response.data,
+      data: { ...(error.response.data as any).detail },
       message: errorMessage,
     };
   } else if (error.request) {
-    // Yêu cầu đã được thực hiện nhưng không nhận được phản hồi
     return {
       status: 0,
       data: null,
       message: "Không nhận được phản hồi từ server",
     };
   } else {
-    // Có lỗi khi thiết lập yêu cầu
     return {
       status: 0,
       data: null,
@@ -179,15 +173,21 @@ export const patch = async <T>(
 /**
  * Thực hiện yêu cầu DELETE
  * @param endpoint - Endpoint API
+ * @param data - Dữ liệu gửi trong body (tùy chọn)
  * @param config - Cấu hình tùy chọn Axios
  * @returns Promise chứa dữ liệu phản hồi
  */
 export const del = async <T>(
   endpoint: string,
+  data?: any,
   config?: AxiosRequestConfig
 ): Promise<T> => {
   try {
-    const response: AxiosResponse<T> = await client.delete(endpoint, config);
+    const requestConfig = { ...config };
+    if (data) {
+      requestConfig.data = data;
+    }
+    const response: AxiosResponse<T> = await client.delete(endpoint, requestConfig);
     return response.data;
   } catch (error) {
     throw handleApiError(error as AxiosError);

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Paper, Title, Text, Stack, Textarea, Button, Alert, Badge, Group } from '@mantine/core';
 import { IconCheck, IconX, IconAlertCircle, IconEdit } from '@tabler/icons-react';
-import { useDebouncedCallback } from '@mantine/hooks';
 
 export interface TestQuestion {
     id: string;
@@ -28,36 +27,24 @@ export const ProblemQuestion: React.FC<ProblemQuestionProps> = ({
     questionNumber
 }) => {
     const [answer, setAnswer] = useState<string>(initialAnswer || '');
-    const [lastSavedAnswer, setLastSavedAnswer] = useState<string>(initialAnswer || '');
 
     useEffect(() => {
         setAnswer(initialAnswer || '');
-        setLastSavedAnswer(initialAnswer || '');
     }, [question.id, initialAnswer]);
-
-    // Debounced function để tự động gửi qua socket sau 1 giây khi user ngừng typing
-    const debouncedSave = useDebouncedCallback((value: string) => {
-        if (value !== lastSavedAnswer) {
-            onAnswerChange(value); // Gửi qua socket thông qua callback
-            setLastSavedAnswer(value);
-        }
-    }, 1000);
 
     const handleAnswerChange = (value: string) => {
         setAnswer(value);
-        // Gọi debounced save
-        debouncedSave(value);
+        // Gọi callback ngay lập tức - useTestSession sẽ xử lý debounce
+        onAnswerChange(value);
     };
 
     const handleEdit = () => {
         setAnswer(initialAnswer || '');
-        setLastSavedAnswer(initialAnswer || '');
     };
 
     // Determine if answer is correct (for essay questions, this might be based on feedback)
     const isCorrect = feedback?.isCorrect;
     const showAnswer = !!feedback;
-    const hasUnsavedChanges = answer !== lastSavedAnswer;
 
     return (
         <Paper p="lg" withBorder>
@@ -109,8 +96,7 @@ export const ProblemQuestion: React.FC<ProblemQuestionProps> = ({
                         styles={{
                             input: {
                                 borderColor: showAnswer && isCorrect ? '#28a745' :
-                                    showAnswer && isCorrect === false ? '#ffc107' :
-                                        hasUnsavedChanges ? '#1890ff' : undefined
+                                    showAnswer && isCorrect === false ? '#ffc107' : undefined
                             }
                         }}
                     />
@@ -118,16 +104,9 @@ export const ProblemQuestion: React.FC<ProblemQuestionProps> = ({
                         <Text size="xs" c="dimmed">
                             {answer.length} ký tự
                         </Text>
-                        {hasUnsavedChanges && (
-                            <Text size="xs" c="blue">
-                                Đang lưu...
-                            </Text>
-                        )}
-                        {!hasUnsavedChanges && lastSavedAnswer && (
-                            <Text size="xs" c="green">
-                                ✅ Đã lưu
-                            </Text>
-                        )}
+                        <Text size="xs" c="green">
+                            ✅ Tự động lưu
+                        </Text>
                     </Group>
                 </Stack>
 

@@ -1,171 +1,229 @@
-from typing import List, Dict
+from typing import List, Optional
 from uuid import uuid4
 from datetime import datetime
+from fastapi import APIRouter, UploadFile, HTTPException, BackgroundTasks, Depends
 
-from fastapi import APIRouter, UploadFile, HTTPException, BackgroundTasks
+from app.services.document_service import get_document_service, DocumentService
+from app.services.storage_service import get_storage_service, StorageService
+from app.schemas.document_schema import (
+    DocumentResponse,
+    RunpodWebhookRequest,
+    StoreByTextRequest,
+)
+from app.utils.utils import get_current_user
+from app.schemas.user_profile_schema import UserExcludeSecret
+from app.models.document_processing_job_model import DocumentProcessingJob
 
-from app.core.agents.components.document_store import get_vector_store
-from app.schemas.document_schema import DocumentResponse, DocumentStatus
+# Router cho admin (cần authentication)
+router = APIRouter(prefix="/admin/document", tags=["Tài liệu"])
 
-import shutil
-
-router = APIRouter(prefix="/admin/document", tags=["document"])
-
-# In-memory storage for document status (in production, use Redis or database)
-document_status: Dict[str, DocumentStatus] = {}
+# Router cho webhook (không cần authentication)
+webhook_router = APIRouter(prefix="/document", tags=["Tài liệu - Webhook"])
 
 
-def get_loader_for_file(filename: str):
-    """Get appropriate loader based on file type"""
-    from langchain_community.document_loaders import (
-        PyPDFLoader,
-        TextLoader,
-        Docx2txtLoader,
-    )
-
-    file_extension = filename.split(".")[-1].lower()
-    if file_extension == "pdf":
-        return PyPDFLoader
-    elif file_extension == "txt":
-        return TextLoader
-    elif file_extension in ["doc", "docx"]:
-        return Docx2txtLoader
-    else:
+def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
+    """Kiểm tra quyền admin"""
+    if not current_user.is_admin:
         raise HTTPException(
-            status_code=400, detail=f"Unsupported file type: {file_extension}"
+            status_code=403,
+            detail="Bạn không có quyền truy cập chức năng này",
         )
-
-
-async def process_document(temp_path: str, document_id: str, filename: str):
-    """Process document asynchronously"""
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
-
-    try:
-        # Update status to processing
-        document_status[document_id] = DocumentStatus(
-            id=document_id,
-            filename=filename,
-            status="processing",
-            createdAt=datetime.utcnow().isoformat(),
-        )
-        # Load document based on file type
-        loader_class = get_loader_for_file(filename)
-        loader = loader_class(temp_path)
-        try:
-            documents = loader.load()
-        except Exception as e:
-            print(f"[ERROR] Failed to load document: {e}")
-            raise
-        # Split documents into chunks
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=500,
-            chunk_overlap=200,
-            length_function=len,
-        )
-        chunks = text_splitter.split_documents(documents)
-        # Add metadata to chunks
-        for chunk in chunks:
-            chunk.metadata.update(
-                {
-                    "source": filename,
-                    "document_id": document_id,
-                    "uploaded_at": datetime.utcnow().isoformat(),
-                }
-            )
-        # Store in pinecone
-        texts = [doc.page_content for doc in chunks]
-        vector_store = get_vector_store("document")
-        vector_store.add_texts(
-            texts=texts,
-            metadatas=[chunk.metadata for chunk in chunks],
-            embedding_chunk_size=50,
-        )
-
-        # Update status to completed
-        document_status[document_id] = DocumentStatus(
-            id=document_id,
-            filename=filename,
-            status="completed",
-            createdAt=datetime.utcnow().isoformat(),
-        )
-    except Exception as e:
-        # Update status to failed
-        document_status[document_id] = DocumentStatus(
-            id=document_id,
-            filename=filename,
-            status="failed",
-            createdAt=datetime.utcnow().isoformat(),
-            error=str(e),
-        )
-    finally:
-        # Clean up the temporary file
-        import os
-
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+    return current_user
 
 
 @router.post("/store")
-async def store_document(files: List[UploadFile], background_tasks: BackgroundTasks):
+async def store_document(
+    files: List[UploadFile],
+    background_tasks: BackgroundTasks,
+    course_id: Optional[int] = None,
+    document_service: DocumentService = Depends(get_document_service),
+    storage_service: StorageService = Depends(get_storage_service),
+    admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
     """
-    Upload and store documents in vector database
+    Upload documents to object storage and call external API for processing
     """
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
+
     document_responses = []
+
     for file in files:
         document_id = str(uuid4())
 
-        # Save file to a temporary location first
-        temp_path = f"/tmp/{document_id}_{file.filename}"
         try:
-            with open(temp_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-        finally:
-            file.file.close()
+            # 1. Upload file to object storage
+            upload_result = await storage_service.upload_document(file, document_id)
+            document_url = upload_result["url"]
 
-        # Create initial response
-        document_response = DocumentResponse(
-            id=document_id,
-            filename=file.filename,
-            status="processing",
-            createdAt=datetime.utcnow().isoformat(),
-        )
-        # Add background task for processing
-        background_tasks.add_task(
-            process_document, temp_path, document_id, file.filename
-        )
-        document_responses.append(document_response)
+            # 2. Call external document processing API and get job_id
+            job_id = await document_service.call_external_document_processing_api(
+                document_url
+            )
+
+            # 3. Create document processing job record
+            await document_service.create_document_processing_job(
+                document_id=document_id,
+                job_id=job_id,
+                filename=file.filename or "",
+                document_url=document_url or "",
+                course_id=course_id,
+            )
+
+            # Create response
+            document_response = DocumentResponse(
+                id=document_id,
+                filename=file.filename or "",
+                status="IN_QUEUE",
+                createdAt=datetime.now().isoformat(),
+                job_id=job_id,
+                course_id=course_id,
+            )
+
+            document_responses.append(document_response)
+
+        except Exception as e:
+            print(f"Failed to process file {file.filename}: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to process file {file.filename}: {str(e)}",
+            )
+
     return {"documents": document_responses}
 
 
+@router.post("/store-by-text")
+async def store_document_by_text(
+    req: StoreByTextRequest,
+    document_service: DocumentService = Depends(get_document_service),
+    admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
+    """
+    Lưu text trực tiếp vào RAG để test nhanh (chỉ cho admin)
+    """
+    from uuid import uuid4
+
+    document_id = str(uuid4())
+    filename = f"text_{document_id}.txt"
+    created_at = datetime.now().isoformat()
+    # Tạo job giả lập đúng kiểu DocumentProcessingJob
+    job = DocumentProcessingJob(
+        id=document_id,
+        job_id=document_id,
+        filename=filename,
+        document_url="",
+        course_id=req.course_id,
+        status="COMPLETED",
+    )
+    # Gọi xử lý lưu vào RAG
+    await document_service._process_docling_result(job, {"content": req.text})
+    # Trả về thông tin document đã lưu
+    return DocumentResponse(
+        id=document_id,
+        filename=filename,
+        status="completed",
+        createdAt=created_at,
+        job_id=None,
+        course_id=req.course_id,
+    )
+
+
+@webhook_router.post("/webhook")
+async def handle_runpod_webhook(
+    webhook_data: RunpodWebhookRequest,
+    background_tasks: BackgroundTasks,
+    document_service: DocumentService = Depends(get_document_service),
+):
+    """
+    Webhook endpoint để nhận kết quả từ Runpod
+    Không cần authentication vì được gọi từ external service
+    """
+    try:
+        # Cập nhật trạng thái job
+        job = await document_service.update_job_status(
+            job_id=webhook_data.id,
+            status=webhook_data.status,
+            result=webhook_data.output,
+            error_message=webhook_data.error,
+        )
+
+        if not job:
+            raise HTTPException(
+                status_code=404, detail=f"Job {webhook_data.id} not found"
+            )
+
+        # Nếu job completed successfully, xử lý semantic và lưu vào RAG
+        if webhook_data.status == "COMPLETED" and webhook_data.output:
+            background_tasks.add_task(
+                document_service.process_completed_document,
+                job_id=webhook_data.id,
+                result=webhook_data.output,
+            )
+
+        return {"status": "success", "message": "Webhook processed successfully"}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to process webhook: {str(e)}"
+        )
+
+
 @router.get("/status")
-async def get_document_status(ids: str):
+async def get_document_status(
+    ids: str, document_service: DocumentService = Depends(get_document_service)
+):
     """
     Get status of documents by comma-separated IDs
     """
     document_ids = ids.split(",")
-    statuses = []
-    for doc_id in document_ids:
-        if doc_id in document_status:
-            statuses.append(document_status[doc_id])
+    statuses = document_service.get_document_status(document_ids)
     return statuses
 
 
 @router.get("/search")
-async def search_documents(query: str, limit: int = 5):
+async def search_documents(
+    query: str,
+    limit: int = 5,
+    source: str = "",
+    document_id: str = "",
+    document_service: DocumentService = Depends(get_document_service),
+):
     """
-    Search documents in vector database
+    Search documents in vector database with semantic chunking
+    Supports filtering by source file or document ID
     """
     try:
-        vector_store = get_vector_store("document")
-        results = vector_store.similarity_search(query, k=limit)
-        return {
-            "query": query,
-            "results": [
-                {"content": doc.page_content, "metadata": doc.metadata}
-                for doc in results
-            ],
-        }
+        # Build filter metadata if provided
+        filter_metadata = {}
+        if source:
+            filter_metadata["source"] = source
+        if document_id:
+            filter_metadata["document_id"] = document_id
+
+        # Use filter if any filters are provided
+        filter_to_use = filter_metadata if filter_metadata else {}
+
+        result = await document_service.search_documents(
+            query=query, limit=limit, filter_metadata=filter_to_use
+        )
+
+        return result
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+@router.get("/statistics")
+async def get_document_statistics(
+    document_service: DocumentService = Depends(get_document_service),
+):
+    """
+    Get statistics about processed documents
+    """
+    try:
+        stats = document_service.get_document_statistics()
+        return stats
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get statistics: {str(e)}"
+        )

@@ -5,8 +5,6 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { coursesApi, topicsApi, lessonsApi } from "@/lib/api";
 import { UserCourseDetail } from "@/lib/api/courses";
-import { Topic } from "@/lib/api/topics";
-import { Lesson } from "@/lib/api/types";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/lib/store";
 import { addModal } from "@/lib/store/modalStore";
@@ -26,11 +24,6 @@ export default function CourseDetailPage() {
 
   const [course, setCourse] = useState<UserCourseDetail | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "content" | "reviews">("overview");
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [topicsLoading, setTopicsLoading] = useState<boolean>(true);
-  const [topicsError, setTopicsError] = useState<string | null>(null);
-  const [topicLessons, setTopicLessons] = useState<Record<number, Lesson[]>>({});
-  const [isUnregistering, setIsUnregistering] = useState<boolean>(false);
   const [isEnrolled, setIsEnrolled] = useState<boolean>(false);
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
 
@@ -44,48 +37,13 @@ export default function CourseDetailPage() {
   // Update course state when data changes
   useEffect(() => {
     if (courseData) {
+      courseData.topics.sort((a, b) => a.order - b.order);
       setCourse(courseData);
       setIsEnrolled(!!courseData.isEnrolled);
     }
   }, [courseData]);
 
-  // Fetch topics and lessons
-  const fetchTopics = async () => {
-    try {
-      setTopicsLoading(true);
-      setTopicsError(null);
-
-      // Get all topics for this course
-      const topicsList = await topicsApi.getTopicsByCourse(courseId);
-      setTopics(topicsList);
-
-      // Fetch lessons for each topic
-      const lessonsMap: Record<number, Lesson[]> = {};
-      for (const topic of topicsList) {
-        try {
-          const lessons = await lessonsApi.getLessonsByTopic(topic.id);
-          lessonsMap[topic.id] = lessons;
-        } catch {
-          lessonsMap[topic.id] = [];
-        }
-      }
-      setTopicLessons(lessonsMap);
-
-      console.log("Topics:", topicsList);
-      console.log("Lessons map:", lessonsMap);
-    } catch {
-      setTopicsError("Không thể tải nội dung khóa học. Vui lòng thử lại sau.");
-    } finally {
-      setTopicsLoading(false);
-    }
-  };
-
-  // Fetch topics when courseId changes
-  useEffect(() => {
-    if (courseId) {
-      fetchTopics();
-    }
-  }, [courseId]);
+  // Không fetch topics/lessons riêng nữa
 
   // Chuyển đổi phút thành định dạng giờ:phút
   const formatDuration = (minutes: number) => {
@@ -105,7 +63,6 @@ export default function CourseDetailPage() {
     try {
       return JSON.parse(jsonString);
     } catch (error) {
-      console.error("Lỗi khi parse JSON:", error);
       return [];
     }
   };
@@ -205,48 +162,6 @@ export default function CourseDetailPage() {
     }
   };
 
-  // Xử lý hủy đăng ký khóa học
-  const handleUnregisterCourse = async () => {
-    try {
-      setIsUnregistering(true);
-      const response = await coursesApi.unregisterCourse(courseId);
-
-      if (response.success) {
-        // Cập nhật trạng thái đăng ký
-        setIsEnrolled(false);
-
-        // Hiển thị thông báo hủy đăng ký thành công
-        dispatch(addModal({
-          id: uuidv4(),
-          title: "Hủy đăng ký thành công",
-          description: "Bạn đã hủy đăng ký khóa học thành công!",
-          onConfirm: () => { },
-          onCancel: () => { },
-        }));
-      } else {
-        // Hiển thị thông báo lỗi
-        dispatch(addModal({
-          id: uuidv4(),
-          title: "Hủy đăng ký thất bại",
-          description: response.message || "Có lỗi xảy ra khi hủy đăng ký khóa học. Vui lòng thử lại sau.",
-          onConfirm: () => { },
-          onCancel: () => { },
-        }));
-      }
-    } catch (err) {
-      console.error("Lỗi khi hủy đăng ký khóa học:", err);
-      // Hiển thị thông báo lỗi
-      dispatch(addModal({
-        id: uuidv4(),
-        title: "Hủy đăng ký thất bại",
-        description: "Có lỗi xảy ra khi hủy đăng ký khóa học. Vui lòng thử lại sau.",
-        onConfirm: () => { },
-        onCancel: () => { },
-      }));
-    } finally {
-      setIsUnregistering(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -354,12 +269,6 @@ export default function CourseDetailPage() {
                       className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium text-center">
                       Tiếp tục học
                     </Link>
-                    <button
-                      onClick={handleUnregisterCourse}
-                      disabled={isUnregistering}
-                      className="px-8 py-3 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive/20 transition font-medium disabled:opacity-70 disabled:cursor-not-allowed">
-                      {isUnregistering ? "Đang xử lý..." : "Hủy đăng ký"}
-                    </button>
                   </>
                 ) : (
                   <button
@@ -547,7 +456,6 @@ export default function CourseDetailPage() {
           {activeTab === "content" && (
             <div>
               <h2 className="text-2xl font-bold mb-6">Nội dung khóa học</h2>
-
               {!isEnrolled ? (
                 <div className="p-6 bg-foreground/5 rounded-xl text-center">
                   <h3 className="text-lg font-medium mb-2">Đăng ký để xem nội dung</h3>
@@ -563,29 +471,21 @@ export default function CourseDetailPage() {
                 </div>
               ) : (
                 <div>
-                  {topicsLoading ? (
-                    <div className="text-center py-10 text-foreground/70">
-                      Đang tải nội dung...
-                    </div>
-                  ) : topicsError ? (
-                    <div className="text-center py-10 text-accent">
-                      {topicsError}
-                    </div>
-                  ) : topics.length === 0 ? (
+                  {(!course.topics || course.topics.length === 0) ? (
                     <div className="text-center py-10 text-foreground/70">
                       Chưa có chủ đề nào cho khóa học này.
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {topics.map((topic) => (
+                      {course.topics.map((topic, idx: number) => (
                         <details
-                          key={topic.id}
+                          key={topic.order}
                           className="group bg-foreground/5 rounded-xl overflow-hidden"
-                          open={topic.id === topics[0]?.id}>
+                          open={idx === 0}>
                           <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-foreground/10">
                             <div>
                               <h3 className="font-medium">
-                                Chủ đề {topic.id}: {topic.name}
+                                Chủ đề {topic.order}: {topic.name}
                               </h3>
                               <p className="text-sm text-foreground/70 mt-1">
                                 {topic.description}
@@ -593,7 +493,7 @@ export default function CourseDetailPage() {
                             </div>
                             <div className="flex items-center gap-4">
                               <div className="text-sm text-foreground/70">
-                                {topicLessons[topic.id]?.length || 0} bài học
+                                {topic.lessons?.length || 0} bài học
                               </div>
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -611,7 +511,7 @@ export default function CourseDetailPage() {
                             </div>
                           </summary>
                           <div className="border-t border-foreground/10">
-                            {topicLessons[topic.id]?.map((lesson) => (
+                            {topic.lessons?.map((lesson) => (
                               <div
                                 key={lesson.id}
                                 className="flex items-center gap-4 p-4 hover:bg-foreground/5">
@@ -633,17 +533,35 @@ export default function CourseDetailPage() {
                                 <div className="flex-grow">
                                   <div className="flex items-center gap-2">
                                     <h4 className="font-medium">{lesson.title}</h4>
+                                    {lesson.sections && lesson.sections.length > 0 && (
+                                      <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
+                                        {lesson.sections.length} phần
+                                      </span>
+                                    )}
                                   </div>
                                   <p className="text-sm text-foreground/70 mt-1">
                                     {lesson.description}
                                   </p>
+                                  {lesson.sections && lesson.sections.length > 0 && (
+                                    <div className="mt-2">
+                                      <p className="text-xs text-foreground/60">
+                                        Các phần: {lesson.sections.map((section: any) => section.title).join(", ")}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-3 flex-shrink-0">
-                                  <Link
-                                    href={`/topics/${topic.id}/lessons/${lesson.externalId || lesson.id}`}
-                                    className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
-                                    Học ngay
-                                  </Link>
+                                  {lesson.isCompleted ? (
+                                    <span className="px-3 py-1 text-sm bg-primary text-white rounded border border-green-200">
+                                      Đã xong
+                                    </span>
+                                  ) : (
+                                    <Link
+                                      href={`/lessons/${lesson.id}`}
+                                      className="px-3 py-1 text-sm border border-primary text-primary rounded hover:bg-primary/10 transition">
+                                      Học ngay
+                                    </Link>
+                                  )}
                                 </div>
                               </div>
                             ))}

@@ -1,5 +1,7 @@
 import { Metadata } from "next";
+import { Suspense } from "react";
 import RegisterClient from "@/components/auth/RegisterClient";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 export const metadata: Metadata = {
   title: "Đăng ký tài khoản | AI Giải Thuật",
@@ -9,5 +11,9 @@ export const metadata: Metadata = {
 };
 
 export default function RegisterPage() {
-  return <RegisterClient />;
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <RegisterClient />
+    </Suspense>
+  );
 }

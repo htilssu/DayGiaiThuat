@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { IconSend, IconRobot } from "@tabler/icons-react";
-import { TextInput, Text, ScrollArea } from "@mantine/core";
-import { GoogleGenAI } from "@google/genai";
+import { tutorApi } from "@/lib/api/tutor";
+import { ScrollArea, Text, TextInput } from "@mantine/core";
+import { IconRobot, IconSend } from "@tabler/icons-react";
+import { useEffect, useRef, useState } from "react";
 import LoadingDots from "./LoadingDots";
+import { useAppSelector } from "@/lib/store";
+import { MarkdownRenderer } from "../ui/MarkdownRenderer";
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState<
@@ -18,6 +20,7 @@ export default function ChatInterface() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const viewport = useRef<HTMLDivElement>(null);
+  const tutorState = useAppSelector((state) => state.tutor);
 
   useEffect(() => {
     // Scroll to bottom whenever messages change or loading state changes
@@ -29,10 +32,6 @@ export default function ChatInterface() {
     }
   }, [messages, isLoading]);
 
-  const ai = new GoogleGenAI({
-    apiKey: "AIzaSyAoWvIFmtiL1MwP1y8ariEm61Zaq4-uNZo",
-  });
-
   const handleSend = async () => {
     if (!input.trim()) return;
 
@@ -42,32 +41,43 @@ export default function ChatInterface() {
     setIsLoading(true);
 
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-05-20",
-        contents: input,
-        config: {
-          systemInstruction:
-            "Bạn là một giảng viên dạy thuật toán chuyên nghiệp và thân thiện. Nhiệm vụ của bạn là giao tiếp và hỗ trợ giải đáp thắc mắc của học viên. Hãy trả lời 1 cách ngắn gọn và súc tích.",
-        },
-      });
+      console.log("Sending message to tutor API:", input);
+      const response = await tutorApi.sendChat(
+        tutorState.sessionId!,
+        input,
+        tutorState.type,
+        tutorState.contextId!
+      );
 
-      if (response.text) {
-        const aiMessage = {
-          text: response.text,
-          isUser: false,
-        };
-        setMessages((prev) => [...prev, aiMessage]);
+      if (!response || !response.getReader) {
+        throw new Error("Invalid response from API");
       }
-    } catch (error) {
-      console.error("Error sending message:", error);
-      // Add error message to chat
-      setMessages((prev) => [
-        ...prev,
-        {
-          text: "Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau.",
-          isUser: false,
-        },
-      ]);
+
+      const reader = response.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        let botMessage = '';
+
+        // Add empty bot message to update in real-time
+        setMessages(prev => [...prev, { text: '', isUser: false }]);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          console.log("Received chunk:", chunk);
+          botMessage += chunk;
+
+          // Update the last message (bot's response) in real-time
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = { text: botMessage, isUser: false };
+            return newMessages;
+          });
+        }
+      }
     } finally {
       setIsLoading(false);
     }
@@ -89,9 +99,9 @@ export default function ChatInterface() {
             <IconRobot size={24} className="text-white" />
           </div>
           <div>
-            <Text className="font-medium text-white">AI Assistant</Text>
+            <Text className="font-medium text-white">Gia sư</Text>
             <Text size="xs" className="text-white/80">
-              Luôn sẵn sàng hỗ trợ bạn
+              Bạn có thắc mắc gì không?
             </Text>
           </div>
         </div>
@@ -105,9 +115,8 @@ export default function ChatInterface() {
           {messages.map((message, index) => (
             <div
               key={index}
-              className={`flex ${
-                message.isUser ? "justify-end" : "justify-start"
-              } items-end gap-2`}>
+              className={`flex ${message.isUser ? "justify-end" : "justify-start"
+                } items-end gap-2`}>
               {!message.isUser && (
                 <div className="w-6 h-6 rounded-full bg-[rgb(var(--color-primary))] flex items-center justify-center">
                   <IconRobot size={14} className="text-white" />
@@ -116,13 +125,12 @@ export default function ChatInterface() {
               <div
                 className={`
                   max-w-[80%] p-3 rounded-2xl
-                  ${
-                    message.isUser
-                      ? "bg-[rgb(var(--color-primary))] text-white rounded-br-sm"
-                      : "bg-[rgb(var(--color-primary))]/10 rounded-bl-sm"
+                  ${message.isUser
+                    ? "bg-[rgb(var(--color-primary))] text-white rounded-br-sm"
+                    : "bg-[rgb(var(--color-primary))]/10 rounded-bl-sm"
                   }
                 `}>
-                <Text size="sm">{message.text}</Text>
+                <MarkdownRenderer content={message.text} />
               </div>
             </div>
           ))}
@@ -146,7 +154,7 @@ export default function ChatInterface() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyPress}
           placeholder="Nhập tin nhắn của bạn..."
-          className="focus-within:ring-2 ring-[rgb(var(--color-primary))]/20 rounded-full"
+          className="ring-2 ring-[rgb(var(--color-primary))]/20 rounded-full"
           rightSection={
             <button
               onClick={handleSend}
@@ -154,10 +162,9 @@ export default function ChatInterface() {
               aria-label="Gửi tin nhắn"
               className={`
                 p-1.5 rounded-full mr-1
-                ${
-                  input.trim() && !isLoading
-                    ? "text-[rgb(var(--color-primary))] hover:bg-[rgb(var(--color-primary))]/10"
-                    : "text-gray-400"
+                ${input.trim() && !isLoading
+                  ? "text-[rgb(var(--color-primary))] hover:bg-[rgb(var(--color-primary))]/10"
+                  : "text-gray-400"
                 }
                 transition-colors duration-200
               `}>

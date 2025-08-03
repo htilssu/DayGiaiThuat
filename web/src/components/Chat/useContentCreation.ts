@@ -125,9 +125,9 @@ export function useContentCreation() {
           response = await topicsApi.createTopic({
             name: formData.topic.name,
             description: formData.topic.description,
-            course_id: formData.topic.courseId,
+            courseId: formData.topic.courseId,
             order: formData.topic.order,
-            external_id: formData.topic.externalId,
+            lessons: [],
           });
           successMessage = {
             role: "assistant",
@@ -160,22 +160,22 @@ export function useContentCreation() {
 
         case "exercise":
           response = await exercisesApi.createExercise({
-            lesson_id: formData.exercise.lessonId,
+            lessonId: formData.exercise.lessonId,
             difficulty: formData.exercise.difficulty,
-            session_id: formData.exercise.sessionId,
-            topic_id: formData.exercise.topicId || formData.lesson.topicId,
+            sessionId: formData.exercise.sessionId,
+            topicId: formData.exercise.topicId || formData.lesson.topicId,
           });
           successMessage = {
             role: "assistant",
-            content: `✅ Exercise "${response.name}" created successfully!`,
+            content: `✅ Exercise "${response.id}" created successfully!`,
             timestamp: new Date().toISOString(),
           };
           break;
 
         case "quiz":
           response = await quizzesApi.createQuiz({
-            lesson_id: formData.quiz.lessonId,
-            question_count: formData.quiz.questionCount,
+            lessonId: formData.quiz.lessonId,
+            questionCount: formData.quiz.questionCount,
             difficulty: formData.quiz.difficulty,
           });
           successMessage = {

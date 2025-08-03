@@ -4,17 +4,41 @@
  */
 
 import { get, post, put, del } from "./client";
-import type { Exercise } from "./types";
-import type { CodeSubmissionRequest, CodeSubmissionResponse } from "./types";
+
+export interface CodeSubmissionRequest {
+  code: string;
+  language: string;
+}
+
+export interface TestCaseResult {
+  input: string;
+  expectedOutput: string;
+  actualOutput: string;
+  passed: boolean;
+  error?: string | null;
+}
+
+export interface CodeSubmissionResponse {
+  results: TestCaseResult[];
+  allPassed: boolean;
+}
 
 /**
  * Kiểu dữ liệu cho yêu cầu tạo bài tập
  */
 export interface CreateExerciseRequest {
-  lesson_id: number;
-  session_id: string;
+  lessonId: number;
+  sessionId: string;
   difficulty: string;
-  topic_id: number;
+  topicId: number;
+}
+
+export interface Exercise {
+  id: number;
+  lessonId: number;
+  sessionId: string;
+  difficulty: string;
+  topicId: number;
 }
 
 /**

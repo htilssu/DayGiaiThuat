@@ -45,6 +45,7 @@ import {
     type AdminTopicUpdatePayload
 } from "@/lib/api/admin-topics";
 import { getAllCoursesAdmin } from "@/lib/api/admin-courses";
+import { Topic } from "@/lib/api/topics";
 
 interface TopicFormData {
     name: string;
@@ -148,7 +149,7 @@ export default function TopicAdminClient() {
         mutationFn: async (values: TopicFormData) => {
             if (!selectedTopic) return;
 
-            const payload: TopicUpdatePayload = {
+            const payload: AdminTopicUpdatePayload = {
                 name: values.name,
                 description: values.description,
             };
@@ -208,7 +209,7 @@ export default function TopicAdminClient() {
         }
     });
 
-    const handleEdit = (topic: Topic) => {
+    const handleEdit = (topic: AdminTopic) => {
         setSelectedTopic(topic);
         editForm.setValues({
             name: topic.name,
@@ -218,12 +219,13 @@ export default function TopicAdminClient() {
         setEditModalOpened(true);
     };
 
-    const handleDelete = (topic: Topic) => {
+    const handleDelete = (topic: AdminTopic) => {
         setSelectedTopic(topic);
         setDeleteModalOpened(true);
     };
 
-    const getCourseNameById = (courseId: number) => {
+    const getCourseNameById = (courseId: number | null) => {
+        if (courseId === null) return "Chưa gán khóa học";
         const course = courses.find(c => c.id === courseId);
         return course?.title || `Course ${courseId}`;
     };
@@ -285,7 +287,7 @@ export default function TopicAdminClient() {
                             <Table.Th>Mô tả</Table.Th>
                             <Table.Th>Khóa học</Table.Th>
                             <Table.Th>Ngày tạo</Table.Th>
-                            <Table.Th width={100}>Thao tác</Table.Th>
+                            <Table.Th style={{ width: 100 }}>Thao tác</Table.Th>
                         </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>

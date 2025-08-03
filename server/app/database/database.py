@@ -1,18 +1,12 @@
 from datetime import datetime
 from typing import AsyncGenerator
+from contextlib import asynccontextmanager
 
-from sqlalchemy import create_engine, func
-from sqlalchemy.orm import sessionmaker, DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 from app.core.config import settings
-
-# Tối ưu hóa engine cho startup nhanh hơn
-engine = create_engine(
-    settings.DATABASE_URI,
-    pool_pre_ping=True,  # Kiểm tra kết nối trước khi sử dụng
-    connect_args={"connect_timeout": 5},  # Timeout 5 giây cho psycopg2
-)
 
 # Tạo engine bất đồng bộ với cấu hình tối ưu
 # asyncpg không hỗ trợ connect_timeout, sử dụng server_settings
@@ -27,14 +21,6 @@ async_engine = create_async_engine(
     },
     pool_timeout=30,  # Timeout để lấy connection từ pool
     pool_recycle=3600,  # Recycle connections mỗi giờ
-)
-
-# Tạo SessionLocal class với tối ưu hóa
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-    expire_on_commit=False,  # Tăng performance
 )
 
 # Tạo AsyncSessionLocal class với tối ưu hóa
@@ -57,22 +43,7 @@ class Base(DeclarativeBase):
     )
 
 
-def get_db():
-    """
-    Tạo và trả về một database session mới cho mỗi request
-    và đảm bảo đóng kết nối sau khi xử lý xong.
-
-    Yields:
-        Session: Database session
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Tạo và trả về một database session bất đồng bộ mới cho mỗi request
     và đảm bảo đóng kết nối sau khi xử lý xong.
@@ -81,27 +52,17 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         AsyncSession: Async database session
     """
     async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+        yield session
 
 
-def check_db_connection() -> bool:
+@asynccontextmanager
+async def get_independent_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
-    Kiểm tra kết nối database đồng bộ
-
-    Returns:
-        bool: True nếu kết nối thành công
+    Tạo một session DB độc lập, không phụ thuộc vào request,
+    dành cho các background task.
     """
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(func.now())
-            result.fetchone()
-        return True
-    except Exception as e:
-        print(f"Database sync connection error: {e}")
-        return False
+    async with AsyncSessionLocal() as session:
+        yield session
 
 
 async def check_async_db_connection() -> bool:
@@ -114,8 +75,18 @@ async def check_async_db_connection() -> bool:
     try:
         async with async_engine.connect() as conn:
             result = await conn.execute(func.now())
-            await result.fetchone()
+            result.fetchone()
         return True
     except Exception as e:
         print(f"Database async connection error: {e}")
         return False
+
+
+def get_db():
+    """
+    Legacy sync database dependency - DEPRECATED
+    Use get_async_db() instead for all new code
+    """
+    raise NotImplementedError(
+        "Synchronous database access is deprecated. Use get_async_db() instead."
+    )

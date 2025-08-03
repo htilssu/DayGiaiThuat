@@ -17,7 +17,9 @@ from app.models.user_model import User
 router = APIRouter(prefix="/discussions", tags=["discussions"])
 
 
-@router.post("/", response_model=DiscussionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/", response_model=DiscussionResponse, status_code=status.HTTP_201_CREATED
+)
 def create_discussion(
     discussion_data: DiscussionCreate,
     db: Session = Depends(get_db),
@@ -31,7 +33,9 @@ def create_discussion(
 def get_discussions(
     search: Optional[str] = Query(None, description="Search in title and content"),
     category: Optional[str] = Query(None, description="Filter by category"),
-    sort_by: Optional[str] = Query("newest", description="Sort by: newest, oldest, most-replies"),
+    sort_by: Optional[str] = Query(
+        "newest", description="Sort by: newest, oldest, most-replies"
+    ),
     page: Optional[int] = Query(1, ge=1, description="Page number"),
     limit: Optional[int] = Query(10, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db),
@@ -56,8 +60,7 @@ def get_discussion(
     discussion = DiscussionService.get_discussion(db, discussion_id)
     if not discussion:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Discussion not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Discussion not found"
         )
     return discussion
 
@@ -70,11 +73,13 @@ def update_discussion(
     current_user: User = Depends(get_current_user),
 ):
     """Update a discussion (only by the author)"""
-    discussion = DiscussionService.update_discussion(db, discussion_id, discussion_data, current_user.id)
+    discussion = DiscussionService.update_discussion(
+        db, discussion_id, discussion_data, current_user.id
+    )
     if not discussion:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Discussion not found or you don't have permission to update it"
+            detail="Discussion not found or you don't have permission to update it",
         )
     return discussion
 
@@ -90,5 +95,5 @@ def delete_discussion(
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Discussion not found or you don't have permission to delete it"
-        ) 
+            detail="Discussion not found or you don't have permission to delete it",
+        )

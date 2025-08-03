@@ -11,7 +11,7 @@ interface TestQuizProps {
     formatTime: (seconds: number) => string;
     getProgress: () => number;
     canSubmit: () => boolean;
-    onSubmitAnswer: (questionId: string, answer: TestAnswer) => void;
+    onSubmitAnswer: (questionId: string, answer: TestAnswer, options?: { immediate?: boolean }) => void;
     onNextQuestion: () => void;
     onPreviousQuestion: () => void;
     onGoToQuestion: (index: number) => void;

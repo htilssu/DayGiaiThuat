@@ -9,7 +9,7 @@ import Link from "next/link";
  */
 export default function Footer() {
   // App name from environment variable
-  const appName = process.env.NEXT_PUBLIC_APP_NAME || "AIGiảiThuật";
+  const appName = process.env.NEXT_PUBLIC_APP_NAME || "AGT - Học Thuật Toán và Lập Trình";
 
   return (
     <footer className="w-full py-16 mt-auto bg-background border-t border-primary/10 transition-theme">
@@ -92,7 +92,14 @@ export default function Footer() {
                   <Link
                     href="/courses"
                     className="text-foreground/70 hover:text-primary transition-colors">
-                    Khóa học
+                    Khóa học của bạn
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/courses/explore"
+                    className="text-foreground/70 hover:text-primary transition-colors">
+                    Khám phá khóa học
                   </Link>
                 </li>
                 <li>

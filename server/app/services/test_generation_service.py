@@ -2,12 +2,14 @@
 Service chuyên dụng cho việc tạo bài test
 """
 
-from fastapi import Depends, HTTPException, status
-from sqlalchemy.orm import Session
 import asyncio
 import logging
 
-from app.database.database import get_db
+from fastapi import Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.agents.input_test_agent import get_input_test_agent, InputTestAgent
+from app.database.database import get_independent_db_session
 from app.models.course_model import Course, TestGenerationStatus
 from app.models.test_model import Test
 
@@ -15,8 +17,9 @@ from app.models.test_model import Test
 class TestGenerationService:
     """Service chuyên dụng cho việc tạo bài test"""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession, input_test_agent: InputTestAgent):
         self.db = db
+        self.input_test_agent = input_test_agent
         self.logger = logging.getLogger(__name__)
 
     def generate_input_test_sync(self, course_id: int):
@@ -36,14 +39,8 @@ class TestGenerationService:
             # Cập nhật trạng thái thành pending
             self._update_test_generation_status(course_id, TestGenerationStatus.PENDING)
 
-            # Import agent để tránh circular dependency
-            from app.core.agents.input_test_agent import get_input_test_agent
-
-            # Tạo test agent
-            agent = get_input_test_agent(self)
-
             # Tạo test đồng bộ
-            test = self._create_test_from_agent_sync(agent, course_id)
+            test = self._create_test_from_agent_sync(self.input_test_agent, course_id)
 
             # Cập nhật trạng thái thành công
             self._update_test_generation_status(course_id, TestGenerationStatus.SUCCESS)
@@ -72,35 +69,33 @@ class TestGenerationService:
             course_id: ID của khóa học
         """
 
-        def run_in_thread():
+        def run_in_thread(service_instance, agent_instance, course_id):
             try:
                 # Update status to pending
-                self._update_test_generation_status(
+                service_instance._update_test_generation_status(
                     course_id, TestGenerationStatus.PENDING
                 )
 
-                # Import agent here to avoid circular dependency
-                from app.core.agents.input_test_agent import get_input_test_agent
-
-                # Create test agent and generate test
-                agent = get_input_test_agent(self)
-
                 # This would be the actual test generation logic
-                asyncio.run(self._create_test_from_agent_async(agent, course_id))
+                asyncio.run(
+                    TestGenerationService._create_test_from_agent_async(
+                        service_instance, agent_instance, course_id
+                    )
+                )
 
                 # Update status to success
-                self._update_test_generation_status(
+                service_instance._update_test_generation_status(
                     course_id, TestGenerationStatus.SUCCESS
                 )
 
             except Exception as e:
                 # Update status to failed
-                self._update_test_generation_status(
+                service_instance._update_test_generation_status(
                     course_id, TestGenerationStatus.FAILED
                 )
 
                 # Log error với thông tin chi tiết
-                self.logger.error(
+                service_instance.logger.error(
                     f"Lỗi khi tạo test cho khóa học {course_id}: {e}", exc_info=True
                 )
 
@@ -109,7 +104,9 @@ class TestGenerationService:
         # Run in background thread
         import threading
 
-        thread = threading.Thread(target=run_in_thread)
+        thread = threading.Thread(
+            target=run_in_thread, args=(self, self.input_test_agent, course_id)
+        )
         thread.start()
 
     def _create_test_from_agent_sync(self, agent, course_id: int):
@@ -137,24 +134,30 @@ class TestGenerationService:
             self._update_test_generation_status(course_id, TestGenerationStatus.FAILED)
             raise e
 
-    async def _create_test_from_agent_async(self, agent, course_id: int):
+    @staticmethod
+    async def _create_test_from_agent_async(service_instance, agent, course_id: int):
         """
         Tạo bài test từ agent và lưu vào database (phiên bản async)
 
         Args:
+            service_instance: Instance of TestGenerationService
             agent: Agent để tạo test
             course_id: ID của khóa học
         """
         try:
+            # Debug: Print the type of agent
+            print(
+                f"Debug: Type of agent in _create_test_from_agent_async: {type(agent)}"
+            )
             # Tạo test từ agent
             test_result = await agent.act(course_id=course_id)
 
             # Chuyển đổi output từ agent thành format phù hợp để lưu vào database
-            await self._save_test_to_database_async(course_id, test_result)
+            await service_instance._save_test_to_database_async(course_id, test_result)
 
         except Exception as e:
             # Cập nhật trạng thái thất bại
-            self._update_test_generation_status(course_id, TestGenerationStatus.FAILED)
+            _update_test_generation_status(course_id, TestGenerationStatus.FAILED)
             raise e
 
     def _save_test_to_database_sync(self, course_id: int, test_result):
@@ -267,7 +270,7 @@ class TestGenerationService:
             self.logger.error(f"Lỗi khi lưu test vào database: {e}", exc_info=True)
             raise e
 
-    def get_course(self, course_id: int):
+    async def get_course(self, course_id: int):
         """
         Lấy thông tin chi tiết của một khóa học
 
@@ -279,7 +282,7 @@ class TestGenerationService:
         """
         return self.db.query(Course).filter(Course.id == course_id).first()
 
-    def _update_test_generation_status(self, course_id: int, status: str):
+    async def _update_test_generation_status(self, course_id: int, status: str):
         """
         Cập nhật trạng thái tạo test cho khóa học
 
@@ -303,8 +306,8 @@ class TestGenerationService:
                 )
 
             course.test_generation_status = status
-            self.db.commit()
-            self.db.refresh(course)
+            await self.db.commit()
+            await self.db.refresh(course)
 
             return course
         except Exception as e:
@@ -384,6 +387,9 @@ class TestGenerationService:
             )
 
 
-def get_test_generation_service(db: Session = Depends(get_db)):
+async def get_test_generation_service(
+    test_generation_agent: InputTestAgent = Depends(get_input_test_agent),
+):
     """Dependency để inject TestGenerationService"""
-    return TestGenerationService(db)
+    async with get_independent_db_session() as db:
+        return TestGenerationService(db, test_generation_agent)

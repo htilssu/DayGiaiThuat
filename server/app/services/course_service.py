@@ -1,19 +1,40 @@
-from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_
+from fastapi import HTTPException, status, Depends
+from sqlalchemy import and_, func, select, text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.database.database import get_db
-from app.models.course_model import Course, TestGenerationStatus
+from app.database.database import get_async_db
+
 from app.models.user_course_model import UserCourse
-from app.models.user_model import User
+from app.models.user_course_progress_model import UserCourseProgress, ProgressStatus
+from app.models.topic_model import Topic
+from app.models.course_model import Course
+from app.schemas.course_schema import (
+    BulkDeleteCoursesResponse,
+    CourseCreate,
+    CourseDetailResponse,
+    CourseDetailWithProgressResponse,
+    TopicWithProgressResponse,
+    UserCourseListItem,
+)
+from app.schemas.lesson_schema import (
+    LessonWithChildSchema,
+    LessonSectionSchema,
+    LessonWithProgressResponse,
+)
+from app.schemas.topic_schema import TopicResponse
+from typing import Optional
 
 
 class CourseService:
-    def __init__(self, db: Session = Depends(get_db)):
+    def __init__(
+        self,
+        db: AsyncSession,
+    ):
         self.db = db
 
-    def get_courses(self, skip: int = 0, limit: int = 10):
+    async def get_courses(self, skip: int = 0, limit: int = 10):
         """
         Lấy danh sách khóa học với phân trang
 
@@ -24,9 +45,16 @@ class CourseService:
         Returns:
             List[Course]: Danh sách khóa học
         """
-        return self.db.query(Course).offset(skip).limit(limit).all()
+        result = await self.db.execute(
+            select(Course)
+            .filter(Course.is_published == True)
+            .order_by(Course.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        return result.scalars().all()
 
-    def get_course(self, course_id: int):
+    async def get_course(self, course_id: int, user_id: int | None = None):
         """
         Lấy thông tin chi tiết của một khóa học
 
@@ -36,9 +64,105 @@ class CourseService:
         Returns:
             Course: Thông tin chi tiết của khóa học
         """
-        return self.db.query(Course).filter(Course.id == course_id).first()
+        result = await self.db.execute(
+            select(Course)
+            .options(selectinload(Course.topics).selectinload(Topic.lessons))
+            .filter(Course.id == course_id)
+        )
+        course = result.scalar_one_or_none()
+        if course is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy khóa học với ID {course_id}",
+            )
+        list_topic_response = []
 
-    def create_course(self, course_data):
+        for topic in course.topics:
+            is_completed = False
+            progress = 0
+            completed_lessons = 0
+
+            topic_response = TopicResponse(
+                id=topic.id,
+                lessons=[
+                    LessonWithChildSchema(
+                        id=lesson.id,
+                        title=lesson.title,
+                        description=lesson.description,
+                        order=lesson.order,
+                        external_id=lesson.external_id,
+                        sections=[
+                            LessonSectionSchema(
+                                type=section.type,
+                                content=section.content,
+                                order=section.order,
+                                options=section.options,
+                                answer=section.answer,
+                                explanation=section.explanation,
+                            )
+                            for section in lesson.sections
+                        ],
+                        exercises=[],
+                        is_completed=False,
+                        next_lesson_id=None,
+                        prev_lesson_id=None,
+                    )
+                    for lesson in topic.lessons
+                ],
+                name=topic.name,
+                description=topic.description,
+                prerequisites=topic.prerequisites,
+                order=topic.order,
+                created_at=topic.created_at,
+                updated_at=topic.updated_at,
+                external_id=topic.external_id,
+                course_id=topic.course_id,
+                is_completed=is_completed,
+                progress=progress,
+                completed_lessons=completed_lessons,
+            )
+            list_topic_response.append(topic_response)
+
+        if not course:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy khóa học với ID {course_id}",
+            )
+        is_enrolled = False
+
+        if user_id is not None:
+            result = await self.db.execute(
+                select(UserCourse).filter(
+                    and_(
+                        UserCourse.user_id == user_id,
+                        UserCourse.course_id == course_id,
+                    )
+                )
+            )
+            user_course = result.scalar_one_or_none()
+            if user_course is not None:
+                is_enrolled = True
+
+        return CourseDetailResponse(
+            description=course.description,
+            thumbnail_url=course.thumbnail_url,
+            id=course.id,
+            created_at=course.created_at,
+            updated_at=course.updated_at,
+            test_generation_status=course.test_generation_status,
+            is_enrolled=is_enrolled,
+            title=course.title,
+            level=course.level,
+            topics=list_topic_response,
+            duration=course.duration,
+            price=course.price,
+            is_published=course.is_published,
+            tags=course.tags,
+            requirements=course.requirements,
+            what_you_will_learn=course.what_you_will_learn,
+        )
+
+    async def create_course(self, course_data: CourseCreate):
         """
         Tạo một khóa học mới
 
@@ -50,22 +174,30 @@ class CourseService:
         """
         try:
             # Tạo đối tượng Course từ dữ liệu đầu vào
-            new_course = Course(**course_data.dict())
+            new_course = Course(**course_data.model_dump())
 
             # Thêm vào database
             self.db.add(new_course)
-            self.db.commit()
-            self.db.refresh(new_course)
+            await self.db.commit()
+            await self.db.refresh(new_course)
 
-            return new_course
+            # Tải lại course với topics để tránh lỗi lazy loading
+            result = await self.db.execute(
+                select(Course)
+                .options(selectinload(Course.topics))
+                .filter(Course.id == new_course.id)
+            )
+            course_with_topics = result.scalar_one()
+
+            return course_with_topics
         except SQLAlchemyError as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Lỗi khi tạo khóa học: {str(e)}",
             )
 
-    def update_course(self, course_id: int, course_data):
+    async def update_course(self, course_id: int, course_data):
         """
         Cập nhật thông tin một khóa học
 
@@ -78,7 +210,10 @@ class CourseService:
         """
         try:
             # Tìm khóa học cần cập nhật
-            course = self.get_course(course_id)
+            result = await self.db.execute(
+                select(Course).filter(Course.id == course_id)
+            )
+            course = result.scalars().first()
             if not course:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -91,18 +226,18 @@ class CourseService:
                 setattr(course, key, value)
 
             # Lưu thay đổi vào database
-            self.db.commit()
-            self.db.refresh(course)
+            await self.db.commit()
+            await self.db.refresh(course)
 
             return course
         except SQLAlchemyError as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Lỗi khi cập nhật khóa học: {str(e)}",
             )
 
-    def delete_course(self, course_id: int):
+    async def delete_course(self, course_id: int):
         """
         Xóa một khóa học
 
@@ -114,7 +249,10 @@ class CourseService:
         """
         try:
             # Tìm khóa học cần xóa
-            course = self.get_course(course_id)
+            result = await self.db.execute(
+                select(Course).filter(Course.id == course_id)
+            )
+            course = result.scalars().first()
             if not course:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -122,17 +260,138 @@ class CourseService:
                 )
 
             # Xóa khóa học
-            self.db.delete(course)
-            self.db.commit()
+            await self.db.delete(course)
+            await self.db.commit()
             return True
         except SQLAlchemyError as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Lỗi khi xóa khóa học: {str(e)}",
             )
 
-    def enroll_course(self, user_id: int, course_id: int):
+    async def bulk_delete_courses(self, course_ids: list[int]):
+        """
+        Xóa nhiều khóa học cùng lúc, bao gồm tất cả topics, lessons, và lesson sections
+
+        Args:
+            course_ids: Danh sách ID các khóa học cần xóa
+
+        Returns:
+            dict: Thông tin về quá trình xóa bao gồm:
+                - deleted_count: Số lượng khóa học đã xóa thành công
+                - failed_count: Số lượng khóa học không thể xóa
+                - deleted_courses: Danh sách ID các khóa học đã xóa
+                - failed_courses: Danh sách ID các khóa học không thể xóa
+                - errors: Danh sách lỗi chi tiết
+                - deleted_items: Thống kê chi tiết số lượng items đã xóa
+        """
+        from app.models.topic_model import Topic
+        from app.models.lesson_model import Lesson, LessonSection
+
+        deleted_courses = []
+        failed_courses = []
+        errors = []
+        deleted_items = {"courses": 0, "topics": 0, "lessons": 0, "lesson_sections": 0}
+
+        for course_id in course_ids:
+            try:
+                # Tìm khóa học cần xóa
+                result = await self.db.execute(
+                    select(Course).filter(Course.id == course_id)
+                )
+                course = result.scalars().first()
+                if not course:
+                    failed_courses.append(course_id)
+                    errors.append(f"Không tìm thấy khóa học với ID {course_id}")
+                    continue
+
+                result = await self.db.execute(
+                    select(func.count())
+                    .select_from(UserCourse)
+                    .where(UserCourse.course_id == course_id)
+                )
+                enrollment_count = result.scalar_one()
+
+                if enrollment_count > 0:
+                    failed_courses.append(course_id)
+                    errors.append(
+                        f"Khóa học {course_id} đang có {enrollment_count} học viên đăng ký, không thể xóa"
+                    )
+                    continue
+
+                # Đếm số lượng items sẽ bị xóa để logging
+                topics_count_result = await self.db.execute(
+                    select(func.count())
+                    .select_from(Topic)
+                    .where(Topic.course_id == course_id)
+                )
+                topics_count = topics_count_result.scalar_one()
+
+                lessons_count_result = await self.db.execute(
+                    select(func.count())
+                    .select_from(Lesson)
+                    .join(Topic, Lesson.topic_id == Topic.id)
+                    .where(Topic.course_id == course_id)
+                )
+                lessons_count = lessons_count_result.scalar_one()
+                sections_count_result = await self.db.execute(
+                    select(func.count())
+                    .select_from(LessonSection)
+                    .join(Lesson, LessonSection.lesson_id == Lesson.id)
+                    .join(Topic, Lesson.topic_id == Topic.id)
+                    .where(Topic.course_id == course_id)
+                )
+                sections_count = sections_count_result.scalar_one()
+
+                # Xóa khóa học (cascade sẽ tự động xóa topics, lessons, sections)
+                await self.db.delete(course)
+                deleted_courses.append(course_id)
+
+                # Cập nhật thống kê
+                deleted_items["courses"] += 1
+                deleted_items["topics"] += topics_count
+                deleted_items["lessons"] += lessons_count
+                deleted_items["lesson_sections"] += sections_count
+
+            except SQLAlchemyError as e:
+                failed_courses.append(course_id)
+                errors.append(f"Lỗi khi xóa khóa học {course_id}: {str(e)}")
+                continue
+            except Exception as e:
+                failed_courses.append(course_id)
+                errors.append(
+                    f"Lỗi không xác định khi xóa khóa học {course_id}: {str(e)}"
+                )
+                continue
+
+        try:
+            # Commit tất cả các thay đổi
+            if deleted_courses:
+                await self.db.commit()
+        except SQLAlchemyError as e:
+            await self.db.rollback()
+            # Nếu commit thất bại, tất cả courses đều failed
+            failed_courses.extend(deleted_courses)
+            deleted_courses = []
+            deleted_items = {
+                "courses": 0,
+                "topics": 0,
+                "lessons": 0,
+                "lesson_sections": 0,
+            }
+            errors.append(f"Lỗi khi commit transaction: {str(e)}")
+
+        return BulkDeleteCoursesResponse(
+            deleted_count=len(deleted_courses),
+            failed_count=len(failed_courses),
+            deleted_courses=deleted_courses,
+            failed_courses=failed_courses,
+            errors=errors,
+            deleted_items=deleted_items,
+        )
+
+    async def enroll_course(self, user_id: int, course_id: int):
         """
         Đăng ký khóa học cho người dùng
 
@@ -144,32 +403,27 @@ class CourseService:
             dict: Thông tin đăng ký khóa học và test đầu vào (nếu có)
         """
         try:
-            # Kiểm tra xem người dùng có tồn tại không
-            user = self.db.query(User).filter(User.id == user_id).first()
-            if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Không tìm thấy người dùng với ID {user_id}",
-                )
 
             # Kiểm tra xem khóa học có tồn tại không
-            course = self.get_course(course_id)
+            result = await self.db.execute(
+                select(Course).filter(Course.id == course_id)
+            )
+            course = result.scalar_one_or_none()
             if not course:
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
+                    status_code=404,
                     detail=f"Không tìm thấy khóa học với ID {course_id}",
                 )
 
             # Kiểm tra xem người dùng đã đăng ký khóa học này chưa
-            existing_enrollment = (
-                self.db.query(UserCourse)
-                .filter(
+            existing_enrollment = await self.db.execute(
+                select(UserCourse).filter(
                     and_(
                         UserCourse.user_id == user_id, UserCourse.course_id == course_id
                     )
                 )
-                .first()
             )
+            existing_enrollment = existing_enrollment.scalar_one_or_none()
 
             if existing_enrollment:
                 raise HTTPException(
@@ -180,13 +434,16 @@ class CourseService:
             # Tạo đăng ký mới
             enrollment = UserCourse(user_id=user_id, course_id=course_id)
             self.db.add(enrollment)
-            self.db.commit()
-            self.db.refresh(enrollment)
+            await self.db.commit()
+            await self.db.refresh(enrollment)
 
             # Kiểm tra xem có test đầu vào cho khóa học này không
             from app.models.test_model import Test
 
-            entry_test = self.db.query(Test).filter(Test.course_id == course_id).first()
+            entry_test = await self.db.execute(
+                select(Test).filter(Test.course_id == course_id)
+            )
+            entry_test = entry_test.scalar_one_or_none()
 
             result = {
                 "enrollment": enrollment,
@@ -196,82 +453,133 @@ class CourseService:
 
             return result
         except SQLAlchemyError as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=500,
                 detail=f"Lỗi khi đăng ký khóa học: {str(e)}",
             )
 
-    def unenroll_course(self, user_id: int, course_id: int):
+    async def get_user_courses(self, user_id: int) -> list[UserCourseListItem]:
         """
-        Hủy đăng ký khóa học của người dùng
-
-        Args:
-            user_id: ID của người dùng
-            course_id: ID của khóa học
-
-        Returns:
-            bool: True nếu hủy đăng ký thành công
-        """
-        try:
-            # Tìm đăng ký cần hủy
-            enrollment = (
-                self.db.query(UserCourse)
-                .filter(
-                    and_(
-                        UserCourse.user_id == user_id, UserCourse.course_id == course_id
-                    )
-                )
-                .first()
-            )
-
-            if not enrollment:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Không tìm thấy đăng ký khóa học",
-                )
-
-            # Xóa đăng ký
-            self.db.delete(enrollment)
-            self.db.commit()
-            return True
-        except SQLAlchemyError as e:
-            self.db.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Lỗi khi hủy đăng ký khóa học: {str(e)}",
-            )
-
-    def get_user_courses(self, user_id: int):
-        """
-        Lấy danh sách khóa học mà người dùng đã đăng ký
+        Lấy danh sách khóa học mà người dùng đã đăng ký, kèm progress
 
         Args:
             user_id: ID của người dùng
 
         Returns:
-            List[Course]: Danh sách khóa học
+            List[UserCourseListItem]: Danh sách khóa học với trường progress
         """
         try:
-            # Kiểm tra xem người dùng có tồn tại không
-            user = self.db.query(User).filter(User.id == user_id).first()
-            if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Không tìm thấy người dùng với ID {user_id}",
-                )
 
             # Lấy danh sách khóa học mà người dùng đã đăng ký
-            enrollments = (
-                self.db.query(UserCourse).filter(UserCourse.user_id == user_id).all()
+            enrollments = await self.db.execute(
+                select(UserCourse).filter(UserCourse.user_id == user_id)
             )
+            enrollments = enrollments.scalars().all()
             course_ids = [enrollment.course_id for enrollment in enrollments]
-            courses = self.db.query(Course).filter(Course.id.in_(course_ids)).all()
 
-            return courses
+            courses = await self.db.execute(
+                select(Course)
+                .options(selectinload(Course.topics).selectinload(Topic.lessons))
+                .filter(Course.id.in_(course_ids))
+            )
+            courses = courses.scalars().all()
+
+            # Tính progress cho từng khóa học
+            result = []
+            for course in courses:
+                # Lấy user_course_id
+                user_course = next(
+                    (e for e in enrollments if e.course_id == course.id), None
+                )
+                user_course_id = user_course.id if user_course else None
+
+                # Đếm tổng số bài học
+                total_lessons = 0
+                for topic in course.topics:
+                    total_lessons += len(topic.lessons)
+
+                # Đếm số bài đã hoàn thành bằng một query duy nhất
+                completed_lessons = 0
+                if user_course_id:
+                    progress_records = await self.db.execute(
+                        select(func.count(UserCourseProgress.id)).filter(
+                            UserCourseProgress.user_course_id == user_course_id,
+                            UserCourseProgress.status == ProgressStatus.COMPLETED,
+                        )
+                    )
+                    completed_lessons = progress_records.scalar() or 0
+
+                progress = (
+                    (completed_lessons / total_lessons * 100)
+                    if total_lessons > 0
+                    else 0.0
+                )
+
+                # Tìm bài học hiện tại (bài học đầu tiên chưa hoàn thành)
+                current_topic_id = None
+                current_lesson_id = None
+
+                if user_course_id and total_lessons > 0:
+                    # Tìm tất cả các bài học đã hoàn thành
+                    completed_lesson_records = await self.db.execute(
+                        select(UserCourseProgress.lesson_id).filter(
+                            UserCourseProgress.user_course_id == user_course_id,
+                            UserCourseProgress.status == ProgressStatus.COMPLETED,
+                        )
+                    )
+                    completed_lesson_ids = set(completed_lesson_records.scalars().all())
+
+                    # Tìm bài học đầu tiên chưa hoàn thành
+                    found_current = False
+                    for topic in sorted(course.topics, key=lambda t: t.order):
+                        if found_current:
+                            break
+                        for lesson in sorted(
+                            topic.lessons, key=lambda lesson: lesson.order
+                        ):
+                            if lesson.id not in completed_lesson_ids:
+                                current_topic_id = topic.id
+                                current_lesson_id = lesson.id
+                                found_current = True
+                                break
+
+                    # Nếu tất cả bài học đã hoàn thành, lấy bài học cuối cùng
+                    if not found_current and course.topics:
+                        last_topic = max(course.topics, key=lambda t: t.order)
+                        if last_topic.lessons:
+                            last_lesson = max(
+                                last_topic.lessons, key=lambda lesson: lesson.order
+                            )
+                            current_topic_id = last_topic.id
+                            current_lesson_id = last_lesson.id
+
+                result.append(
+                    UserCourseListItem(
+                        id=course.id,
+                        title=course.title,
+                        description=course.description,
+                        thumbnail_url=course.thumbnail_url,
+                        level=course.level,
+                        duration=course.duration,
+                        price=course.price,
+                        is_published=course.is_published,
+                        tags=course.tags,
+                        requirements=course.requirements,
+                        what_you_will_learn=course.what_you_will_learn,
+                        created_at=course.created_at,
+                        updated_at=course.updated_at,
+                        test_generation_status=course.test_generation_status,
+                        progress=round(progress, 2),
+                        current_topic_id=current_topic_id,
+                        current_lesson_id=current_lesson_id,
+                    )
+                )
+
+            return result
         except SQLAlchemyError as e:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=500,
                 detail=f"Lỗi khi lấy danh sách khóa học: {str(e)}",
             )
 
@@ -286,251 +594,14 @@ class CourseService:
         Returns:
             bool: True nếu người dùng đã đăng ký khóa học
         """
-        enrollment = (
-            self.db.query(UserCourse)
-            .filter(
-                and_(UserCourse.user_id == user_id, UserCourse.course_id == course_id)
+        enrollment = self.db.execute(
+            select(UserCourse).filter(
+                UserCourse.user_id == user_id, UserCourse.course_id == course_id
             )
-            .first()
         )
         return enrollment is not None
 
-    def update_test_generation_status(self, course_id: int, status: str):
-        """
-        Cập nhật trạng thái tạo test cho khóa học
-
-        Args:
-            course_id: ID của khóa học
-            status: Trạng thái mới
-        """
-        try:
-            course = self.get_course(course_id)
-            if not course:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Không tìm thấy khóa học với ID {course_id}",
-                )
-
-            course.test_generation_status = status
-            self.db.commit()
-            self.db.refresh(course)
-
-            return course
-        except SQLAlchemyError as e:
-            self.db.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Lỗi khi cập nhật trạng thái test: {str(e)}",
-            )
-
-    def generate_input_test_sync(self, course_id: int):
-        """
-        Tạo bài test đầu vào đồng bộ (sync) - Deprecated
-
-        Sử dụng TestGenerationService thay thế
-        """
-        from app.services.test_generation_service import TestGenerationService
-
-        test_gen_service = TestGenerationService(self.db)
-        return test_gen_service.generate_input_test_sync(course_id)
-
-    async def generate_input_test_async(self, course_id: int):
-        """
-        Tạo bài test đầu vào bất đồng bộ - Deprecated
-
-        Sử dụng TestGenerationService thay thế
-        """
-        from app.services.test_generation_service import TestGenerationService
-
-        test_gen_service = TestGenerationService(self.db)
-        return await test_gen_service.generate_input_test_async(course_id)
-
-    def _create_test_from_agent_sync(self, agent, course_id: int):
-        """
-        Tạo bài test từ agent và lưu vào database (phiên bản sync)
-
-        Args:
-            agent: Agent để tạo test
-            course_id: ID của khóa học
-
-        Returns:
-            Test: Bài test đã được tạo
-        """
-        try:
-            # Tạo test từ agent bằng asyncio.run() để chạy sync
-            import asyncio
-
-            test_result = asyncio.run(agent.act(course_id=course_id))
-
-            # Lưu test vào database
-            test = self._save_test_to_database_sync(course_id, test_result)
-
-            return test
-
-        except Exception as e:
-            # Cập nhật trạng thái thất bại
-            self.update_test_generation_status(course_id, TestGenerationStatus.FAILED)
-            raise e
-
-    async def _create_test_from_agent(self, agent, test_service, course_id: int):
-        """
-        Tạo bài test từ agent và lưu vào database
-
-        Args:
-            agent: Agent để tạo test
-            test_service: Service để lưu test (không dùng nữa, để tương thích)
-            course_id: ID của khóa học
-        """
-        try:
-            # Tạo test từ agent
-            test_result = await agent.act(course_id=course_id)
-
-            # Chuyển đổi output từ agent thành format phù hợp để lưu vào database
-            await self._save_test_to_database(None, course_id, test_result)
-
-        except Exception as e:
-            # Cập nhật trạng thái thất bại
-            self.update_test_generation_status(course_id, TestGenerationStatus.FAILED)
-            raise e
-
-    def _save_test_to_database_sync(self, course_id: int, test_result):
-        """
-        Lưu kết quả test từ agent vào database (phiên bản sync)
-
-        Args:
-            course_id: ID của khóa học
-            test_result: Kết quả từ agent (InputTestAgentOutput)
-
-        Returns:
-            Test: Bài test đã được lưu
-        """
-        try:
-            # Lấy course để lấy thông tin
-            course = self.get_course(course_id)
-            if not course:
-                raise ValueError(f"Không tìm thấy khóa học với ID {course_id}")
-
-            # Chuyển đổi questions từ agent format sang database format (array)
-            questions_list = []
-            for i, question in enumerate(test_result.questions):
-                question_id = f"q_{i + 1}"
-                questions_list.append(
-                    {
-                        "id": question_id,
-                        "content": question.content,
-                        "type": question.type,
-                        "difficulty": question.difficulty,
-                        "answer": question.answer,
-                        "options": question.options if question.options else [],
-                    }
-                )
-
-            # Tạo test object và lưu vào database
-            from app.models.test_model import Test
-
-            test = Test(
-                topic_id=None,  # Test thuộc về course, không thuộc về topic cụ thể
-                course_id=course_id,  # Test thuộc về course này
-                duration_minutes=60,  # Mặc định 60 phút
-                questions=questions_list,
-            )
-
-            # Lưu bằng session sync
-            self.db.add(test)
-            self.db.commit()
-            self.db.refresh(test)
-
-            # Log thành công
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.info(
-                f"Đã tạo thành công bài test ID {test.id} cho khóa học {course_id} (course: {course.title})"
-            )
-
-            return test
-
-        except Exception as e:
-            self.db.rollback()
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(f"Lỗi khi lưu test vào database: {e}", exc_info=True)
-            raise e
-
-    async def _save_test_to_database(self, test_service, course_id: int, test_result):
-        """
-        Lưu kết quả test từ agent vào database
-
-        Args:
-            test_service: Service để lưu test
-            course_id: ID của khóa học
-            test_result: Kết quả từ agent (InputTestAgentOutput)
-        """
-        try:
-            # Lấy course để lấy thông tin
-            course = self.get_course(course_id)
-            if not course:
-                raise ValueError(f"Không tìm thấy khóa học với ID {course_id}")
-
-            # Chuyển đổi questions từ agent format sang database format (array)
-            questions_list = []
-            for i, question in enumerate(test_result.questions):
-                question_id = f"q_{i + 1}"
-                questions_list.append(
-                    {
-                        "id": question_id,
-                        "content": question.content,
-                        "type": question.type,
-                        "difficulty": question.difficulty,
-                        "answer": question.answer,
-                        "options": question.options if question.options else [],
-                    }
-                )
-
-            # Tạo test data để lưu vào database
-            from app.schemas.test_schema import TestCreate
-
-            test_data = TestCreate(
-                topic_id=None,  # Test thuộc về course, không thuộc về topic cụ thể
-                course_id=course_id,  # Test thuộc về course này
-                duration_minutes=60,  # Mặc định 60 phút
-                questions=questions_list,
-            )
-
-            # Lưu vào database (tạm thời dùng sync để tránh lỗi async session)
-            from app.models.test_model import Test
-
-            test = Test(
-                topic_id=test_data.topic_id,
-                course_id=test_data.course_id,
-                duration_minutes=test_data.duration_minutes,
-                questions=test_data.questions,
-            )
-
-            # Lưu bằng session sync
-            self.db.add(test)
-            self.db.commit()
-            self.db.refresh(test)
-
-            # Log thành công
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.info(
-                f"Đã tạo thành công bài test ID {test.id} cho khóa học {course_id} (course: {course.title})"
-            )
-
-            return test
-
-        except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(f"Lỗi khi lưu test vào database: {e}", exc_info=True)
-            raise e
-
-    def update_course_thumbnail(self, course_id: int, thumbnail_url: str):
+    async def update_course_thumbnail(self, course_id: int, thumbnail_url: str):
         """
         Cập nhật ảnh thumbnail cho khóa học
 
@@ -545,30 +616,35 @@ class CourseService:
             HTTPException: Nếu không tìm thấy khóa học hoặc có lỗi database
         """
         try:
-            # Tìm khóa học cần cập nhật
-            course = self.get_course(course_id)
-            if not course:
+            await self.db.execute(
+                text(
+                    "UPDATE courses SET thumbnail_url = :thumbnail_url WHERE id = :course_id"
+                ),
+                {"thumbnail_url": thumbnail_url, "course_id": course_id},
+            )
+            await self.db.commit()
+
+            # Fetch and return the updated course with topics
+            result = await self.db.execute(
+                select(Course)
+                .options(selectinload(Course.topics))
+                .filter(Course.id == course_id)
+            )
+            updated_course = result.scalar_one_or_none()
+            if not updated_course:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Không tìm thấy khóa học với ID {course_id}",
                 )
-
-            # Cập nhật URL thumbnail
-            course.thumbnail_url = thumbnail_url
-
-            # Lưu thay đổi vào database
-            self.db.commit()
-            self.db.refresh(course)
-
-            return course
+            return updated_course
         except SQLAlchemyError as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Lỗi khi cập nhật ảnh thumbnail: {str(e)}",
             )
 
-    def get_course_entry_test(self, course_id: int):
+    async def get_course_entry_test(self, course_id: int):
         """
         Lấy test đầu vào của khóa học
 
@@ -583,7 +659,10 @@ class CourseService:
         """
         try:
             # Kiểm tra khóa học có tồn tại không
-            course = self.get_course(course_id)
+            course = await self.db.execute(
+                select(Course).filter(Course.id == course_id)
+            )
+            course = course.scalar_one_or_none()
             if not course:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -593,7 +672,10 @@ class CourseService:
             # Lấy test đầu vào
             from app.models.test_model import Test
 
-            entry_test = self.db.query(Test).filter(Test.course_id == course_id).first()
+            entry_test = await self.db.execute(
+                select(Test).filter(Test.course_id == course_id)
+            )
+            entry_test = entry_test.scalar_one_or_none()
 
             return entry_test
         except SQLAlchemyError as e:
@@ -602,6 +684,210 @@ class CourseService:
                 detail=f"Lỗi khi lấy test đầu vào: {str(e)}",
             )
 
+    # Methods with Progress Support
+    async def get_course_with_progress(
+        self, course_id: int, user_id: Optional[int] = None
+    ) -> CourseDetailWithProgressResponse:
+        """Lấy course với nested progress data"""
+        # Get course with topics and lessons
+        course = await self.db.execute(
+            select(Course)
+            .options(selectinload(Course.topics).selectinload(Topic.lessons))
+            .filter(Course.id == course_id)
+        )
+        course = course.scalar_one_or_none()
 
-def get_course_service(db: Session = Depends(get_db)):
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found")
+
+        # Check enrollment
+        user_course_id = None
+        is_enrolled = False
+        if user_id:
+            user_course = await self.db.execute(
+                select(UserCourse).filter(
+                    UserCourse.user_id == user_id, UserCourse.course_id == course_id
+                )
+            )
+            user_course = user_course.scalar_one_or_none()
+            if user_course:
+                is_enrolled = True
+                user_course_id = user_course.id
+
+        # Get progress map
+        progress_map = {}
+        if user_course_id:
+            progress_records = await self.db.execute(
+                select(UserCourseProgress).filter(
+                    UserCourseProgress.user_course_id == user_course_id
+                )
+            )
+            progress_map = {
+                (p.topic_id, p.lesson_id): p for p in progress_records.scalars()
+            }
+
+        # Build topics with progress
+        topics = []
+        total_lessons = 0
+        completed_lessons = 0
+        in_progress_lessons = 0
+        not_started_lessons = 0
+        current_topic_id = None
+        current_lesson_id = None
+        last_activity_at = None
+
+        for topic in sorted(course.topics, key=lambda x: x.order or 0):
+            # Build lessons for this topic
+            lessons = []
+            topic_completed = 0
+            topic_total = len(topic.lessons)
+
+            for lesson in sorted(topic.lessons, key=lambda x: x.order):
+                progress_key = (topic.id, lesson.id)
+                progress = progress_map.get(progress_key)
+
+                lesson_status = ProgressStatus.NOT_STARTED
+                lesson_last_viewed = None
+                lesson_completed_at = None
+                lesson_completion = 0.0
+
+                if progress:
+                    lesson_status = progress.status
+                    lesson_last_viewed = progress.updated_at
+                    lesson_completed_at = (
+                        progress.completed_at
+                        if progress.status == ProgressStatus.COMPLETED
+                        else None
+                    )
+                    lesson_completion = (
+                        100.0
+                        if progress.status == ProgressStatus.COMPLETED
+                        else (
+                            50.0
+                            if progress.status == ProgressStatus.IN_PROGRESS
+                            else 0.0
+                        )
+                    )
+
+                    # Track current position and last activity
+                    if progress.status == ProgressStatus.IN_PROGRESS:
+                        current_topic_id = topic.id
+                        current_lesson_id = lesson.id
+
+                    if not last_activity_at or (
+                        progress.updated_at and progress.updated_at > last_activity_at
+                    ):
+                        last_activity_at = progress.updated_at
+
+                # Count lesson status
+                if lesson_status == ProgressStatus.COMPLETED:
+                    completed_lessons += 1
+                    topic_completed += 1
+                elif lesson_status == ProgressStatus.IN_PROGRESS:
+                    in_progress_lessons += 1
+                else:
+                    not_started_lessons += 1
+
+                total_lessons += 1
+
+                lessons.append(
+                    LessonWithProgressResponse(
+                        id=lesson.id,
+                        external_id=lesson.external_id,
+                        title=lesson.title,
+                        description=lesson.description,
+                        order=lesson.order,
+                        next_lesson_id=None,
+                        prev_lesson_id=None,
+                        sections=[],
+                        exercises=[],
+                        is_completed=lesson_status == ProgressStatus.COMPLETED,
+                        status=lesson_status,
+                        last_viewed_at=lesson_last_viewed,
+                        completed_at=lesson_completed_at,
+                        completion_percentage=lesson_completion,
+                    )
+                )
+
+            # Calculate topic completion percentage
+            topic_completion_percentage = (
+                (topic_completed / topic_total * 100) if topic_total > 0 else 0.0
+            )
+
+            topics.append(
+                TopicWithProgressResponse(
+                    id=topic.id,
+                    external_id=topic.external_id,
+                    name=topic.name,
+                    description=topic.description,
+                    order=topic.order,
+                    lessons=lessons,
+                    topic_completion_percentage=round(topic_completion_percentage, 2),
+                    completed_lessons=topic_completed,
+                    total_lessons=topic_total,
+                )
+            )
+
+        # Calculate overall completion percentage
+        overall_completion_percentage = (
+            (completed_lessons / total_lessons * 100) if total_lessons > 0 else 0.0
+        )
+
+        # Get current lesson details if exists
+        current_lesson = None
+        if current_lesson_id:
+            for topic in course.topics:
+                for lesson in topic.lessons:
+                    if lesson.id == current_lesson_id:
+                        current_lesson = {
+                            "id": lesson.id,
+                            "external_id": lesson.external_id,
+                            "title": lesson.title,
+                            "description": lesson.description,
+                            "order": lesson.order,
+                            "topic_id": topic.id,
+                        }
+                        break
+                if current_lesson:
+                    break
+
+        # Build final response
+        course_dict = {
+            "id": course.id,
+            "title": course.title,
+            "description": course.description,
+            "thumbnail_url": course.thumbnail_url,
+            "level": course.level,
+            "duration": course.duration,
+            "price": course.price,
+            "is_published": course.is_published,
+            "tags": course.tags,
+            "requirements": course.requirements,
+            "what_you_will_learn": course.what_you_will_learn,
+            "created_at": course.created_at,
+            "updated_at": course.updated_at,
+            "test_generation_status": course.test_generation_status,
+            "is_enrolled": is_enrolled,
+            "topics": topics,
+            "user_course_id": user_course_id,
+            "overall_completion_percentage": round(overall_completion_percentage, 2),
+            "total_topics": len(topics),
+            "total_lessons": total_lessons,
+            "completed_lessons": completed_lessons,
+            "in_progress_lessons": in_progress_lessons,
+            "not_started_lessons": not_started_lessons,
+            "current_topic_id": current_topic_id,
+            "current_lesson_id": current_lesson_id,
+            "current_lesson": current_lesson,
+            "last_activity_at": last_activity_at,
+        }
+
+        return CourseDetailWithProgressResponse(**course_dict)
+
+
+def get_course_service(db: AsyncSession = Depends(get_async_db)):
+    """
+    Factory function to get CourseService instance with database session and optional test generation service
+    Note: Do NOT use Session as a response_model or return type in FastAPI routes. Only use Pydantic schemas or serializable types.
+    """
     return CourseService(db)

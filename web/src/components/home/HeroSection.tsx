@@ -13,7 +13,7 @@ export function HeroSection({ visible }: HeroSectionProps) {
             <div className="container mx-auto px-4">
                 <div className="flex flex-col md:flex-row items-center">
                     <div className="md:w-1/2 mb-12 md:mb-0 md:pr-8">
-                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gradient-theme py-5">
+                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold  py-5">
                             Học thuật toán hiệu quả cùng AI
                         </h1>
                         <p className="text-lg md:text-xl mb-8 text-foreground/80 max-w-xl">

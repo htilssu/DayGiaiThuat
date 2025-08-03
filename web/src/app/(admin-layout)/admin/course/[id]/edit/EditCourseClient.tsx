@@ -27,8 +27,8 @@ import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
 import { IconArrowLeft, IconAlertCircle, IconDeviceFloppy, IconUpload, IconX, IconPhoto } from "@tabler/icons-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { UserCourseDetail, CourseUpdatePayload } from "@/lib/api/courses";
-import { getCourseByIdAdmin, updateCourseAdmin, createCourseTestAdmin } from "@/lib/api/admin-courses";
+import { UserCourseDetail } from "@/lib/api/courses";
+import { getCourseByIdAdmin, updateCourseAdmin, createCourseTestAdmin, CourseUpdatePayload } from "@/lib/api/admin-courses";
 import { uploadCourseImageAdmin, AdminFileUploadResponse } from "@/lib/api/admin-upload";
 import { notifications } from '@mantine/notifications';
 import Link from "next/link";
@@ -121,20 +121,17 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
                 try {
                     const uploadResult: AdminFileUploadResponse = await uploadCourseImageAdmin(courseId, selectedImage);
 
-                    if (uploadResult.success) {
-                        // Update form with new image URL
-                        finalValues.thumbnailUrl = uploadResult.url;
-                        setImagePreview(uploadResult.url);
+                    // Backend trả về response trực tiếp nếu thành công
+                    // Update form with new image URL
+                    finalValues.thumbnailUrl = uploadResult.url;
+                    setImagePreview(uploadResult.url);
 
-                        // Show success notification
-                        notifications.show({
-                            title: "Thành công",
-                            message: "Đã tải lên ảnh khóa học thành công",
-                            color: "green",
-                        });
-                    } else {
-                        throw new Error(uploadResult.message || "Upload failed");
-                    }
+                    // Show success notification
+                    notifications.show({
+                        title: "Thành công",
+                        message: "Đã tải lên ảnh khóa học thành công",
+                        color: "green",
+                    });
                 } catch (error) {
                     notifications.show({
                         title: 'Lỗi upload ảnh',
@@ -319,29 +316,6 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
         return url;
     };
 
-    // Debug effect để kiểm tra course data
-    useEffect(() => {
-        if (course) {
-            console.log('Course data loaded:', {
-                id: course.id,
-                title: course.title,
-                thumbnailUrl: course.thumbnailUrl,
-                hasThumbail: !!course.thumbnailUrl
-            });
-        } else {
-            console.log('Course data is null/undefined');
-        }
-    }, [course]);
-
-    // Debug effect để theo dõi image states
-    useEffect(() => {
-        console.log('Image states changed:', {
-            selectedImage: selectedImage?.name,
-            imagePreview: !!imagePreview,
-            currentUrl: getCurrentImageUrl(),
-            isDragOver
-        });
-    }, [selectedImage, imagePreview, course?.thumbnailUrl, isDragOver]);
 
     // Effect để đảm bảo cache được cập nhật khi pendingImageUrl thay đổi
     useEffect(() => {
@@ -480,14 +454,6 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={6}>
-                                    <NumberInput
-                                        label="Thời lượng (phút)"
-                                        placeholder="0"
-                                        min={0}
-                                        {...form.getInputProps("duration")}
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={6}>
                                     <Switch
                                         label="Xuất bản khóa học"
                                         {...form.getInputProps("isPublished", { type: "checkbox" })}
@@ -539,7 +505,7 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
                                     src={getCurrentImageUrl()}
                                     alt="Course thumbnail"
                                     radius="md"
-                                    className={`w-full aspect-video object-cover cursor-pointer transition-all duration-200 ${isDragOver ? 'opacity-70 scale-105' : ''
+                                    className={`w-full border-[2px] aspect-video object-cover cursor-pointer transition-all duration-200 ${isDragOver ? 'opacity-70 scale-105' : ''
                                         }`}
                                     fallbackSrc="/images/placeholder-course.jpg"
                                     onClick={handlePlaceholderClick}
@@ -670,39 +636,6 @@ export default function EditCourseClient({ courseId }: EditCourseClientProps) {
                             </Box>
                         )}
 
-                        {selectedImage && !uploading && (
-                            <Box p="xs" className="bg-blue-50 rounded border border-blue-200">
-                                <Text size="sm" fw={500} c="blue">
-                                    📁 {selectedImage.name}
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                    Ảnh sẽ được upload khi lưu khóa học
-                                </Text>
-                            </Box>
-                        )}
-
-                        {course?.thumbnailUrl && !selectedImage && !uploading && (
-                            <Box p="xs" className="bg-green-50 rounded border border-green-200">
-                                <Text size="xs" c="green" fw={500}>
-                                    ✓ Ảnh hiện tại: {course.thumbnailUrl.split('/').pop()}
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                    Nhấn vào ảnh phía trên để thay đổi
-                                </Text>
-                            </Box>
-                        )}
-
-                        {/* Debug info trong development */}
-                        {process.env.NODE_ENV === 'development' && (
-                            <Box mt="xs" p="xs" className="bg-gray-50 rounded text-xs">
-                                <Text size="xs" fw={500} mb={4}>Debug Info:</Text>
-                                <Text size="xs">Course ID: {course?.id}</Text>
-                                <Text size="xs">Thumbnail URL: {course?.thumbnailUrl || 'null'}</Text>
-                                <Text size="xs">Current URL: {getCurrentImageUrl() || 'null'}</Text>
-                                <Text size="xs">Image Preview: {imagePreview ? 'có' : 'không'}</Text>
-                                <Text size="xs">Selected Image: {selectedImage?.name || 'không'}</Text>
-                            </Box>
-                        )}
                     </Paper>
 
                     {/* Test Generation Status */}

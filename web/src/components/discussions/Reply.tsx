@@ -7,12 +7,14 @@ interface ReplySectionProps {
   replies: Reply[];
   reloadReplies: () => Promise<void>;
   discussionId: number;
+  isLoading?: boolean;
 }
 
 export default function ReplySection({
   replies,
   reloadReplies,
   discussionId,
+  isLoading = false,
 }: ReplySectionProps) {
   const [input, setInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);

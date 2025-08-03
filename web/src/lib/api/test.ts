@@ -87,18 +87,8 @@ export interface TestHistorySummary {
     status: string;
 }
 
-
-
 export interface CreateTestSessionRequest {
     testId: number;
-}
-
-export interface SubmitSessionAnswerRequest {
-    questionId: string;
-    answer: {
-        selectedOptionId?: string;
-        code?: string;
-    };
 }
 
 export interface UpdateTestSessionRequest {
@@ -147,18 +137,6 @@ export const testApi = {
         return await patch(`/tests/sessions/${sessionId}`, updates);
     },
 
-    // Submit answer for a specific question
-    submitSessionAnswer: async (
-        sessionId: string,
-        questionId: string,
-        answer: { selectedOptionId?: string; code?: string }
-    ): Promise<void> => {
-        await post(`/tests/sessions/${sessionId}/answers`, {
-            questionId,
-            answer
-        });
-    },
-
     // Submit entire test session
     submitTestSession: async (
         sessionId: string,
@@ -171,8 +149,6 @@ export const testApi = {
     getUserTestHistory: async (): Promise<TestHistorySummary[]> => {
         return await get('/tests/test-history');
     },
-
-
 
     // Get test results by session ID
     getTestResult: async (sessionId: string): Promise<TestResult> => {

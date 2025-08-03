@@ -1,23 +1,34 @@
-from fastapi import APIRouter, HTTPException, Depends, status
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-
-from app.database.database import get_db
+from app.core.agents.course_composition_agent import CourseCompositionAgent
+from app.database.database import get_async_db, get_independent_db_session
 from app.models.course_model import Course
+from app.models.topic_model import Topic
 from app.schemas.course_schema import (
+    BulkDeleteCoursesRequest,
+    BulkDeleteCoursesResponse,
+    CourseCompositionRequestSchema,
     CourseCreate,
+    CourseOnlyResponse,
     CourseResponse,
     CourseUpdate,
 )
 from app.schemas.user_profile_schema import UserExcludeSecret
-
 from app.services.course_service import CourseService, get_course_service
+from app.services.test_generation_service import (
+    TestGenerationService,
+    get_test_generation_service,
+)
 from app.utils.utils import get_current_user
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi.params import Query
+from pydantic import BaseModel
+from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 router = APIRouter(
     prefix="/admin/courses",
-    tags=["admin-courses"],
+    tags=["Khóa học - Admin"],
     responses={404: {"description": "Không tìm thấy khóa học"}},
 )
 
@@ -43,6 +54,16 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
     return current_user
 
 
+async def run_course_composition_background(request: CourseCompositionRequestSchema):
+    """
+    Hàm chạy trong background để tạo nội dung khóa học.
+    Sử dụng một session DB độc lập.
+    """
+    async with get_independent_db_session() as db_session:
+        agent = CourseCompositionAgent(db_session)
+        await agent.act(request)
+
+
 @router.post(
     "",
     response_model=CourseResponse,
@@ -57,39 +78,39 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
 )
 async def create_course(
     course_data: CourseCreate,
-    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_async_db),
+    course_service: CourseService = Depends(get_course_service),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Tạo một khóa học mới (chỉ admin)
 
-    Args:
-        course_data: Dữ liệu để tạo khóa học
-        db: Session database
-        admin_user: Thông tin admin đã xác thực
-
-    Returns:
-        CourseResponse: Thông tin của khóa học vừa tạo
-
     Raises:
         HTTPException: Nếu có lỗi khi tạo khóa học
+        :param course_data:
+        :param admin_user:
+        :param course_service:
+        :param db:
+        :param background_tasks:
     """
     try:
-        # Tạo đối tượng Course từ dữ liệu đầu vào
-        new_course = Course(**course_data.dict())
+        new_course = await course_service.create_course(course_data)
 
-        # Thêm vào database
-        db.add(new_course)
-        db.commit()
-        db.refresh(new_course)
-
-        # Tạo bài test đầu vào async
-        course_service = CourseService(db)
-        await course_service.generate_input_test_async(new_course.id)
+        # Run course composition in the background
+        composition_request = CourseCompositionRequestSchema(
+            course_id=new_course.id,
+            course_title=new_course.title,
+            course_description=new_course.description,
+            course_level=new_course.level,
+        )
+        background_tasks.add_task(
+            run_course_composition_background, composition_request
+        )
 
         return new_course
     except SQLAlchemyError as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi tạo khóa học: {str(e)}",
@@ -111,7 +132,7 @@ async def create_course(
 async def update_course(
     course_id: int,
     course_data: CourseUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
@@ -130,7 +151,8 @@ async def update_course(
         HTTPException: Nếu không tìm thấy khóa học hoặc có lỗi khi cập nhật
     """
     # Tìm khóa học cần cập nhật
-    course = db.query(Course).filter(Course.id == course_id).first()
+    result = await db.execute(select(Course).filter(Course.id == course_id))
+    course = result.scalar_one_or_none()
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -144,12 +166,20 @@ async def update_course(
             setattr(course, field, value)
 
         # Lưu thay đổi
-        db.commit()
-        db.refresh(course)
+        await db.commit()
+        await db.refresh(course)
 
-        return course
+        # Tải lại course với topics để tránh lỗi lazy loading
+        result = await db.execute(
+            select(Course)
+            .options(selectinload(Course.topics).selectinload(Topic.lessons))
+            .filter(Course.id == course_id)
+        )
+        updated_course = result.scalar_one()
+
+        return CourseOnlyResponse.model_validate(updated_course)
     except SQLAlchemyError as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi cập nhật khóa học: {str(e)}",
@@ -157,11 +187,65 @@ async def update_course(
 
 
 @router.delete(
+    "/bulk",
+    response_model=BulkDeleteCoursesResponse,
+    summary="Xóa nhiều khóa học cùng lúc (Admin)",
+    responses={
+        200: {"description": "Xóa thành công"},
+        400: {"description": "Dữ liệu không hợp lệ"},
+        403: {"description": "Không có quyền truy cập"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def bulk_delete_courses(
+    request: BulkDeleteCoursesRequest,
+    course_service: CourseService = Depends(get_course_service),
+    admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
+    """
+    Xóa nhiều khóa học cùng lúc (chỉ admin)
+
+    Args:
+        request: Danh sách ID các khóa học cần xóa
+        course_service: Service xử lý khóa học
+        admin_user: Thông tin admin đã xác thực
+
+    Returns:
+        BulkDeleteCoursesResponse: Thông tin về quá trình xóa
+
+    Raises:
+        HTTPException: Nếu có lỗi trong quá trình xóa
+    """
+    try:
+        # Validate danh sách course_ids
+        if not request.course_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Danh sách course_ids không được rỗng",
+            )
+
+        # Thực hiện bulk delete
+        result = await course_service.bulk_delete_courses(request.course_ids)
+
+        return result
+
+    except HTTPException:
+        # Re-raise HTTPException từ validation
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi không xác định khi xóa khóa học: {str(e)}",
+        )
+
+
+@router.delete(
     "/{course_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
     summary="Xóa khóa học (Admin)",
     responses={
-        204: {"description": "Xóa thành công"},
+        200: {"description": "Xóa thành công"},
+        400: {"description": "Khóa học đang được sử dụng"},
         403: {"description": "Không có quyền truy cập"},
         404: {"description": "Không tìm thấy khóa học"},
         500: {"description": "Internal server error"},
@@ -169,11 +253,15 @@ async def update_course(
 )
 async def delete_course(
     course_id: int,
-    db: Session = Depends(get_db),
+    force: int = Query(
+        default=0, ge=0, le=1, description="Force delete without checking enrollments"
+    ),
+    db: AsyncSession = Depends(get_async_db),
+    course_service: CourseService = Depends(get_course_service),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
-    Xóa khóa học (chỉ admin)
+    Xóa khóa học và tất cả dữ liệu liên quan (chỉ admin)
 
     Args:
         course_id: ID của khóa học cần xóa
@@ -182,25 +270,97 @@ async def delete_course(
 
     Raises:
         HTTPException: Nếu không tìm thấy khóa học hoặc có lỗi khi xóa
+
+    Returns:
+        dict: Thông tin về quá trình xóa bao gồm số lượng items đã xóa
+        :param course_id:
+        :param admin_user:
+        :param course_service:
+        :param db:
+        :param force:
     """
+    from app.models.lesson_model import Lesson, LessonSection
+    from app.models.topic_model import Topic
+    from app.models.user_course_model import UserCourse
+
     # Tìm khóa học cần xóa
-    course = db.query(Course).filter(Course.id == course_id).first()
+    course = await db.execute(select(Course).where(Course.id == course_id))
+    course = course.scalar_one_or_none()
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Không tìm thấy khóa học với ID {course_id}",
         )
 
+    # Kiểm tra xem khóa học có đang được sử dụng không
+    enrollment_count = (
+        await db.execute(select(func.count()).where(UserCourse.course_id == course_id))
+    ).scalar()
+    if force == 0:
+        enrollment_count = (
+            await db.execute(
+                select(func.count()).where(UserCourse.course_id == course_id)
+            )
+        ).scalar()
+
+    else:
+        enrollment_count = 0
+
+    if enrollment_count is not None and enrollment_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": f"Khóa học '{course.title}' đang được sử dụng bởi {enrollment_count} người dùng. Không thể xóa.",
+                "type": "course_in_use",
+                "id": course_id,
+            },
+        )
+
     try:
-        # Xóa khóa học
-        db.delete(course)
-        db.commit()
+        # Đếm số lượng items sẽ bị xóa để logging
+        topics_count = await db.execute(
+            select(func.count()).where(Topic.course_id == course_id)
+        )
+        lessons_count = await db.execute(
+            select(func.count())
+            .select_from(Lesson)
+            .join(Topic, Lesson.topic_id == Topic.id)
+            .filter(Topic.course_id == course_id)
+        )
+        sections_count = await db.execute(
+            select(func.count())
+            .select_from(LessonSection)
+            .join(Lesson, LessonSection.lesson_id == Lesson.id)
+            .join(Topic, Lesson.topic_id == Topic.id)
+            .filter(Topic.course_id == course_id)
+        )
+        topics_count = topics_count.scalar()
+        lessons_count = lessons_count.scalar()
+        sections_count = sections_count.scalar()
+        topics_count = topics_count or 0
+        lessons_count = lessons_count or 0
+        sections_count = sections_count or 0
+        # Xóa khóa học (cascade sẽ tự động xóa topics, lessons, sections)
+        await db.delete(course)
+        await db.commit()
+
+        return {
+            "message": f"Đã xóa thành công khóa học '{course.title}' và tất cả dữ liệu liên quan",
+            "deleted_items": {
+                "courses": 1,
+                "topics": topics_count,
+                "lessons": lessons_count,
+                "lesson_sections": sections_count,
+            },
+        }
     except SQLAlchemyError as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi xóa khóa học: {str(e)}",
         )
+    finally:
+        await db.close()
 
 
 @router.post(
@@ -216,44 +376,16 @@ async def delete_course(
 )
 async def create_test(
     course_id: int,
-    course_service: CourseService = Depends(get_course_service),
+    test_generation_service: TestGenerationService = Depends(
+        get_test_generation_service
+    ),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Tạo bài kiểm tra đầu vào cho khóa học - Background (chỉ admin)
     """
-    await course_service.generate_input_test_async(course_id)
+    await test_generation_service.generate_input_test_async(course_id)
     return {"message": "Đã bắt đầu tạo test trong background", "course_id": course_id}
-
-
-@router.post(
-    "/{course_id}/test-sync",
-    summary="Tạo bài kiểm tra đầu vào cho khóa học - Sync (Admin)",
-    status_code=status.HTTP_201_CREATED,
-    responses={
-        201: {"description": "Created"},
-        400: {"description": "Dữ liệu không hợp lệ"},
-        403: {"description": "Không có quyền truy cập"},
-        500: {"description": "Internal server error"},
-    },
-)
-def create_test_sync(
-    course_id: int,
-    course_service: CourseService = Depends(get_course_service),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
-):
-    """
-    Tạo bài kiểm tra đầu vào cho khóa học - Đồng bộ (chỉ admin)
-    Hàm này sẽ chờ cho đến khi test được tạo xong rồi mới trả về kết quả
-    """
-    test = course_service.generate_input_test_sync(course_id)
-    return {
-        "message": "Đã tạo test thành công",
-        "course_id": course_id,
-        "test_id": test.id,
-        "questions_count": len(test.questions) if test.questions else 0,
-        "duration_minutes": test.duration_minutes,
-    }
 
 
 @router.get(
@@ -265,14 +397,18 @@ def create_test_sync(
     },
 )
 async def get_all_courses_admin(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Lấy tất cả khóa học bao gồm cả chưa được published (chỉ admin)
     """
-    courses = db.query(Course).order_by(Course.created_at.desc()).all()
-    return courses
+    result = await db.execute(
+        select(Course)
+        .options(selectinload(Course.topics))
+        .order_by(Course.created_at.desc())
+    )
+    return result.scalars().all()
 
 
 @router.get(
@@ -287,20 +423,23 @@ async def get_all_courses_admin(
 )
 async def get_course_by_id_admin(
     course_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Lấy thông tin chi tiết của một khóa học (chỉ admin, bao gồm cả chưa published)
     """
-    course = db.query(Course).filter(Course.id == course_id).first()
+    result = await db.execute(select(Course).filter(Course.id == course_id))
+    course = result.scalar_one_or_none()
     if not course:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Không tìm thấy khóa học với ID {course_id}",
         )
 
-    return course
+    from app.schemas.course_schema import CourseListItem
+
+    return CourseListItem.model_validate(course)
 
 
 @router.patch(
@@ -337,7 +476,7 @@ async def update_course_thumbnail(
     """
     try:
         # Cập nhật thumbnail thông qua service
-        updated_course = course_service.update_course_thumbnail(
+        updated_course = await course_service.update_course_thumbnail(
             course_id, thumbnail_data.thumbnail_url
         )
         return updated_course

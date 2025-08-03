@@ -4,13 +4,14 @@ from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException, status, Response
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.core.config import settings
-from app.database.database import get_db
 from app.models.user_model import User
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.utils.oauth2 import OAuth2PasswordCookie
+from app.database.database import get_async_db
 
 # Cấu hình bảo mật
 ALGORITHM = "HS256"
@@ -76,7 +77,7 @@ def create_access_token(data: dict) -> str:
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_cookie_scheme), db: Session = Depends(get_db)
+    token: str = Depends(oauth2_cookie_scheme), db: AsyncSession = Depends(get_async_db)
 ) -> UserExcludeSecret:
     """
     Lấy thông tin user hiện tại từ token trong cookie
@@ -100,14 +101,22 @@ async def get_current_user(
     )
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
+        user_id = payload.get("sub")
         if user_id is None:
             raise credentials_exception
+
+        # Convert user_id to integer since it comes as string from JWT
+        try:
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            raise credentials_exception
+
     except JWTError as e:
         logger.error(f"JWTError: {e}")
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id).first()
+    result = await db.execute(select(User).filter(User.id == user_id))
+    user = result.scalars().first()
     if user is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
 
@@ -116,7 +125,8 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    token: str = Depends(oauth2_cookie_scheme_optional), db: Session = Depends(get_db)
+    token: str = Depends(oauth2_cookie_scheme_optional),
+    db: AsyncSession = Depends(get_async_db),
 ) -> UserExcludeSecret | None:
     """
     Lấy thông tin user hiện tại từ token trong cookie, không bắt buộc phải đăng nhập
@@ -176,4 +186,14 @@ def clear_auth_cookie(response: Response) -> None:
     if settings.COOKIE_DOMAIN:
         cookie_params["domain"] = settings.COOKIE_DOMAIN
 
-    response.delete_cookie(**cookie_params)
+    response.delete_cookie(
+        key=settings.COOKIE_NAME,
+        domain=settings.COOKIE_DOMAIN if settings.COOKIE_DOMAIN else None,
+        httponly=bool(settings.COOKIE_HTTPONLY),
+        secure=bool(settings.COOKIE_SECURE),
+        samesite=(
+            settings.COOKIE_SAMESITE
+            if settings.COOKIE_SAMESITE in ("lax", "strict", "none")
+            else None
+        ),
+    )

@@ -26,33 +26,7 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
 
 
 @router.post(
-    "/{course_id}/generate-sync",
-    summary="Tạo bài kiểm tra đầu vào đồng bộ (Sync)",
-    status_code=status.HTTP_201_CREATED,
-    responses={
-        201: {"description": "Test được tạo thành công"},
-        400: {"description": "Dữ liệu không hợp lệ"},
-        403: {"description": "Không có quyền truy cập"},
-        500: {"description": "Internal server error"},
-    },
-)
-def generate_test_sync(
-    course_id: int,
-    test_generation_service: TestGenerationService = Depends(
-        get_test_generation_service
-    ),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
-):
-    """
-    Tạo bài kiểm tra đầu vào đồng bộ (chỉ admin)
-
-    Chờ cho đến khi test được tạo xong và trả về kết quả
-    """
-    return test_generation_service.generate_input_test_sync(course_id)
-
-
-@router.post(
-    "/{course_id}/generate-async",
+    "/{course_id}/generate",
     summary="Tạo bài kiểm tra đầu vào bất đồng bộ (Async)",
     status_code=status.HTTP_202_ACCEPTED,
     responses={
@@ -70,7 +44,7 @@ async def generate_test_async(
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
-    Tạo bài kiểm tra đầu vào bất đồng bộ (chỉ admin)
+    Tạo bài kiểm tra đầu vào bất đồng bộ
 
     Tạo test trong background, trả về ngay lập tức
     """

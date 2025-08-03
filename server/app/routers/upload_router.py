@@ -9,7 +9,7 @@ from app.database.database import get_db
 
 router = APIRouter(
     prefix="/upload",
-    tags=["upload"],
+    tags=["Upload"],
     responses={404: {"description": "Not found"}},
 )
 

@@ -1,22 +1,27 @@
 import random
+from functools import lru_cache
 from datetime import datetime
+from sqlalchemy import select
 from typing import Optional, Dict, Any
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import Depends, HTTPException, status
 from passlib.context import CryptContext
 
 from app.utils.string import remove_vi_accents
-from app.database.database import get_db
+from app.database.database import get_async_db
 
-from ..models.user_model import User
-from ..schemas.auth_schema import UserRegister
-from ..schemas.user_profile_schema import UserUpdate
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from app.models.user_model import User
+from app.schemas.auth_schema import UserRegister
+from app.schemas.user_profile_schema import UserUpdate
 
 
-def get_user_service(db: Session = Depends(get_db)):
+@lru_cache(maxsize=1)
+def get_password_context():
+    return CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def get_user_service(db: AsyncSession = Depends(get_async_db)):
     return UserService(db)
 
 
@@ -25,11 +30,8 @@ class UserService:
     Service xử lý logic liên quan đến User
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
-
-    def __del__(self):
-        self.db.close()
 
     async def get_user_by_id(self, user_id: int) -> Optional[User]:
         """
@@ -41,13 +43,8 @@ class UserService:
         Returns:
             Optional[User]: Thông tin người dùng hoặc None nếu không tìm thấy
         """
-        user = self.db.query(User).filter(User.id == user_id).first()
-
-        # Nếu user không tồn tại, trả về None
-        if not user:
-            return None
-
-        return user
+        user = await self.db.execute(select(User).where(User.id == user_id))
+        return user.scalar_one_or_none()
 
     async def get_user_by_email(self, email: str) -> Optional[User]:
         """
@@ -59,7 +56,8 @@ class UserService:
         Returns:
             Optional[User]: Thông tin người dùng hoặc None nếu không tìm thấy
         """
-        return self.db.query(User).filter(User.email == email).first()
+        result = await self.db.execute(select(User).where(User.email == email))
+        return result.scalar_one_or_none()
 
     async def get_user_by_username(self, username: str) -> Optional[User]:
         """
@@ -71,7 +69,8 @@ class UserService:
         Returns:
             Optional[User]: Thông tin người dùng hoặc None nếu không tìm thấy
         """
-        return self.db.query(User).filter(User.username == username).first()
+        result = await self.db.execute(select(User).where(User.username == username))
+        return result.scalar_one_or_none()
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """
@@ -84,6 +83,7 @@ class UserService:
         Returns:
             bool: True nếu mật khẩu đúng, ngược lại là False
         """
+        pwd_context = get_password_context()
         return pwd_context.verify(plain_password, hashed_password)
 
     def get_password_hash(self, password: str) -> str:
@@ -96,6 +96,7 @@ class UserService:
         Returns:
             str: Mật khẩu đã mã hóa
         """
+        pwd_context = get_password_context()
         return pwd_context.hash(password)
 
     async def create_user(self, user_data: UserRegister) -> User:
@@ -137,8 +138,8 @@ class UserService:
 
         # Lưu vào database
         self.db.add(new_user)
-        self.db.commit()
-        self.db.refresh(new_user)
+        await self.db.commit()
+        await self.db.refresh(new_user)
 
         return new_user
 
@@ -165,7 +166,7 @@ class UserService:
         user.updated_at = datetime.utcnow()
 
         # Lưu vào database
-        self.db.commit()
+        await self.db.commit()
 
         return True
 
@@ -193,8 +194,8 @@ class UserService:
         user.updated_at = datetime.utcnow()
 
         # Lưu vào database
-        self.db.commit()
-        self.db.refresh(user)
+        await self.db.commit()
+        await self.db.refresh(user)
 
         return user
 
@@ -215,16 +216,11 @@ class UserService:
         if not user:
             return None
 
-        # Tạo ID cho hoạt động mới
-        activities = user.activities if user.activities else []
-        activity_id = len(activities) + 1
-
         # Tạo chuỗi định dạng ngày tháng
         activity_date = datetime.now().strftime("%d/%m/%Y")
 
         # Tạo hoạt động mới
         activity = {
-            "id": activity_id,
             "type": activity_data.get("type"),
             "name": activity_data.get("name"),
             "date": activity_date,
@@ -236,17 +232,13 @@ class UserService:
         if "progress" in activity_data:
             activity["progress"] = activity_data["progress"]
 
-        # Thêm hoạt động mới
-        activities.append(activity)
-        user.activities = activities
-
         # Cập nhật thống kê
         await self._update_stats_after_activity(user, activity_data)
 
         # Lưu vào database
         user.updated_at = datetime.utcnow()
-        self.db.commit()
-        self.db.refresh(user)
+        await self.db.commit()
+        await self.db.refresh(user)
 
         return user
 
@@ -275,10 +267,9 @@ class UserService:
             if badge.get("id") == badge_id:
                 # Cập nhật trạng thái huy hiệu đã có
                 badges[i]["unlocked"] = badge_data.get("unlocked", True)
-                user.badges = badges
-                user.updated_at = datetime.utcnow()
-                self.db.commit()
-                self.db.refresh(user)
+                user.updated_at = datetime.now()
+                await self.db.commit()
+                await self.db.refresh(user)
                 return user
 
         # Thêm huy hiệu mới
@@ -291,12 +282,11 @@ class UserService:
         }
 
         badges.append(badge)
-        user.badges = badges
 
         # Lưu vào database
-        user.updated_at = datetime.utcnow()
-        self.db.commit()
-        self.db.refresh(user)
+        user.updated_at = datetime.now()
+        await self.db.commit()
+        await self.db.refresh(user)
 
         return user
 
@@ -316,18 +306,11 @@ class UserService:
         user = await self.get_user_by_id(user_id)
         if not user:
             return None
-
-        # Cập nhật tiến độ học tập
-        learning_progress = user.learning_progress if user.learning_progress else {}
-        for key, value in progress_data.items():
-            learning_progress[key] = value
-
-        user.learning_progress = learning_progress
-
+        # TODO: Cập nhật tiến độ học tập
         # Lưu vào database
-        user.updated_at = datetime.utcnow()
-        self.db.commit()
-        self.db.refresh(user)
+        user.updated_at = datetime.now()
+        await self.db.commit()
+        await self.db.refresh(user)
 
         return user
 
@@ -349,29 +332,7 @@ class UserService:
         if not user:
             return None
 
-        # Lấy danh sách khóa học
-        courses = user.courses if user.courses else []
-
-        # Kiểm tra khóa học đã tồn tại chưa
-        for i, course in enumerate(courses):
-            if course.get("id") == course_id:
-                # Cập nhật tiến độ
-                courses[i]["progress"] = progress
-
-                # Kiểm tra hoàn thành khóa học
-                if progress >= 100 and courses[i].get("progress", 0) < 100:
-                    # Cập nhật thống kê
-                    stats = user.stats if user.stats else {}
-                    stats["completed_courses"] = stats.get("completed_courses", 0) + 1
-                    user.stats = stats
-
-                user.courses = courses
-                user.updated_at = datetime.utcnow()
-                self.db.commit()
-                self.db.refresh(user)
-                return user
-
-        # Không tìm thấy khóa học, trả về None
+        # TODO: Cập nhật tiến độ khóa học
         return None
 
     async def _update_stats_after_activity(
@@ -595,93 +556,6 @@ class UserService:
         await self._check_account_age_badge(user)
 
         return user
-
-    async def _check_problem_solved_badge(self, user: User) -> None:
-        """
-        Kiểm tra và cấp huy hiệu liên quan đến số bài giải được
-
-        Args:
-            user (User): Thông tin người dùng
-        """
-        stats = user.stats if user.stats else {}
-        problems_solved = stats.get("problems_solved", 0)
-
-        # Danh sách huy hiệu problems_solved
-        problem_badges = [
-            {
-                "id": 30,
-                "name": "Coder tập sự",
-                "icon": "💻",
-                "description": "Giải được 10 bài tập",
-                "threshold": 10,
-            },
-            {
-                "id": 31,
-                "name": "Coder chuyên nghiệp",
-                "icon": "👨‍💻",
-                "description": "Giải được 50 bài tập",
-                "threshold": 50,
-            },
-            {
-                "id": 32,
-                "name": "Coder huyền thoại",
-                "icon": "🧙‍♂️",
-                "description": "Giải được 100 bài tập",
-                "threshold": 100,
-            },
-        ]
-
-        # Kiểm tra từng huy hiệu
-        for badge_data in problem_badges:
-            if problems_solved >= badge_data["threshold"]:
-                # Xóa trường threshold trước khi thêm huy hiệu
-                badge_info = {k: v for k, v in badge_data.items() if k != "threshold"}
-                await self.add_badge(user.id, badge_info)
-
-    async def _check_account_age_badge(self, user: User) -> None:
-        """
-        Kiểm tra và cấp huy hiệu liên quan đến tuổi tài khoản
-
-        Args:
-            user (User): Thông tin người dùng
-        """
-        if not user.created_at:
-            return
-
-        # Tính số ngày kể từ khi tạo tài khoản
-        account_age_days = (datetime.now() - user.created_at).days
-
-        # Danh sách huy hiệu account_age
-        age_badges = [
-            {
-                "id": 40,
-                "name": "Thành viên mới",
-                "icon": "👶",
-                "description": "Tài khoản đã tồn tại 30 ngày",
-                "threshold": 30,
-            },
-            {
-                "id": 41,
-                "name": "Thành viên trung thành",
-                "icon": "👨",
-                "description": "Tài khoản đã tồn tại 180 ngày",
-                "threshold": 180,
-            },
-            {
-                "id": 42,
-                "name": "Thành viên lâu năm",
-                "icon": "👴",
-                "description": "Tài khoản đã tồn tại 365 ngày",
-                "threshold": 365,
-            },
-        ]
-
-        # Kiểm tra từng huy hiệu
-        for badge_data in age_badges:
-            if account_age_days >= badge_data["threshold"]:
-                # Xóa trường threshold trước khi thêm huy hiệu
-                badge_info = {k: v for k, v in badge_data.items() if k != "threshold"}
-                await self.add_badge(user.id, badge_info)
 
     async def _random_username(self, first_name: str, last_name: str) -> str:
         fullname = f"{first_name.lower()}{last_name.lower()}"

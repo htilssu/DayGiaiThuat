@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import JSON, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
 from app.database.database import Base
@@ -32,7 +32,10 @@ class Exercise(Base):
     description: Mapped[str] = mapped_column(String)
     difficulty: Mapped[str] = mapped_column(String)
     constraint: Mapped[str] = mapped_column(String, nullable=True)
-    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id"))
+    lesson_id: Mapped[int] = mapped_column(
+        ForeignKey("lessons.id"), index=True, nullable=True
+    )
+    case: Mapped[str] = mapped_column(JSON, nullable=True)
     suggest: Mapped[str] = mapped_column(String, nullable=True)
 
     lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="exercises")

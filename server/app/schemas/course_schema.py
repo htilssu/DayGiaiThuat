@@ -1,46 +1,9 @@
 from datetime import datetime
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional
 
-from pydantic import BaseModel, Field
 from app.models.course_model import TestGenerationStatus
-
-if TYPE_CHECKING:
-    from app.schemas.topic_schema import TopicWithLessonsResponse
-
-
-class TopicBase(BaseModel):
-    """
-    Schema cơ bản cho chủ đề
-
-    Attributes:
-        name: Tên chủ đề
-        description: Mô tả chi tiết về chủ đề
-        prerequisites: Danh sách các điều kiện tiên quyết
-    """
-
-    name: str = Field(..., min_length=1, max_length=255, description="Tên chủ đề")
-    description: Optional[str] = Field(None, description="Mô tả chi tiết về chủ đề")
-    prerequisites: Optional[List[str]] = Field(
-        None, description="Danh sách các điều kiện tiên quyết"
-    )
-
-
-class TopicResponse(TopicBase):
-    """
-    Schema cho response khi truy vấn thông tin chủ đề
-
-    Attributes:
-        id: ID của chủ đề
-        external_id: ID hiển thị cho người dùng
-        course_id: ID của khóa học chứa chủ đề này
-    """
-
-    id: int = Field(..., description="ID của chủ đề")
-    external_id: Optional[str] = Field(None, description="ID hiển thị cho người dùng")
-    course_id: int = Field(..., description="ID của khóa học chứa chủ đề này")
-
-    class Config:
-        from_attributes = True
+from app.schemas.topic_schema import TopicResponse, TopicWithProgressResponse
+from pydantic import BaseModel, Field
 
 
 class CourseBase(BaseModel):
@@ -148,7 +111,7 @@ class CourseResponse(CourseBase):
     id: int = Field(..., description="ID của khóa học")
     created_at: datetime = Field(..., description="Thời điểm tạo khóa học")
     updated_at: datetime = Field(..., description="Thời điểm cập nhật gần nhất")
-    topics: Optional[List[TopicResponse]] = Field(
+    topics: Optional[list[TopicResponse]] = Field(
         None, description="Danh sách các chủ đề trong khóa học"
     )
     test_generation_status: str = Field(
@@ -164,13 +127,98 @@ class CourseResponse(CourseBase):
         from_attributes = True
 
 
+class CourseOnlyResponse(CourseBase):
+    pass
+
+
 class CourseDetailResponse(CourseResponse):
     """
     Schema cho response chi tiết khóa học bao gồm cả topics và lessons
     """
 
-    topics: List["TopicWithLessonsResponse"] = Field(
+    topics: list["TopicResponse"] = Field(
         default_factory=list, description="Danh sách topics và lessons"
+    )
+
+    class Config:
+        from_attributes = True
+
+
+class CourseListItem(BaseModel):
+    """
+    Schema cơ bản cho item trong danh sách khóa học (không bao gồm chi tiết topics)
+
+    Attributes:
+        id: ID của khóa học
+        title: Tiêu đề của khóa học
+        description: Mô tả chi tiết về khóa học
+        thumbnail_url: Đường dẫn đến ảnh thumbnail của khóa học
+        level: Cấp độ khó của khóa học
+        duration: Thời lượng ước tính để hoàn thành khóa học (tính bằng phút)
+        price: Giá của khóa học (0 nếu miễn phí)
+        tags: Các thẻ tag liên quan đến khóa học
+        created_at: Thời điểm tạo khóa học
+        updated_at: Thời điểm cập nhật gần nhất
+        is_enrolled: Trạng thái đăng ký của người dùng hiện tại (chỉ có khi người dùng đã đăng nhập)
+    """
+
+    id: int = Field(..., description="ID của khóa học")
+    title: str = Field(..., description="Tiêu đề của khóa học")
+    description: Optional[str] = Field(None, description="Mô tả chi tiết về khóa học")
+    thumbnail_url: Optional[str] = Field(
+        None, description="Đường dẫn đến ảnh thumbnail của khóa học"
+    )
+    level: Optional[str] = Field("Beginner", description="Cấp độ khó của khóa học")
+    duration: Optional[int] = Field(
+        0, description="Thời lượng ước tính để hoàn thành khóa học (tính bằng phút)"
+    )
+    price: Optional[float] = Field(0.0, description="Giá của khóa học (0 nếu miễn phí)")
+    tags: Optional[str] = Field("", description="Các thẻ tag liên quan đến khóa học")
+    created_at: datetime = Field(..., description="Thời điểm tạo khóa học")
+    updated_at: datetime = Field(..., description="Thời điểm cập nhật gần nhất")
+    is_enrolled: Optional[bool] = Field(
+        False, description="Trạng thái đăng ký của người dùng hiện tại"
+    )
+
+    class Config:
+        from_attributes = True
+
+
+class UserCourseListItem(BaseModel):
+    """
+    Schema cho item trong danh sách khóa học đã đăng ký của user, kèm progress
+    """
+
+    id: int = Field(..., description="ID của khóa học")
+    title: str = Field(..., description="Tiêu đề của khóa học")
+    description: Optional[str] = Field(None, description="Mô tả chi tiết về khóa học")
+    thumbnail_url: Optional[str] = Field(
+        None, description="Đường dẫn đến ảnh thumbnail của khóa học"
+    )
+    level: Optional[str] = Field("Beginner", description="Cấp độ khó của khóa học")
+    duration: Optional[int] = Field(
+        0, description="Thời lượng ước tính để hoàn thành khóa học (tính bằng phút)"
+    )
+    price: Optional[float] = Field(0.0, description="Giá của khóa học (0 nếu miễn phí)")
+    is_published: Optional[bool] = Field(
+        False, description="Trạng thái xuất bản của khóa học"
+    )
+    tags: Optional[str] = Field("", description="Các thẻ tag liên quan đến khóa học")
+    requirements: Optional[str] = Field(
+        None, description="Các yêu cầu cần có trước khi học (JSON string)"
+    )
+    what_you_will_learn: Optional[str] = Field(
+        None, description="Những gì người học sẽ đạt được sau khóa học (JSON string)"
+    )
+    created_at: datetime = Field(..., description="Thời điểm tạo khóa học")
+    updated_at: datetime = Field(..., description="Thời điểm cập nhật gần nhất")
+    test_generation_status: str = Field(
+        ..., description="Trạng thái tạo bài test đầu vào"
+    )
+    progress: float = Field(0.0, description="Phần trăm hoàn thành khóa học")
+    current_topic_id: Optional[int] = Field(None, description="ID của chủ đề hiện tại")
+    current_lesson_id: Optional[int] = Field(
+        None, description="ID của bài học hiện tại"
     )
 
     class Config:
@@ -182,18 +230,23 @@ class CourseListResponse(BaseModel):
     Schema cho response khi lấy danh sách khóa học với phân trang
 
     Attributes:
-        items: Danh sách các khóa học
+        items: Danh sách các khóa học (chỉ thông tin cơ bản)
         total: Tổng số khóa học
         page: Số trang hiện tại
         limit: Số lượng item mỗi trang
         totalPages: Tổng số trang
     """
 
-    items: List[CourseResponse]
+    items: list[CourseListItem]
     total: int
     page: int
     limit: int
     totalPages: int
+
+    class Config:
+        """Cấu hình cho Pydantic model"""
+
+        from_attributes = True
 
 
 # Rebuild model after TopicWithLessonsResponse is available
@@ -203,3 +256,100 @@ def rebuild_course_models():
         CourseDetailResponse.model_rebuild()
     except Exception:
         pass
+
+
+class CourseCompositionRequestSchema(BaseModel):
+    """Schema cho request tạo khóa học tự động"""
+
+    course_id: int = Field(..., description="ID của khóa học")
+    course_title: str = Field(..., description="Tiêu đề khóa học")
+    course_description: str = Field(..., description="Mô tả khóa học")
+    course_level: str = Field(..., description="Cấp độ khóa học")
+    max_topics: int = Field(default=10, description="Số lượng topic tối đa")
+    lessons_per_topic: int = Field(default=5, description="Số lessons cho mỗi topic")
+
+
+class TopicGenerationResult(BaseModel):
+    """Kết quả tạo topic"""
+
+    name: str
+    description: str
+    prerequisites: Optional[List[str]] = None
+    order: int
+
+
+class CourseCompositionResponseSchema(BaseModel):
+    """Schema cho response của CourseCompositionAgent"""
+
+    course_id: int
+    topics: List[TopicResponse]
+    status: str
+    errors: List[str]
+
+
+class BulkDeleteCoursesRequest(BaseModel):
+    """Schema cho request xóa nhiều khóa học"""
+
+    course_ids: list[int] = Field(..., description="Danh sách ID các khóa học cần xóa")
+
+    @classmethod
+    def validate_course_ids(cls, v):
+        if not v or len(v) == 0:
+            raise ValueError("Danh sách course_ids không được rỗng")
+        return v
+
+
+class BulkDeleteCoursesResponse(BaseModel):
+    """Schema cho response xóa nhiều khóa học"""
+
+    deleted_count: int = Field(..., description="Số lượng khóa học đã xóa thành công")
+    failed_count: int = Field(..., description="Số lượng khóa học không thể xóa")
+    errors: list[str] = Field(default_factory=list, description="Danh sách lỗi nếu có")
+    deleted_courses: list[int] = Field(
+        default_factory=list, description="Danh sách ID các khóa học đã xóa"
+    )
+    failed_courses: list[int] = Field(
+        default_factory=list, description="Danh sách ID các khóa học không thể xóa"
+    )
+    deleted_items: dict[str, int] = Field(
+        default_factory=dict,
+        description="Thống kê chi tiết số lượng items đã xóa (courses, topics, lessons, lesson_sections)",
+    )
+
+
+class CourseDetailWithProgressResponse(CourseResponse):
+    """
+    Schema cho course detail với topics, lessons và progress nested
+    Thay thế cho CourseDetailResponse cũ
+    """
+
+    # Nested topics với progress
+    topics: List[TopicWithProgressResponse] = Field(
+        default=[], description="Danh sách topics với lessons và progress"
+    )
+
+    # Course-level progress summary (chỉ hiển thị khi user đã enroll)
+    user_course_id: Optional[int] = Field(
+        None, description="ID của user course nếu đã đăng ký"
+    )
+    overall_completion_percentage: float = Field(
+        default=0.0, description="Phần trăm hoàn thành tổng thể"
+    )
+    total_topics: int = Field(default=0, description="Tổng số topic")
+    total_lessons: int = Field(default=0, description="Tổng số lesson")
+    completed_lessons: int = Field(default=0, description="Số lesson đã hoàn thành")
+    in_progress_lessons: int = Field(default=0, description="Số lesson đang học")
+    not_started_lessons: int = Field(default=0, description="Số lesson chưa bắt đầu")
+
+    # Current position (chỉ hiển thị khi user đã enroll)
+    current_topic_id: Optional[int] = Field(None, description="Topic hiện tại đang học")
+    current_lesson_id: Optional[int] = Field(
+        None, description="Lesson hiện tại đang học"
+    )
+    current_lesson: Optional[dict] = Field(
+        None, description="Chi tiết lesson hiện tại đang học"
+    )
+    last_activity_at: Optional[datetime] = Field(None, description="Hoạt động gần nhất")
+
+    class Config:
+        from_attributes = True

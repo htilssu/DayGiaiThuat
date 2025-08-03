@@ -111,9 +111,9 @@ export const TestPage: React.FC<TestPageProps> = ({ sessionId, onConnectionStatu
                 }
                 if (testSession.score !== undefined && testSession.correctAnswers !== undefined) {
                     setTestResult({
-                        score: testSession.score,
+                        score: testSession.score ?? 0,
                         totalQuestions: test?.questions?.length ?? 0,
-                        correctAnswers: testSession.correctAnswers
+                        correctAnswers: testSession.correctAnswers ?? 0
                     });
                 }
                 return;

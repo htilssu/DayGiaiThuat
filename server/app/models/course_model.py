@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.user_state_model import UserState
     from app.models.topic_model import Topic
     from app.models.test_model import Test
+    from app.models.document_processing_job_model import DocumentProcessingJob
 
 
 class TestGenerationStatus(str, Enum):
@@ -72,14 +73,17 @@ class Course(Base):
     what_you_will_learn: Mapped[str] = mapped_column(
         Text, nullable=True
     )  # Lưu dưới dạng JSON string
-    learning_path: Mapped[str] = mapped_column(
-        Text, nullable=True
-    )  # Lưu dưới dạng JSON string lộ trình học tập
 
     # Relationships
-    topics: Mapped[List["Topic"]] = relationship("Topic", back_populates="course")
-    user_states: Mapped[List["UserState"]] = relationship(
-        back_populates="current_course"
+    topics: Mapped[List["Topic"]] = relationship(
+        "Topic", back_populates="course", cascade="all, delete-orphan"
     )
-    topics: Mapped[List["Topic"]] = relationship("Topic", back_populates="course")
-    tests: Mapped[List["Test"]] = relationship("Test", back_populates="course")
+    user_states: Mapped[List["UserState"]] = relationship(
+        back_populates="current_course", cascade="all, delete-orphan"
+    )
+    tests: Mapped[List["Test"]] = relationship(
+        "Test", back_populates="course", cascade="all, delete-orphan"
+    )
+    document_processing_jobs: Mapped[List["DocumentProcessingJob"]] = relationship(
+        back_populates="course"
+    )

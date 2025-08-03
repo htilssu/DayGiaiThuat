@@ -8,8 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.agents.base_agent import BaseAgent
 from app.core.tracing import trace_agent
-from app.database.database import get_async_session
-from app.models.topic_model import Topic
+from app.database.database import get_async_db
 from app.services.course_service import CourseService, get_course_service
 from app.services.test_service import TestService, get_test_service
 from app.utils.model_utils import model_to_dict
@@ -117,7 +116,7 @@ class AssessmentAgent(BaseAgent):
                 coroutine=self._get_test_session_data,
                 description="""Lấy dữ liệu chi tiết của phiên thi bao gồm:
                 - Kết quả từng câu hỏi
-                - Thời gian làm bài 
+                - Thời gian làm bài
                 - Điểm số và tỷ lệ đúng
                 Input: test_session_id (str)""",
             ),
@@ -181,18 +180,14 @@ class AssessmentAgent(BaseAgent):
                     HumanMessagePromptTemplate.from_template(
                         """
                         Hãy đánh giá kết quả bài kiểm tra đầu vào của người dùng và tạo lộ trình học tập.
-                        
                         Thông tin cần xử lý:
                         - Test Session ID: {test_session_id}
                         - User ID: {user_id}
-                        
                         Hãy sử dụng các tools có sẵn để:
                         1. Lấy dữ liệu phiên thi
                         2. Phân tích hiệu suất
                         3. Tạo lộ trình học tập
-                        
                         Trả về kết quả đánh giá đầy đủ theo format JSON.
-                        
                         Format output:
                         {format_instructions}
                         """
@@ -432,7 +427,7 @@ class AssessmentAgent(BaseAgent):
 def get_assessment_agent(
     test_service: TestService = Depends(get_test_service),
     course_service: CourseService = Depends(get_course_service),
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_async_db),
 ):
     """Dependency injection cho AssessmentAgent"""
     return AssessmentAgent(test_service, course_service, session)

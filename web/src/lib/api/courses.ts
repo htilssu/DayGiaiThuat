@@ -5,44 +5,37 @@
 
 import { get, post, del } from "./client";
 import { Test, TestSession } from "./test";
+import { Topic } from "./topics";
 
 /**
  * Kiểu dữ liệu cho lesson
  */
-export interface Lesson {
-  id: number;
-  externalId: string;
-  title: string;
-  description?: string;
-  type: string;
-  order: number;
-  content?: string;
-  sections?: {
-    id: number;
-    title: string;
-    content: string;
-    type: string;
-    order: number;
-  }[];
-  createdAt: string;
-  updatedAt: string;
-}
+
 
 /**
  * Kiểu dữ liệu cho topic với lessons
  */
-export interface TopicWithLessons {
+
+
+/**
+ * Kiểu dữ liệu cho item trong danh sách khóa học (không bao gồm topics)
+ */
+export interface CourseListItem {
   id: number;
-  name: string;
-  description?: string;
-  courseId?: number;
-  lessons: Lesson[];
+  title: string;
+  description: string | null;
+  thumbnailUrl: string | null;
+  level: string;
+  duration: number;
+  price: number;
+  tags: string;
   createdAt: string;
   updatedAt: string;
+  isEnrolled?: boolean;
 }
 
 /**
- * Kiểu dữ liệu cho khóa học
+ * Kiểu dữ liệu cho khóa học chi tiết
  */
 export interface UserCourseDetail {
   id: number;
@@ -60,6 +53,7 @@ export interface UserCourseDetail {
   updatedAt: string;
   testGenerationStatus?: string;
   isEnrolled?: boolean;
+  topics: Topic[];
 }
 
 /**
@@ -85,17 +79,19 @@ export interface CourseEnrollmentResponse {
 export interface EnrolledCourse extends UserCourseDetail {
   progress: number;
   status: string;
+  currentTopicId?: number | null;
+  currentLessonId?: number | null;
 }
 
 /**
  * Lấy danh sách khóa học có phân trang
  * @param page - Số trang
  * @param limit - Số lượng item mỗi trang
- * @returns Danh sách khóa học và thông tin phân trang
+ * @returns Danh sách khóa học cơ bản và thông tin phân trang
  */
 export async function getCourses(page = 1, limit = 10) {
   return get<{
-    items: UserCourseDetail[];
+    items: CourseListItem[];
     total: number;
     page: number;
     limit: number;
@@ -153,7 +149,7 @@ async function unregisterCourse(courseId: number) {
  * @returns Danh sách khóa học đã đăng ký
  */
 export async function getEnrolledCourses(): Promise<EnrolledCourse[]> {
-  return get<EnrolledCourse[]>("/courses/user/enrolled");
+  return get<EnrolledCourse[]>("/courses/enrolled");
 }
 
 export async function getCourseTopics(courseId: number) {
@@ -181,15 +177,14 @@ export async function startCourseEntryTest(
 }
 
 /**
-  Kiểm tra trạng thái đăng ký khóa học
-  * @param courseId - ID của khóa học
-  * @returns Trạng thái đăng ký khóa học
-  */
-export async function checkEnrollmentStatus(
-  courseId: number
-): Promise<{ isEnrolled: boolean }> {
+ * Kiểm tra trạng thái đăng ký khóa học
+ * @param courseId - ID của khóa học
+ * @returns Trạng thái đăng ký khóa học
+ */
+export async function checkEnrollmentStatus(courseId: number): Promise<{ isEnrolled: boolean }> {
   return get<{ isEnrolled: boolean }>(`/courses/${courseId}/check-enrollment`);
 }
+
 
 export const coursesApi = {
   getCourses,

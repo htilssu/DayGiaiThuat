@@ -8,7 +8,7 @@ from app.schemas.user_profile_schema import UserExcludeSecret
 
 router = APIRouter(
     prefix="/admin/upload",
-    tags=["admin-upload"],
+    tags=["Upload - Admin"],
     responses={404: {"description": "Not found"}},
 )
 
@@ -61,13 +61,6 @@ async def upload_course_image(
     Returns:
         FileUploadResponse: Thông tin file đã upload
     """
-    # Kiểm tra xem khóa học có tồn tại không
-    course = course_service.get_course(course_id)
-    if not course:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy khóa học với ID {course_id}",
-        )
 
     try:
         # Upload file
