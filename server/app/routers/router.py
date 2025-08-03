@@ -20,9 +20,11 @@ def register_router(app: FastAPI):
         test_router,
         tutor_router,
         upload_router,
+        user_assessment_router,
         users_router,
         websocket_router,
     )
+
     app.include_router(auth_router.router)
     app.include_router(users_router.router)
     app.include_router(tutor_router.router)
@@ -41,3 +43,4 @@ def register_router(app: FastAPI):
     app.include_router(admin_topics_router.router)
     app.include_router(admin_upload_router.router)
     app.include_router(test_generation_router.router)
+    app.include_router(user_assessment_router.router)

@@ -68,46 +68,54 @@ class TestGenerationService:
         Args:
             course_id: ID của khóa học
         """
+        # Tạo background task thay vì sử dụng thread
+        import asyncio
 
-        def run_in_thread(service_instance, agent_instance, course_id):
+        async def run_background_task():
             try:
-                # Update status to pending
-                service_instance._update_test_generation_status(
-                    course_id, TestGenerationStatus.PENDING
-                )
-
-                # This would be the actual test generation logic
-                asyncio.run(
-                    TestGenerationService._create_test_from_agent_async(
-                        service_instance, agent_instance, course_id
+                # Sử dụng session độc lập cho background task
+                async with get_independent_db_session() as independent_db:
+                    # Tạo service instance mới với session độc lập
+                    independent_service = TestGenerationService(
+                        independent_db, self.input_test_agent
                     )
-                )
 
-                # Update status to success
-                service_instance._update_test_generation_status(
-                    course_id, TestGenerationStatus.SUCCESS
-                )
+                    # Update status to pending
+                    await independent_service._update_test_generation_status(
+                        course_id, TestGenerationStatus.PENDING
+                    )
+
+                    # Tạo test từ agent
+                    await TestGenerationService._create_test_from_agent_async(
+                        independent_service, self.input_test_agent, course_id
+                    )
+
+                    # Update status to success
+                    await independent_service._update_test_generation_status(
+                        course_id, TestGenerationStatus.SUCCESS
+                    )
 
             except Exception as e:
-                # Update status to failed
-                service_instance._update_test_generation_status(
-                    course_id, TestGenerationStatus.FAILED
-                )
+                # Update status to failed với session độc lập
+                try:
+                    async with get_independent_db_session() as independent_db:
+                        independent_service = TestGenerationService(
+                            independent_db, self.input_test_agent
+                        )
+                        await independent_service._update_test_generation_status(
+                            course_id, TestGenerationStatus.FAILED
+                        )
+                except Exception as inner_e:
+                    self.logger.error(f"Lỗi khi cập nhật trạng thái failed: {inner_e}")
 
                 # Log error với thông tin chi tiết
-                service_instance.logger.error(
+                self.logger.error(
                     f"Lỗi khi tạo test cho khóa học {course_id}: {e}", exc_info=True
                 )
-
                 print(f"Error generating test for course {course_id}: {e}")
 
-        # Run in background thread
-        import threading
-
-        thread = threading.Thread(
-            target=run_in_thread, args=(self, self.input_test_agent, course_id)
-        )
-        thread.start()
+        # Chạy background task
+        asyncio.create_task(run_background_task())
 
     def _create_test_from_agent_sync(self, agent, course_id: int):
         """
@@ -130,8 +138,8 @@ class TestGenerationService:
             return test
 
         except Exception as e:
-            # Cập nhật trạng thái thất bại
-            self._update_test_generation_status(course_id, TestGenerationStatus.FAILED)
+            # Cập nhật trạng thái thất bại - Lưu ý: Đây là phiên bản sync nên chỉ log error
+            self.logger.error(f"Lỗi khi tạo test từ agent (sync): {e}")
             raise e
 
     @staticmethod
@@ -157,7 +165,9 @@ class TestGenerationService:
 
         except Exception as e:
             # Cập nhật trạng thái thất bại
-            _update_test_generation_status(course_id, TestGenerationStatus.FAILED)
+            await service_instance._update_test_generation_status(
+                course_id, TestGenerationStatus.FAILED
+            )
             raise e
 
     def _save_test_to_database_sync(self, course_id: int, test_result):
@@ -172,8 +182,11 @@ class TestGenerationService:
             Test: Bài test đã được lưu
         """
         try:
-            # Lấy course để lấy thông tin
-            course = self.get_course(course_id)
+            # Lấy course để lấy thông tin - này là sync method nên dùng một cách khác
+            from sqlalchemy import select
+
+            result = self.db.execute(select(Course).filter(Course.id == course_id))
+            course = result.scalar_one_or_none()
             if not course:
                 raise ValueError(f"Không tìm thấy khóa học với ID {course_id}")
 
@@ -200,7 +213,7 @@ class TestGenerationService:
                 questions=questions_list,
             )
 
-            # Lưu bằng session sync
+            # Lưu bằng session sync - sẽ cần sửa để sync thực sự
             self.db.add(test)
             self.db.commit()
             self.db.refresh(test)
@@ -226,8 +239,8 @@ class TestGenerationService:
             test_result: Kết quả từ agent (InputTestAgentOutput)
         """
         try:
-            # Lấy course để lấy thông tin
-            course = self.get_course(course_id)
+            # Lấy course để lấy thông tin (async version)
+            course = await self.get_course(course_id)
             if not course:
                 raise ValueError(f"Không tìm thấy khóa học với ID {course_id}")
 
@@ -254,10 +267,10 @@ class TestGenerationService:
                 questions=questions_list,
             )
 
-            # Lưu bằng session sync
+            # Lưu bằng session async
             self.db.add(test)
-            self.db.commit()
-            self.db.refresh(test)
+            await self.db.commit()
+            await self.db.refresh(test)
 
             # Log thành công
             self.logger.info(
@@ -267,6 +280,7 @@ class TestGenerationService:
             return test
 
         except Exception as e:
+            await self.db.rollback()
             self.logger.error(f"Lỗi khi lưu test vào database: {e}", exc_info=True)
             raise e
 
@@ -280,7 +294,10 @@ class TestGenerationService:
         Returns:
             Course: Thông tin chi tiết của khóa học
         """
-        return self.db.query(Course).filter(Course.id == course_id).first()
+        from sqlalchemy import select
+
+        result = await self.db.execute(select(Course).filter(Course.id == course_id))
+        return result.scalar_one_or_none()
 
     async def _update_test_generation_status(self, course_id: int, status: str):
         """
@@ -297,11 +314,13 @@ class TestGenerationService:
             HTTPException: Nếu không tìm thấy khóa học hoặc có lỗi database
         """
         try:
-            # Tìm khóa học cần cập nhật
-            course = self.get_course(course_id)
+            # Tìm khóa học cần cập nhật (await the async method)
+            course = await self.get_course(course_id)
             if not course:
+                from fastapi import status as http_status
+
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
+                    status_code=http_status.HTTP_404_NOT_FOUND,
                     detail=f"Không tìm thấy khóa học với ID {course_id}",
                 )
 
@@ -311,12 +330,12 @@ class TestGenerationService:
 
             return course
         except Exception as e:
-            self.db.rollback()
+            await self.db.rollback()
             self.logger.error(f"Lỗi khi cập nhật trạng thái test: {str(e)}")
             # Không raise HTTPException ở đây vì đây là internal method
             pass
 
-    def get_test_generation_status(self, course_id: int):
+    async def get_test_generation_status(self, course_id: int):
         """
         Lấy trạng thái tạo test của khóa học
 
@@ -326,15 +345,17 @@ class TestGenerationService:
         Returns:
             str: Trạng thái hiện tại
         """
-        course = self.get_course(course_id)
+        course = await self.get_course(course_id)
         if not course:
+            from fastapi import status as http_status
+
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail=f"Không tìm thấy khóa học với ID {course_id}",
             )
         return course.test_generation_status
 
-    def get_course_tests(self, course_id: int):
+    async def get_course_tests(self, course_id: int):
         """
         Lấy danh sách test của khóa học
 
@@ -344,9 +365,12 @@ class TestGenerationService:
         Returns:
             List[Test]: Danh sách test
         """
-        return self.db.query(Test).filter(Test.course_id == course_id).all()
+        from sqlalchemy import select
 
-    def get_test_by_id(self, test_id: int):
+        result = await self.db.execute(select(Test).filter(Test.course_id == course_id))
+        return result.scalars().all()
+
+    async def get_test_by_id(self, test_id: int):
         """
         Lấy test theo ID
 
@@ -356,9 +380,12 @@ class TestGenerationService:
         Returns:
             Test: Thông tin test
         """
-        return self.db.query(Test).filter(Test.id == test_id).first()
+        from sqlalchemy import select
 
-    def delete_test(self, test_id: int):
+        result = await self.db.execute(select(Test).filter(Test.id == test_id))
+        return result.scalar_one_or_none()
+
+    async def delete_test(self, test_id: int):
         """
         Xóa test
 
@@ -369,20 +396,24 @@ class TestGenerationService:
             bool: True nếu xóa thành công
         """
         try:
-            test = self.get_test_by_id(test_id)
+            test = await self.get_test_by_id(test_id)
             if not test:
+                from fastapi import status as http_status
+
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
+                    status_code=http_status.HTTP_404_NOT_FOUND,
                     detail=f"Không tìm thấy test với ID {test_id}",
                 )
 
-            self.db.delete(test)
-            self.db.commit()
+            await self.db.delete(test)
+            await self.db.commit()
             return True
         except Exception as e:
-            self.db.rollback()
+            await self.db.rollback()
+            from fastapi import status as http_status
+
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Lỗi khi xóa test: {str(e)}",
             )
 

@@ -116,6 +116,7 @@ class AssessmentAgent(BaseAgent):
             from langchain_core.output_parsers import PydanticOutputParser
 
             from app.schemas.assessment_schema import AgentAssessmentSchema
+
             self._output_parser = PydanticOutputParser(
                 pydantic_object=AgentAssessmentSchema
             )
@@ -188,9 +189,7 @@ class AssessmentAgent(BaseAgent):
     async def _get_test_session_data(self, test_session_id: str) -> Dict[str, Any]:
         """Lấy dữ liệu chi tiết phiên thi"""
         try:
-            test_session = await self.test_service.get_test_session_by_id(
-                test_session_id, self.session
-            )
+            test_session = await self.test_service.get_test_session(test_session_id)
             if not test_session:
                 raise ValueError(f"Không tìm thấy phiên thi với ID: {test_session_id}")
 
@@ -212,10 +211,10 @@ class AssessmentAgent(BaseAgent):
     async def _get_course_topics(self, course_id: int) -> List[Dict[str, Any]]:
         """Lấy danh sách chủ đề khóa học"""
         try:
-            topics = await self.course_service.get_topics_by_course_id(
-                course_id, self.session
-            )
-            return [model_to_dict(topic) for topic in topics]
+            course = await self.course_service.get_course(course_id, None)
+            if course and hasattr(course, "topics"):
+                return [model_to_dict(topic) for topic in course.topics]
+            return []
         except Exception as e:
             logger.error(f"Error getting course topics: {e}")
             return []
@@ -310,12 +309,14 @@ class AssessmentAgent(BaseAgent):
     @override
     @trace_agent(project_name="default", tags=["assessment", "evaluation"])
     async def act(self, *args, **kwargs) -> AssessmentResult:
-        assessment_type : ASSESSMENT_TYPE = kwargs.get("assessment_type", ASSESSMENT_TYPE)
+        assessment_type: ASSESSMENT_TYPE = kwargs.get(
+            "assessment_type", ASSESSMENT_TYPE
+        )
 
         test_session_id = None
         user_id = None
 
-        if assessment_type is "test":
+        if assessment_type == "test":
             test_session_id = kwargs.get("test_session_id")
             user_id = kwargs.get("user_id")
 
@@ -350,13 +351,39 @@ class AssessmentAgent(BaseAgent):
             if isinstance(result, dict) and "output" in result:
                 try:
                     # Parse the output using the output parser
-                    assessment_result = output_parser.parse(result["output"])
+                    agent_result = output_parser.parse(result["output"])
+
+                    # Convert AgentAssessmentSchema to AssessmentResult
+                    assessment_result = AssessmentResult(
+                        type="test",
+                        strengths=agent_result.strengths,
+                        weaknesses=agent_result.weaknesses,
+                        recommendations=agent_result.recommendations,
+                        skill_levels=agent_result.skill_levels,
+                        learning_path=agent_result.learning_path,
+                        overall_score=agent_result.overall_score,
+                        proficiency_level=agent_result.proficiency_level,
+                        analysis_summary=agent_result.analysis_summary,
+                    )
                     return assessment_result
                 except Exception as parse_error:
                     logger.warning(f"Primary parser failed: {parse_error}")
                     # Try with fixing parser
                     fixing_parser = self._get_output_fix_parser()
-                    assessment_result = fixing_parser.parse(result["output"])
+                    agent_result = fixing_parser.parse(result["output"])
+
+                    # Convert AgentAssessmentSchema to AssessmentResult
+                    assessment_result = AssessmentResult(
+                        type="test",
+                        strengths=agent_result.strengths,
+                        weaknesses=agent_result.weaknesses,
+                        recommendations=agent_result.recommendations,
+                        skill_levels=agent_result.skill_levels,
+                        learning_path=agent_result.learning_path,
+                        overall_score=agent_result.overall_score,
+                        proficiency_level=agent_result.proficiency_level,
+                        analysis_summary=agent_result.analysis_summary,
+                    )
                     return assessment_result
             else:
                 raise ValueError(f"Unexpected result format: {type(result)}")
@@ -365,18 +392,10 @@ class AssessmentAgent(BaseAgent):
             logger.error(f"Error in assessment agent: {e}")
             # Return a default assessment result
             return AssessmentResult(
-                user_id=user_id,
-                course_id=0,
-                total_questions=0,
-                correct_answers=0,
-                score_percentage=0.0,
-                difficulty_level="Beginner",
-                recommended_topics=[],
-                learning_path=[],
+                type="test",
                 strengths=[],
                 weaknesses=[],
                 recommendations=["Hoàn thành bài kiểm tra để nhận đánh giá chi tiết"],
-                estimated_study_time=0,
             )
 
 

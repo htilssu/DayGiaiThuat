@@ -11,6 +11,10 @@ from datetime import datetime
 import asyncio
 
 from app.services.test_service import TestService, get_test_service
+from app.services.user_assessment_service import (
+    UserAssessmentService,
+    get_user_assessment_service,
+)
 from app.schemas.test_schema import (
     TestCreate,
     TestUpdate,
@@ -23,6 +27,7 @@ from app.schemas.test_schema import (
     TestResult,
     TestHistorySummary,
 )
+from app.schemas.user_assessment_schema import AssessmentAnalysisRequest
 from app.utils.utils import get_current_user
 
 
@@ -233,6 +238,7 @@ async def submit_test(
     session_id: str,
     submission: Optional[TestSubmission] = None,
     test_service: TestService = Depends(get_test_service),
+    assessment_service: UserAssessmentService = Depends(get_user_assessment_service),
     current_user=Depends(get_current_user),
 ):
     """Nộp bài kiểm tra và nhận kết quả"""
@@ -265,6 +271,23 @@ async def submit_test(
             },
         },
     )
+
+    # Bắt đầu phân tích điểm yếu trong background sau khi submit thành công
+    try:
+        # Lấy thông tin test để xác định course_id (nếu có)
+        test_info = await test_service.get_test(session.test_id)
+        course_id = test_info.course_id if test_info else None
+
+        analysis_request = AssessmentAnalysisRequest(
+            test_session_id=session_id, user_id=current_user.id, course_id=course_id
+        )
+
+        # Chạy phân tích trong background
+        await assessment_service.analyze_user_weaknesses_background(analysis_request)
+
+    except Exception as e:
+        # Log error nhưng không làm gián đoạn submit process
+        print(f"Lỗi khi bắt đầu phân tích điểm yếu: {e}")
 
     return result
 

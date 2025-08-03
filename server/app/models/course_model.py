@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from app.models.test_model import Test
     from app.models.document_processing_job_model import DocumentProcessingJob
     from app.models.course_draft_model import CourseDraft
+    from app.models.user_assessment_model import UserAssessment
 
 
 class TestGenerationStatus(str, Enum):
@@ -90,4 +91,7 @@ class Course(Base):
     )
     drafts: Mapped[List["CourseDraft"]] = relationship(
         "CourseDraft", back_populates="course", cascade="all, delete-orphan"
+    )
+    user_assessments: Mapped[List["UserAssessment"]] = relationship(
+        "UserAssessment", back_populates="course"
     )
