@@ -275,16 +275,17 @@ class TopicGenerationResult(BaseModel):
     name: str
     description: str
     prerequisites: Optional[List[str]] = None
+    skills: List[str] = Field(..., description="Danh sách kỹ năng đạt được sau khi học topic này")
     order: int
 
 
 class CourseCompositionResponseSchema(BaseModel):
     """Schema cho response của CourseCompositionAgent"""
 
-    course_id: int
-    topics: List[TopicResponse]
-    status: str
-    errors: List[str]
+    topics: List[TopicGenerationResult] = Field(..., description="Danh sách topics với skills")
+    duration: str = Field(..., description="Thời gian ước lượng hoàn thành khóa học (giờ)")
+    status: str = Field(default="success", description="Trạng thái thực hiện")
+    errors: Optional[List[str]] = Field(default=None, description="Danh sách lỗi nếu có")
 
 
 class BulkDeleteCoursesRequest(BaseModel):

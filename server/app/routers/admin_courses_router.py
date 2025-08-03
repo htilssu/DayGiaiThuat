@@ -57,11 +57,18 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
 async def run_course_composition_background(request: CourseCompositionRequestSchema):
     """
     Hàm chạy trong background để tạo nội dung khóa học.
-    Sử dụng một session DB độc lập.
+    Agent mới trả về danh sách topics thay vì lưu trực tiếp vào database.
     """
-    async with get_independent_db_session() as db_session:
-        agent = CourseCompositionAgent(db_session)
-        await agent.act(request)
+    agent = CourseCompositionAgent()
+    result = agent.act(request)
+
+    # Log kết quả để debug
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"Course composition result: {result}")
+
+    return result
 
 
 @router.post(

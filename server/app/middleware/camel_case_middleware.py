@@ -32,7 +32,8 @@ async def _process_request(request: Request) -> Request:
 
                     # For subsequent calls, delegate to original receive
                     # This allows disconnect and other events to be handled properly
-                    return await original_receive()
+                    message = await original_receive()
+                    return message
 
                 request._receive = receive
 

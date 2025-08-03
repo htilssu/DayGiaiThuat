@@ -9,49 +9,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.agents.base_agent import BaseAgent
 from app.core.tracing import trace_agent
 from app.database.database import get_async_db
+from app.schemas.assessment_schema import AssessmentResult, ASSESSMENT_TYPE
 from app.services.course_service import CourseService, get_course_service
 from app.services.test_service import TestService, get_test_service
 from app.utils.model_utils import model_to_dict
 
 logger = logging.getLogger(__name__)
 
-
-class AssessmentResult(BaseModel):
-    """Schema cho kết quả đánh giá"""
-
-    user_id: int = Field(description="ID của người dùng")
-    course_id: int = Field(description="ID của khóa học")
-    total_questions: int = Field(description="Tổng số câu hỏi")
-    correct_answers: int = Field(description="Số câu trả lời đúng")
-    score_percentage: float = Field(description="Điểm phần trăm")
-    difficulty_level: str = Field(description="Cấp độ khó phù hợp")
-    recommended_topics: List[str] = Field(
-        description="Danh sách chủ đề được khuyến nghị"
-    )
-    learning_path: List[Dict[str, Any]] = Field(description="Lộ trình học tập")
-    strengths: List[str] = Field(description="Điểm mạnh")
-    weaknesses: List[str] = Field(description="Điểm yếu")
-    recommendations: List[str] = Field(description="Khuyến nghị cải thiện")
-    estimated_study_time: int = Field(description="Thời gian học ước tính (giờ)")
-
-
-class LearningPathItem(BaseModel):
-    """Schema cho một item trong lộ trình học"""
-
-    topic_id: int = Field(description="ID của chủ đề")
-    topic_name: str = Field(description="Tên chủ đề")
-    priority: int = Field(description="Độ ưu tiên (1-5)")
-    estimated_time: int = Field(description="Thời gian ước tính (giờ)")
-    difficulty: str = Field(description="Độ khó")
-    prerequisites: List[str] = Field(description="Kiến thức tiên quyết")
-    description: str = Field(description="Mô tả chủ đề")
-
-
 SYSTEM_PROMPT = """
 Bạn là một chuyên gia đánh giá và tư vấn giáo dục trong lĩnh vực lập trình và giải thuật.
 
 Nhiệm vụ của bạn:
-1. Phân tích kết quả bài kiểm tra đầu vào của người dùng
+1. Phân tích người dùng
 2. Đánh giá trình độ hiện tại và xác định điểm mạnh/yếu
 3. Tạo lộ trình học tập cá nhân hóa phù hợp với trình độ
 4. Đưa ra khuyến nghị cụ thể để cải thiện kỹ năng
@@ -106,7 +75,6 @@ class AssessmentAgent(BaseAgent):
 
     def _init_tools(self):
         """Khởi tạo các tools cho agent với lazy import"""
-        # Lazy import - chỉ import khi cần thiết
         from langchain_core.tools import Tool
 
         self.tools = [
@@ -144,18 +112,18 @@ class AssessmentAgent(BaseAgent):
         ]
 
     def _get_output_parser(self):
-        """Lazy initialization của output parser"""
         if self._output_parser is None:
-            # Lazy import - chỉ import khi cần thiết
             from langchain_core.output_parsers import PydanticOutputParser
 
-            self._output_parser = PydanticOutputParser(pydantic_object=AssessmentResult)
+            from app.schemas.assessment_schema import AgentAssessmentSchema
+            self._output_parser = PydanticOutputParser(
+                pydantic_object=AgentAssessmentSchema
+            )
         return self._output_parser
 
     def _get_output_fix_parser(self):
         """Lazy initialization của output fixing parser"""
         if self._output_fix_parser is None:
-            # Lazy import - chỉ import khi cần thiết
             from langchain.output_parsers import OutputFixingParser
 
             self._output_fix_parser = OutputFixingParser.from_llm(
@@ -164,9 +132,7 @@ class AssessmentAgent(BaseAgent):
         return self._output_fix_parser
 
     def _get_prompt(self):
-        """Lazy initialization của prompt template"""
         if self._prompt is None:
-            # Lazy import - chỉ import khi cần thiết
             from langchain_core.messages import SystemMessage
             from langchain_core.prompts import (
                 ChatPromptTemplate,
@@ -200,7 +166,6 @@ class AssessmentAgent(BaseAgent):
     def _get_agent_executor(self):
         """Lazy initialization của agent executor"""
         if self._agent_executor is None:
-            # Lazy import - chỉ import khi cần thiết
             from langchain.agents import AgentExecutor, create_tool_calling_agent
 
             prompt = self._get_prompt()
@@ -223,14 +188,12 @@ class AssessmentAgent(BaseAgent):
     async def _get_test_session_data(self, test_session_id: str) -> Dict[str, Any]:
         """Lấy dữ liệu chi tiết phiên thi"""
         try:
-            # Get test session data
             test_session = await self.test_service.get_test_session_by_id(
                 test_session_id, self.session
             )
             if not test_session:
                 raise ValueError(f"Không tìm thấy phiên thi với ID: {test_session_id}")
 
-            # Get detailed results
             test_session_data = model_to_dict(test_session)
 
             return {
@@ -347,26 +310,19 @@ class AssessmentAgent(BaseAgent):
     @override
     @trace_agent(project_name="default", tags=["assessment", "evaluation"])
     async def act(self, *args, **kwargs) -> AssessmentResult:
-        """
-        Thực hiện đánh giá trình độ người dùng
+        assessment_type : ASSESSMENT_TYPE = kwargs.get("assessment_type", ASSESSMENT_TYPE)
 
-        Args:
-            test_session_id (str): ID của phiên thi
-            user_id (int): ID của người dùng
+        test_session_id = None
+        user_id = None
 
-        Returns:
-            AssessmentResult: Kết quả đánh giá chi tiết
-        """
-        super().act(*args, **kwargs)
-
-        test_session_id = kwargs.get("test_session_id")
-        user_id = kwargs.get("user_id")
+        if assessment_type is "test":
+            test_session_id = kwargs.get("test_session_id")
+            user_id = kwargs.get("user_id")
 
         if not test_session_id or not user_id:
             raise ValueError("Cần cung cấp test_session_id và user_id")
 
         try:
-            # Lazy import - chỉ import khi cần thiết
             from langchain_core.runnables import RunnableConfig
 
             config = RunnableConfig(

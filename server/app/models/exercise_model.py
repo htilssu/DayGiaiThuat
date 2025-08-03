@@ -9,22 +9,6 @@ if TYPE_CHECKING:
 
 
 class Exercise(Base):
-    """
-    Model đại diện cho bảng exercises trong database
-
-    Attributes:
-        id (int): ID của bài tập, là primary key
-        name (str): Tên bài tập
-        description (str): Mô tả chi tiết về bài tập
-        difficulty (str): Độ khó của bài tập
-        constraint (str): Các ràng buộc hoặc yêu cầu của bài tập
-        lesson_id (int): ID của bài học liên quan, foreign key đến bảng lessons
-        suggest (str): Gợi ý để giải bài tập
-
-    Relationships:
-        lesson (Lesson): Bài học liên quan đến bài tập (one-to-one)
-    """
-
     __tablename__ = "exercises"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -45,21 +29,6 @@ class Exercise(Base):
 
     @staticmethod
     def exercise_from_schema(data: ExerciseDetail):
-        """
-        Tạo đối tượng Exercise từ dữ liệu schema
-
-        Args:
-            **kwargs: Các tham số được truyền vào từ schema, bao gồm:
-                - name (str): Tên bài tập
-                - description (str): Mô tả chi tiết về bài tập
-                - difficulty (str): Độ khó của bài tập
-                - constraint (str): Các ràng buộc của bài tập (có thể None)
-                - suggest (str): Gợi ý để giải bài tập (có thể None)
-                - lesson_id (int): ID của bài học liên quan
-
-        Returns:
-            Exercise: Đối tượng Exercise được tạo từ dữ liệu schema
-        """
         exercise = Exercise()
 
         # Các trường bắt buộc

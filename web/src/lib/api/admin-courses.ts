@@ -47,6 +47,45 @@ export interface BulkDeleteCoursesResponse {
 }
 
 /**
+ * Kiểu dữ liệu cho request tạo topics với AI
+ */
+export interface GenerateTopicsRequest {
+    title: string;
+    description: string;
+    level: string;
+    maxTopics?: number;
+}
+
+/**
+ * Kiểu dữ liệu cho skill trong topic
+ */
+export interface TopicSkill {
+    description: string;
+}
+
+/**
+ * Kiểu dữ liệu cho topic được generate
+ */
+export interface GeneratedTopic {
+    name: string;
+    description: string;
+    prerequisites: string[];
+    skills: string[];
+    order: number;
+}
+
+/**
+ * Kiểu dữ liệu cho response generate topics
+ */
+export interface GenerateTopicsResponse {
+    status: string;
+    topics: GeneratedTopic[];
+    duration: string;
+    courseId?: number;
+    message: string;
+}
+
+/**
  * Lấy tất cả khóa học (admin) - bao gồm cả chưa published
  * @returns Danh sách tất cả khóa học
  */
@@ -109,6 +148,15 @@ export async function createCourseTestAdmin(courseId: number) {
     return post(`/admin/courses/${courseId}/test`);
 }
 
+/**
+ * Generate topics cho khóa học bằng AI (admin)
+ * @param request Thông tin khóa học để generate topics
+ * @returns Danh sách topics được generate bởi AI
+ */
+export async function generateCourseTopics(request: GenerateTopicsRequest): Promise<GenerateTopicsResponse> {
+    return post<GenerateTopicsResponse>("/admin/courses/generate-topics", request);
+}
+
 async function forceDeleteCourse(courseId: number) {
     return del(`/admin/courses/${courseId}?force=1`)
 }
@@ -121,5 +169,6 @@ export const adminCoursesApi = {
     deleteCourseAdmin,
     bulkDeleteCoursesAdmin,
     createCourseTestAdmin,
+    generateCourseTopics,
     forceDeleteCourse
 }; 

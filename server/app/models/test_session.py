@@ -26,7 +26,7 @@ class TestSession(Base):
     )
     end_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     last_activity: Mapped[datetime] = mapped_column(
-        DateTime, index=True, default=lambda: datetime.utcnow()
+        DateTime, index=True, default=lambda: datetime.now()
     )
     time_remaining_seconds: Mapped[int] = mapped_column(Integer, default=0)
 
