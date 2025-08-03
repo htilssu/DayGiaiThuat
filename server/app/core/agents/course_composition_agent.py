@@ -45,19 +45,19 @@ Hãy tạo danh sách topics theo thứ tự logic học tập (từ cơ bản �
 - Sử dụng tool course_context_retriever để lấy thông tin từ tài liệu. có thể gọi nhiều lần để lấy được nhiều thông tin.
 - Sau khi lấy được thông tin từ tài liệu, tạo thông tin khóa học theo định dạng JSON sau:
 ```json
-    {
+    {{
         duration: "Thời gian ước lượng hoàn thành khóa học",
-        topics: [{
+        topics: [{{
             "name": "Tên topic",
             "description": "Mô tả chi tiết nội dung sẽ học",
             "prerequisites": ["Kiến thức tiên quyết 1", "Kiến thức tiên quyết 2"],
             "skills": ["Kỹ năng 1", "Kỹ năng 2"],
-        },
-        }]
-    }
+        }}]
+    }}
 ```
 
-instruction: {instruction}
+instruction:
+{instruction}
 
 Lưu ý:
 - Topics phải bao quát toàn bộ nội dung khóa học

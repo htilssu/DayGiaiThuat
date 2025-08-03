@@ -22,7 +22,7 @@ class BaseAgent(object):
             ChatGoogleGenerativeAI: Instance của model LLM
         """
         if self._base_llm is None:
-            self._base_llm = create_new_llm_model()
+            self._base_llm = create_new_llm_model(temperature=0.3, top_p=0.7)
         return self._base_llm
 
     def act(self, *args, **kwargs):

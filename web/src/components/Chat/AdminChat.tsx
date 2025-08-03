@@ -12,95 +12,26 @@ import {
 } from "@mantine/core";
 import { IconSend } from "@tabler/icons-react";
 import { ChatMessage as ChatMessageComponent } from "./ChatMessage";
-import { sendReviewChatMessage, CourseReview } from "@/lib/api/admin-courses";
-import { notifications } from '@mantine/notifications';
+import { useAdminChat } from "./useAdminChat";
 
 interface AdminChatProps {
-  courseId: string;
-  reviewData: CourseReview;
-  onContentUpdate?: () => void;
-}
-
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-  timestamp: string;
+  // Optional props for future extensibility
+  placeholder?: string;
+  height?: string | number;
 }
 
 export default function AdminChat({
-  courseId,
-  reviewData,
-  onContentUpdate,
+  placeholder = "Nhập tin nhắn cho AI Agent...",
+  height = "500px"
 }: AdminChatProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content: `Xin chào! Tôi là AI Agent hỗ trợ review khóa học (ID: ${courseId}). Tôi có thể giúp bạn:
-
-• Chỉnh sửa nội dung đã tạo
-• Tạo thêm topics, bài học, bài tập
-• Điều chỉnh độ khó và cấu trúc
-• Giải thích chi tiết về nội dung
-
-Bạn có muốn thay đổi gì về nội dung đã tạo không?`,
-      timestamp: new Date().toISOString(),
-    },
-  ]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: ChatMessage = {
-      role: "user",
-      content: input,
-      timestamp: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    const currentInput = input;
-    setInput("");
-    setIsLoading(true);
-
-    try {
-      // Call API to send message to review chat
-      const response = await sendReviewChatMessage(parseInt(courseId), {
-        message: currentInput,
-        context: {
-          courseData: { courseId: parseInt(courseId) },
-          generatedContent: reviewData.generatedContent,
-        },
-      });
-
-      setMessages((prev) => [...prev, response.message]);
-
-      // If the response includes updated content, refresh the parent
-      if (response.updatedContent && onContentUpdate) {
-        onContentUpdate();
-        notifications.show({
-          title: 'Cập nhật nội dung',
-          message: 'Nội dung đã được cập nhật theo yêu cầu của bạn',
-          color: 'blue',
-        });
-      }
-    } catch (error: any) {
-      const errorMessage: ChatMessage = {
-        role: "assistant",
-        content: "Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.",
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-
-      notifications.show({
-        title: 'Lỗi',
-        message: error.message || 'Có lỗi xảy ra khi gửi tin nhắn',
-        color: 'red',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const {
+    messages,
+    input,
+    setInput,
+    isLoading,
+    handleSend,
+    messagesEndRef
+  } = useAdminChat();
 
   const handleKeyPress = (event: React.KeyboardEvent) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -110,7 +41,7 @@ Bạn có muốn thay đổi gì về nội dung đã tạo không?`,
   };
 
   return (
-    <Stack h="100%" gap={0}>
+    <Stack h={height} gap={0}>
       <ScrollArea flex={1} p="md">
         <Stack gap="md">
           {messages.map((message, index) => (
@@ -123,6 +54,7 @@ Bạn có muốn thay đổi gì về nội dung đã tạo không?`,
               </Text>
             </Box>
           )}
+          <div ref={messagesEndRef} />
         </Stack>
       </ScrollArea>
 
@@ -132,7 +64,7 @@ Bạn có muốn thay đổi gì về nội dung đã tạo không?`,
         <Box style={{ display: "flex", gap: "8px" }}>
           <TextInput
             flex={1}
-            placeholder="Nhập tin nhắn cho AI Agent..."
+            placeholder={placeholder}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
