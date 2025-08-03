@@ -19,6 +19,9 @@ class CourseDraft(Base):
     agent_content: Mapped[str] = mapped_column(
         Text, nullable=False
     )  # JSON string chứa topics, lessons
+    session_id: Mapped[str] = mapped_column(
+        String(255), nullable=True
+    )  # Session ID cho message history
     status: Mapped[str] = mapped_column(
         String(50), default="pending"
     )  # pending, approved, rejected

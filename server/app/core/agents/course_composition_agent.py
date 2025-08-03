@@ -1,20 +1,16 @@
-import json
-from datetime import datetime
-
 from langchain.output_parsers import OutputFixingParser
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.tools import Tool
-from pydantic import BaseModel, Field
-
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from pydantic import BaseModel, Field
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
+import uuid
 
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
 from app.core.tracing import trace_agent
 from app.models import Course
-from app.models.course_draft_model import CourseDraft
 from app.schemas.course_schema import (
     CourseCompositionRequestSchema,
 )
@@ -40,7 +36,6 @@ Hãy tạo danh sách topics theo thứ tự logic học tập (từ cơ bản �
 
 # Danh sách tools:
 - course_context_retriever: Truy vấn RAG để lấy nội dung liên quan đến khóa học.
-- save_topics_to_draft: Lưu topics đã tạo vào draft để chờ admin review.
 
 # Workflow:
 - Sử dụng tool course_context_retriever để lấy thông tin từ tài liệu. có thể gọi nhiều lần để lấy được nhiều thông tin.
@@ -56,7 +51,6 @@ Hãy tạo danh sách topics theo thứ tự logic học tập (từ cơ bản �
         }}]
     }}
 ```
-- Sau khi tạo xong nội dung, sử dụng tool save_topics_to_draft để lưu vào draft.
 
 instruction:
 {instruction}
@@ -87,6 +81,8 @@ class CourseCompositionAgent(BaseAgent):
         self.current_course_id = None
         self.db_session = db_session
         self.vector_store = get_vector_store("document")
+        self.mongodb_db_name = "course_composition_history"
+        self.mongodb_collection_name = "chat_history"
         self._setup_tools()
         self._init_agent()
 
@@ -100,66 +96,8 @@ class CourseCompositionAgent(BaseAgent):
             description="Truy vấn RAG để lấy nội dung liên quan đến khóa học.",
         )
 
-        self.store_topic_tool = Tool(
-            name="save_topics_to_draft",
-            func=self._store_topic,
-            coroutine=self._astore_topic,
-            description="Lưu danh sách các topic đã được tạo vào draft để chờ admin review và approve.",
-        )
-
         self.output_parser = PydanticOutputParser(pydantic_object=CourseAgentResponse)
-        self.tools = [self.retrieval_tool, self.store_topic_tool]
-
-    def _store_topic(self, t: str):
-        """Lưu topic vào cơ sở dữ liệu (đồng bộ wrapper)"""
-        import asyncio
-
-        # Tạo một event loop mới nếu không có sẵn
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        return loop.run_until_complete(self._astore_topic(t))
-
-    async def _astore_topic(self, topics_json: str):
-        """Lưu topics vào draft thay vì trực tiếp vào Topic table"""
-        if not self.db_session:
-            raise ValueError("db_session chưa được khởi tạo.")
-
-        try:
-            from sqlalchemy import select
-
-            existing_draft_result = await self.db_session.execute(
-                select(CourseDraft).filter(
-                    CourseDraft.course_id == self.current_course_id
-                )
-            )
-            existing_draft = existing_draft_result.scalar_one_or_none()
-
-            if existing_draft:
-                # Cập nhật draft hiện có
-                existing_draft.agent_content = topics_json
-                existing_draft.status = "pending"
-                existing_draft.updated_at = datetime.utcnow()
-            else:
-                # Tạo draft mới
-                new_draft = CourseDraft(
-                    course_id=self.current_course_id,
-                    agent_content=topics_json,
-                    status="pending",
-                )
-                self.db_session.add(new_draft)
-
-            await self.db_session.commit()
-            print(f"✅ Đã lưu topics vào draft cho course {self.current_course_id}")
-            return True
-
-        except Exception as e:
-            print(f"❌ Lỗi khi lưu topics vào draft: {e}")
-            await self.db_session.rollback()
-            return False
+        self.tools = [self.retrieval_tool]
 
     def _init_agent(self):
         """Khởi tạo agent với lazy import"""
@@ -193,12 +131,18 @@ class CourseCompositionAgent(BaseAgent):
         )
 
     @trace_agent(project_name="default", tags=["course", "composition"])
-    async def act(self, request: CourseCompositionRequestSchema) -> None:
+    async def act(
+        self, request: CourseCompositionRequestSchema
+    ) -> tuple[CourseAgentResponse, str]:
         from langchain_core.runnables import RunnableConfig
+        from app.core.config import settings
+        from langchain.memory.chat_message_histories import MongoDBChatMessageHistory
 
-        errors = []
         try:
             self.current_course_id = request.course_id
+
+            # Tạo session_id nếu không được truyền vào
+            session_id = request.session_id or str(uuid.uuid4())
 
             run_config = RunnableConfig(
                 callbacks=self._callback_manager.handlers,
@@ -208,6 +152,7 @@ class CourseCompositionAgent(BaseAgent):
                     "course_description": request.course_description,
                     "course_level": request.course_level,
                     "agent_type": "course_composition",
+                    "session_id": session_id,
                 },
                 tags=["course", "composition", f"course:{request.course_id}"],
             )
@@ -217,67 +162,45 @@ class CourseCompositionAgent(BaseAgent):
             Mô tả: {request.course_description}
             Cấp độ: {request.course_level}
             """
-            from app.core.config import settings
-            from langchain.memory.chat_message_histories import (
-                MongoDBChatMessageHistory,
+
+            runnable_with_history = RunnableWithMessageHistory(
+                runnable=self.agent_executor,
+                get_session_history=lambda session_id: MongoDBChatMessageHistory(
+                    connection_string=settings.MONGO_URI,
+                    session_id=session_id,
+                    database_name=self.mongodb_db_name,
+                    collection_name=self.mongodb_collection_name,
+                ),
+                input_messages_key="input",
+                history_messages_key="history",
             )
 
-            runnable_history = RunnableWithMessageHistory(
-                runnable=self.agent_executor,
-                get_session_history=lambda: MongoDBChatMessageHistory(
-                    settings.MONGO_URI,
-                    session_id,
-                    self.mongodb_db_name,
-                    self.mongodb_collection_name,
-                ),
-            )
-            result = await self.agent_executor.ainvoke(
-                {"input": request_input}, config=run_config
+            result = await runnable_with_history.ainvoke(
+                {"input": request_input},
+                config={"configurable": {"session_id": session_id}, **run_config},
             )
 
             if not result or not result.get("output"):
-                errors.append("Không thể tạo topics cho khóa học")
-                return
+                raise Exception("Không thể tạo topics cho khóa học")
 
             try:
                 agent_response = self.output_parser.parse(result["output"])
-
-                # Cập nhật duration của course
-                await self.db_session.execute(
-                    update(Course)
-                    .where(Course.id == request.course_id)
-                    .values(duration=agent_response.duration)
-                )
-
-                # Lưu topics vào draft để chờ review
-                topics_json = json.dumps(
-                    agent_response.model_dump(), ensure_ascii=False, indent=2
-                )
-                await self._astore_topic(topics_json)
-
-                print(
-                    f"✅ Đã tạo và lưu vào draft cho khóa học: {request.course_title}"
-                )
-
             except Exception:
                 agent_response = OutputFixingParser.from_llm(
                     self.base_llm, parser=self.output_parser
                 ).parse(result["output"])
 
-                # Cập nhật duration của course
-                await self.db_session.execute(
-                    update(Course)
-                    .where(Course.id == request.course_id)
-                    .values(duration=agent_response.duration)
-                )
+            await self.db_session.execute(
+                update(Course)
+                .where(Course.id == request.course_id)
+                .values(duration=agent_response.duration)
+            )
+            await self.db_session.commit()
 
-                # Lưu topics vào draft để chờ review
-                topics_json = json.dumps(
-                    agent_response.model_dump(), ensure_ascii=False, indent=2
-                )
-                await self._astore_topic(topics_json)
+            print(f"✅ Đã tạo nội dung cho khóa học: {request.course_title}")
+            return agent_response, session_id
 
         except Exception as e:
             print(f"❌ Lỗi khi soạn khóa học: {e}")
-            errors.append(f"Lỗi hệ thống: {str(e)}")
-            return
+            await self.db_session.rollback()
+            raise e

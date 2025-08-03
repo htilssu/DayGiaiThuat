@@ -7,6 +7,7 @@ class CourseDraftResponse(BaseModel):
     id: int
     course_id: int
     agent_content: str  # JSON string chứa topics, lessons
+    session_id: Optional[str]  # Session ID cho message history
     status: str
     created_at: datetime
     updated_at: datetime

@@ -17,7 +17,7 @@ from app.schemas.course_review_schema import (
     SendChatMessageRequest,
     ApproveDraftRequest,
     CourseReviewChatMessage,
-    CourseDraftResponse
+    CourseDraftResponse,
 )
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.services.course_service import CourseService, get_course_service
@@ -63,19 +63,62 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
     return current_user
 
 
-async def run_course_composition_background(request: CourseCompositionRequestSchema, db: AsyncSession):
+async def run_course_composition_background(
+    request: CourseCompositionRequestSchema, db: AsyncSession
+):
     """
     Hàm chạy trong background để tạo nội dung khóa học.
-    Agent mới trả về danh sách topics thay vì lưu trực tiếp vào database.
     """
-    agent = CourseCompositionAgent(db)
-    await agent.act(request)
-
-    # Log kết quả để debug
     import logging
 
     logger = logging.getLogger(__name__)
-    logger.info(f"Course composition completed for course: {request.course_id}")
+
+    try:
+        agent = CourseCompositionAgent(db)
+        agent_response, session_id = await agent.act(request)
+
+        # Lưu kết quả vào draft
+        import json
+
+        # Kiểm tra xem có draft nào cho course này chưa
+        from sqlalchemy import select
+
+        existing_draft_result = await db.execute(
+            select(CourseDraft).filter(CourseDraft.course_id == request.course_id)
+        )
+        existing_draft = existing_draft_result.scalar_one_or_none()
+
+        topics_json = json.dumps(
+            agent_response.model_dump(), ensure_ascii=False, indent=2
+        )
+
+        if existing_draft:
+            # Cập nhật draft hiện có
+            existing_draft.agent_content = topics_json
+            existing_draft.session_id = session_id
+            existing_draft.status = "pending"
+            from datetime import datetime
+
+            existing_draft.updated_at = datetime.utcnow()
+        else:
+            # Tạo draft mới
+            new_draft = CourseDraft(
+                course_id=request.course_id,
+                agent_content=topics_json,
+                session_id=session_id,
+                status="pending",
+            )
+            db.add(new_draft)
+
+        await db.commit()
+        logger.info(
+            f"✅ Course composition completed and saved to draft for course: {request.course_id} with session: {session_id}"
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error in course composition: {str(e)}")
+        await db.rollback()
+        raise e
 
 
 @router.post(
@@ -117,6 +160,7 @@ async def create_course(
             course_title=new_course.title,
             course_description=new_course.description,
             course_level=new_course.level,
+            session_id=None,  # Sẽ được tạo tự động trong agent
         )
         background_tasks.add_task(
             run_course_composition_background, composition_request, db
@@ -554,7 +598,9 @@ async def get_course_review(
         course_title=course.title,
         course_description=course.description,
         draft=CourseDraftResponse.model_validate(draft) if draft else None,
-        chat_messages=[CourseReviewChatMessage.model_validate(msg) for msg in chat_messages]
+        chat_messages=[
+            CourseReviewChatMessage.model_validate(msg) for msg in chat_messages
+        ],
     )
 
 
@@ -593,7 +639,7 @@ async def send_chat_message(
             course_id=course_id,
             user_id=admin_user.id,
             message=message_request.message,
-            is_agent=False
+            is_agent=False,
         )
         db.add(admin_message)
         await db.commit()
@@ -670,7 +716,7 @@ async def approve_course_draft(
                     course_id=course_id,
                     user_id=admin_user.id,
                     message=f"Approved with feedback: {approve_request.feedback}",
-                    is_agent=False
+                    is_agent=False,
                 )
                 db.add(feedback_message)
         else:
@@ -683,7 +729,7 @@ async def approve_course_draft(
                     course_id=course_id,
                     user_id=admin_user.id,
                     message=f"Rejected with feedback: {approve_request.feedback}",
-                    is_agent=False
+                    is_agent=False,
                 )
                 db.add(feedback_message)
 
@@ -715,18 +761,21 @@ async def process_agent_response(course_id: int, user_message: str, user_id: int
                 course_id=course_id,
                 user_id=user_id,  # Có thể tạo user_id đặc biệt cho agent
                 message=agent_response,
-                is_agent=True
+                is_agent=True,
             )
             session.add(agent_message)
             await session.commit()
 
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error processing agent response: {str(e)}")
 
 
-async def save_agent_content_to_db(course_id: int, agent_content: dict, db: AsyncSession):
+async def save_agent_content_to_db(
+    course_id: int, agent_content: dict, db: AsyncSession
+):
     """
     Lưu nội dung agent tạo ra vào database chính
     """
@@ -738,10 +787,9 @@ async def save_agent_content_to_db(course_id: int, agent_content: dict, db: Asyn
             name=topic_data.get("name"),
             description=topic_data.get("description"),
             prerequisites=topic_data.get("prerequisites", []),
-            order=index + 1  # Sắp xếp theo thứ tự trong list
+            order=index + 1,  # Sắp xếp theo thứ tự trong list
         )
         db.add(topic)
 
     # Commit tất cả các thay đổi
     await db.commit()
-
