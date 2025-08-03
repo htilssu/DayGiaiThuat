@@ -10,6 +10,7 @@ import {
     Switch,
     LoadingOverlay,
     Group,
+    Select,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useState } from "react";
@@ -38,14 +39,14 @@ export default function CreateCourseModal({ opened, onClose, onSuccess }: Create
             duration: 0,
             isPublished: false,
             tags: "",
-            requirements: "",
-            whatYouWillLearn: "",
         },
         validate: {
             title: (value) =>
                 value.length < 3 ? "Tiêu đề khóa học phải có ít nhất 3 ký tự" : null,
             description: (value) =>
                 value.length < 10 ? "Mô tả khóa học phải có ít nhất 10 ký tự" : null,
+            level: (value) =>
+                !value ? "Vui lòng chọn cấp độ khóa học" : null,
         },
     });
 
@@ -99,8 +100,9 @@ export default function CreateCourseModal({ opened, onClose, onSuccess }: Create
             duration: values.duration,
             isPublished: values.isPublished,
             tags: values.tags,
-            requirements: values.requirements,
-            whatYouWillLearn: values.whatYouWillLearn,
+            // requirements và whatYouWillLearn sẽ được agent tự generate
+            requirements: null,
+            whatYouWillLearn: null,
         };
 
         createCourseMutation.mutate(courseData);
@@ -141,10 +143,15 @@ export default function CreateCourseModal({ opened, onClose, onSuccess }: Create
                         />
                     </Grid.Col>
                     <Grid.Col span={6}>
-                        <TextInput
+                        <Select
                             required
                             label="Cấp độ"
-                            placeholder="Beginner/Intermediate/Advanced"
+                            placeholder="Chọn cấp độ khóa học"
+                            data={[
+                                { value: "Beginner", label: "Beginner - Người mới bắt đầu" },
+                                { value: "Intermediate", label: "Intermediate - Trung cấp" },
+                                { value: "Advanced", label: "Advanced - Nâng cao" }
+                            ]}
                             {...form.getInputProps("level")}
                         />
                     </Grid.Col>
@@ -175,22 +182,6 @@ export default function CreateCourseModal({ opened, onClose, onSuccess }: Create
                             label="Tags"
                             placeholder="javascript,react,frontend"
                             {...form.getInputProps("tags")}
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={12}>
-                        <Textarea
-                            label="Yêu cầu tiên quyết"
-                            placeholder="Các kiến thức cần có trước khi học khóa này..."
-                            rows={3}
-                            {...form.getInputProps("requirements")}
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={12}>
-                        <Textarea
-                            label="Những gì sẽ học được"
-                            placeholder="Học viên sẽ học được những kỹ năng gì..."
-                            rows={3}
-                            {...form.getInputProps("whatYouWillLearn")}
                         />
                     </Grid.Col>
                 </Grid>
