@@ -3,7 +3,6 @@ import logging
 from typing import Any, Dict, List, override
 
 from fastapi import Depends
-from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.agents.base_agent import BaseAgent
@@ -17,35 +16,34 @@ from app.utils.model_utils import model_to_dict
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """
-Bạn là một chuyên gia đánh giá và tư vấn giáo dục trong lĩnh vực lập trình và giải thuật.
+Bạn là một chuyên gia phân tích và đánh giá điểm yếu trong lĩnh vực lập trình và giải thuật.
 
 Nhiệm vụ của bạn:
-1. Phân tích người dùng
-2. Đánh giá trình độ hiện tại và xác định điểm mạnh/yếu
-3. Tạo lộ trình học tập cá nhân hóa phù hợp với trình độ
-4. Đưa ra khuyến nghị cụ thể để cải thiện kỹ năng
+1. Phân tích kết quả bài kiểm tra để xác định điểm yếu cụ thể của người dùng trong từng skill
+2. Đánh giá mức độ nghiêm trọng của các điểm yếu
+3. Phân tích chi tiết nguyên nhân dẫn đến điểm yếu
+4. Đưa ra gợi ý cụ thể để cải thiện từng điểm yếu
 
 Tools có sẵn:
 - get_test_session_data: Lấy dữ liệu phiên thi chi tiết
 - get_course_topics: Lấy danh sách chủ đề của khóa học
-- analyze_performance: Phân tích hiệu suất chi tiết
-- generate_learning_path: Tạo lộ trình học tập
 
-Nguyên tắc đánh giá:
-- Dựa trên tỷ lệ đúng/sai tổng thể
-- Phân tích theo từng chủ đề cụ thể
-- Xem xét độ khó của các câu hỏi
-- Đánh giá thời gian làm bài
-- Tính toán mức độ hiểu biết của từng concept
+Nguyên tắc phân tích điểm yếu:
+- Tập trung vào những câu hỏi sai hoặc làm chậm
+- Phân tích theo từng skill/chủ đề cụ thể
+- Xác định pattern lỗi thường gặp
+- Đánh giá mức độ nghiêm trọng: Low/Medium/High
+- Tính toán mức độ hiểu biết hiện tại của skill
+- Tự động tạo gợi ý cải thiện phù hợp
 
-Hãy luôn đưa ra phân tích khách quan và lời khuyên hữu ích để giúp người học phát triển.
+Luôn đưa ra phân tích chi tiết, khách quan về điểm yếu và gợi ý cải thiện thực tế.
 """
 
 
 class AssessmentAgent(BaseAgent):
     """
-    Agent đánh giá trình độ người dùng dựa trên kết quả bài kiểm tra đầu vào
-    và tạo lộ trình học tập cá nhân hóa
+    Agent phân tích điểm yếu của người dùng dựa trên kết quả bài kiểm tra
+    và đưa ra gợi ý cải thiện cụ thể cho từng skill
     """
 
     def __init__(
@@ -70,7 +68,6 @@ class AssessmentAgent(BaseAgent):
         self._prompt = None
         self._agent_executor = None
 
-        # Initialize tools
         self._init_tools()
 
     def _init_tools(self):
@@ -94,20 +91,6 @@ class AssessmentAgent(BaseAgent):
                 coroutine=self._get_course_topics,
                 description="""Lấy danh sách tất cả chủ đề trong khóa học
                 Input: course_id (int)""",
-            ),
-            Tool(
-                name="analyze_performance",
-                func=lambda x: asyncio.run(self._analyze_performance(x)),
-                coroutine=self._analyze_performance,
-                description="""Phân tích hiệu suất chi tiết theo từng chủ đề
-                Input: test_session_data (dict)""",
-            ),
-            Tool(
-                name="generate_learning_path",
-                func=lambda x: asyncio.run(self._generate_learning_path(x)),
-                coroutine=self._generate_learning_path,
-                description="""Tạo lộ trình học tập dựa trên kết quả phân tích
-                Input: analysis_data (dict)""",
             ),
         ]
 
@@ -146,16 +129,22 @@ class AssessmentAgent(BaseAgent):
                     SystemMessage(content=SYSTEM_PROMPT),
                     HumanMessagePromptTemplate.from_template(
                         """
-                        Hãy đánh giá kết quả bài kiểm tra đầu vào của người dùng và tạo lộ trình học tập.
+                        Hãy phân tích điểm yếu của người dùng dựa trên kết quả bài kiểm tra.
                         Thông tin cần xử lý:
                         - Test Session ID: {test_session_id}
                         - User ID: {user_id}
-                        Hãy sử dụng các tools có sẵn để:
+                        Hãy sử dụng tool để lấy dữ liệu phiên thi, sau đó tự phân tích:
                         1. Lấy dữ liệu phiên thi
-                        2. Phân tích hiệu suất
-                        3. Tạo lộ trình học tập
-                        Trả về kết quả đánh giá đầy đủ theo format JSON.
-                        Format output:
+                        2. Tự phân tích điểm yếu từ câu trả lời sai
+                        3. Xác định skill có vấn đề nhất
+                        4. Đánh giá mức độ nghiêm trọng
+                        5. Tự tạo gợi ý cải thiện phù hợp
+                        Phân tích chi tiết:
+                        - Xem xét từng câu sai để tìm pattern
+                        - Xác định skill/topic có tỷ lệ sai cao nhất
+                        - Đánh giá mức độ hiện tại dựa trên kết quả
+                        - Tạo gợi ý cải thiện cụ thể cho skill đó
+                        Trả về kết quả phân tích điểm yếu theo format JSON:
                         {format_instructions}
                         """
                     ),
@@ -219,93 +208,6 @@ class AssessmentAgent(BaseAgent):
             logger.error(f"Error getting course topics: {e}")
             return []
 
-    async def _analyze_performance(
-        self, test_session_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Phân tích hiệu suất chi tiết"""
-        try:
-            answers = test_session_data.get("user_answers", [])
-            if not answers:
-                return {"error": "Không có dữ liệu câu trả lời"}
-
-            total_questions = len(answers)
-            correct_answers = sum(
-                1 for answer in answers if answer.get("is_correct", False)
-            )
-            score_percentage = (
-                (correct_answers / total_questions) * 100 if total_questions > 0 else 0
-            )
-
-            # Phân tích theo chủ đề (nếu có)
-            topic_analysis = {}
-            for answer in answers:
-                topic = answer.get("topic", "Unknown")
-                if topic not in topic_analysis:
-                    topic_analysis[topic] = {"correct": 0, "total": 0}
-
-                topic_analysis[topic]["total"] += 1
-                if answer.get("is_correct", False):
-                    topic_analysis[topic]["correct"] += 1
-
-            # Xác định điểm mạnh và yếu
-            strengths = []
-            weaknesses = []
-
-            for topic, stats in topic_analysis.items():
-                accuracy = (
-                    stats["correct"] / stats["total"] if stats["total"] > 0 else 0
-                )
-                if accuracy >= 0.8:
-                    strengths.append(topic)
-                elif accuracy < 0.5:
-                    weaknesses.append(topic)
-
-            return {
-                "total_questions": total_questions,
-                "correct_answers": correct_answers,
-                "score_percentage": score_percentage,
-                "topic_analysis": topic_analysis,
-                "strengths": strengths,
-                "weaknesses": weaknesses,
-            }
-        except Exception as e:
-            logger.error(f"Error analyzing performance: {e}")
-            return {"error": str(e)}
-
-    async def _generate_learning_path(
-        self, analysis_data: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
-        """Tạo lộ trình học tập"""
-        try:
-            score_percentage = analysis_data.get("score_percentage", 0)
-            weaknesses = analysis_data.get("weaknesses", [])
-
-            # Xác định độ khó phù hợp
-            if score_percentage >= 80:
-                difficulty_level = "Advanced"
-            elif score_percentage >= 60:
-                difficulty_level = "Intermediate"
-            else:
-                difficulty_level = "Beginner"
-
-            # Tạo lộ trình dựa trên điểm yếu
-            learning_path = []
-            for i, weakness in enumerate(weaknesses):
-                learning_path.append(
-                    {
-                        "topic_name": weakness,
-                        "priority": len(weaknesses) - i,  # Ưu tiên cao cho điểm yếu đầu
-                        "estimated_time": 4,  # 4 giờ mỗi chủ đề
-                        "difficulty": difficulty_level,
-                        "description": f"Cải thiện kỹ năng trong {weakness}",
-                    }
-                )
-
-            return learning_path
-        except Exception as e:
-            logger.error(f"Error generating learning path: {e}")
-            return []
-
     @override
     @trace_agent(project_name="default", tags=["assessment", "evaluation"])
     async def act(self, *args, **kwargs) -> AssessmentResult:
@@ -350,20 +252,16 @@ class AssessmentAgent(BaseAgent):
 
             if isinstance(result, dict) and "output" in result:
                 try:
-                    # Parse the output using the output parser
                     agent_result = output_parser.parse(result["output"])
 
-                    # Convert AgentAssessmentSchema to AssessmentResult
                     assessment_result = AssessmentResult(
                         type="test",
-                        strengths=agent_result.strengths,
+                        skill_name=agent_result.skill_name,
                         weaknesses=agent_result.weaknesses,
-                        recommendations=agent_result.recommendations,
-                        skill_levels=agent_result.skill_levels,
-                        learning_path=agent_result.learning_path,
-                        overall_score=agent_result.overall_score,
-                        proficiency_level=agent_result.proficiency_level,
-                        analysis_summary=agent_result.analysis_summary,
+                        weakness_analysis=agent_result.weakness_analysis,
+                        improvement_suggestions=agent_result.improvement_suggestions,
+                        current_level=agent_result.current_level,
+                        weakness_severity=agent_result.weakness_severity,
                     )
                     return assessment_result
                 except Exception as parse_error:
@@ -372,17 +270,14 @@ class AssessmentAgent(BaseAgent):
                     fixing_parser = self._get_output_fix_parser()
                     agent_result = fixing_parser.parse(result["output"])
 
-                    # Convert AgentAssessmentSchema to AssessmentResult
                     assessment_result = AssessmentResult(
                         type="test",
-                        strengths=agent_result.strengths,
+                        skill_name=agent_result.skill_name,
                         weaknesses=agent_result.weaknesses,
-                        recommendations=agent_result.recommendations,
-                        skill_levels=agent_result.skill_levels,
-                        learning_path=agent_result.learning_path,
-                        overall_score=agent_result.overall_score,
-                        proficiency_level=agent_result.proficiency_level,
-                        analysis_summary=agent_result.analysis_summary,
+                        weakness_analysis=agent_result.weakness_analysis,
+                        improvement_suggestions=agent_result.improvement_suggestions,
+                        current_level=agent_result.current_level,
+                        weakness_severity=agent_result.weakness_severity,
                     )
                     return assessment_result
             else:
@@ -393,9 +288,14 @@ class AssessmentAgent(BaseAgent):
             # Return a default assessment result
             return AssessmentResult(
                 type="test",
-                strengths=[],
-                weaknesses=[],
-                recommendations=["Hoàn thành bài kiểm tra để nhận đánh giá chi tiết"],
+                skill_name="General Programming",
+                weaknesses=["Chưa có dữ liệu đánh giá"],
+                weakness_analysis="Cần hoàn thành bài kiểm tra để phân tích chi tiết",
+                improvement_suggestions=[
+                    "Hoàn thành bài kiểm tra để nhận đánh giá chi tiết"
+                ],
+                current_level="Unknown",
+                weakness_severity="Low",
             )
 
 
