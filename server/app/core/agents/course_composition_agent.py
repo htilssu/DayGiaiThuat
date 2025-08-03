@@ -136,7 +136,7 @@ class CourseCompositionAgent(BaseAgent):
     ) -> tuple[CourseAgentResponse, str]:
         from langchain_core.runnables import RunnableConfig
         from app.core.config import settings
-        from langchain.memory.chat_message_histories import MongoDBChatMessageHistory
+        from langchain_mongodb import MongoDBChatMessageHistory
 
         try:
             self.current_course_id = request.course_id
