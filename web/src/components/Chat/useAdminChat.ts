@@ -34,23 +34,34 @@ export function useAdminChat() {
     setInput("");
     setIsLoading(true);
 
+    // TODO: Add actual chat logic here
+    // For now, just simulate a response
+    setTimeout(() => {
+      const botMessage: ChatMessage = {
+        role: "assistant",
+        content: "Đây là phản hồi mẫu từ admin chat.",
+        timestamp: new Date().toISOString(),
+      };
+      addMessage(botMessage);
+      setIsLoading(false);
+    }, 1000);
+  };
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    };
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
-    return {
-      messages,
-      input,
-      setInput,
-      isLoading,
-      messagesEndRef,
-      handleSend,
-      handleKeyPress,
-      addMessage,
-    };
-  }
+  return {
+    messages,
+    input,
+    setInput,
+    isLoading,
+    messagesEndRef,
+    handleSend,
+    handleKeyPress,
+    addMessage,
+  };
 }

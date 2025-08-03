@@ -207,7 +207,7 @@ class LessonGeneratingAgent(BaseAgent):
 
         agent = create_tool_calling_agent(self.base_llm, self.tools, self.prompt)
         self.agent_executor = AgentExecutor(
-            agent=agent.with_retry(),
+            agent=agent.with_retry(stop_after_attempt=5),
             tools=self.tools,
             verbose=True,
             # handle_parsing_errors=True,
