@@ -2,6 +2,7 @@ from app.core.agents.course_composition_agent import CourseCompositionAgent
 from app.database.database import get_async_db, get_independent_db_session
 from app.models.course_model import Course
 from app.models.topic_model import Topic
+from app.models.course_draft_model import CourseDraft, CourseReviewChat
 from app.schemas.course_schema import (
     BulkDeleteCoursesRequest,
     BulkDeleteCoursesResponse,
@@ -10,6 +11,12 @@ from app.schemas.course_schema import (
     CourseOnlyResponse,
     CourseResponse,
     CourseUpdate,
+)
+from app.schemas.course_review_schema import (
+    CourseReviewResponse,
+    SendChatMessageRequest,
+    ApproveDraftRequest,
+    CourseReviewChatMessage
 )
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.services.course_service import CourseService, get_course_service
@@ -25,6 +32,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+import json
 
 router = APIRouter(
     prefix="/admin/courses",
@@ -67,6 +75,22 @@ async def run_course_composition_background(request: CourseCompositionRequestSch
 
     logger = logging.getLogger(__name__)
     logger.info(f"Course composition result: {result}")
+
+    # Lưu kết quả vào CourseDraft
+    try:
+        async with get_independent_db_session() as session:
+            # Tạo mới CourseDraft
+            course_draft = CourseDraft(
+                course_id=request.course_id,
+                agent_content=json.dumps(result),  # Lưu kết quả agent dưới dạng JSON
+                status="pending"
+            )
+            session.add(course_draft)
+            await session.commit()
+
+            logger.info(f"Saved course draft: {course_draft.id} for course: {request.course_id}")
+    except Exception as e:
+        logger.error(f"Error saving course draft: {str(e)}")
 
     return result
 
@@ -495,3 +519,266 @@ async def update_course_thumbnail(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi cập nhật ảnh thumbnail: {str(e)}",
         )
+
+
+# API endpoints mới cho workflow review
+@router.get(
+    "/{course_id}/review",
+    response_model=CourseReviewResponse,
+    summary="Lấy thông tin review khóa học (Admin)",
+    responses={
+        200: {"description": "OK"},
+        403: {"description": "Không có quyền truy cập"},
+        404: {"description": "Không tìm thấy khóa học"},
+    },
+)
+async def get_course_review(
+    course_id: int,
+    db: AsyncSession = Depends(get_async_db),
+    admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
+    """
+    Lấy thông tin review khóa học bao gồm draft content và chat history
+    """
+    # Tìm course
+    course_result = await db.execute(select(Course).filter(Course.id == course_id))
+    course = course_result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy khóa học với ID {course_id}",
+        )
+
+    # Tìm draft gần nhất
+    draft_result = await db.execute(
+        select(CourseDraft)
+        .filter(CourseDraft.course_id == course_id)
+        .order_by(CourseDraft.created_at.desc())
+        .limit(1)
+    )
+    draft = draft_result.scalar_one_or_none()
+
+    # Lấy chat history
+    chat_result = await db.execute(
+        select(CourseReviewChat)
+        .filter(CourseReviewChat.course_id == course_id)
+        .order_by(CourseReviewChat.created_at.asc())
+    )
+    chat_messages = chat_result.scalars().all()
+
+    return CourseReviewResponse(
+        course_id=course.id,
+        course_title=course.title,
+        course_description=course.description,
+        draft=draft,
+        chat_messages=[CourseReviewChatMessage.model_validate(msg) for msg in chat_messages]
+    )
+
+
+@router.post(
+    "/{course_id}/review/chat",
+    response_model=CourseReviewChatMessage,
+    summary="Gửi tin nhắn chat với agent (Admin)",
+    responses={
+        201: {"description": "Created"},
+        403: {"description": "Không có quyền truy cập"},
+        404: {"description": "Không tìm thấy khóa học"},
+    },
+)
+async def send_chat_message(
+    course_id: int,
+    message_request: SendChatMessageRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_async_db),
+    admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
+    """
+    Gửi tin nhắn chat với agent trong quá trình review
+    """
+    # Kiểm tra course tồn tại
+    course_result = await db.execute(select(Course).filter(Course.id == course_id))
+    course = course_result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy khóa học với ID {course_id}",
+        )
+
+    try:
+        # Lưu tin nhắn của admin
+        admin_message = CourseReviewChat(
+            course_id=course_id,
+            user_id=admin_user.id,
+            message=message_request.message,
+            is_agent=False
+        )
+        db.add(admin_message)
+        await db.commit()
+        await db.refresh(admin_message)
+
+        # Gửi tin nhắn cho agent trong background
+        background_tasks.add_task(
+            process_agent_response, course_id, message_request.message, admin_user.id
+        )
+
+        return CourseReviewChatMessage.model_validate(admin_message)
+
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi gửi tin nhắn: {str(e)}",
+        )
+
+
+@router.post(
+    "/{course_id}/review/approve",
+    summary="Approve draft và lưu vào database (Admin)",
+    responses={
+        200: {"description": "OK"},
+        403: {"description": "Không có quyền truy cập"},
+        404: {"description": "Không tìm thấy khóa học hoặc draft"},
+    },
+)
+async def approve_course_draft(
+    course_id: int,
+    approve_request: ApproveDraftRequest,
+    db: AsyncSession = Depends(get_async_db),
+    admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
+    """
+    Approve draft content và lưu vào database chính
+    """
+    # Tìm course
+    course_result = await db.execute(select(Course).filter(Course.id == course_id))
+    course = course_result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy khóa học với ID {course_id}",
+        )
+
+    # Tìm draft gần nhất
+    draft_result = await db.execute(
+        select(CourseDraft)
+        .filter(CourseDraft.course_id == course_id, CourseDraft.status == "pending")
+        .order_by(CourseDraft.created_at.desc())
+        .limit(1)
+    )
+    draft = draft_result.scalar_one_or_none()
+    if not draft:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy draft pending cho khóa học này",
+        )
+
+    try:
+        if approve_request.approved:
+            # Parse agent content và lưu vào database
+            agent_content = json.loads(draft.agent_content)
+            await save_agent_content_to_db(course_id, agent_content, db)
+
+            # Cập nhật status draft
+            draft.status = "approved"
+
+            # Lưu feedback nếu có
+            if approve_request.feedback:
+                feedback_message = CourseReviewChat(
+                    course_id=course_id,
+                    user_id=admin_user.id,
+                    message=f"Approved with feedback: {approve_request.feedback}",
+                    is_agent=False
+                )
+                db.add(feedback_message)
+        else:
+            # Reject draft
+            draft.status = "rejected"
+
+            # Lưu feedback reject
+            if approve_request.feedback:
+                feedback_message = CourseReviewChat(
+                    course_id=course_id,
+                    user_id=admin_user.id,
+                    message=f"Rejected with feedback: {approve_request.feedback}",
+                    is_agent=False
+                )
+                db.add(feedback_message)
+
+        await db.commit()
+
+        status_msg = "approved" if approve_request.approved else "rejected"
+        return {"message": f"Draft đã được {status_msg} thành công"}
+
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi approve draft: {str(e)}",
+        )
+
+
+async def process_agent_response(course_id: int, user_message: str, user_id: int):
+    """
+    Xử lý phản hồi từ agent trong background
+    """
+    try:
+        # TODO: Tích hợp với agent để xử lý tin nhắn
+        # Hiện tại chỉ là mock response
+        agent_response = f"Agent response to: {user_message}"
+
+        async with get_independent_db_session() as session:
+            # Lưu phản hồi agent
+            agent_message = CourseReviewChat(
+                course_id=course_id,
+                user_id=user_id,  # Có thể tạo user_id đặc biệt cho agent
+                message=agent_response,
+                is_agent=True
+            )
+            session.add(agent_message)
+            await session.commit()
+
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error processing agent response: {str(e)}")
+
+
+async def save_agent_content_to_db(course_id: int, agent_content: dict, db: AsyncSession):
+    """
+    Lưu nội dung agent tạo ra vào database chính
+    """
+    from app.models.lesson_model import Lesson, LessonSection
+
+    # Parse và lưu topics, lessons
+    for topic_data in agent_content.get("topics", []):
+        # Tạo topic
+        topic = Topic(
+            course_id=course_id,
+            title=topic_data.get("title"),
+            description=topic_data.get("description"),
+            order=topic_data.get("order", 0)
+        )
+        db.add(topic)
+        await db.flush()  # Để có topic.id
+
+        # Tạo lessons cho topic
+        for lesson_data in topic_data.get("lessons", []):
+            lesson = Lesson(
+                topic_id=topic.id,
+                title=lesson_data.get("title"),
+                content=lesson_data.get("content"),
+                order=lesson_data.get("order", 0)
+            )
+            db.add(lesson)
+            await db.flush()  # Để có lesson.id
+
+            # Tạo lesson sections nếu có
+            for section_data in lesson_data.get("sections", []):
+                section = LessonSection(
+                    lesson_id=lesson.id,
+                    title=section_data.get("title"),
+                    content=section_data.get("content"),
+                    order=section_data.get("order", 0)
+                )
+                db.add(section)
+

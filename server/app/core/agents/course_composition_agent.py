@@ -1,203 +1,265 @@
-"""
-Course Composition Agent - Tạo danh sách topics cho khóa học
-"""
-
 import json
-import logging
-from typing import List, Dict, Any
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.output_parsers import PydanticOutputParser
-from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, Field
+import uuid
 
-from app.core.config import settings
+from langchain.output_parsers import OutputFixingParser
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.tools import Tool
+from pydantic import BaseModel, Field
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.agents.base_agent import BaseAgent
+from app.core.agents.components.document_store import get_vector_store
+from app.core.agents.lesson_generating_agent import LessonGeneratingAgent
+from app.core.tracing import trace_agent
+from app.models import Course
+from app.models.topic_model import Topic
 from app.schemas.course_schema import (
     CourseCompositionRequestSchema,
-    CourseCompositionResponseSchema,
-    TopicGenerationResult,
 )
-
-logger = logging.getLogger(__name__)
+from app.schemas.topic_schema import TopicBase
+from app.services.lesson_service import LessonService
 
 
 class CourseAgentResponse(BaseModel):
-    """Response model cho Course Composition Agent"""
-
-    topics: List[TopicGenerationResult] = Field(
-        ..., description="Danh sách topics với skills"
-    )
-    duration: str = Field(
-        ..., description="Thời gian ước lượng hoàn thành khóa học (VD: '4-6 tuần', '20 giờ')"
+    duration: int = Field(..., description="Thời gian cần để hoàn thành khóa học")
+    topics: list[TopicBase] = Field(
+        ...,
+        description="Danh sách các chủ đề trong khóa học, mỗi chủ đề bao gồm tên, mô tả và kiến thức tiên quyết",
     )
 
 
-def validate_topics(topics: List[TopicGenerationResult]) -> bool:
-    """
-    Validate danh sách topics được tạo
-    """
-    if not topics:
-        return False
+SYSTEM_PROMPT = """
+Bạn là chuyên gia giáo dục về lập trình và giải thuật. Dựa trên thông tin khóa học và tài liệu tham khảo được lấy từ retrieval_tool, hãy phân tích và tạo danh sách các chủ đề (topics) cho khóa học.
 
-    # Kiểm tra order sequence
-    orders = [topic.order for topic in topics]
-    if sorted(orders) != list(range(1, len(topics) + 1)):
-        logger.warning("Topic orders are not sequential")
+Hãy tạo danh sách topics theo thứ tự logic học tập (từ cơ bản đến nâng cao), mỗi topic phải:
+1. Có tên rõ ràng, dễ hiểu
+2. Mô tả chi tiết nội dung sẽ học
+3. Liệt kê các kiến thức tiên quyết (nếu có)
+4. Sắp xếp theo thứ tự học tập hợp lý
 
-    # Kiểm tra skills
-    for topic in topics:
-        if not topic.skills or len(topic.skills) < 2:
-            logger.warning(f"Topic '{topic.name}' has insufficient skills")
-            return False
+# Danh sách tools:
+- course_context_retriever: Truy vấn RAG để lấy nội dung liên quan đến khóa học.
 
-    return True
+# Workflow:
+- Sử dụng tool course_context_retriever để lấy thông tin từ tài liệu. có thể gọi nhiều lần để lấy được nhiều thông tin.
+- Sau khi lấy được thông tin từ tài liệu, tạo thông tin khóa học theo định dạng JSON sau:
+```json
+    {
+        duration: "Thời gian ước lượng hoàn thành khóa học",
+        topics: [{
+            "name": "Tên topic",
+            "description": "Mô tả chi tiết nội dung sẽ học",
+            "prerequisites": ["Kiến thức tiên quyết 1", "Kiến thức tiên quyết 2"],
+            "skills": ["Kỹ năng 1", "Kỹ năng 2"],
+        },
+        }]
+    }
+```
 
+instruction: {instruction}
 
-class CourseCompositionAgent:
-    """
-    Agent tạo danh sách topics cho khóa học với skills
-    Trả về danh sách topics thay vì lưu trực tiếp vào database
-    """
-
-    def __init__(self):
-        self.llm = ChatOpenAI(
-            model="gpt-4o-mini",
-            api_key=settings.OPENAI_API_KEY,
-            temperature=0.3,
-        )
-        self.parser = PydanticOutputParser(pydantic_object=CourseAgentResponse)
-
-    def create_system_prompt(self) -> str:
-        """Tạo system prompt cho agent"""
-        return f"""Bạn là một chuyên gia thiết kế khóa học chuyên nghiệp. Nhiệm vụ của bạn là tạo danh sách topics chi tiết cho khóa học, mỗi topic bao gồm cả danh sách skills mà học viên sẽ đạt được.
-
-NHIỆM VỤ:
-1. Phân tích thông tin khóa học được cung cấp
-2. Tạo danh sách topics phù hợp với cấp độ và mục tiêu
-3. Cho mỗi topic, xác định danh sách skills cụ thể mà học viên sẽ đạt được
-4. Ước lượng thời gian hoàn thành toàn bộ khóa học
-
-QUY TẮC THIẾT KẾ TOPICS:
+Lưu ý:
 - Topics phải bao quát toàn bộ nội dung khóa học
 - Đảm bảo tính logic và liên kết giữa các topics
-- Mỗi topic phải có từ 3-7 skills cụ thể và đo lường được
-- Skills phải phù hợp với cấp độ khóa học (beginner/intermediate/advanced)
-- Độ khó tăng dần qua các topics
-- Không vượt quá số lượng topics tối đa được chỉ định
-
-ĐỊNH DẠNG SKILLS:
-- Sử dụng động từ hành động: "Hiểu", "Áp dụng", "Phân tích", "Thiết kế", "Triển khai"
-- Cụ thể và đo lường được: "Thiết kế thuật toán sắp xếp", không phải "Biết về sắp xếp"
-- Phù hợp với ngữ cảnh thực tế
-
-ƯỚC LƯỢNG THỜI GIAN:
-- Dựa trên số lượng topics, độ phức tạp và cấp độ
-- Đưa ra khoảng thời gian thực tế (VD: "4-6 tuần", "25-30 giờ")
-
-{self.parser.get_format_instructions()}
-
-Lưu ý quan trọng:
-- Phải luôn tuân thủ định dạng JSON được yêu cầu
-- Không được trả lời lan man hoặc yêu cầu thêm thông tin
-- Skills phải thực tế và có thể đạt được thông qua học tập
+- Phù hợp với cấp độ khóa học
+- Không vượt quá số lượng topics tối đa
+- Phải luôn tuân thủ đầu ra, không được trả lời lan man, không được yêu cầu thêm thông tin
 """
 
-    def create_user_prompt(self, request: CourseCompositionRequestSchema) -> str:
-        """Tạo user prompt với thông tin khóa học"""
-        return f"""Hãy tạo danh sách topics chi tiết cho khóa học sau:
 
-**THÔNG TIN KHÓA HỌC:**
-- Tiêu đề: {request.course_title}
-- Mô tả: {request.course_description}
-- Cấp độ: {request.course_level}
-- Số topics tối đa: {request.max_topics}
-- Số lessons mỗi topic: {request.lessons_per_topic}
+SYSTEM_PROMPT = SYSTEM_PROMPT.format(
+    instruction=PydanticOutputParser(
+        pydantic_object=CourseAgentResponse
+    ).get_format_instructions()
+)
 
-**YÊU CẦU:**
-1. Tạo danh sách topics phù hợp với nội dung và cấp độ
-2. Mỗi topic phải có:
-   - Tên topic rõ ràng
-   - Mô tả chi tiết nội dung
-   - Danh sách prerequisites (nếu có)
-   - Danh sách 3-7 skills cụ thể sẽ đạt được
-   - Thứ tự hợp lý (order)
-3. Ước lượng thời gian hoàn thành toàn bộ khóa học
 
-Hãy tạo kế hoạch học tập toàn diện và thực tế."""
+class CourseCompositionAgent(BaseAgent):
+    """
+    Agent tự động soạn bài giảng cho khóa học
+    """
 
-    async def generate_topics(self, request: CourseCompositionRequestSchema) -> CourseAgentResponse:
-        """
-        Tạo danh sách topics với skills sử dụng LLM
-        """
+    def __init__(self, db_session: AsyncSession):
+        super().__init__()
+        self.current_course_id = None
+        self.db_session = db_session
+        self.vector_store = get_vector_store("document")
+        self._setup_tools()
+        self._init_agent()
+
+    def _setup_tools(self):
+        """Khởi tạo các tools cho agent"""
+        document_retriever = get_vector_store("document").as_retriever()
+        self.retrieval_tool = Tool(
+            name="course_context_retriever",
+            func=document_retriever.invoke,
+            coroutine=document_retriever.ainvoke,
+            description="Truy vấn RAG để lấy nội dung liên quan đến khóa học.",
+        )
+
+        self.store_topic_tool = Tool(
+            name="save_topics_to_db",
+            func=self._store_topic,
+            coroutine=self._astore_topic,
+            description="Lưu danh sách các topic đã được tạo vào cơ sở dữ liệu.",
+        )
+
+        self.output_parser = PydanticOutputParser(pydantic_object=CourseAgentResponse)
+        self.tools = [self.retrieval_tool, self.store_topic_tool]
+
+    def _store_topic(self, t: str):
+        """Lưu topic vào cơ sở dữ liệu (đồng bộ wrapper)"""
+        import asyncio
+
+        # Tạo một event loop mới nếu không có sẵn
         try:
-            system_prompt = self.create_system_prompt()
-            user_prompt = self.create_user_prompt(request)
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
 
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ]
+        return loop.run_until_complete(self._astore_topic(t))
 
-            logger.info(f"Generating topics for course: {request.course_title}")
-
-            # Gọi LLM để tạo topics
-            response = self.llm.invoke(messages)
-
-            # Parse response
-            parsed_response = self.parser.parse(response.content)
-
-            # Validate và log kết quả
-            logger.info(f"Generated {len(parsed_response.topics)} topics successfully")
-            for i, topic in enumerate(parsed_response.topics, 1):
-                logger.info(f"Topic {i}: {topic.name} ({len(topic.skills)} skills)")
-
-            return parsed_response
-
+    async def _astore_topic(self, t: str):
+        """Lưu topic vào cơ sở dữ liệu (bất đồng bộ)"""
+        if not self.db_session:
+            raise ValueError("db_session chưa được khởi tạo.")
+        try:
+            topics = json.loads(t)
+            for topic_data in topics:
+                if hasattr(self, "current_course_id") and self.current_course_id:
+                    topic_data["course_id"] = self.current_course_id
+                new_topic = Topic(**topic_data)
+                self.db_session.add(new_topic)
+            await self.db_session.commit()
         except Exception as e:
-            logger.error(f"Error generating topics: {str(e)}")
-            raise Exception(f"Không thể tạo danh sách topics: {str(e)}")
+            print(f"Lỗi khi lưu topic vào cơ sở dữ liệu: {e}")
+            await self.db_session.rollback()
+            return False
+        return True
 
-    def act(self, request: CourseCompositionRequestSchema) -> Dict[str, Any]:
-        """
-        Main method để thực hiện tạo course composition
+    async def _get_topics_by_course_id(self, course_id: int) -> list[Topic]:
+        """Lấy danh sách topics theo course_id từ database"""
+        from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
+        from app.models.topic_model import Topic
 
-        Returns:
-            Dict chứa danh sách topics với skills và thông tin khóa học
-        """
         try:
-            # Validate input
-            if not request.course_title or not request.course_description:
-                raise ValueError("Thiếu thông tin cơ bản của khóa học")
+            result = await self.db_session.execute(
+                select(Topic)
+                .options(selectinload(Topic.lessons))
+                .where(Topic.course_id == course_id)
+            )
+            return [topic for topic in result.scalars().all()]
+        except Exception as e:
+            print(f"Lỗi khi lấy topics từ database: {e}")
+            return []
 
-            # Tạo topics với skills
-            import asyncio
-            result = asyncio.run(self.generate_topics(request))
+    def _init_agent(self):
+        """Khởi tạo agent với lazy import"""
+        from langchain_core.messages import SystemMessage
+        from langchain_core.prompts import (
+            ChatPromptTemplate,
+            MessagesPlaceholder,
+            HumanMessagePromptTemplate,
+        )
+        from langchain.agents import AgentExecutor, create_tool_calling_agent
 
-            # Tạo response theo format mong muốn
-            response = CourseCompositionResponseSchema(
-                topics=result.topics,
-                duration=result.duration,
-                status="success"
+        self.prompt = ChatPromptTemplate.from_messages(
+            [
+                SystemMessage(content=SYSTEM_PROMPT),
+                MessagesPlaceholder(variable_name="history", optional=True),
+                HumanMessagePromptTemplate.from_template("{input}"),
+                MessagesPlaceholder(variable_name="agent_scratchpad"),
+            ]
+        )
+        self.agent = create_tool_calling_agent(
+            self.base_llm,
+            self.tools,
+            self.prompt,
+        )
+
+        self.agent_executor = AgentExecutor(
+            agent=self.agent,
+            max_iterations=40,
+            tools=self.tools,
+            verbose=True,
+        )
+
+    @trace_agent(project_name="default", tags=["course", "composition"])
+    async def act(self, request: CourseCompositionRequestSchema) -> None:
+        from langchain_core.runnables import RunnableConfig
+
+        errors = []
+        try:
+            self.current_course_id = request.course_id
+
+            run_config = RunnableConfig(
+                callbacks=self._callback_manager.handlers,
+                metadata={
+                    "course_id": request.course_id,
+                    "course_title": request.course_title,
+                    "course_description": request.course_description,
+                    "course_level": request.course_level,
+                    "agent_type": "course_composition",
+                },
+                tags=["course", "composition", f"course:{request.course_id}"],
             )
 
-            logger.info(f"Course composition completed successfully for course: {request.course_title}")
-            logger.info(f"Total topics: {len(result.topics)}")
-            logger.info(f"Estimated duration: {result.duration}")
+            request_input = f"""
+            Khóa học: {request.course_title}
+            Mô tả: {request.course_description}
+            Cấp độ: {request.course_level}
+            """
+            result = await self.agent_executor.ainvoke(
+                {"input": request_input}, config=run_config
+            )
 
-            return {
-                "status": "success",
-                "topics": [topic.model_dump() for topic in result.topics],
-                "duration": result.duration,
-                "course_id": request.course_id,
-                "message": f"Đã tạo {len(result.topics)} topics thành công"
-            }
+            if not result or not result.get("output"):
+                errors.append("Không thể tạo topics cho khóa học")
+                return
+
+            try:
+                agent_response = self.output_parser.parse(result["output"])
+                await self.db_session.execute(
+                    update(Course)
+                    .where(Course.id == request.course_id)
+                    .values(duration=agent_response.duration)
+                )
+            except Exception:
+                agent_response = OutputFixingParser.from_llm(
+                    self.base_llm, parser=self.output_parser
+                ).parse(result["output"])
+                await self.db_session.execute(
+                    update(Course)
+                    .where(Course.id == request.course_id)
+                    .values(duration=agent_response.duration)
+                )
+
+            topics_from_db = await self._get_topics_by_course_id(request.course_id)
+
+            from app.services.topic_service import TopicService
+
+            topic_service = TopicService(self.db_session)
+            lesson_service = LessonService(self.db_session, topic_service)
+            session_id = str(uuid.uuid4())
+
+            for topic in topics_from_db:
+                lesson_data = await LessonGeneratingAgent().act(
+                    topic_name=topic.name,
+                    lesson_title=f"Bài giảng {topic.name}",
+                    lesson_description=topic.description,
+                    difficulty_level=request.course_level,
+                    max_sections=5,
+                    session_id=session_id,
+                )
+
+                for lesson in lesson_data:
+                    lesson.topic_id = topic.id
+                    await lesson_service.create_lesson(lesson)
 
         except Exception as e:
-            logger.error(f"Course composition failed: {str(e)}")
-            return {
-                "status": "error",
-                "topics": [],
-                "duration": "",
-                "course_id": request.course_id,
-                "error": str(e),
-                "message": f"Lỗi khi tạo khóa học: {str(e)}"
-            }
+            print(f"❌ Lỗi khi soạn khóa học: {e}")
+            errors.append(f"Lỗi hệ thống: {str(e)}")
+            return

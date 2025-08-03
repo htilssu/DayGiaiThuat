@@ -157,6 +157,88 @@ export async function generateCourseTopics(request: GenerateTopicsRequest): Prom
     return post<GenerateTopicsResponse>("/admin/courses/generate-topics", request);
 }
 
+/**
+ * Kiểu dữ liệu cho thông tin review khóa học
+ */
+export interface CourseReview {
+    courseId: number;
+    status: 'draft' | 'reviewing' | 'approved' | 'rejected';
+    generatedContent: {
+        topics: any[];
+        lessons: any[];
+        exercises: any[];
+        tests: any[];
+    };
+    feedback?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+/**
+ * Kiểu dữ liệu cho tin nhắn chat review
+ */
+export interface ReviewChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: string;
+}
+
+/**
+ * Kiểu dữ liệu cho request gửi tin nhắn chat review
+ */
+export interface ReviewChatRequest {
+    message: string;
+    context?: {
+        courseData?: any;
+        generatedContent?: any;
+    };
+}
+
+/**
+ * Kiểu dữ liệu cho response chat review
+ */
+export interface ReviewChatResponse {
+    message: ReviewChatMessage;
+    updatedContent?: any;
+}
+
+/**
+ * Kiểu dữ liệu cho request approve/reject
+ */
+export interface ReviewApprovalRequest {
+    action: 'approve' | 'reject';
+    feedback?: string;
+}
+
+/**
+ * Lấy thông tin review khóa học
+ * @param courseId ID của khóa học
+ * @returns Thông tin review khóa học
+ */
+export async function getCourseReview(courseId: number): Promise<CourseReview> {
+    return get<CourseReview>(`/admin/courses/${courseId}/review`);
+}
+
+/**
+ * Gửi tin nhắn chat với agent review
+ * @param courseId ID của khóa học
+ * @param request Dữ liệu tin nhắn chat
+ * @returns Response từ AI agent
+ */
+export async function sendReviewChatMessage(courseId: number, request: ReviewChatRequest): Promise<ReviewChatResponse> {
+    return post<ReviewChatResponse>(`/admin/courses/${courseId}/review/chat`, request);
+}
+
+/**
+ * Approve hoặc reject draft khóa học
+ * @param courseId ID của khóa học
+ * @param request Dữ liệu approve/reject
+ * @returns Kết quả xử lý
+ */
+export async function approveRejectCourse(courseId: number, request: ReviewApprovalRequest): Promise<{ success: boolean; message: string; }> {
+    return post<{ success: boolean; message: string; }>(`/admin/courses/${courseId}/review/approve`, request);
+}
+
 async function forceDeleteCourse(courseId: number) {
     return del(`/admin/courses/${courseId}?force=1`)
 }
@@ -170,5 +252,8 @@ export const adminCoursesApi = {
     bulkDeleteCoursesAdmin,
     createCourseTestAdmin,
     generateCourseTopics,
+    getCourseReview,
+    sendReviewChatMessage,
+    approveRejectCourse,
     forceDeleteCourse
 }; 

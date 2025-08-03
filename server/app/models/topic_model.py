@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from app.models.course_model import Course
     from app.models.lesson_model import Lesson
     from app.models.test_model import Test
+    from app.models.skill_model import Skill
 
 
 class Topic(Base):
@@ -33,5 +34,8 @@ class Topic(Base):
     )
     tests: Mapped[List[Test]] = relationship(
         "Test", back_populates="topic", cascade="all, delete-orphan"
+    )
+    skills: Mapped[List["Skill"]] = relationship(
+        "Skill", back_populates="topic", cascade="all, delete-orphan"
     )
     order: Mapped[int] = mapped_column(Integer, nullable=True)

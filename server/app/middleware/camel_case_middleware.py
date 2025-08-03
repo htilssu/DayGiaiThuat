@@ -30,8 +30,6 @@ async def _process_request(request: Request) -> Request:
                             "more_body": False,
                         }
 
-                    # For subsequent calls, delegate to original receive
-                    # This allows disconnect and other events to be handled properly
                     message = await original_receive()
                     return message
 

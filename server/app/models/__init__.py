@@ -8,6 +8,7 @@ from app.models.user_course_model import UserCourse
 from app.models.user_course_progress_model import UserCourseProgress
 from app.models.user_model import User
 from app.models.topic_model import Topic
+from app.models.skill_model import Skill
 from app.models.badge_model import Badge
 from app.models.course_model import Course
 from app.models.user_badge_model import UserBadge

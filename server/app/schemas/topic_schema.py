@@ -5,6 +5,7 @@ from app.schemas.lesson_schema import (
     LessonWithChildSchema,
     LessonDetailWithProgressResponse,
 )
+from app.schemas.skill_schema import SkillBase
 
 
 class TopicBase(BaseModel):
@@ -21,6 +22,12 @@ class TopicBase(BaseModel):
     description: Optional[str] = Field(None, description="Mô tả chi tiết về chủ đề")
     prerequisites: Optional[List[str]] = Field(
         None, description="Danh sách các điều kiện tiên quyết"
+    )
+
+
+class TopicHasSkill(TopicBase):
+    skills: list[SkillBase] = Field(
+        default_factory=list, description="Danh sách các kỹ năng liên quan đến chủ đề"
     )
 
 
