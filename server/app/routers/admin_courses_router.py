@@ -8,7 +8,6 @@ from app.schemas.course_schema import (
     BulkDeleteCoursesResponse,
     CourseCompositionRequestSchema,
     CourseCreate,
-    CourseOnlyResponse,
     CourseResponse,
     CourseUpdate,
 )
@@ -33,6 +32,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from typing import Annotated
 import json
 
 router = APIRouter(
@@ -77,12 +77,12 @@ async def run_course_composition_background(
         agent = CourseCompositionAgent(db)
         agent_response, session_id = await agent.act(request)
 
-        # Lưu kết quả vào draft
+        # Lưu kết quả vào draft (cập nhật hoặc tạo mới)
         import json
-
-        # Kiểm tra xem có draft nào cho course này chưa
         from sqlalchemy import select
+        from datetime import datetime
 
+        # Tìm draft hiện tại của course này
         existing_draft_result = await db.execute(
             select(CourseDraft).filter(CourseDraft.course_id == request.course_id)
         )
@@ -97,11 +97,9 @@ async def run_course_composition_background(
             existing_draft.agent_content = topics_json
             existing_draft.session_id = session_id
             existing_draft.status = "pending"
-            from datetime import datetime
-
             existing_draft.updated_at = datetime.utcnow()
         else:
-            # Tạo draft mới
+            # Tạo draft mới nếu chưa có
             new_draft = CourseDraft(
                 course_id=request.course_id,
                 agent_content=topics_json,
@@ -117,6 +115,86 @@ async def run_course_composition_background(
 
     except Exception as e:
         logger.error(f"❌ Error in course composition: {str(e)}")
+        await db.rollback()
+        raise e
+
+
+async def run_course_recomposition_background(
+    request: CourseCompositionRequestSchema, feedback: str, db: AsyncSession
+):
+    """
+    Hàm chạy trong background để tái tạo nội dung khóa học với feedback từ admin.
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Tạo agent với cùng session_id để tiếp tục cuộc hội thoại
+        agent = CourseCompositionAgent(db)
+
+        # Tạo request với feedback bổ sung
+        feedback_input = f"""
+        Khóa học: {request.course_title}
+        Mô tả: {request.course_description}
+        Cấp độ: {request.course_level}
+        
+        Feedback từ admin: {feedback}
+        
+        Hãy điều chỉnh lại danh sách topics dựa trên feedback trên.
+        """
+
+        # Tạo custom request để gửi feedback
+        feedback_request = CourseCompositionRequestSchema(
+            course_id=request.course_id,
+            course_title=request.course_title,
+            course_description=feedback_input,  # Thêm feedback vào description
+            course_level=request.course_level,
+            session_id=request.session_id,  # Sử dụng session_id từ draft
+        )
+
+        agent_response, session_id = await agent.act(feedback_request)
+
+        # Lưu kết quả vào draft duy nhất
+        import json
+        from sqlalchemy import select
+        from datetime import datetime
+
+        # Tìm draft hiện tại của course này
+        existing_draft_result = await db.execute(
+            select(CourseDraft).filter(CourseDraft.course_id == request.course_id)
+        )
+        existing_draft = existing_draft_result.scalar_one_or_none()
+
+        topics_json = json.dumps(
+            agent_response.model_dump(), ensure_ascii=False, indent=2
+        )
+
+        if existing_draft:
+            # Cập nhật draft hiện có với nội dung mới
+            existing_draft.agent_content = topics_json
+            existing_draft.session_id = session_id
+            existing_draft.status = (
+                "pending"  # Reset về pending để admin có thể review lại
+            )
+            existing_draft.updated_at = datetime.utcnow()
+        else:
+            # Tạo draft mới nếu không tồn tại (trường hợp hiếm)
+            new_draft = CourseDraft(
+                course_id=request.course_id,
+                agent_content=topics_json,
+                session_id=session_id,
+                status="pending",
+            )
+            db.add(new_draft)
+
+        await db.commit()
+        logger.info(
+            f"✅ Course recomposition completed and saved to draft for course: {request.course_id} with session: {session_id}"
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error in course recomposition: {str(e)}")
         await db.rollback()
         raise e
 
@@ -235,7 +313,7 @@ async def update_course(
         )
         updated_course = result.scalar_one()
 
-        return CourseOnlyResponse.model_validate(updated_course)
+        return CourseResponse.model_validate(updated_course)
     except SQLAlchemyError as e:
         await db.rollback()
         raise HTTPException(
@@ -311,12 +389,12 @@ async def bulk_delete_courses(
 )
 async def delete_course(
     course_id: int,
-    force: int = Query(
-        default=0, ge=0, le=1, description="Force delete without checking enrollments"
-    ),
     db: AsyncSession = Depends(get_async_db),
     course_service: CourseService = Depends(get_course_service),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
+    force: Annotated[
+        int, Query(ge=0, le=1, description="Force delete without checking enrollments")
+    ] = 0,
 ):
     """
     Xóa khóa học và tất cả dữ liệu liên quan (chỉ admin)
@@ -672,11 +750,12 @@ async def send_chat_message(
 async def approve_course_draft(
     course_id: int,
     approve_request: ApproveDraftRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
-    Approve draft content và lưu vào database chính
+    Approve draft content và lưu vào database chính hoặc reject và gọi lại agent
     """
     # Tìm course
     course_result = await db.execute(select(Course).filter(Course.id == course_id))
@@ -687,10 +766,10 @@ async def approve_course_draft(
             detail=f"Không tìm thấy khóa học với ID {course_id}",
         )
 
-    # Tìm draft gần nhất
+    # Tìm draft duy nhất của course này
     draft_result = await db.execute(
         select(CourseDraft)
-        .filter(CourseDraft.course_id == course_id, CourseDraft.status == "pending")
+        .filter(CourseDraft.course_id == course_id)
         .order_by(CourseDraft.created_at.desc())
         .limit(1)
     )
@@ -698,7 +777,7 @@ async def approve_course_draft(
     if not draft:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Không tìm thấy draft pending cho khóa học này",
+            detail="Không tìm thấy draft cho khóa học này",
         )
 
     try:
@@ -719,10 +798,12 @@ async def approve_course_draft(
                     is_agent=False,
                 )
                 db.add(feedback_message)
-        else:
-            # Reject draft
-            draft.status = "rejected"
 
+            await db.commit()
+            return {"message": "Draft đã được approved thành công"}
+
+        else:
+            # Reject và yêu cầu agent tái tạo nội dung
             # Lưu feedback reject
             if approve_request.feedback:
                 feedback_message = CourseReviewChat(
@@ -733,10 +814,25 @@ async def approve_course_draft(
                 )
                 db.add(feedback_message)
 
-        await db.commit()
+            await db.commit()
 
-        status_msg = "approved" if approve_request.approved else "rejected"
-        return {"message": f"Draft đã được {status_msg} thành công"}
+            # Gọi lại course composition agent với session_id và feedback
+            composition_request = CourseCompositionRequestSchema(
+                course_id=course_id,
+                course_title=course.title,
+                course_description=course.description,
+                course_level=course.level,
+                session_id=draft.session_id,  # Sử dụng session_id từ draft
+            )
+
+            background_tasks.add_task(
+                run_course_recomposition_background,
+                composition_request,
+                approve_request.feedback or "Vui lòng cải thiện nội dung khóa học",
+                db,
+            )
+
+            return {"message": "Draft đã được rejected và agent đang tái tạo nội dung"}
 
     except SQLAlchemyError as e:
         await db.rollback()

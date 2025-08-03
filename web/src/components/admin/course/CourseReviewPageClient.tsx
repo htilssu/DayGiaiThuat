@@ -193,7 +193,7 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
                                         <Text size="lg" fw={500}>Đang tạo nội dung khóa học...</Text>
                                         <Text size="sm" c="dimmed">
                                             AI Agent đang phân tích và tạo nội dung cho khóa học này.
-                                            Vui lòng chờ trong giây lát hoặc chat với AI để theo dõi tiến trình.
+                                            Vui lòng chờ trong giây lát.
                                         </Text>
                                     </Stack>
                                 </Paper>
