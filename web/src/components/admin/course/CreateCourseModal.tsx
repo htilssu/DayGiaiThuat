@@ -47,6 +47,8 @@ export default function CreateCourseModal({ opened, onClose, onSuccess }: Create
                 value.length < 10 ? "Mô tả khóa học phải có ít nhất 10 ký tự" : null,
             level: (value) =>
                 !value ? "Vui lòng chọn cấp độ khóa học" : null,
+            price: (value) =>
+                value < 0 ? "Giá khóa học không thể âm" : null,
         },
     });
 
@@ -157,8 +159,9 @@ export default function CreateCourseModal({ opened, onClose, onSuccess }: Create
                     </Grid.Col>
                     <Grid.Col span={6}>
                         <NumberInput
+                            required
                             label="Giá (VNĐ)"
-                            placeholder="0"
+                            placeholder="Nhập giá khóa học"
                             min={0}
                             {...form.getInputProps("price")}
                         />
