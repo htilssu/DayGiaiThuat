@@ -32,28 +32,3 @@ class CourseDraft(Base):
 
     # Relationship
     course = relationship("Course", back_populates="drafts")
-
-
-class CourseReviewChat(Base):
-    """
-    Model để lưu trữ chat giữa admin và agent trong quá trình review
-    """
-
-    __tablename__ = "course_review_chats"
-
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    course_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False
-    )
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False
-    )
-    message: Mapped[str] = mapped_column(Text, nullable=False)
-    is_agent: Mapped[bool] = mapped_column(
-        Boolean, default=False
-    )  # True nếu là tin nhắn từ agent
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
-    # Relationships
-    course = relationship("Course")
-    user = relationship("User")

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from sqlalchemy import func
+from sqlalchemy import DateTime, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
@@ -36,10 +36,14 @@ AsyncSessionLocal = async_sessionmaker(
 # Tạo Base class để kế thừa cho các model
 class Base(DeclarativeBase):
     created_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), nullable=False, index=True
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
     updated_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), onupdate=func.now(), nullable=False, index=True
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+        index=True,
     )
 
 
