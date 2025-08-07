@@ -72,14 +72,6 @@ export function CoursesExplorePage() {
                 <Text size="xl" mb="lg" style={{ color: 'rgba(255, 255, 255, 0.9)' }}>
                     Tìm hiểu và đăng ký các khóa học về giải thuật và lập trình
                 </Text>
-                <Button
-                    size="lg"
-                    variant="white"
-                    color="black"
-                    onClick={handleGoToMyCourses}
-                >
-                    Xem khóa học của bạn
-                </Button>
             </Box>
 
             <Box mb="xl">

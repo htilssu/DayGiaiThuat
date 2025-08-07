@@ -2,7 +2,7 @@ from app.core.agents.course_composition_agent import CourseCompositionAgent
 from app.database.database import get_async_db, get_independent_db_session
 from app.models.course_model import Course
 from app.models.topic_model import Topic
-from app.models.course_draft_model import CourseDraft, CourseReviewChat
+from app.models.course_draft_model import CourseDraft
 from app.schemas.course_schema import (
     BulkDeleteCoursesRequest,
     BulkDeleteCoursesResponse,
@@ -34,6 +34,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from typing import Annotated
 import json
+
+from app.models.lesson_model import Lesson
 
 router = APIRouter(
     prefix="/admin/courses",
@@ -308,7 +310,12 @@ async def update_course(
         # Tải lại course với topics để tránh lỗi lazy loading
         result = await db.execute(
             select(Course)
-            .options(selectinload(Course.topics).selectinload(Topic.lessons))
+            .options(
+                selectinload(Course.topics)
+                .selectinload(Topic.lessons)
+                .selectinload(Lesson.sections)
+                .selectinload(Lesson.exercises)
+            )
             .filter(Course.id == course_id)
         )
         updated_course = result.scalar_one()
@@ -789,34 +796,13 @@ async def approve_course_draft(
             # Cập nhật status draft
             draft.status = "approved"
 
-            # Lưu feedback nếu có
-            if approve_request.feedback:
-                feedback_message = CourseReviewChat(
-                    course_id=course_id,
-                    user_id=admin_user.id,
-                    message=f"Approved with feedback: {approve_request.feedback}",
-                    is_agent=False,
-                )
-                db.add(feedback_message)
-
             await db.commit()
             return {"message": "Draft đã được approved thành công"}
 
         else:
             # Reject và yêu cầu agent tái tạo nội dung
             # Lưu feedback reject
-            if approve_request.feedback:
-                feedback_message = CourseReviewChat(
-                    course_id=course_id,
-                    user_id=admin_user.id,
-                    message=f"Rejected with feedback: {approve_request.feedback}",
-                    is_agent=False,
-                )
-                db.add(feedback_message)
 
-            await db.commit()
-
-            # Gọi lại course composition agent với session_id và feedback
             composition_request = CourseCompositionRequestSchema(
                 course_id=course_id,
                 course_title=course.title,
@@ -848,19 +834,6 @@ async def process_agent_response(course_id: int, user_message: str, user_id: int
     """
     try:
         # TODO: Tích hợp với agent để xử lý tin nhắn
-        # Hiện tại chỉ là mock response
-        agent_response = f"Agent response to: {user_message}"
-
-        async with get_independent_db_session() as session:
-            # Lưu phản hồi agent
-            agent_message = CourseReviewChat(
-                course_id=course_id,
-                user_id=user_id,  # Có thể tạo user_id đặc biệt cho agent
-                message=agent_response,
-                is_agent=True,
-            )
-            session.add(agent_message)
-            await session.commit()
 
     except Exception as e:
         import logging

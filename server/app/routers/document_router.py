@@ -91,43 +91,6 @@ async def store_document(
 
     return {"documents": document_responses}
 
-
-@router.post("/store-by-text")
-async def store_document_by_text(
-    req: StoreByTextRequest,
-    document_service: DocumentService = Depends(get_document_service),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
-):
-    """
-    Lưu text trực tiếp vào RAG để test nhanh (chỉ cho admin)
-    """
-    from uuid import uuid4
-
-    document_id = str(uuid4())
-    filename = f"text_{document_id}.txt"
-    created_at = datetime.now().isoformat()
-    # Tạo job giả lập đúng kiểu DocumentProcessingJob
-    job = DocumentProcessingJob(
-        id=document_id,
-        job_id=document_id,
-        filename=filename,
-        document_url="",
-        course_id=req.course_id,
-        status="COMPLETED",
-    )
-    # Gọi xử lý lưu vào RAG
-    await document_service._process_docling_result(job, {"content": req.text})
-    # Trả về thông tin document đã lưu
-    return DocumentResponse(
-        id=document_id,
-        filename=filename,
-        status="completed",
-        createdAt=created_at,
-        job_id=None,
-        course_id=req.course_id,
-    )
-
-
 @webhook_router.post("/webhook")
 async def handle_runpod_webhook(
     webhook_data: RunpodWebhookRequest,

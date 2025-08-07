@@ -22,7 +22,6 @@ router = APIRouter(
 
 
 def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
-    """Kiểm tra quyền admin"""
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -44,9 +43,9 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
     },
 )
 async def create_topic(
-    topic_data: TopicCreate,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        topic_data: TopicCreate,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Tạo một chủ đề mới cho một khóa học (chỉ admin)
@@ -75,9 +74,9 @@ async def create_topic(
     },
 )
 async def get_topics_admin(
-    course_id: int | None = None,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int | None = None,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Lấy danh sách các chủ đề (chỉ admin)
@@ -105,9 +104,9 @@ async def get_topics_admin(
     },
 )
 async def get_topic_by_id_admin(
-    topic_id: int,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        topic_id: int,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Lấy thông tin chi tiết của một chủ đề (chỉ admin)
@@ -135,10 +134,10 @@ async def get_topic_by_id_admin(
     },
 )
 async def update_topic(
-    topic_id: int,
-    topic_data: TopicUpdate,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        topic_id: int,
+        topic_data: TopicUpdate,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Cập nhật thông tin chủ đề (chỉ admin)
@@ -182,10 +181,10 @@ async def update_topic(
     },
 )
 async def assign_topic_to_course(
-    topic_id: int,
-    assignment_data: TopicCourseAssignment,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        topic_id: int,
+        assignment_data: TopicCourseAssignment,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Assign hoặc unassign chủ đề với khóa học (chỉ admin)
@@ -224,9 +223,9 @@ async def assign_topic_to_course(
     },
 )
 async def delete_topic(
-    topic_id: int,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        topic_id: int,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Xóa chủ đề (chỉ admin)

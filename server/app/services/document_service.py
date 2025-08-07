@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app.core.agents.components.document_store import get_vector_store
 from app.core.config import settings
-from app.database.database import get_independent_db_session
+from app.database.database import get_independent_db_session, get_async_db
 from app.models.document_processing_job_model import DocumentProcessingJob
 from app.schemas.document_schema import DocumentStatus
 
@@ -26,12 +26,12 @@ class DocumentService:
         self.embeddings = get_embedding_model()
 
     async def create_document_processing_job(
-        self,
-        document_id: str,
-        job_id: str,
-        filename: str,
-        document_url: str,
-        course_id: Optional[int] = None,
+            self,
+            document_id: str,
+            job_id: str,
+            filename: str,
+            document_url: str,
+            course_id: Optional[int] = None,
     ) -> DocumentProcessingJob:
         """
         Tạo record DocumentProcessingJob trong database
@@ -57,11 +57,11 @@ class DocumentService:
                 await db.close()
 
     async def update_job_status(
-        self,
-        job_id: str,
-        status: str,
-        result: Optional[Dict[str, Any]] = None,
-        error_message: Optional[str] = None,
+            self,
+            job_id: str,
+            status: str,
+            result: Optional[Dict[str, Any]] = None,
+            error_message: Optional[str] = None,
     ) -> Optional[DocumentProcessingJob]:
         """
         Cập nhật trạng thái job từ webhook
@@ -95,7 +95,7 @@ class DocumentService:
             db.close()
 
     async def process_completed_document(
-        self, job_id: str, result: Dict[str, Any]
+            self, job_id: str, result: Dict[str, Any]
     ) -> None:
         """
         Xử lý tài liệu đã hoàn thành: semantic chunking và lưu vào RAG
@@ -127,7 +127,7 @@ class DocumentService:
             db.close()
 
     async def _process_docling_result(
-        self, job: DocumentProcessingJob, result: Dict[str, Any]
+            self, job: DocumentProcessingJob, result: Dict[str, Any]
     ) -> None:
         """
         Xử lý kết quả từ Docling và lưu vào vector database
@@ -157,7 +157,8 @@ class DocumentService:
             semantic_chunker = SemanticChunker(
                 embeddings=self.embeddings,
                 breakpoint_threshold_type="percentile",
-                breakpoint_threshold_amount=85,
+                breakpoint_threshold_amount=95,
+                buffer_size=3
             )
 
             chunks = semantic_chunker.split_documents([doc])
@@ -205,7 +206,7 @@ class DocumentService:
             # Không raise exception để không làm fail quá trình xử lý document chính
 
     async def process_document(
-        self, temp_path: str, document_id: str, filename: str
+            self, temp_path: str, document_id: str, filename: str
     ) -> None:
         """
         Process document asynchronously using DocLing and semantic chunking
@@ -300,8 +301,8 @@ class DocumentService:
             # Store in batches to avoid overwhelming the vector store
             batch_size = 50
             for i in range(0, len(texts), batch_size):
-                batch_texts = texts[i : i + batch_size]
-                batch_metadata = metadatas[i : i + batch_size]
+                batch_texts = texts[i: i + batch_size]
+                batch_metadata = metadatas[i: i + batch_size]
 
                 vector_store.add_texts(
                     texts=batch_texts,
@@ -342,7 +343,7 @@ class DocumentService:
             if isinstance(value, (str, int, float, bool)):
                 cleaned_metadata[key] = value
             elif isinstance(value, list) and all(
-                isinstance(item, str) for item in value
+                    isinstance(item, str) for item in value
             ):
                 cleaned_metadata[key] = value
             elif value is not None:
@@ -368,38 +369,38 @@ class DocumentService:
         finally:
             file.file.close()
 
-    def get_document_status(self, document_ids: List[str]) -> List[DocumentStatus]:
+    async def get_document_status(self, document_ids: List[str]) -> List[DocumentStatus]:
         """
         Get status of documents by IDs from database
         """
-        db = next(get_db())
-        try:
-            jobs = (
-                db.execute(
-                    select(DocumentProcessingJob).where(
-                        DocumentProcessingJob.id.in_(document_ids)
+        async with get_independent_db_session() as db:
+            try:
+                jobs = (
+                    await db.execute(
+                        select(DocumentProcessingJob).where(
+                            DocumentProcessingJob.id.in_(document_ids)
+                        )
                     )
+                    .scalars()
+                    .all()
                 )
-                .scalars()
-                .all()
-            )
 
-            return [
-                DocumentStatus(
-                    id=job.id,
-                    filename=job.filename,
-                    status=job.status,
-                    createdAt=job.created_at.isoformat(),
-                    error=job.error_message,
-                    chunks_count=None,  # TODO: Calculate from vector DB if needed
-                )
-                for job in jobs
-            ]
-        finally:
-            db.close()
+                return [
+                    DocumentStatus(
+                        id=job.id,
+                        filename=job.filename,
+                        status=job.status,
+                        createdAt=job.created_at.isoformat(),
+                        error=job.error_message,
+                        chunks_count=None,  # TODO: Calculate from vector DB if needed
+                    )
+                    for job in jobs
+                ]
+            except Exception as e:
+                raise Exception(f"Failed to get document status: {str(e)}")
 
     async def search_documents(
-        self, query: str, limit: int = 5, filter_metadata: Dict = None
+            self, query: str, limit: int = 5, filter_metadata: Dict = None
     ) -> Dict:
         """
         Search documents in vector database with optional metadata filtering
@@ -485,7 +486,7 @@ class DocumentService:
             }
 
             async with httpx.AsyncClient(
-                timeout=settings.DOCUMENT_PROCESSING_TIMEOUT
+                    timeout=settings.DOCUMENT_PROCESSING_TIMEOUT
             ) as client:
                 response = await client.post(
                     settings.DOCUMENT_PROCESSING_ENDPOINT,

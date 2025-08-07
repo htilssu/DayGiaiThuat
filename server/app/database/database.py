@@ -47,7 +47,7 @@ class Base(DeclarativeBase):
     )
 
 
-async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_async_db():
     """
     Tạo và trả về một database session bất đồng bộ mới cho mỗi request
     và đảm bảo đóng kết nối sau khi xử lý xong.

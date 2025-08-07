@@ -41,11 +41,7 @@ class Question(BaseModel):
     difficulty: str = Field(description="Độ khó của câu hỏi")
     type: str = Field(
         description="Loại câu hỏi",
-        enum=[
-            "single_choice",
-            "multiple_choice",
-            "essay",
-        ],
+        pattern="^(multiple_choice|single_choice|essay)$",
     )
     answer: str = Field(description="Câu trả lời đúng")
     options: list[str] = Field(description="Các câu trả lời sai")
@@ -66,16 +62,13 @@ class InputTestAgent(BaseAgent):
         self._tool_calling_agent = None
         self._agent_executor = None
 
-        # Retry configuration
         self.max_retries = 3
-        self.retry_delay = 2  # seconds
+        self.retry_delay = 2
 
-        # Khởi tạo tool với lazy import
         self._init_tools()
 
     def _init_tools(self):
         """Khởi tạo tools với lazy import"""
-        # Lazy import - chỉ import khi cần thiết
         from langchain_core.tools import Tool
 
         async def get_course_by_id(course_id: int):
@@ -96,7 +89,6 @@ class InputTestAgent(BaseAgent):
     @property
     def output_parser(self):
         if self._output_parser is None:
-            # Lazy import - chỉ import khi cần thiết
             from langchain_core.output_parsers import PydanticOutputParser
 
             self._output_parser = PydanticOutputParser(
@@ -107,7 +99,6 @@ class InputTestAgent(BaseAgent):
     @property
     def output_fix_parser(self):
         if self._output_fix_parser is None:
-            # Lazy import - chỉ import khi cần thiết
             from langchain.output_parsers import OutputFixingParser
 
             self._output_fix_parser = OutputFixingParser.from_llm(
@@ -119,7 +110,6 @@ class InputTestAgent(BaseAgent):
     @property
     def prompt(self):
         if self._prompt is None:
-            # Lazy import - chỉ import khi cần thiết
             from langchain_core.prompts import ChatPromptTemplate
             from langchain_core.messages import SystemMessage
             from langchain_core.prompts import HumanMessagePromptTemplate
@@ -141,7 +131,6 @@ class InputTestAgent(BaseAgent):
     @property
     def tool_calling_agent(self):
         if self._tool_calling_agent is None:
-            # Lazy import - chỉ import khi cần thiết
             from langchain.agents import create_tool_calling_agent
 
             self._tool_calling_agent = create_tool_calling_agent(
@@ -154,7 +143,6 @@ class InputTestAgent(BaseAgent):
     @property
     def agent_executor(self):
         if self._agent_executor is None:
-            # Lazy import - chỉ import khi cần thiết
             from langchain.agents import AgentExecutor
 
             self._agent_executor = AgentExecutor.from_agent_and_tools(
@@ -203,11 +191,9 @@ class InputTestAgent(BaseAgent):
                     logger.error(f"Đã thử {self.max_retries} lần nhưng vẫn thất bại")
 
             except Exception as e:
-                # Lỗi khác không cần retry
                 logger.error(f"Lỗi không thể retry: {e}")
                 raise e
 
-        # Nếu đã hết số lần retry
         if last_exception:
             raise Exception(
                 f"Google AI API không khả dụng sau {self.max_retries} lần thử. Lỗi: {last_exception}"
@@ -234,7 +220,6 @@ class InputTestAgent(BaseAgent):
         output_text = output["output"]
 
         try:
-            # Thử parse bằng parser chính
             result = self.output_parser.parse(output_text)
             result.course_id = course_id
             return result
@@ -242,7 +227,6 @@ class InputTestAgent(BaseAgent):
         except ValidationError as e:
             logger.warning(f"Lỗi parse, sử dụng fixing parser: {e}")
             try:
-                # Sử dụng fixing parser
                 result = self.output_fix_parser.parse(output_text)
                 result.course_id = course_id
                 return result
@@ -259,7 +243,6 @@ class InputTestAgent(BaseAgent):
         if not course_id:
             raise ValueError("Thiếu course_id")
 
-        # Lazy import - chỉ import khi cần thiết
         from langchain_core.runnables import RunnableConfig
 
         config = RunnableConfig(
@@ -271,10 +254,8 @@ class InputTestAgent(BaseAgent):
         input_data = {"input": f"Tạo bài kiểm tra đầu vào cho khóa học ID: {course_id}"}
 
         try:
-            # Thực thi với retry
             output = await self._execute_with_retry(input_data, config)
 
-            # Parse output
             result = await self._parse_output_with_fix(output, course_id)
 
             logger.info(f"Tạo thành công {len(result.questions)} câu hỏi")

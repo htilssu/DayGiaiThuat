@@ -6,7 +6,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from app.models.course_model import Course
-    from app.models.test_session import TestSession
     from app.models.user_model import User
 
 
@@ -56,4 +55,7 @@ class UserAssessment(Base):
     user: Mapped["User"] = relationship("User", back_populates="assessments")
     course: Mapped[Optional["Course"]] = relationship(
         "Course", back_populates="user_assessments"
+    )
+    test_session: Mapped[Optional["TestSession"]] = relationship(
+        "TestSession", back_populates="assessment", uselist=False
     )

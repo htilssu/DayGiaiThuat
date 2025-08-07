@@ -10,12 +10,12 @@ import {
     Card,
     Badge,
     Progress,
-    Button,
     Loader,
     Alert,
     Group,
     Box,
-    Divider
+    Divider,
+    Button
 } from "@mantine/core";
 import { IconAlertCircle, IconBook, IconClock, IconTrophy, IconArrowRight } from "@tabler/icons-react";
 import { coursesApi, EnrolledCourse } from "@/lib/api/courses";
@@ -99,7 +99,11 @@ export function EnrolledCoursesPage() {
                     <Title order={1}>Khóa học của bạn</Title>
                     <Button
                         variant="outline"
-                        className="border-primary text-primary hover:bg-primary/10"
+                        style={{
+                            backgroundColor: 'rgb(var(--color-primary))',
+                            borderColor: 'rgb(var(--color-primary))',
+                            color: 'white'
+                        }}
                         rightSection={<IconArrowRight size={16} />}
                         onClick={handleExploreMore}
                     >
@@ -115,7 +119,6 @@ export function EnrolledCoursesPage() {
 
             {courses.length === 0 ? (
                 <Box ta="center" py="xl">
-                    <IconBook size={64} stroke={1} style={{ color: 'var(--mantine-color-gray-5)', marginBottom: '1rem' }} />
                     <Title order={3} mb="md" c="dimmed">
                         Bạn chưa đăng ký khóa học nào
                     </Title>
