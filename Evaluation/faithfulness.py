@@ -6,9 +6,9 @@ from typing import List, Dict, Any, Optional
 import pandas as pd
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
 from llama_index.core.base.base_query_engine import BaseQueryEngine
-from llama_index.core.evaluation import context_relevancy
 from llama_index.core.node_parser import SemanticSplitterNodeParser
 from llama_index.embeddings.google_genai import GoogleGenAIEmbedding
+from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.google_genai import GoogleGenAI
 from ragas import EvaluationDataset
 from ragas.integrations.llama_index import evaluate
@@ -31,14 +31,14 @@ class EvaluationConfig:
     chunk_overlap: int = 20
 
     semantic_breakpoint_percentile_threshold: int = 95
-    semantic_buffer_size: int = 1
+    semantic_buffer_size: int = 3
     # semantic_embedding_model: str = "text-embedding-ada-002"
-    semantic_embedding_model: str = "gemini-embedding-004"
+    semantic_embedding_model: str = "gemini-embedding-001"
 
     sentence_chunk_size: int = 1024
     sentence_chunk_overlap: int = 200
 
-    token_chunk_size: int = 512
+    token_chunk_size: int = 256
     token_chunk_overlap: int = 50
 
 
@@ -66,7 +66,6 @@ def get_all_metrics() -> List:
     return [
         faithfulness,
         answer_relevancy,
-        context_relevancy,
         context_recall,
         context_precision,
     ]
@@ -79,11 +78,15 @@ class RAGEvaluator:
         self.config = config
         self.query_engine: Optional[BaseQueryEngine] = None
         self.embedding_model = GoogleGenAIEmbedding(
-            api_key=settings.AI_API_KEY,
-            model_name=settings.EMBEDDING_MODEL_NAME)
-        self.llm  = GoogleGenAI(api_key=settings.AI_API_KEY)
-        self.build_rag_system(config.documents_path)
+            model_name="gemini-embedding-001",
+            api_key=settings.GEMINI_AI_API_KEY)
 
+        # self.embedding_model = OpenAIEmbedding(
+        #     api_key=settings.OPEN_AI_API_KEY,
+        #     model_name=settings.EMBEDDING_MODEL_NAME
+        # )
+        self.llm = GoogleGenAI(api_key=settings.GEMINI_AI_API_KEY, model=self.config.model_name)
+        self.build_rag_system(config.documents_path)
 
     def _create_node_parser(self):
         """
@@ -94,7 +97,9 @@ class RAGEvaluator:
         """
 
         return SemanticSplitterNodeParser(
-            embed_model=self.embedding_model
+            embed_model=self.embedding_model,
+            breakpoint_percentile_threshold=self.config.semantic_breakpoint_percentile_threshold,
+            buffer_size=self.config.semantic_buffer_size
         )
 
     def build_rag_system(self, documents_path: str = None) -> Optional[BaseQueryEngine]:
@@ -141,32 +146,34 @@ class RAGEvaluator:
 
     def create_sample_evaluation_data(self) -> EvaluationData:
         """
-        Tạo dữ liệu đánh giá mẫu - có thể thay thế bằng dữ liệu thực tế
+        Tạo dữ liệu đánh giá mẫu từ nội dung chương 1 - Cấu trúc dữ liệu và giải thuật
 
         Returns:
             EvaluationData: Dữ liệu đánh giá mẫu
         """
         sample_questions = [
-            "Bạn có thể cung cấp mô tả ngắn gọn về mô hình TinyLlama không?",
-            "Tôi muốn biết về các tối ưu hóa tốc độ mà TinyLlama đã thực hiện.",
-            "Tại sao TinyLlama sử dụng Grouped-query Attention?",
-            "Mô hình TinyLlama có phải là mã nguồn mở không?",
-            "Hãy cho tôi biết về tập dữ liệu starcoderdata",
+            "Giải thuật là gì?",
+            "Các tính chất cơ bản của một giải thuật là gì?",
+            "Dữ liệu vào, trung gian và ra trong bài toán tính học bổng gồm những gì?",
+            "Cấu trúc dữ liệu là gì?",
+            "Tại sao cần xét mối quan hệ giữa cấu trúc dữ liệu và giải thuật?",
         ]
 
         sample_answers = [
             [
-                "TinyLlama là một mô hình ngôn ngữ nhỏ gọn 1.1B được huấn luyện trên khoảng 1 nghìn tỷ token trong khoảng 3 epoch. Dựa trên kiến trúc và tokenizer của Llama 2, TinyLlama tận dụng các tiến bộ từ cộng đồng mã nguồn mở như FlashAttention, đạt được hiệu quả tính toán tốt hơn."
+                "Giải thuật là một hệ thống các thao tác, các phép toán được thực hiện theo trình tự nhất định trên một số đối tượng dữ liệu nào đó, sao cho sau một số bước hữu hạn ta có được kết quả mong muốn."
             ],
             [
-                "Trong quá trình huấn luyện, codebase đã tích hợp FSDP để tận dụng hiệu quả thiết lập multi-GPU và multi-node. Một cải tiến quan trọng khác là tích hợp Flash Attention, một cơ chế attention được tối ưu hóa."
+                "Tính thực hiện được, tính kết thúc, tính kết quả, tính hiệu quả, tính duy nhất, tính tổng quát và tính hình thức."
             ],
             [
-                "Để giảm overhead băng thông bộ nhớ và tăng tốc độ suy luận, chúng tôi sử dụng grouped-query attention trong mô hình. Chúng tôi có 32 head cho query attention và sử dụng 4 nhóm key-value head."
+                "Dữ liệu vào gồm họ tên, điểm các môn, số tín chỉ; dữ liệu trung gian là điểm trung bình; dữ liệu ra là học bổng."
             ],
-            ["Có, TinyLlama là mã nguồn mở"],
             [
-                "Tập dữ liệu này được thu thập để huấn luyện StarCoder, một mô hình ngôn ngữ lớp lớn mã nguồn mở mạnh mẽ. Nó bao gồm khoảng 250 tỷ token trên 86 ngôn ngữ lập trình."
+                "Cấu trúc dữ liệu là tập hợp các phần tử dữ liệu liên kết với nhau bằng một cách nào đó, thể hiện cách tổ chức dữ liệu trong bộ nhớ."
+            ],
+            [
+                "Vì giải thuật tác động lên cấu trúc dữ liệu và cấu trúc dữ liệu ảnh hưởng đến cách thiết kế giải thuật."
             ],
         ]
 
@@ -200,18 +207,24 @@ class RAGEvaluator:
         logger.info(f"Sử dụng {len(metrics)} metrics")
 
         try:
+            dataset = []
 
+            for query, reference in zip(evaluation_data.questions, evaluation_data.reference_answers):
+                dataset.append(
+                    {
+                        "user_input": query,
+                        "reference": reference[0] if isinstance(reference, list) else reference,
+                    }
+                )
 
-            dataset = EvaluationDataset(evaluation_data)
-
-
-
-
+            dataset = EvaluationDataset.from_list(dataset)
             # Thực hiện đánh giá
             result = evaluate(
                 query_engine=self.query_engine,
                 dataset=dataset,
                 metrics=metrics,
+                llm=self.llm,
+                embeddings=self.embedding_model
             )
 
             # Chuyển đổi kết quả thành DataFrame
@@ -238,7 +251,7 @@ class RAGEvaluator:
         output_file = output_path or self.config.output_csv_path
 
         try:
-            results.to_csv(output_file, sep=",", index=False, encoding="utf-8")
+            results.to_csv(output_file, ";", encoding="utf-8-sig", index=False)
             logger.info(f"Đã lưu kết quả đánh giá vào: {output_file}")
         except Exception as e:
             logger.error(f"Lỗi khi lưu file: {e}")
@@ -316,9 +329,9 @@ def run_sample_evaluation():
     """
     # Cấu hình đánh giá
     config = EvaluationConfig(
-        model_api_key=settings.AI_API_KEY,
+        model_api_key=settings.OPEN_AI_API_KEY,
         documents_path="document.pdf",
-        output_csv_path="sample_rag_evaluation.csv",
+        output_csv_path="rag_evaluation.csv",
         semantic_embedding_model=settings.EMBEDDING_MODEL_NAME,
     )
 
