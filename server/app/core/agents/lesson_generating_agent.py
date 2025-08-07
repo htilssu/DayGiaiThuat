@@ -1,8 +1,14 @@
 import json
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.llm_model import (
-    create_new_creative_llm_model,
     get_llm_model,
+)
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.messages import SystemMessage
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    MessagesPlaceholder,
 )
 from app.core.agents.components.document_store import get_vector_store
 from app.core.config import settings
@@ -26,6 +32,7 @@ LƯU Ý QUAN TRỌNG:
 - Đối số của `generate_lesson_tool` là miêu tả kịch bản học chi tiết có đưa dữ liệu lấy từ retriever_document_tool để tham chiếu,lesson này học gì, section này có những gì, bổ sung kiến thức nào, có thể có các câu hỏi, lời giải thích, lời giảng dạy như một người giáo viên
   layout tạo ra phải không được có lesson trùng với các topic khác ,dựa vào tài liệu đã thu thập. 1 đoạn văn bản string, không phải json.
 
+{format_instructions}
 """
 
 STRUCTURE_PROMPT_TEMPLATE = """Bạn là một chuyên gia thiết kế chương trình học. Hãy tạo cấu trúc cho nhiều bài giảng (lesson) dựa vào đầu vào.
@@ -184,17 +191,14 @@ class LessonGeneratingAgent(BaseAgent):
 
     def _init_agent(self):
         """Khởi tạo agent."""
-        from langchain.agents import AgentExecutor, create_tool_calling_agent
-        from langchain_core.messages import SystemMessage
-        from langchain_core.prompts import (
-            ChatPromptTemplate,
-            HumanMessagePromptTemplate,
-            MessagesPlaceholder,
-        )
 
         self.prompt = ChatPromptTemplate.from_messages(
             [
-                SystemMessage(content=SYSTEM_PROMPT_TEMPLATE),
+                SystemMessage(
+                    content=SYSTEM_PROMPT_TEMPLATE.format(
+                        format_instructions=self.structure_parser.get_format_instructions()
+                    )
+                ),
                 MessagesPlaceholder(variable_name="history", optional=True),
                 HumanMessagePromptTemplate.from_template("{input}"),
                 MessagesPlaceholder(variable_name="agent_scratchpad"),
@@ -203,7 +207,7 @@ class LessonGeneratingAgent(BaseAgent):
 
         agent = create_tool_calling_agent(self.base_llm, self.tools, self.prompt)
         self.agent_executor = AgentExecutor(
-            agent=agent.with_retry(),
+            agent=agent.with_retry(stop_after_attempt=5),
             tools=self.tools,
             verbose=True,
             # handle_parsing_errors=True,
@@ -255,7 +259,7 @@ class LessonGeneratingAgent(BaseAgent):
                 raise ValueError("Agent không trả về kết quả hợp lệ.")
 
         except Exception as e:
-            print(f"Lỗi trong quá trình tạo bài giảng: {e}")
+            print(f"Lỗi trong quá trình tạo Lesson: {e}")
             raise Exception(f"Không thể tạo bài giảng: {str(e)}")
 
 

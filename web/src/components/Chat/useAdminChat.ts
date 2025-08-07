@@ -35,23 +35,17 @@ export function useAdminChat() {
     setInput("");
     setIsLoading(true);
 
-    try {
-      // TODO: Implement AI chat logic here
-      // For now, just simulate a response
-      setTimeout(() => {
-        const aiMessage: ChatMessage = {
-          role: "assistant",
-          content:
-            "This is a placeholder response. AI integration coming soon.",
-          timestamp: new Date().toISOString(),
-        };
-        addMessage(aiMessage);
-        setIsLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error("Error sending message:", error);
+    // TODO: Add actual chat logic here
+    // For now, just simulate a response
+    setTimeout(() => {
+      const botMessage: ChatMessage = {
+        role: "assistant",
+        content: "Đây là phản hồi mẫu từ admin chat.",
+        timestamp: new Date().toISOString(),
+      };
+      addMessage(botMessage);
       setIsLoading(false);
-    }
+    }, 1000);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
