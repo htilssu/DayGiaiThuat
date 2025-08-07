@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useRef, useEffect } from "react";
 import { ChatMessage } from "@/lib/api/chat";
 import { GoogleGenAI } from "@google/genai";

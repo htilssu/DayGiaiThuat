@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from typing import List
 
-from app.database.database import get_db
+from app.database.database import get_async_db
 from app.models.topic_model import Topic
 from app.schemas.topic_schema import (
     TopicCreate,
@@ -44,7 +45,7 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
 )
 async def create_topic(
     topic_data: TopicCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
@@ -53,11 +54,11 @@ async def create_topic(
     try:
         new_topic = Topic(**topic_data.model_dump())
         db.add(new_topic)
-        db.commit()
-        db.refresh(new_topic)
+        await db.commit()
+        await db.refresh(new_topic)
         return new_topic
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi tạo chủ đề: {str(e)}",
@@ -75,7 +76,7 @@ async def create_topic(
 )
 async def get_topics_admin(
     course_id: int | None = None,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
@@ -83,10 +84,11 @@ async def get_topics_admin(
     - Nếu có course_id: lấy chủ đề của khóa học đó
     - Nếu không có course_id: lấy tất cả chủ đề
     """
-    query = db.query(Topic)
+    query = select(Topic)
     if course_id is not None:
-        query = query.filter(Topic.course_id == course_id)
-    topics = query.all()
+        query = query.where(Topic.course_id == course_id)
+    result = await db.execute(query)
+    topics = result.scalars().all()
     return topics
 
 
@@ -102,17 +104,18 @@ async def get_topics_admin(
 )
 async def get_topic_by_id_admin(
     topic_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
-    Lấy thông tin chi tiết của một chủ đề (chỉ admin)
+    Lấy chi tiết một chủ đề theo ID (chỉ admin)
     """
-    topic = db.query(Topic).filter(Topic.id == topic_id).first()
+    result = await db.execute(select(Topic).where(Topic.id == topic_id))
+    topic = result.scalar_one_or_none()
     if not topic:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy chủ đề với ID {topic_id}",
+            detail="Không tìm thấy chủ đề",
         )
     return topic
 
@@ -132,32 +135,32 @@ async def get_topic_by_id_admin(
 async def update_topic(
     topic_id: int,
     topic_data: TopicUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Cập nhật thông tin chủ đề (chỉ admin)
     """
-    topic = db.query(Topic).filter(Topic.id == topic_id).first()
-    if not topic:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy chủ đề với ID {topic_id}",
-        )
-
     try:
-        # Cập nhật các field được gửi lên
-        update_data = topic_data.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(topic, field, value)
+        result = await db.execute(select(Topic).where(Topic.id == topic_id))
+        topic = result.scalar_one_or_none()
+        if not topic:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Không tìm thấy chủ đề",
+            )
 
-        # Lưu thay đổi
-        db.commit()
-        db.refresh(topic)
+        # Cập nhật các trường
+        for key, value in topic_data.model_dump(exclude_unset=True).items():
+            setattr(topic, key, value)
 
+        await db.commit()
+        await db.refresh(topic)
         return topic
+    except HTTPException:
+        raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi cập nhật chủ đề: {str(e)}",
@@ -178,30 +181,32 @@ async def update_topic(
 async def assign_topic_to_course(
     topic_id: int,
     assignment_data: TopicCourseAssignment,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
-    Assign hoặc unassign chủ đề với khóa học (chỉ admin)
+    Gán hoặc bỏ gán khóa học cho chủ đề (chỉ admin)
     """
-    topic = db.query(Topic).filter(Topic.id == topic_id).first()
-    if not topic:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy chủ đề với ID {topic_id}",
-        )
-
     try:
-        # Cập nhật course_id
+        result = await db.execute(select(Topic).where(Topic.id == topic_id))
+        topic = result.scalar_one_or_none()
+        if not topic:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Không tìm thấy chủ đề",
+            )
+
         topic.course_id = assignment_data.course_id
-        db.commit()
-        db.refresh(topic)
+        await db.commit()
+        await db.refresh(topic)
         return topic
+    except HTTPException:
+        raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi khi assign chủ đề: {str(e)}",
+            detail=f"Lỗi khi gán khóa học cho chủ đề: {str(e)}",
         )
 
 
@@ -218,25 +223,27 @@ async def assign_topic_to_course(
 )
 async def delete_topic(
     topic_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Xóa chủ đề (chỉ admin)
     """
-    topic = db.query(Topic).filter(Topic.id == topic_id).first()
-    if not topic:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy chủ đề với ID {topic_id}",
-        )
-
     try:
-        # Xóa chủ đề
-        db.delete(topic)
-        db.commit()
+        result = await db.execute(select(Topic).where(Topic.id == topic_id))
+        topic = result.scalar_one_or_none()
+        if not topic:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Không tìm thấy chủ đề",
+            )
+
+        await db.delete(topic)
+        await db.commit()
+    except HTTPException:
+        raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi xóa chủ đề: {str(e)}",

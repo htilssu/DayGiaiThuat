@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { ChatMessage } from "@/lib/api/chat";
 import { topicsApi, lessonsApi, exercisesApi, quizzesApi } from "@/lib/api";

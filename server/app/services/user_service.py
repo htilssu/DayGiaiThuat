@@ -12,6 +12,7 @@ from app.utils.string import remove_vi_accents
 from app.database.database import get_async_db
 
 from app.models.user_model import User
+from app.models.user_state_model import UserState
 from app.schemas.auth_schema import UserRegister
 from app.schemas.user_profile_schema import UserUpdate
 
@@ -141,6 +142,21 @@ class UserService:
         await self.db.commit()
         await self.db.refresh(new_user)
 
+        # Tạo UserState cho user mới
+        user_state = UserState(
+            user_id=new_user.id,
+            total_points=0,
+            level=1,
+            xp_to_next_level=100,
+            daily_goal=30,
+            daily_progress=0,
+            completed_exercises=0,
+            completed_courses=0,
+            problems_solved=0,
+        )
+        self.db.add(user_state)
+        await self.db.commit()
+
         return new_user
 
     async def update_password(self, user_id: int, new_password: str) -> bool:
@@ -216,24 +232,34 @@ class UserService:
         if not user:
             return None
 
-        # Tạo chuỗi định dạng ngày tháng
-        activity_date = datetime.now().strftime("%d/%m/%Y")
+        # Lấy hoặc tạo UserState
+        user_state_result = await self.db.execute(
+            select(UserState).where(UserState.user_id == user_id)
+        )
+        user_state = user_state_result.scalar_one_or_none()
+        
+        if not user_state:
+            user_state = UserState(user_id=user_id)
+            self.db.add(user_state)
 
-        # Tạo hoạt động mới
-        activity = {
-            "type": activity_data.get("type"),
-            "name": activity_data.get("name"),
-            "date": activity_date,
-        }
+        # Cập nhật thống kê dựa trên loại hoạt động
+        activity_type = activity_data.get("type")
+        
+        if activity_type == "exercise":
+            user_state.completed_exercises += 1
+            user_state.total_points += 10
+            
+            # Kiểm tra nếu là bài tập code
+            if "code" in activity_data.get("tags", []):
+                user_state.problems_solved += 1
+                
+        elif activity_type == "course":
+            if activity_data.get("completed"):
+                user_state.completed_courses += 1
+                user_state.total_points += 50
 
-        # Thêm thông tin tùy chọn
-        if "score" in activity_data:
-            activity["score"] = activity_data["score"]
-        if "progress" in activity_data:
-            activity["progress"] = activity_data["progress"]
-
-        # Cập nhật thống kê
-        await self._update_stats_after_activity(user, activity_data)
+        # Cập nhật level nếu cần
+        await self._update_level(user_state)
 
         # Lưu vào database
         user.updated_at = datetime.utcnow()
@@ -259,31 +285,8 @@ class UserService:
         if not user:
             return None
 
-        badges = user.badges if user.badges else []
-
-        # Kiểm tra huy hiệu đã tồn tại chưa
-        badge_id = badge_data.get("id")
-        for i, badge in enumerate(badges):
-            if badge.get("id") == badge_id:
-                # Cập nhật trạng thái huy hiệu đã có
-                badges[i]["unlocked"] = badge_data.get("unlocked", True)
-                user.updated_at = datetime.now()
-                await self.db.commit()
-                await self.db.refresh(user)
-                return user
-
-        # Thêm huy hiệu mới
-        badge = {
-            "id": badge_id,
-            "name": badge_data.get("name"),
-            "icon": badge_data.get("icon"),
-            "description": badge_data.get("description"),
-            "unlocked": badge_data.get("unlocked", True),
-        }
-
-        badges.append(badge)
-
-        # Lưu vào database
+        # TODO: Implement badge system with UserBadge model
+        # For now, just update the user timestamp
         user.updated_at = datetime.now()
         await self.db.commit()
         await self.db.refresh(user)
@@ -335,65 +338,19 @@ class UserService:
         # TODO: Cập nhật tiến độ khóa học
         return None
 
-    async def _update_stats_after_activity(
-        self, user: User, activity_data: Dict[str, Any]
-    ) -> None:
-        """
-        Cập nhật thống kê sau khi có hoạt động mới
-
-        Args:
-            user (User): Thông tin người dùng
-            activity_data (Dict[str, Any]): Thông tin hoạt động mới
-        """
-        stats = user.stats if user.stats else {}
-        activity_type = activity_data.get("type")
-
-        if activity_type == "exercise":
-            # Bài tập hoàn thành
-            stats["completed_exercises"] = stats.get("completed_exercises", 0) + 1
-            stats["total_points"] = stats.get("total_points", 0) + 10
-
-            # Kiểm tra nếu là bài tập code
-            if "code" in activity_data.get("tags", []):
-                stats["problems_solved"] = stats.get("problems_solved", 0) + 1
-
-        elif activity_type == "course":
-            # Khóa học hoàn thành
-            if activity_data.get("completed"):
-                stats["completed_courses"] = stats.get("completed_courses", 0) + 1
-                stats["total_points"] = stats.get("total_points", 0) + 50
-
-        # Cập nhật level nếu cần
-        await self._update_level(user, stats)
-
-        # Lưu lại thống kê
-        user.stats = stats
-
-    async def _update_level(self, user: User, stats: Dict[str, Any]) -> None:
+    async def _update_level(self, user_state: UserState) -> None:
         """
         Cập nhật level của người dùng dựa trên điểm số
 
         Args:
-            user (User): Thông tin người dùng
-            stats (Dict[str, Any]): Thống kê người dùng
+            user_state (UserState): Trạng thái người dùng
         """
-        total_points = stats.get("total_points", 0)
-        current_level = stats.get("level", 1)
-
         # Công thức tính level: level = 1 + floor(sqrt(points / 100))
-        new_level = 1 + int((total_points / 100) ** 0.5)
+        new_level = 1 + int((user_state.total_points / 100) ** 0.5)
 
-        if new_level > current_level:
-            stats["level"] = new_level
-
-            # Tạo hoạt động lên cấp
-            await self.add_activity(
-                user.id,
-                {"type": "level_up", "name": f"Lên cấp {new_level}", "completed": True},
-            )
-
-            # Kiểm tra và cấp huy hiệu (nếu cần)
-            await self._check_level_badge(user)
+        if new_level > user_state.level:
+            user_state.level = new_level
+            user_state.xp_to_next_level = (new_level + 1) ** 2 * 100 - user_state.total_points
 
     async def update_streak(self, user_id: int) -> Optional[User]:
         """
@@ -409,42 +366,42 @@ class UserService:
         if not user:
             return None
 
-        # Lấy thống kê hiện tại
-        stats = user.stats if user.stats else {}
+        # Lấy UserState
+        user_state_result = await self.db.execute(
+            select(UserState).where(UserState.user_id == user_id)
+        )
+        user_state = user_state_result.scalar_one_or_none()
+        
+        if not user_state:
+            user_state = UserState(user_id=user_id)
+            self.db.add(user_state)
 
         # Kiểm tra ngày cuối cùng đã hoạt động
-        last_active_date = stats.get("last_active_date")
         today = datetime.utcnow().date()
-
-        if last_active_date:
-            # Chuyển định dạng ngày
-            if isinstance(last_active_date, str):
-                last_active_date = datetime.strptime(
-                    last_active_date, "%Y-%m-%d"
-                ).date()
-
+        
+        if user_state.streak_last_date:
             # Tính số ngày giữa lần hoạt động cuối và hiện tại
-            days_diff = (today - last_active_date).days
+            days_diff = (today - user_state.streak_last_date.date()).days
 
             if days_diff == 1:
                 # Hoạt động liên tiếp, tăng streak
-                stats["streak_days"] = stats.get("streak_days", 0) + 1
+                user_state.streak_count += 1
             elif days_diff > 1:
                 # Mất streak, đặt lại
-                stats["streak_days"] = 1
+                user_state.streak_count = 1
             # Nếu days_diff = 0, giữ nguyên streak
         else:
             # Lần đầu hoạt động
-            stats["streak_days"] = 1
+            user_state.streak_count = 1
 
         # Cập nhật ngày hoạt động
-        stats["last_active_date"] = today.isoformat()
+        user_state.streak_last_date = datetime.utcnow()
+        user_state.last_active = datetime.utcnow()
 
         # Lưu lại thống kê
-        user.stats = stats
         user.updated_at = datetime.utcnow()
-        self.db.commit()
-        self.db.refresh(user)
+        await self.db.commit()
+        await self.db.refresh(user)
 
         # Kiểm tra và cấp huy hiệu (nếu cần)
         await self._check_streak_badge(user)
@@ -458,8 +415,15 @@ class UserService:
         Args:
             user (User): Thông tin người dùng
         """
-        stats = user.stats if user.stats else {}
-        streak_days = stats.get("streak_days", 0)
+        user_state_result = await self.db.execute(
+            select(UserState).where(UserState.user_id == user.id)
+        )
+        user_state = user_state_result.scalar_one_or_none()
+        
+        if not user_state:
+            return
+            
+        streak_count = user_state.streak_count
 
         # Danh sách huy hiệu streak
         streak_badges = [
@@ -488,7 +452,7 @@ class UserService:
 
         # Kiểm tra từng huy hiệu
         for badge_data in streak_badges:
-            if streak_days >= badge_data["threshold"]:
+            if streak_count >= badge_data["threshold"]:
                 # Xóa trường threshold trước khi thêm huy hiệu
                 badge_info = {k: v for k, v in badge_data.items() if k != "threshold"}
                 await self.add_badge(user.id, badge_info)
@@ -500,8 +464,15 @@ class UserService:
         Args:
             user (User): Thông tin người dùng
         """
-        stats = user.stats if user.stats else {}
-        level = stats.get("level", 1)
+        user_state_result = await self.db.execute(
+            select(UserState).where(UserState.user_id == user.id)
+        )
+        user_state = user_state_result.scalar_one_or_none()
+        
+        if not user_state:
+            return
+            
+        level = user_state.level
 
         # Danh sách huy hiệu level
         level_badges = [
@@ -552,8 +523,9 @@ class UserService:
         # Kiểm tra các loại huy hiệu
         await self._check_streak_badge(user)
         await self._check_level_badge(user)
-        await self._check_problem_solved_badge(user)
-        await self._check_account_age_badge(user)
+        # TODO: Implement other badge checks
+        # await self._check_problem_solved_badge(user)
+        # await self._check_account_age_badge(user)
 
         return user
 

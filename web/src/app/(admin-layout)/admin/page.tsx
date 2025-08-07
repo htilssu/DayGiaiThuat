@@ -1,84 +1,175 @@
-"use client";
-
-import { useState } from "react";
-import { AdminChat } from "@/components/Chat";
-import { Container, Paper, Tabs, Title } from "@mantine/core";
-import Overview from "@/components/admin/Overview";
-import { DocumentUpload } from "@/components/DocumentUpload";
+import { Metadata } from "next";
+import {
+  Container,
+  Paper,
+  Title,
+  Text,
+  Group,
+  Button,
+  Card,
+  Stack,
+} from "@mantine/core";
 import {
   IconChartBar,
   IconMessage,
   IconUpload,
   IconUsers,
+  IconArrowRight,
 } from "@tabler/icons-react";
+import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Admin Dashboard - Quản trị hệ thống",
+  description: "Trang quản trị chính cho hệ thống học giải thuật",
+  authors: [{ name: "AI Agent Giải Thuật Team" }],
+  keywords: ["admin", "dashboard", "quản trị", "hệ thống", "overview"],
+};
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const adminModules = [
+    {
+      title: "Tổng quan",
+      description: "Xem thống kê và báo cáo hệ thống",
+      icon: IconChartBar,
+      href: "/overview",
+      color: "blue",
+    },
+    {
+      title: "Quản lý người dùng",
+      description: "Quản lý danh sách người dùng và phân quyền",
+      icon: IconUsers,
+      href: "/users",
+      color: "green",
+    },
+    {
+      title: "AI Assistant",
+      description: "Trợ lý AI cho quản trị viên",
+      icon: IconMessage,
+      href: "/ai-assistant",
+      color: "purple",
+    },
+    {
+      title: "Upload Documents",
+      description: "Quản lý và upload tài liệu cho hệ thống",
+      icon: IconUpload,
+      href: "/documents",
+      color: "orange",
+    },
+  ];
 
   return (
     <div className="space-y-8">
-      <Paper className="p-6 bg-primary/5 rounded-lg border border-primary/10">
-        <Tabs
-          value={activeTab}
-          onChange={(value) => setActiveTab(value || "overview")}
-          variant="outline"
-          classNames={{
-            tab: "text-lg text-primary text-shadow-sm data-[active]:bg-primary data-[active]:text-white hover:bg-primary/10 transition-colors duration-200",
-            panel: "mt-6",
-          }}>
-          <Tabs.List>
-            <Tabs.Tab
-              value="overview"
-              leftSection={<IconChartBar size={16} />}
-              className="font-medium">
-              Overview
-            </Tabs.Tab>
-            <Tabs.Tab
-              value="users"
-              leftSection={<IconUsers size={16} />}
-              className="font-medium">
-              Users
-            </Tabs.Tab>
-            <Tabs.Tab
-              value="chat"
-              leftSection={<IconMessage size={16} />}
-              className="font-medium">
-              AI Assistant
-            </Tabs.Tab>
-            <Tabs.Tab
-              value="add-documents"
-              leftSection={<IconUpload size={16} />}
-              className="font-medium">
-              Add Documents
-            </Tabs.Tab>
-          </Tabs.List>
+      {/* Header */}
+      <Paper className="p-8 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg border border-primary/10">
+        <div className="text-center">
+          <Title order={1} className="text-3xl font-bold text-primary mb-4">
+            Admin Dashboard
+          </Title>
+          <Text className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Chào mừng đến với trang quản trị hệ thống. Từ đây bạn có thể quản lý
+            tất cả các khía cạnh của hệ thống học giải thuật.
+          </Text>
+        </div>
+      </Paper>
 
-          <Tabs.Panel value="overview">
-            <Overview />
-          </Tabs.Panel>
+      {/* Admin Modules Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {adminModules.map((module) => (
+          <Card
+            key={module.href}
+            className="hover:shadow-lg transition-all duration-300 border border-primary/10 hover:border-primary/30"
+            component={Link}
+            href={module.href}>
+            <Stack gap="md" className="h-full">
+              <div
+                className={`w-12 h-12 rounded-lg bg-${module.color}-100 flex items-center justify-center`}>
+                <module.icon size={24} className={`text-${module.color}-600`} />
+              </div>
 
-          <Tabs.Panel value="chat">
-            <Container size="lg" className="px-0">
-              <Title order={2} className="mb-6">
-                AI Content Creator
-              </Title>
-              <Paper className="p-4 bg-white/50 border border-primary/10">
-                <AdminChat />
-              </Paper>
-            </Container>
-          </Tabs.Panel>
+              <div className="flex-1">
+                <Title order={3} className="font-semibold mb-2">
+                  {module.title}
+                </Title>
+                <Text className="text-sm text-muted-foreground">
+                  {module.description}
+                </Text>
+              </div>
 
-          <Tabs.Panel value="add-documents">
-            <Container size="lg" className="px-0">
-              <Title order={2} className="mb-6 ">
-                Upload Documents
-              </Title>
-              <Paper className="p-4 bg-white/50 border border-primary/10">
-                <DocumentUpload />
-              </Paper>
-            </Container>
-          </Tabs.Panel>
-        </Tabs>
+              <Group justify="space-between" align="center">
+                <Button
+                  variant="light"
+                  size="sm"
+                  rightSection={<IconArrowRight size={16} />}
+                  className={`bg-${module.color}-50 text-${module.color}-700 hover:bg-${module.color}-100`}>
+                  Truy cập
+                </Button>
+              </Group>
+            </Stack>
+          </Card>
+        ))}
+      </div>
+
+      {/* Quick Stats */}
+      <Paper className="p-6 bg-white/50 border border-primary/10 rounded-lg">
+        <Title order={3} className="mb-4">
+          Thống kê nhanh
+        </Title>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="text-center p-4 bg-blue-50 rounded-lg">
+            <Text className="text-2xl font-bold text-blue-600">1,234</Text>
+            <Text className="text-sm text-muted-foreground">
+              Tổng người dùng
+            </Text>
+          </div>
+          <div className="text-center p-4 bg-green-50 rounded-lg">
+            <Text className="text-2xl font-bold text-green-600">56</Text>
+            <Text className="text-sm text-muted-foreground">Khóa học</Text>
+          </div>
+          <div className="text-center p-4 bg-purple-50 rounded-lg">
+            <Text className="text-2xl font-bold text-purple-600">89</Text>
+            <Text className="text-sm text-muted-foreground">Bài học</Text>
+          </div>
+          <div className="text-center p-4 bg-orange-50 rounded-lg">
+            <Text className="text-2xl font-bold text-orange-600">234</Text>
+            <Text className="text-sm text-muted-foreground">Tài liệu</Text>
+          </div>
+        </div>
+      </Paper>
+
+      {/* Recent Activity */}
+      <Paper className="p-6 bg-white/50 border border-primary/10 rounded-lg">
+        <Title order={3} className="mb-4">
+          Hoạt động gần đây
+        </Title>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <Text className="text-sm">
+              Người dùng mới đăng ký: user@example.com
+            </Text>
+            <Text className="text-xs text-muted-foreground ml-auto">
+              2 phút trước
+            </Text>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <Text className="text-sm">
+              Khóa học mới được tạo: &ldquo;Giải thuật cơ bản&rdquo;
+            </Text>
+            <Text className="text-xs text-muted-foreground ml-auto">
+              15 phút trước
+            </Text>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
+            <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+            <Text className="text-sm">
+              Tài liệu mới được upload: &ldquo;Data Structures.pdf&rdquo;
+            </Text>
+            <Text className="text-xs text-muted-foreground ml-auto">
+              1 giờ trước
+            </Text>
+          </div>
+        </div>
       </Paper>
     </div>
   );
