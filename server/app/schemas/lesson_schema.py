@@ -12,7 +12,15 @@ class LessonCompleteResponseSchema(BaseModel):
     is_completed: bool
 
 
-class LessonBase(BaseModel):
+class LessonSummary(BaseModel):
+    title: str
+    description: str
+
+    class Config:
+        from_attributes = True
+
+
+class LessonBase(LessonSummary):
     """
     Schema cơ bản cho lesson
 
@@ -116,12 +124,14 @@ class CreateLessonSchema(LessonBase):
     topic_id: int
     sections: List[LessonSectionSchema]
 
+
 class AgentCreateLessonSchema(CreateLessonSchema):
     exercises: List[ExerciseBase]
 
 
 class UpdateLessonSchema(LessonBase):
     pass
+
 
 class LessonWithChildSchema(LessonResponseSchema):
     sections: List[LessonSectionSchema] = Field(

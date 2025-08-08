@@ -78,7 +78,7 @@ class RAGEvaluator:
         self.config = config
         self.query_engine: Optional[BaseQueryEngine] = None
         self.embedding_model = GoogleGenAIEmbedding(
-            model_name="gemini-embedding-001",
+            model_name="text-multilingual-embedding-002",
             api_key=settings.GEMINI_AI_API_KEY)
 
         # self.embedding_model = OpenAIEmbedding(

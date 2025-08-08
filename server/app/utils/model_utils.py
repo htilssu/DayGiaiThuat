@@ -10,8 +10,22 @@ from typing import Optional
 from app.models.lesson_model import Lesson
 
 
-def model_to_dict(instance):
-    return {c.name: getattr(instance, c.name) for c in instance.__table__.columns}
+def model_to_dict(instance, deep=False):
+    data = {}
+    for c in instance.__table__.columns:
+        data[c.name] = getattr(instance, c.name)
+
+    if deep:
+        for rel in instance.__mapper__.relationships:
+            value = getattr(instance, rel.key)
+            if value is None:
+                data[rel.key] = None
+            elif isinstance(value, list):
+                data[rel.key] = [model_to_dict(i, deep=False) for i in value]
+            else:
+                data[rel.key] = model_to_dict(value, deep=False)
+
+    return data
 
 
 def convert_lesson_to_schema(

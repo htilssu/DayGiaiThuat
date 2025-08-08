@@ -392,7 +392,7 @@ class DocumentService:
                         status=job.status,
                         createdAt=job.created_at.isoformat(),
                         error=job.error_message,
-                        chunks_count=None,  # TODO: Calculate from vector DB if needed
+                        chunks_count=None,
                     )
                     for job in jobs
                 ]

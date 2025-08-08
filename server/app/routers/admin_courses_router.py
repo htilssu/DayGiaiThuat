@@ -1,8 +1,24 @@
+import json
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi.params import Query
+from pydantic import BaseModel
+from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
 from app.core.agents.course_composition_agent import CourseCompositionAgent
-from app.database.database import get_async_db, get_independent_db_session
+from app.database.database import get_async_db
+from app.models.course_draft_model import CourseDraft
 from app.models.course_model import Course
 from app.models.topic_model import Topic
-from app.models.course_draft_model import CourseDraft
+from app.schemas.course_review_schema import (
+    CourseReviewResponse,
+    ApproveDraftRequest,
+)
 from app.schemas.course_schema import (
     BulkDeleteCoursesRequest,
     BulkDeleteCoursesResponse,
@@ -11,13 +27,6 @@ from app.schemas.course_schema import (
     CourseResponse,
     CourseUpdate,
 )
-from app.schemas.course_review_schema import (
-    CourseReviewResponse,
-    SendChatMessageRequest,
-    ApproveDraftRequest,
-    CourseReviewChatMessage,
-    CourseDraftResponse,
-)
 from app.schemas.user_profile_schema import UserExcludeSecret
 from app.services.course_service import CourseService, get_course_service
 from app.services.test_generation_service import (
@@ -25,17 +34,6 @@ from app.services.test_generation_service import (
     get_test_generation_service,
 )
 from app.utils.utils import get_current_user
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from fastapi.params import Query
-from pydantic import BaseModel
-from sqlalchemy import func, select
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-from typing import Annotated
-import json
-
-from app.models.lesson_model import Lesson
 
 router = APIRouter(
     prefix="/admin/courses",
@@ -65,142 +63,6 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
     return current_user
 
 
-async def run_course_composition_background(
-    request: CourseCompositionRequestSchema, db: AsyncSession
-):
-    """
-    Hàm chạy trong background để tạo nội dung khóa học.
-    """
-    import logging
-
-    logger = logging.getLogger(__name__)
-
-    try:
-        agent = CourseCompositionAgent(db)
-        agent_response, session_id = await agent.act(request)
-
-        # Lưu kết quả vào draft (cập nhật hoặc tạo mới)
-        import json
-        from sqlalchemy import select
-        from datetime import datetime
-
-        # Tìm draft hiện tại của course này
-        existing_draft_result = await db.execute(
-            select(CourseDraft).filter(CourseDraft.course_id == request.course_id)
-        )
-        existing_draft = existing_draft_result.scalar_one_or_none()
-
-        topics_json = json.dumps(
-            agent_response.model_dump(), ensure_ascii=False, indent=2
-        )
-
-        if existing_draft:
-            # Cập nhật draft hiện có
-            existing_draft.agent_content = topics_json
-            existing_draft.session_id = session_id
-            existing_draft.status = "pending"
-            existing_draft.updated_at = datetime.utcnow()
-        else:
-            # Tạo draft mới nếu chưa có
-            new_draft = CourseDraft(
-                course_id=request.course_id,
-                agent_content=topics_json,
-                session_id=session_id,
-                status="pending",
-            )
-            db.add(new_draft)
-
-        await db.commit()
-        logger.info(
-            f"✅ Course composition completed and saved to draft for course: {request.course_id} with session: {session_id}"
-        )
-
-    except Exception as e:
-        logger.error(f"❌ Error in course composition: {str(e)}")
-        await db.rollback()
-        raise e
-
-
-async def run_course_recomposition_background(
-    request: CourseCompositionRequestSchema, feedback: str, db: AsyncSession
-):
-    """
-    Hàm chạy trong background để tái tạo nội dung khóa học với feedback từ admin.
-    """
-    import logging
-
-    logger = logging.getLogger(__name__)
-
-    try:
-        # Tạo agent với cùng session_id để tiếp tục cuộc hội thoại
-        agent = CourseCompositionAgent(db)
-
-        # Tạo request với feedback bổ sung
-        feedback_input = f"""
-        Khóa học: {request.course_title}
-        Mô tả: {request.course_description}
-        Cấp độ: {request.course_level}
-        
-        Feedback từ admin: {feedback}
-        
-        Hãy điều chỉnh lại danh sách topics dựa trên feedback trên.
-        """
-
-        # Tạo custom request để gửi feedback
-        feedback_request = CourseCompositionRequestSchema(
-            course_id=request.course_id,
-            course_title=request.course_title,
-            course_description=feedback_input,  # Thêm feedback vào description
-            course_level=request.course_level,
-            session_id=request.session_id,  # Sử dụng session_id từ draft
-        )
-
-        agent_response, session_id = await agent.act(feedback_request)
-
-        # Lưu kết quả vào draft duy nhất
-        import json
-        from sqlalchemy import select
-        from datetime import datetime
-
-        # Tìm draft hiện tại của course này
-        existing_draft_result = await db.execute(
-            select(CourseDraft).filter(CourseDraft.course_id == request.course_id)
-        )
-        existing_draft = existing_draft_result.scalar_one_or_none()
-
-        topics_json = json.dumps(
-            agent_response.model_dump(), ensure_ascii=False, indent=2
-        )
-
-        if existing_draft:
-            # Cập nhật draft hiện có với nội dung mới
-            existing_draft.agent_content = topics_json
-            existing_draft.session_id = session_id
-            existing_draft.status = (
-                "pending"  # Reset về pending để admin có thể review lại
-            )
-            existing_draft.updated_at = datetime.utcnow()
-        else:
-            # Tạo draft mới nếu không tồn tại (trường hợp hiếm)
-            new_draft = CourseDraft(
-                course_id=request.course_id,
-                agent_content=topics_json,
-                session_id=session_id,
-                status="pending",
-            )
-            db.add(new_draft)
-
-        await db.commit()
-        logger.info(
-            f"✅ Course recomposition completed and saved to draft for course: {request.course_id} with session: {session_id}"
-        )
-
-    except Exception as e:
-        logger.error(f"❌ Error in course recomposition: {str(e)}")
-        await db.rollback()
-        raise e
-
-
 @router.post(
     "",
     response_model=CourseResponse,
@@ -214,11 +76,11 @@ async def run_course_recomposition_background(
     },
 )
 async def create_course(
-    course_data: CourseCreate,
-    background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_async_db),
-    course_service: CourseService = Depends(get_course_service),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_data: CourseCreate,
+        background_tasks: BackgroundTasks,
+        db: AsyncSession = Depends(get_async_db),
+        course_service: CourseService = Depends(get_course_service),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Tạo một khóa học mới (chỉ admin)
@@ -234,17 +96,14 @@ async def create_course(
     try:
         new_course = await course_service.create_course(course_data)
 
-        # Run course composition in the background
         composition_request = CourseCompositionRequestSchema(
             course_id=new_course.id,
             course_title=new_course.title,
             course_description=new_course.description,
             course_level=new_course.level,
-            session_id=None,  # Sẽ được tạo tự động trong agent
+            session_id=str(uuid.uuid4())
         )
-        background_tasks.add_task(
-            run_course_composition_background, composition_request, db
-        )
+        course_generate_service.generate_course()
 
         return new_course
     except SQLAlchemyError as e:
@@ -257,7 +116,7 @@ async def create_course(
 
 @router.put(
     "/{course_id}",
-    response_model=CourseResponse,
+    response_model=CourseUpdate,
     summary="Cập nhật khóa học (Admin)",
     responses={
         200: {"description": "OK"},
@@ -268,10 +127,10 @@ async def create_course(
     },
 )
 async def update_course(
-    course_id: int,
-    course_data: CourseUpdate,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int,
+        course_data: CourseUpdate,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Cập nhật thông tin khóa học (chỉ admin)
@@ -298,29 +157,17 @@ async def update_course(
         )
 
     try:
-        # Cập nhật các field được gửi lên
         update_data = course_data.dict(exclude_unset=True)
         for field, value in update_data.items():
             setattr(course, field, value)
 
-        # Lưu thay đổi
         await db.commit()
         await db.refresh(course)
 
-        # Tải lại course với topics để tránh lỗi lazy loading
-        result = await db.execute(
-            select(Course)
-            .options(
-                selectinload(Course.topics)
-                .selectinload(Topic.lessons)
-                .selectinload(Lesson.sections)
-                .selectinload(Lesson.exercises)
-            )
-            .filter(Course.id == course_id)
-        )
+        result = await db.execute(select(Course).filter(Course.id == course_id))
         updated_course = result.scalar_one()
 
-        return CourseResponse.model_validate(updated_course)
+        return CourseUpdate.from_model(model=updated_course)
     except SQLAlchemyError as e:
         await db.rollback()
         raise HTTPException(
@@ -341,9 +188,9 @@ async def update_course(
     },
 )
 async def bulk_delete_courses(
-    request: BulkDeleteCoursesRequest,
-    course_service: CourseService = Depends(get_course_service),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        request: BulkDeleteCoursesRequest,
+        course_service: CourseService = Depends(get_course_service),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Xóa nhiều khóa học cùng lúc (chỉ admin)
@@ -367,13 +214,11 @@ async def bulk_delete_courses(
                 detail="Danh sách course_ids không được rỗng",
             )
 
-        # Thực hiện bulk delete
         result = await course_service.bulk_delete_courses(request.course_ids)
 
         return result
 
     except HTTPException:
-        # Re-raise HTTPException từ validation
         raise
     except Exception as e:
         raise HTTPException(
@@ -395,13 +240,13 @@ async def bulk_delete_courses(
     },
 )
 async def delete_course(
-    course_id: int,
-    db: AsyncSession = Depends(get_async_db),
-    course_service: CourseService = Depends(get_course_service),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
-    force: Annotated[
-        int, Query(ge=0, le=1, description="Force delete without checking enrollments")
-    ] = 0,
+        course_id: int,
+        db: AsyncSession = Depends(get_async_db),
+        course_service: CourseService = Depends(get_course_service),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
+        force: Annotated[
+            int, Query(ge=0, le=1, description="Force delete without checking enrollments")
+        ] = 0,
 ):
     """
     Xóa khóa học và tất cả dữ liệu liên quan (chỉ admin)
@@ -426,7 +271,6 @@ async def delete_course(
     from app.models.topic_model import Topic
     from app.models.user_course_model import UserCourse
 
-    # Tìm khóa học cần xóa
     course = await db.execute(select(Course).where(Course.id == course_id))
     course = course.scalar_one_or_none()
     if not course:
@@ -435,7 +279,6 @@ async def delete_course(
             detail=f"Không tìm thấy khóa học với ID {course_id}",
         )
 
-    # Kiểm tra xem khóa học có đang được sử dụng không
     enrollment_count = (
         await db.execute(select(func.count()).where(UserCourse.course_id == course_id))
     ).scalar()
@@ -460,7 +303,6 @@ async def delete_course(
         )
 
     try:
-        # Đếm số lượng items sẽ bị xóa để logging
         topics_count = await db.execute(
             select(func.count()).where(Topic.course_id == course_id)
         )
@@ -483,7 +325,6 @@ async def delete_course(
         topics_count = topics_count or 0
         lessons_count = lessons_count or 0
         sections_count = sections_count or 0
-        # Xóa khóa học (cascade sẽ tự động xóa topics, lessons, sections)
         await db.delete(course)
         await db.commit()
 
@@ -518,11 +359,11 @@ async def delete_course(
     },
 )
 async def create_test(
-    course_id: int,
-    test_generation_service: TestGenerationService = Depends(
-        get_test_generation_service
-    ),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int,
+        test_generation_service: TestGenerationService = Depends(
+            get_test_generation_service
+        ),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Tạo bài kiểm tra đầu vào cho khóa học - Background (chỉ admin)
@@ -540,8 +381,8 @@ async def create_test(
     },
 )
 async def get_all_courses_admin(
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Lấy tất cả khóa học bao gồm cả chưa được published (chỉ admin)
@@ -565,9 +406,9 @@ async def get_all_courses_admin(
     },
 )
 async def get_course_by_id_admin(
-    course_id: int,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Lấy thông tin chi tiết của một khóa học (chỉ admin, bao gồm cả chưa published)
@@ -597,10 +438,10 @@ async def get_course_by_id_admin(
     },
 )
 async def update_course_thumbnail(
-    course_id: int,
-    thumbnail_data: ThumbnailUpdateRequest,
-    course_service: CourseService = Depends(get_course_service),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int,
+        thumbnail_data: ThumbnailUpdateRequest,
+        course_service: CourseService = Depends(get_course_service),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Cập nhật ảnh thumbnail cho khóa học (chỉ admin)
@@ -645,104 +486,12 @@ async def update_course_thumbnail(
     },
 )
 async def get_course_review(
-    course_id: int,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
-    """
-    Lấy thông tin review khóa học bao gồm draft content và chat history
-    """
-    # Tìm course
-    course_result = await db.execute(select(Course).filter(Course.id == course_id))
-    course = course_result.scalar_one_or_none()
-    if not course:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy khóa học với ID {course_id}",
-        )
-
-    # Tìm draft gần nhất
-    draft_result = await db.execute(
-        select(CourseDraft)
-        .filter(CourseDraft.course_id == course_id)
-        .order_by(CourseDraft.created_at.desc())
-        .limit(1)
-    )
-    draft = draft_result.scalar_one_or_none()
-
-    # Lấy chat history
-    chat_result = await db.execute(
-        select(CourseReviewChat)
-        .filter(CourseReviewChat.course_id == course_id)
-        .order_by(CourseReviewChat.created_at.asc())
-    )
-    chat_messages = chat_result.scalars().all()
-
-    return CourseReviewResponse(
-        course_id=course.id,
-        course_title=course.title,
-        course_description=course.description,
-        draft=CourseDraftResponse.model_validate(draft) if draft else None,
-        chat_messages=[
-            CourseReviewChatMessage.model_validate(msg) for msg in chat_messages
-        ],
-    )
-
-
-@router.post(
-    "/{course_id}/review/chat",
-    response_model=CourseReviewChatMessage,
-    summary="Gửi tin nhắn chat với agent (Admin)",
-    responses={
-        201: {"description": "Created"},
-        403: {"description": "Không có quyền truy cập"},
-        404: {"description": "Không tìm thấy khóa học"},
-    },
-)
-async def send_chat_message(
-    course_id: int,
-    message_request: SendChatMessageRequest,
-    background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
-):
-    """
-    Gửi tin nhắn chat với agent trong quá trình review
-    """
-    # Kiểm tra course tồn tại
-    course_result = await db.execute(select(Course).filter(Course.id == course_id))
-    course = course_result.scalar_one_or_none()
-    if not course:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy khóa học với ID {course_id}",
-        )
-
-    try:
-        # Lưu tin nhắn của admin
-        admin_message = CourseReviewChat(
-            course_id=course_id,
-            user_id=admin_user.id,
-            message=message_request.message,
-            is_agent=False,
-        )
-        db.add(admin_message)
-        await db.commit()
-        await db.refresh(admin_message)
-
-        # Gửi tin nhắn cho agent trong background
-        background_tasks.add_task(
-            process_agent_response, course_id, message_request.message, admin_user.id
-        )
-
-        return CourseReviewChatMessage.model_validate(admin_message)
-
-    except SQLAlchemyError as e:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi khi gửi tin nhắn: {str(e)}",
-        )
+    # TODO:importance
+    pass
 
 
 @router.post(
@@ -755,11 +504,11 @@ async def send_chat_message(
     },
 )
 async def approve_course_draft(
-    course_id: int,
-    approve_request: ApproveDraftRequest,
-    background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int,
+        approve_request: ApproveDraftRequest,
+        background_tasks: BackgroundTasks,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Approve draft content và lưu vào database chính hoặc reject và gọi lại agent
@@ -834,6 +583,7 @@ async def process_agent_response(course_id: int, user_message: str, user_id: int
     """
     try:
         # TODO: Tích hợp với agent để xử lý tin nhắn
+        pass
 
     except Exception as e:
         import logging
@@ -843,7 +593,7 @@ async def process_agent_response(course_id: int, user_message: str, user_id: int
 
 
 async def save_agent_content_to_db(
-    course_id: int, agent_content: dict, db: AsyncSession
+        course_id: int, agent_content: dict, db: AsyncSession
 ):
     """
     Lưu nội dung agent tạo ra vào database chính

@@ -1,15 +1,12 @@
-from langchain_core.tools import Tool
-
 from app.core.agents.base_agent import BaseAgent
 from app.core.config import settings
 from app.core.tracing import trace_agent
-from langchain_core.agents import AgentFinish
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models.lesson_model import Lesson
-from sqlalchemy import select
-
 from app.utils.model_utils import model_to_dict
+from langchain_core.agents import AgentFinish
+from langchain_core.tools import Tool
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class TutorAgent(BaseAgent):
@@ -24,7 +21,6 @@ class TutorAgent(BaseAgent):
     @property
     def tools(self):
         if self._tools is None:
-            from langchain.agents import Tool
 
             self._tools = [
                 Tool(
@@ -38,12 +34,12 @@ class TutorAgent(BaseAgent):
     @property
     def prompt(self):
         if self._prompt is None:
+            from langchain_core.messages import SystemMessage
             from langchain_core.prompts import (
                 ChatPromptTemplate,
                 HumanMessagePromptTemplate,
                 MessagesPlaceholder,
             )
-            from langchain_core.messages import SystemMessage
 
             self._prompt = ChatPromptTemplate.from_messages(
                 [

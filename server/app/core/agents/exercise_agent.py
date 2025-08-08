@@ -71,7 +71,7 @@ class GenerateExerciseQuestionAgent(BaseAgent):
         )
 
         self.exercise_retriever = get_vector_store("exercise").as_retriever(
-            search_kwargs={"k": 2}
+            search_kwargs={"k": 3}
         )
 
         self._init_parsers_and_chains()
@@ -104,7 +104,7 @@ class GenerateExerciseQuestionAgent(BaseAgent):
         )
 
         self.generate_exercise = self.generate_exercise_prompt | create_new_llm_model(
-            top_p=0.9, temperature=0.7
+            top_p=0.9, temperature=0.6
         ).with_structured_output(ExerciseDetail)
 
     def _init_tools(self):
@@ -185,7 +185,10 @@ class GenerateExerciseQuestionAgent(BaseAgent):
         )
 
         self.agent_executor = AgentExecutor(
-            agent=self.agent, tools=self.tools, verbose=True, handle_parsing_errors=True
+            agent=self.agent.with_retry(stop_after_attempt=5),
+            tools=self.tools,
+            verbose=True,
+            handle_parsing_errors=True,
         )
 
     @override

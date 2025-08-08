@@ -33,8 +33,12 @@ def create_index(index_name: index_list):
         index_name: Tên của index cần tạo
     """
     pc = get_pinecone_client()
-    pc_index = pc.Index(index_name)
-    pc_index.create(dimension=768, metric="cosine")
+    pc.create_index(
+        index_name,
+        dimension=768,
+        metric="cosine",
+        spec=ServerlessSpec(cloud="aws", region="us-east-1"),
+    )
 
 
 def get_vector_store(index_name: index_list):
@@ -59,11 +63,6 @@ def get_vector_store(index_name: index_list):
 def get_index(index_name: index_list):
     pc = get_pinecone_client()
     if index_name not in [index.name for index in pc.list_indexes().indexes]:
-        pc.create_index(
-            name=index_name,
-            dimension=768,
-            metric="cosine",
-            spec=ServerlessSpec(cloud="aws", region="us-east-1"),
-        )
+        create_index(index_name)
     pc_index = pc.Index(index_name)
     return pc_index

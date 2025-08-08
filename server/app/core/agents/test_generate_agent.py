@@ -1,19 +1,14 @@
-from app.core.agents.base_agent import BaseAgent
-from app.models.course_model import Course
-from app.utils.model_utils import model_to_dict
-from pydantic import BaseModel, Field, ValidationError
-from app.core.tracing import trace_agent
-from typing import override, Dict, Any
 import logging
-import asyncio
-from google.api_core.exceptions import (
-    InternalServerError,
-    DeadlineExceeded,
-    ServiceUnavailable,
-)
+from typing import Any, Dict, override
 
+from app.core.agents.base_agent import BaseAgent
+from app.core.tracing import trace_agent
 from app.database.database import get_independent_db_session
+from app.models.topic_model import Topic
+from app.schemas.topic_schema import TopicForTestGenerateAgent
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +16,19 @@ AGENT_PROMPT = """
 Bạn là chuyên gia đánh giá năng lực học sinh. Nhiệm vụ của bạn là tạo ra một bài kiểm tra đầu vào có tính phân hóa cao,
 giúp đánh giá chính xác trình độ hiện tại của học sinh đối với toàn bộ nội dung của khóa học.
 
-Yêu cầu:
+# Các bước thực hiện:
+- Gọi các tool cần thiết để lấy thêm thông tin cho việc tạo bài kiểm tra
+- Dựa vào những thông tin đã thu thập được để xây dựng đề bài kiểm tra
+
+# Yêu cầu:
 - Đề bài phải bao phủ đầy đủ các chủ đề chính trong khóa học, từ cơ bản đến nâng cao.
 - Mỗi câu hỏi cần đánh giá một kỹ năng hoặc kiến thức cụ thể.
 - Phân loại độ khó câu hỏi theo 3 mức: Dễ (kiến thức nền tảng), Trung bình (vận dụng), Khó (vận dụng cao hoặc nâng cao).
 - Bố cục đề nên xen kẽ các mức độ khó để tránh học sinh bị nản hoặc chủ quan.
 - Đề phải có khả năng phân loại học sinh thành các nhóm trình độ: yếu, trung bình, khá, giỏi.
 - Mỗi câu hỏi cần có nội dung rõ ràng, không gây hiểu nhầm, và có thể chấm điểm khách quan.
+- Không được ra đề ngoài các thông tin đã được lấy từ các topic của khóa học.
+- Bài kiểm tra phải có đúng 50 câu.
 
 Mục tiêu cuối cùng là giúp xác định chính xác học sinh đang ở đâu trong hành trình học tập
 và từ đó đề xuất lộ trình học phù hợp.
@@ -56,14 +57,12 @@ class InputTestAgent(BaseAgent):
     def __init__(self):
         super().__init__()
         self.available_args = ["course_id"]
-        self._output_parser = None
-        self._output_fix_parser = None
-        self._prompt = None
-        self._tool_calling_agent = None
-        self._agent_executor = None
 
         self.max_retries = 3
         self.retry_delay = 2
+        self._agent_executor = None
+        self._tool_calling_agent = None
+        self._output_parser = None
 
         self._init_tools()
 
@@ -71,18 +70,30 @@ class InputTestAgent(BaseAgent):
         """Khởi tạo tools với lazy import"""
         from langchain_core.tools import Tool
 
-        async def get_course_by_id(course_id: int):
+        async def get_all_course_skill(course_id: int):
+            if type(course_id) is not int:
+                course_id = int(course_id)
             async with get_independent_db_session() as db:
-                result = await db.execute(select(Course).filter(Course.id == course_id))
-                course = result.scalars().first()
-                return model_to_dict(course)
+                result = await db.execute(
+                    select(Topic)
+                    .options(selectinload(Topic.skills), selectinload(Topic.lessons))
+                    .filter(Topic.course_id == course_id)
+                )
+
+                result = result.scalars().all()
+
+                data = [
+                    TopicForTestGenerateAgent.model_validate(topic) for topic in result
+                ]
+
+                return data
 
         self.tools = [
             Tool.from_function(
-                name="get_course_by_id",
-                func=get_course_by_id,
-                coroutine=get_course_by_id,
-                description="Get the course by id",
+                name="get_all_course_skill",
+                func=get_all_course_skill,
+                coroutine=get_all_course_skill,
+                description="Lấy tất cả các topic của khóa học",
             ),
         ]
 
@@ -110,9 +121,11 @@ class InputTestAgent(BaseAgent):
     @property
     def prompt(self):
         if self._prompt is None:
-            from langchain_core.prompts import ChatPromptTemplate
             from langchain_core.messages import SystemMessage
-            from langchain_core.prompts import HumanMessagePromptTemplate
+            from langchain_core.prompts import (
+                ChatPromptTemplate,
+                HumanMessagePromptTemplate,
+            )
             from langchain_core.prompts.chat import MessagesPlaceholder
 
             self._prompt = ChatPromptTemplate.from_messages(
@@ -146,60 +159,11 @@ class InputTestAgent(BaseAgent):
             from langchain.agents import AgentExecutor
 
             self._agent_executor = AgentExecutor.from_agent_and_tools(
-                agent=self.tool_calling_agent,
+                agent=self.tool_calling_agent.with_retry(stop_after_attempt=5),
                 tools=self.tools,
                 verbose=True,
             )
         return self._agent_executor
-
-    async def _execute_with_retry(
-        self, input_data: Dict[str, Any], config: Any
-    ) -> Dict[str, Any]:
-        """
-        Thực thi agent với retry logic cho Google AI API errors
-
-        Args:
-            input_data: Input cho agent
-            config: Runnable config
-
-        Returns:
-            Dict: Kết quả từ agent
-
-        Raises:
-            Exception: Sau khi hết số lần retry
-        """
-        last_exception = None
-
-        for attempt in range(self.max_retries):
-            try:
-                logger.info(
-                    f"Đang thực thi agent, lần thử {attempt + 1}/{self.max_retries}"
-                )
-                result = await self.agent_executor.ainvoke(input_data, config=config)
-                logger.info("Thực thi agent thành công")
-                return result
-
-            except (InternalServerError, DeadlineExceeded, ServiceUnavailable) as e:
-                last_exception = e
-                logger.warning(f"Google AI API error (lần {attempt + 1}): {e}")
-
-                if attempt < self.max_retries - 1:
-                    delay = self.retry_delay * (2**attempt)  # Exponential backoff
-                    logger.info(f"Đợi {delay} giây trước khi thử lại...")
-                    await asyncio.sleep(delay)
-                else:
-                    logger.error(f"Đã thử {self.max_retries} lần nhưng vẫn thất bại")
-
-            except Exception as e:
-                logger.error(f"Lỗi không thể retry: {e}")
-                raise e
-
-        if last_exception:
-            raise Exception(
-                f"Google AI API không khả dụng sau {self.max_retries} lần thử. Lỗi: {last_exception}"
-            )
-        else:
-            raise Exception(f"Không thể thực thi agent sau {self.max_retries} lần thử")
 
     async def _parse_output_with_fix(
         self, output: Dict[str, Any], course_id: int
@@ -254,9 +218,9 @@ class InputTestAgent(BaseAgent):
         input_data = {"input": f"Tạo bài kiểm tra đầu vào cho khóa học ID: {course_id}"}
 
         try:
-            output = await self._execute_with_retry(input_data, config)
+            result = await self.agent_executor.ainvoke(input_data, config)
 
-            result = await self._parse_output_with_fix(output, course_id)
+            result = await self._parse_output_with_fix(result, course_id)
 
             logger.info(f"Tạo thành công {len(result.questions)} câu hỏi")
             return result

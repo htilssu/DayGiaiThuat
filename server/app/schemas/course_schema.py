@@ -94,6 +94,14 @@ class CourseUpdate(BaseModel):
         None, description="Những gì người học sẽ đạt được sau khóa học (JSON string)"
     )
 
+    @classmethod
+    def from_model(cls, model):
+        data = {}
+        for field_name in cls.model_fields.keys():
+            value = getattr(model, field_name, None)
+            data[field_name] = value
+        return cls(**data)
+
 
 class CourseResponse(CourseBase):
     """
@@ -120,6 +128,14 @@ class CourseResponse(CourseBase):
     is_enrolled: Optional[bool] = Field(
         False, description="Trạng thái đăng ký của người dùng hiện tại"
     )
+
+    @classmethod
+    def from_model(cls, model):
+        data = {}
+        for field_name in cls.model_fields.keys():
+            value = getattr(model, field_name, None)
+            data[field_name] = value
+        return cls(**data)
 
     class Config:
         """Cấu hình cho Pydantic model"""
@@ -179,6 +195,14 @@ class CourseListItem(BaseModel):
     is_enrolled: Optional[bool] = Field(
         False, description="Trạng thái đăng ký của người dùng hiện tại"
     )
+
+    @classmethod
+    def from_model(cls, model):
+        data = {}
+        for field_name in cls.model_fields.keys():
+            value = getattr(model, field_name, None)
+            data[field_name] = value
+        return cls(**data)
 
     class Config:
         from_attributes = True

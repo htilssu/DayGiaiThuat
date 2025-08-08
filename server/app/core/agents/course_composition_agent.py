@@ -19,6 +19,7 @@ from app.schemas.topic_schema import TopicBase
 
 class CourseAgentResponse(BaseModel):
     duration: int = Field(..., description="Thời gian cần để hoàn thành khóa học")
+    description: str = Field(..., description="Mô tả chi tiết về khóa học")
     topics: list[TopicBase] = Field(
         ...,
         description="Danh sách các chủ đề trong khóa học, mỗi chủ đề bao gồm tên, mô tả và kiến thức tiên quyết",
@@ -43,6 +44,7 @@ Hãy tạo danh sách topics theo thứ tự logic học tập (từ cơ bản �
 ```json
     {{
         duration: "Thời gian ước lượng hoàn thành khóa học (số nguyên, đơn vị ngày)",
+        description: "Mô tả chi tiết về khóa học",
         topics: [{{
             "name": "Tên topic",
             "description": "Mô tả chi tiết nội dung sẽ học",
@@ -124,7 +126,7 @@ class CourseCompositionAgent(BaseAgent):
         )
 
         self.agent_executor = AgentExecutor(
-            agent=self.agent,
+            agent=self.agent.with_retry(stop_after_attempt=5),
             max_iterations=40,
             tools=self.tools,
             verbose=True,
@@ -141,7 +143,6 @@ class CourseCompositionAgent(BaseAgent):
         try:
             self.current_course_id = request.course_id
 
-            # Tạo session_id nếu không được truyền vào
             session_id = request.session_id or str(uuid.uuid4())
 
             run_config = RunnableConfig(
@@ -193,7 +194,10 @@ class CourseCompositionAgent(BaseAgent):
             await self.db_session.execute(
                 update(Course)
                 .where(Course.id == request.course_id)
-                .values(duration=agent_response.duration)
+                .values(
+                    duration=agent_response.duration,
+                    description=agent_response.description,
+                )
             )
             await self.db_session.commit()
 

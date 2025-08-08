@@ -69,7 +69,6 @@ async def get_courses(
     else:
         enrolled_courses = []
 
-    # Chuyển đổi Course thành CourseListItem và kiểm tra trạng thái enrolled
     course_items = []
     for course in courses:
         is_enrolled = False

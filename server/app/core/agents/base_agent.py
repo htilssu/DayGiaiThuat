@@ -12,6 +12,7 @@ class BaseAgent(object):
         self._tools = []
         self._base_llm = None
         self._callback_manager = get_callback_manager("default")
+        self._prompt = None
 
     @property
     def base_llm(self):

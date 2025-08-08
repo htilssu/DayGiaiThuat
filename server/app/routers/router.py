@@ -7,7 +7,6 @@ def register_router(app: FastAPI):
         admin_courses_router,
         admin_topics_router,
         admin_upload_router,
-        ai_chat_router,
         auth_router,
         courses_router,
         discussions_router,
@@ -38,7 +37,6 @@ def register_router(app: FastAPI):
     app.include_router(websocket_router.router)
     app.include_router(discussions_router.router)
     app.include_router(replies_router.router)
-    app.include_router(ai_chat_router.router)
     app.include_router(admin_courses_router.router)
     app.include_router(admin_topics_router.router)
     app.include_router(admin_upload_router.router)

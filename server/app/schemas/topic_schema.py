@@ -2,6 +2,7 @@ from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 from app.schemas.lesson_schema import (
+    LessonSummary,
     LessonWithChildSchema,
     LessonDetailWithProgressResponse,
 )
@@ -24,11 +25,18 @@ class TopicBase(BaseModel):
         None, description="Danh sách các điều kiện tiên quyết"
     )
 
+    class Config:
+        from_attributes = True
+
 
 class TopicHasSkill(TopicBase):
     skills: list[SkillBase] = Field(
         default_factory=list, description="Danh sách các kỹ năng liên quan đến chủ đề"
     )
+
+
+class TopicForTestGenerateAgent(TopicHasSkill):
+    lessons: List[LessonSummary]
 
 
 class CreateTopicSchema(TopicBase):

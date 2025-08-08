@@ -1,7 +1,7 @@
 import json
+from typing import List
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.llm_model import (
-    create_new_creative_llm_model,
     get_llm_model,
 )
 from app.core.agents.components.document_store import get_vector_store
@@ -123,7 +123,6 @@ class LessonGeneratingAgent(BaseAgent):
             pydantic_object=ListCreateLessonSchema
         )
 
-        # Chain for generating lesson structure
         self.generate_structure_prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessage(
@@ -136,7 +135,6 @@ class LessonGeneratingAgent(BaseAgent):
         )
         self.generate_structure_chain = self.generate_structure_prompt | get_llm_model()
 
-        # Chain for generating section content
         self.generate_content_prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessage(
@@ -179,7 +177,6 @@ class LessonGeneratingAgent(BaseAgent):
         self.tools = [
             self.retriever_document_tool,
             self.generate_lesson_structure_tool,
-            # self.output_fixing_parser_tool,
         ]
 
     def _init_agent(self):
@@ -203,14 +200,13 @@ class LessonGeneratingAgent(BaseAgent):
 
         agent = create_tool_calling_agent(self.base_llm, self.tools, self.prompt)
         self.agent_executor = AgentExecutor(
-            agent=agent.with_retry(),
+            agent=agent.with_retry(stop_after_attempt=5),
             tools=self.tools,
             verbose=True,
-            # handle_parsing_errors=True,
         )
 
     @trace_agent(project_name="default", tags=["lesson", "generator"])
-    async def act(self, *args, **kwargs) -> list[CreateLessonSchema]:
+    async def act(self, *args, **kwargs) -> List[CreateLessonSchema]:
         """
         Thực thi quy trình tạo bài giảng bằng agent.
         """
@@ -248,7 +244,6 @@ class LessonGeneratingAgent(BaseAgent):
             )
 
             if isinstance(response, dict) and response.get("output"):
-                # Agent sẽ trả về một chuỗi JSON, cần parse nó
                 final_lesson = self.structure_parser.parse(response["output"])
                 return final_lesson.list_schema
             else:
