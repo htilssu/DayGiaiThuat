@@ -72,12 +72,11 @@ export function UsersClient() {
       const usersData = await userApi.getAllUsersAdmin();
       console.log("Users data received:", usersData);
 
-      // Transform API data to match our interface
       const transformedUsers: UserWithStatus[] = usersData.map((user) => ({
         ...user,
-        fullName: `${user.first_name || ""} ${user.last_name || ""}`.trim(),
-        status: user.is_active ? "active" : "inactive",
-        role: user.is_admin ? "admin" : "user",
+        fullName: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+        status: user.isActive ? "active" : "inactive",
+        role: user.isAdmin ? "admin" : "user",
         lastLogin: undefined, // Not available in current API
       }));
 
@@ -182,12 +181,12 @@ export function UsersClient() {
       const updateData: AdminUserUpdate = {
         email: updatedUser.email,
         username: updatedUser.username,
-        first_name: updatedUser.first_name,
-        last_name: updatedUser.last_name,
-        is_admin: updatedUser.is_admin,
-        is_active: updatedUser.is_active,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        isAdmin: updatedUser.isAdmin,
+        isActive: updatedUser.isActive,
         bio: updatedUser.bio,
-        avatar_url: updatedUser.avatar_url,
+        avatarUrl: updatedUser.avatarUrl,
       };
 
       await userApi.updateUserAdmin(updatedUser.id, updateData);
@@ -217,12 +216,10 @@ export function UsersClient() {
       // Transform the new user to match our interface
       const transformedUser: UserWithStatus = {
         ...newUser,
-        status: newUser.is_active ? "active" : "inactive",
-        role: newUser.is_admin ? "admin" : "user",
+        status: newUser.isActive ? "active" : "inactive",
+        role: newUser.isAdmin ? "admin" : "user",
         lastLogin: undefined,
-        fullName: `${newUser.first_name || ""} ${
-          newUser.last_name || ""
-        }`.trim(),
+        fullName: `${newUser.firstName || ""} ${newUser.lastName || ""}`.trim(),
       };
 
       setUsers([...users, transformedUser]);
@@ -252,10 +249,10 @@ export function UsersClient() {
         users.map((user) =>
           user.id === userId
             ? {
-                ...user,
-                is_active: isActive,
-                status: isActive ? "active" : "inactive",
-              }
+              ...user,
+              is_active: isActive,
+              status: isActive ? "active" : "inactive",
+            }
             : user
         )
       );
@@ -472,7 +469,7 @@ export function UsersClient() {
                   </td>
                   <td className="text-center">
                     <Text className="text-sm text-muted-foreground">
-                      {formatDate(user.created_at)}
+                      {formatDate(user.createdAt)}
                     </Text>
                   </td>
                   <td className="flex justify-center">
@@ -501,7 +498,7 @@ export function UsersClient() {
                           variant="light"
                           size="sm"
                           onClick={() =>
-                            handleToggleUserStatus(user.id, !user.is_active)
+                            handleToggleUserStatus(user.id, !user.isActive)
                           }
                           className={
                             user.isActive
@@ -603,7 +600,7 @@ export function UsersClient() {
                   Ngày tạo
                 </Text>
                 <Text className="text-sm">
-                  {formatDate(selectedUser.created_at)}
+                  {formatDate(selectedUser.createdAt)}
                 </Text>
               </div>
             </div>
@@ -630,15 +627,15 @@ export function UsersClient() {
           <Stack gap="md">
             <TextInput
               label="Họ và tên"
-              value={`${selectedUser.first_name} ${selectedUser.last_name}`}
+              value={`${selectedUser.firstName} ${selectedUser.lastName}`}
               onChange={(e) => {
                 const names = e.target.value.split(" ");
                 const firstName = names[0] || "";
                 const lastName = names.slice(1).join(" ") || "";
                 setSelectedUser({
                   ...selectedUser,
-                  first_name: firstName,
-                  last_name: lastName,
+                  firstName: firstName,
+                  lastName: lastName,
                   fullName: e.target.value,
                 });
               }}
@@ -670,7 +667,7 @@ export function UsersClient() {
                 setSelectedUser({
                   ...selectedUser,
                   role: (value as "admin" | "user") || "user",
-                  is_admin: value === "admin",
+                  isAdmin: value === "admin",
                 })
               }
               data={[
@@ -685,7 +682,7 @@ export function UsersClient() {
                 setSelectedUser({
                   ...selectedUser,
                   status: (value as "active" | "inactive") || "active",
-                  is_active: value === "active",
+                  isActive: value === "active",
                 })
               }
               data={[
@@ -744,12 +741,12 @@ function CreateUserForm({ onSubmit, onCancel }: CreateUserFormProps) {
     email: "",
     username: "",
     password: "",
-    first_name: "",
-    last_name: "",
-    is_admin: false,
-    is_active: true,
+    firstName: "",
+    lastName: "",
+    isAdmin: false,
+    isActive: true,
     bio: "",
-    avatar_url: "",
+    avatarUrl: "",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -786,26 +783,26 @@ function CreateUserForm({ onSubmit, onCancel }: CreateUserFormProps) {
         <TextInput
           label="Họ"
           required
-          value={formData.first_name}
+          value={formData.firstName}
           onChange={(e) =>
-            setFormData({ ...formData, first_name: e.target.value })
+            setFormData({ ...formData, firstName: e.target.value })
           }
         />
         <TextInput
           label="Tên"
           required
-          value={formData.last_name}
+          value={formData.lastName}
           onChange={(e) =>
-            setFormData({ ...formData, last_name: e.target.value })
+            setFormData({ ...formData, lastName: e.target.value })
           }
         />
         <Select
           label="Vai trò"
-          value={formData.is_admin ? "admin" : "user"}
+          value={formData.isAdmin ? "admin" : "user"}
           onChange={(value) =>
             setFormData({
               ...formData,
-              is_admin: value === "admin",
+              isAdmin: value === "admin",
             })
           }
           data={[
@@ -815,11 +812,11 @@ function CreateUserForm({ onSubmit, onCancel }: CreateUserFormProps) {
         />
         <Select
           label="Trạng thái"
-          value={formData.is_active ? "active" : "inactive"}
+          value={formData.isActive ? "active" : "inactive"}
           onChange={(value) =>
             setFormData({
               ...formData,
-              is_active: value === "active",
+              isActive: value === "active",
             })
           }
           data={[
