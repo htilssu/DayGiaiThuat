@@ -102,7 +102,7 @@ class ProfileService:
                     func.sum(
                         func.case(
                             (UserCourseProgress.status == ProgressStatus.COMPLETED, 1),
-                            else_=0
+                            0
                         )
                     ).label("completed_lessons")
                 )
