@@ -237,22 +237,22 @@ class UserService:
             select(UserState).where(UserState.user_id == user_id)
         )
         user_state = user_state_result.scalar_one_or_none()
-        
+
         if not user_state:
             user_state = UserState(user_id=user_id)
             self.db.add(user_state)
 
         # Cập nhật thống kê dựa trên loại hoạt động
         activity_type = activity_data.get("type")
-        
+
         if activity_type == "exercise":
             user_state.completed_exercises += 1
             user_state.total_points += 10
-            
+
             # Kiểm tra nếu là bài tập code
             if "code" in activity_data.get("tags", []):
                 user_state.problems_solved += 1
-                
+
         elif activity_type == "course":
             if activity_data.get("completed"):
                 user_state.completed_courses += 1
@@ -350,7 +350,9 @@ class UserService:
 
         if new_level > user_state.level:
             user_state.level = new_level
-            user_state.xp_to_next_level = (new_level + 1) ** 2 * 100 - user_state.total_points
+            user_state.xp_to_next_level = (
+                new_level + 1
+            ) ** 2 * 100 - user_state.total_points
 
     async def update_streak(self, user_id: int) -> Optional[User]:
         """
@@ -371,14 +373,14 @@ class UserService:
             select(UserState).where(UserState.user_id == user_id)
         )
         user_state = user_state_result.scalar_one_or_none()
-        
+
         if not user_state:
             user_state = UserState(user_id=user_id)
             self.db.add(user_state)
 
         # Kiểm tra ngày cuối cùng đã hoạt động
         today = datetime.utcnow().date()
-        
+
         if user_state.streak_last_date:
             # Tính số ngày giữa lần hoạt động cuối và hiện tại
             days_diff = (today - user_state.streak_last_date.date()).days
@@ -419,10 +421,10 @@ class UserService:
             select(UserState).where(UserState.user_id == user.id)
         )
         user_state = user_state_result.scalar_one_or_none()
-        
+
         if not user_state:
             return
-            
+
         streak_count = user_state.streak_count
 
         # Danh sách huy hiệu streak
@@ -468,10 +470,10 @@ class UserService:
             select(UserState).where(UserState.user_id == user.id)
         )
         user_state = user_state_result.scalar_one_or_none()
-        
+
         if not user_state:
             return
-            
+
         level = user_state.level
 
         # Danh sách huy hiệu level
@@ -550,16 +552,17 @@ class UserService:
             List[User]: Danh sách người dùng
         """
         from sqlalchemy import select
+
         result = await self.db.execute(
-            select(User)
-            .offset(skip)
-            .limit(limit)
-            .order_by(User.created_at.desc())
+            select(User).offset(skip).limit(limit).order_by(User.created_at.desc())
         )
         return list(result.scalars().all())
 
     async def update_user_admin_info(
-        self, user_id: int, is_admin: Optional[bool] = None, is_active: Optional[bool] = None
+        self,
+        user_id: int,
+        is_admin: Optional[bool] = None,
+        is_active: Optional[bool] = None,
     ) -> Optional[User]:
         """
         Cập nhật thông tin admin của người dùng
