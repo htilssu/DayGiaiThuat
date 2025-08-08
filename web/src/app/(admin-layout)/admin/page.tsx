@@ -1,14 +1,5 @@
 import { Metadata } from "next";
-import {
-  Container,
-  Paper,
-  Title,
-  Text,
-  Group,
-  Button,
-  Card,
-  Stack,
-} from "@mantine/core";
+import { Paper, Title, Text, Group, Button, Card, Stack } from "@mantine/core";
 import {
   IconChartBar,
   IconMessage,
@@ -28,17 +19,17 @@ export const metadata: Metadata = {
 export default function AdminDashboard() {
   const adminModules = [
     {
-      title: "Tổng quan",
-      description: "Xem thống kê và báo cáo hệ thống",
+      title: "Quản lý khóa học",
+      description: "Tạo, chỉnh sửa và quản lý các khóa học",
       icon: IconChartBar,
-      href: "/overview",
+      href: "/admin/course",
       color: "blue",
     },
     {
-      title: "Quản lý người dùng",
-      description: "Quản lý danh sách người dùng và phân quyền",
+      title: "Quản lý topics",
+      description: "Quản lý cây chủ đề và nội dung",
       icon: IconUsers,
-      href: "/users",
+      href: "/admin/topics",
       color: "green",
     },
     {
@@ -62,13 +53,13 @@ export default function AdminDashboard() {
       {/* Header */}
       <Paper className="p-8 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg border border-primary/10">
         <div className="text-center">
-          <Title order={1} className="text-3xl font-bold text-primary mb-4">
+          <Title order={1} className="text-3xl font-bold text-primary">
             Admin Dashboard
           </Title>
-          <Text className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mt-4">
             Chào mừng đến với trang quản trị hệ thống. Từ đây bạn có thể quản lý
             tất cả các khía cạnh của hệ thống học giải thuật.
-          </Text>
+          </p>
         </div>
       </Paper>
 

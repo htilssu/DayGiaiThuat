@@ -116,22 +116,22 @@ export function UsersClient() {
     return matchesSearch && matchesStatus && matchesRole;
   });
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: boolean) => {
     switch (status) {
-      case "active":
+      case true:
         return "green";
-      case "inactive":
+      case false:
         return "gray";
       default:
         return "gray";
     }
   };
 
-  const getRoleColor = (role: string) => {
+  const getRoleColor = (role: boolean) => {
     switch (role) {
-      case "admin":
+      case true:
         return "red";
-      case "user":
+      case false:
         return "green";
       default:
         return "gray";
@@ -333,15 +333,9 @@ export function UsersClient() {
                   <br />
                   Username: {currentUser.username}
                   <br />
-                  {currentUser.is_admin ? (
-                    <span className="text-green-600">
-                      ✅ Tài khoản có quyền admin
-                    </span>
-                  ) : (
-                    <span className="text-red-600">
-                      ⚠️ Tài khoản này có thể không có quyền admin
-                    </span>
-                  )}
+                  <span className="text-red-600">
+                    ⚠️ Tài khoản này có thể không có quyền admin
+                  </span>
                 </Text>
               </div>
             )}
@@ -431,25 +425,25 @@ export function UsersClient() {
       {/* Users Table */}
       <Card className="p-0">
         <div className="overflow-x-auto">
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Người dùng</Table.Th>
-                <Table.Th>Email</Table.Th>
-                <Table.Th>Vai trò</Table.Th>
-                <Table.Th>Trạng thái</Table.Th>
-                <Table.Th>Ngày tạo</Table.Th>
-                <Table.Th className="text-right">Thao tác</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
+          <table className="w-full">
+            <thead>
+              <tr className="h-10">
+                <th className="text-center">Người dùng</th>
+                <th className="text-center">Email</th>
+                <th className="text-center">Vai trò</th>
+                <th className="text-center">Trạng thái</th>
+                <th className="text-center">Ngày tạo</th>
+                <th className="text-center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
               {filteredUsers.map((user) => (
-                <Table.Tr key={user.id}>
-                  <Table.Td>
-                    <div className="flex items-center gap-3">
+                <tr key={user.id}>
+                  <td className="h-10">
+                    {/* <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                         <Text className="font-semibold text-primary">
-                          {user.fullName.charAt(0).toUpperCase()}
+                          {user.first_name.charAt(0).toUpperCase()}
                         </Text>
                       </div>
                       <div>
@@ -458,29 +452,30 @@ export function UsersClient() {
                           @{user.username}
                         </Text>
                       </div>
-                    </div>
-                  </Table.Td>
-                  <Table.Td>
+                    </div> */}
+                    @{user.username}
+                  </td>
+                  <td>
                     <Text className="text-sm">{user.email}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge color={getRoleColor(user.role)} variant="light">
-                      {user.role === "admin" ? "Quản trị viên" : "Người dùng"}
+                  </td>
+                  <td className="text-center">
+                    <Badge color={getRoleColor(user.isAdmin)} variant="light">
+                      {user.isAdmin ? "Quản trị viên" : "Người dùng"}
                     </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge color={getStatusColor(user.status)} variant="light">
-                      {user.status === "active"
-                        ? "Hoạt động"
-                        : "Không hoạt động"}
+                  </td>
+                  <td className="text-center">
+                    <Badge
+                      color={getStatusColor(user.isActive)}
+                      variant="light">
+                      {user.isActive ? "Hoạt động" : "Không hoạt động"}
                     </Badge>
-                  </Table.Td>
-                  <Table.Td>
+                  </td>
+                  <td className="text-center">
                     <Text className="text-sm text-muted-foreground">
                       {formatDate(user.created_at)}
                     </Text>
-                  </Table.Td>
-                  <Table.Td>
+                  </td>
+                  <td className="flex justify-center">
                     <Group gap="xs" justify="flex-end">
                       <Tooltip label="Xem chi tiết">
                         <ActionIcon
@@ -501,7 +496,7 @@ export function UsersClient() {
                         </ActionIcon>
                       </Tooltip>
                       <Tooltip
-                        label={user.is_active ? "Vô hiệu hóa" : "Kích hoạt"}>
+                        label={user.isActive ? "Vô hiệu hóa" : "Kích hoạt"}>
                         <ActionIcon
                           variant="light"
                           size="sm"
@@ -509,11 +504,11 @@ export function UsersClient() {
                             handleToggleUserStatus(user.id, !user.is_active)
                           }
                           className={
-                            user.is_active
+                            user.isActive
                               ? "text-yellow-600 hover:bg-yellow-50"
                               : "text-green-600 hover:bg-green-50"
                           }>
-                          {user.is_active ? "🚫" : "✅"}
+                          {user.isActive ? "🚫" : "✅"}
                         </ActionIcon>
                       </Tooltip>
                       <Tooltip label="Xóa">
@@ -526,11 +521,11 @@ export function UsersClient() {
                         </ActionIcon>
                       </Tooltip>
                     </Group>
-                  </Table.Td>
-                </Table.Tr>
+                  </td>
+                </tr>
               ))}
-            </Table.Tbody>
-          </Table>
+            </tbody>
+          </table>
         </div>
 
         {filteredUsers.length === 0 && (
@@ -587,10 +582,10 @@ export function UsersClient() {
                 <Text className="text-sm font-medium text-muted-foreground">
                   Vai trò
                 </Text>
-                <Badge color={getRoleColor(selectedUser.role)} variant="light">
-                  {selectedUser.role === "admin"
-                    ? "Quản trị viên"
-                    : "Người dùng"}
+                <Badge
+                  color={getRoleColor(selectedUser.isAdmin)}
+                  variant="light">
+                  {selectedUser.isAdmin ? "Quản trị viên" : "Người dùng"}
                 </Badge>
               </div>
               <div>
@@ -598,11 +593,9 @@ export function UsersClient() {
                   Trạng thái
                 </Text>
                 <Badge
-                  color={getStatusColor(selectedUser.status)}
+                  color={getStatusColor(selectedUser.isActive)}
                   variant="light">
-                  {selectedUser.status === "active"
-                    ? "Hoạt động"
-                    : "Không hoạt động"}
+                  {selectedUser.isActive ? "Hoạt động" : "Không hoạt động"}
                 </Badge>
               </div>
               <div>

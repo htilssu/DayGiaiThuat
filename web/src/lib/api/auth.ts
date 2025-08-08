@@ -16,7 +16,7 @@ export interface RegisterData {
 export interface LoginResponse {
   accessToken: string;
   tokenType: string;
-  user: UserData
+  user: UserData;
 }
 
 /**
@@ -28,6 +28,8 @@ export interface UserData {
   username: string;
   avatar: string;
   fullName: string;
+  isAdmin?: boolean;
+  isActive?: boolean;
 }
 
 /**
@@ -56,7 +58,6 @@ export const authApi = {
     return post<LoginResponse>("/auth/register", userData);
   },
 
-
   /**
    * Đăng xuất người dùng
    * @returns Promise chứa thông báo đăng xuất thành công
@@ -65,4 +66,3 @@ export const authApi = {
     return post<{ message: string }>("/auth/logout");
   },
 };
-

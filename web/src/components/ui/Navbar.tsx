@@ -80,6 +80,7 @@ export default function Navbar() {
    */
   const getInitials = () => {
     if (!user) return "?";
+    console.log("user", user);
     return user.username?.charAt(0).toUpperCase();
   };
 
@@ -159,6 +160,15 @@ export default function Navbar() {
               label="FAQ"
               isActive={pathname === "/about"}
             />
+            {user?.isAdmin && (
+              <NavItem
+                href="/admin"
+                label="Quản trị"
+                isActive={
+                  pathname === "/admin" || pathname.startsWith("/admin/")
+                }
+              />
+            )}
           </ul>
         </nav>
 
@@ -327,6 +337,16 @@ export default function Navbar() {
               isActive={pathname === "/about"}
               onClick={() => setIsMenuOpen(false)}
             />
+            {user?.isAdmin && (
+              <MobileNavItem
+                href="/admin"
+                label="Quản trị"
+                isActive={
+                  pathname === "/admin" || pathname.startsWith("/admin/")
+                }
+                onClick={() => setIsMenuOpen(false)}
+              />
+            )}
           </nav>
 
           <div className="mt-5 flex flex-col gap-3">

@@ -1,6 +1,13 @@
 "use client";
 
-import { ActionIcon, Group, Title, NavLink, Stack } from "@mantine/core";
+import {
+  ActionIcon,
+  Group,
+  Title,
+  NavLink,
+  Stack,
+  Button,
+} from "@mantine/core";
 import {
   IconMoonStars,
   IconSun,
@@ -9,14 +16,22 @@ import {
   IconMessage,
   IconUpload,
   IconHome,
+  IconLogin,
+  IconLogout,
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAppDispatch, useAppSelector } from "@/lib/store";
+import { removeUser } from "@/lib/store/userStore";
+import { authApi } from "@/lib/api";
 
 export function AdminHeader() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const pathname = usePathname();
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.user);
 
   useEffect(() => {
     // Get initial theme from localStorage or system preference
@@ -41,6 +56,19 @@ export function AdminHeader() {
     document.documentElement.setAttribute("data-theme", newTheme);
   };
 
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+      dispatch(removeUser());
+      router.push("/auth/login");
+    } catch (error) {
+      console.error("Lỗi đăng xuất:", error);
+      // Even if logout API fails, remove user from store and redirect
+      dispatch(removeUser());
+      router.push("/auth/login");
+    }
+  };
+
   const navigationItems = [
     {
       label: "Dashboard",
@@ -48,31 +76,60 @@ export function AdminHeader() {
       icon: IconHome,
       description: "Trang chủ quản trị",
     },
-    {
-      label: "Tổng quan",
-      href: "/overview",
-      icon: IconChartBar,
-      description: "Thống kê hệ thống",
-    },
+    // {
+    //   label: "Tổng quan",
+    //   href: "/admin/overview",
+    //   icon: IconChartBar,
+    //   description: "Thống kê hệ thống",
+    // },
     {
       label: "Người dùng",
-      href: "/users",
+      href: "/admin/users",
       icon: IconUsers,
       description: "Quản lý người dùng",
     },
     {
       label: "AI Assistant",
-      href: "/ai-assistant",
+      href: "/admin/ai-assistant",
       icon: IconMessage,
       description: "Trợ lý AI",
     },
     {
       label: "Tài liệu",
-      href: "/documents",
+      href: "/admin/documents",
       icon: IconUpload,
       description: "Upload tài liệu",
     },
   ];
+
+  const renderAuthButton = () => {
+    if (user) {
+      // User is logged in - show logout button
+      return (
+        <Button
+          variant="light"
+          size="sm"
+          leftSection={<IconLogout size={16} stroke={1.5} />}
+          className="bg-red-500/10 text-red-600 hover:bg-red-500/20"
+          onClick={handleLogout}>
+          Đăng xuất
+        </Button>
+      );
+    } else {
+      // User is not logged in - show login button
+      return (
+        <Link href="/auth/login">
+          <Button
+            variant="light"
+            size="sm"
+            leftSection={<IconLogin size={16} stroke={1.5} />}
+            className="bg-primary/10 text-primary hover:bg-primary/20">
+            Đăng nhập
+          </Button>
+        </Link>
+      );
+    }
+  };
 
   return (
     <header className="border-b border-primary/10 bg-primary/5">
@@ -86,7 +143,8 @@ export function AdminHeader() {
               </Title>
             </div>
 
-            <div className="flex items-center gap-x-4 lg:hidden">
+            {/* <div className="flex items-center gap-x-4 lg:hidden">
+              {renderAuthButton()}
               <ActionIcon
                 variant="light"
                 size="lg"
@@ -99,7 +157,7 @@ export function AdminHeader() {
                   <IconMoonStars size={20} stroke={1.5} />
                 )}
               </ActionIcon>
-            </div>
+            </div> */}
           </div>
 
           {/* Navigation */}
@@ -130,8 +188,9 @@ export function AdminHeader() {
             </div>
           </nav>
 
-          {/* Theme Toggle - Desktop */}
+          {/* Theme Toggle and Auth Button - Desktop */}
           <div className="hidden lg:flex items-center gap-x-4">
+            {renderAuthButton()}
             <ActionIcon
               variant="light"
               size="lg"

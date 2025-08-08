@@ -96,27 +96,27 @@ class ProfileService:
         courses = []
         for course, user_course in enrolled_courses:
             # Tính progress dựa trên UserCourseProgress
-            progress_result = await self.db.execute(
-                select(
-                    func.count().label("total_lessons"),
-                    func.sum(
-                        func.case(
-                            (UserCourseProgress.status == ProgressStatus.COMPLETED, 1),
-                            0
-                        )
-                    ).label("completed_lessons")
-                )
+            # First get total lessons
+            total_result = await self.db.execute(
+                select(func.count())
                 .select_from(UserCourseProgress)
                 .where(UserCourseProgress.user_course_id == user_course.id)
             )
-            progress_data = progress_result.first()
+            total_lessons = total_result.scalar() or 0
             
-            if progress_data:
-                total_lessons = progress_data.total_lessons or 0
-                completed_lessons = progress_data.completed_lessons or 0
-                progress = int((completed_lessons / total_lessons * 100) if total_lessons > 0 else 0)
-            else:
-                progress = 0
+            # Then get completed lessons
+            completed_result = await self.db.execute(
+                select(func.count())
+                .select_from(UserCourseProgress)
+                .where(
+                    UserCourseProgress.user_course_id == user_course.id,
+                    UserCourseProgress.status == ProgressStatus.COMPLETED
+                )
+            )
+            completed_lessons = completed_result.scalar() or 0
+            
+            # Calculate progress percentage
+            progress = int((completed_lessons / total_lessons * 100) if total_lessons > 0 else 0)
             
             courses.append(
                 {

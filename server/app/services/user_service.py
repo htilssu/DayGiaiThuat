@@ -2,7 +2,7 @@ import random
 from functools import lru_cache
 from datetime import datetime
 from sqlalchemy import select
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import Depends, HTTPException, status
@@ -535,3 +535,166 @@ class UserService:
         while await self.get_user_by_username(username):
             username = f"{remove_vi_accents(fullname)}{random.randint(999, 99999)}"
         return username.replace(" ", "")
+
+    # Admin User Management Methods
+
+    async def get_all_users(self, skip: int = 0, limit: int = 100) -> List[User]:
+        """
+        Lấy danh sách tất cả người dùng với phân trang
+
+        Args:
+            skip (int): Số bản ghi bỏ qua
+            limit (int): Số bản ghi trả về
+
+        Returns:
+            List[User]: Danh sách người dùng
+        """
+        from sqlalchemy import select
+        result = await self.db.execute(
+            select(User)
+            .offset(skip)
+            .limit(limit)
+            .order_by(User.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    async def update_user_admin_info(
+        self, user_id: int, is_admin: Optional[bool] = None, is_active: Optional[bool] = None
+    ) -> Optional[User]:
+        """
+        Cập nhật thông tin admin của người dùng
+
+        Args:
+            user_id (int): ID của người dùng
+            is_admin (bool, optional): Quyền admin
+            is_active (bool, optional): Trạng thái hoạt động
+
+        Returns:
+            Optional[User]: Thông tin người dùng đã cập nhật hoặc None
+        """
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            return None
+
+        if is_admin is not None:
+            user.is_admin = is_admin
+        if is_active is not None:
+            user.is_active = is_active
+
+        user.updated_at = datetime.utcnow()
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def update_user_admin(
+        self, user_id: int, user_data: Dict[str, Any]
+    ) -> Optional[User]:
+        """
+        Cập nhật thông tin người dùng (admin)
+
+        Args:
+            user_id (int): ID của người dùng
+            user_data (Dict[str, Any]): Dữ liệu cập nhật
+
+        Returns:
+            Optional[User]: Thông tin người dùng đã cập nhật hoặc None
+        """
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            return None
+
+        # Cập nhật các trường có thể thay đổi
+        if user_data.get("email") is not None:
+            user.email = user_data["email"]
+        if user_data.get("username") is not None:
+            user.username = user_data["username"]
+        if user_data.get("first_name") is not None:
+            user.first_name = user_data["first_name"]
+        if user_data.get("last_name") is not None:
+            user.last_name = user_data["last_name"]
+        if user_data.get("is_admin") is not None:
+            user.is_admin = user_data["is_admin"]
+        if user_data.get("is_active") is not None:
+            user.is_active = user_data["is_active"]
+        if user_data.get("bio") is not None:
+            user.bio = user_data["bio"]
+        if user_data.get("avatar_url") is not None:
+            user.avatar = user_data["avatar_url"]
+
+        user.updated_at = datetime.utcnow()
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def deactivate_user(self, user_id: int) -> Optional[User]:
+        """
+        Vô hiệu hóa người dùng
+
+        Args:
+            user_id (int): ID của người dùng
+
+        Returns:
+            Optional[User]: Thông tin người dùng đã vô hiệu hóa hoặc None
+        """
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            return None
+
+        user.is_active = False
+        user.updated_at = datetime.utcnow()
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def activate_user(self, user_id: int) -> Optional[User]:
+        """
+        Kích hoạt người dùng
+
+        Args:
+            user_id (int): ID của người dùng
+
+        Returns:
+            Optional[User]: Thông tin người dùng đã kích hoạt hoặc None
+        """
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            return None
+
+        user.is_active = True
+        user.updated_at = datetime.utcnow()
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def delete_user(self, user_id: int, force: bool = False) -> bool:
+        """
+        Xóa người dùng
+
+        Args:
+            user_id (int): ID của người dùng
+            force (bool): Bắt buộc xóa không kiểm tra dependencies
+
+        Returns:
+            bool: True nếu xóa thành công, False nếu không
+        """
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            return False
+
+        if not force:
+            # Kiểm tra dependencies trước khi xóa
+            # TODO: Implement dependency checking
+            # Ví dụ: kiểm tra xem user có đang tham gia khóa học nào không
+            pass
+
+        try:
+            await self.db.delete(user)
+            await self.db.commit()
+            return True
+        except Exception:
+            await self.db.rollback()
+            return False
