@@ -62,7 +62,7 @@ async function updateTopic(
     name?: string;
     description?: string;
     prerequisites?: string[];
-    external_id?: string;
+    externalId?: string;
   }
 ) {
   return put<Topic>(`/topics/${topicId}`, topicData);

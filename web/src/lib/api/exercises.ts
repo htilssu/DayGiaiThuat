@@ -57,7 +57,7 @@ export interface Judge0SubmissionResponse {
   token: string;
   stdout?: string;
   stderr?: string;
-  compile_output?: string;
+  compileOutput?: string;
   message?: string;
   status: {
     id: number;

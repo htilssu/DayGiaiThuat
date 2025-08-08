@@ -76,7 +76,7 @@ export async function updateTopicAdmin(id: number, topicData: AdminTopicUpdatePa
  */
 export async function assignTopicToCourseAdmin(id: number, assignmentData: AdminTopicCourseAssignmentPayload): Promise<AdminTopic> {
     return patch<AdminTopic>(`/admin/topics/${id}/assign-course`, {
-        course_id: assignmentData.courseId
+        courseId: assignmentData.courseId
     });
 }
 

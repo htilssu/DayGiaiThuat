@@ -33,12 +33,12 @@ export interface AdminUserCreate {
   email: string;
   username: string;
   password: string;
-  first_name: string;
-  last_name: string;
-  is_admin?: boolean;
-  is_active?: boolean;
+  firstName: string;
+  lastName: string;
+  isAdmin?: boolean;
+  isActive?: boolean;
   bio?: string;
-  avatar_url?: string;
+  avatarUrl?: string;
 }
 
 /**
@@ -47,12 +47,12 @@ export interface AdminUserCreate {
 export interface AdminUserUpdate {
   email?: string;
   username?: string;
-  first_name?: string;
-  last_name?: string;
-  is_admin?: boolean;
-  is_active?: boolean;
+  firstName?: string;
+  lastName?: string;
+  isAdmin?: boolean;
+  isActive?: boolean;
   bio?: string;
-  avatar_url?: string;
+  avatarUrl?: string;
 }
 
 /**
@@ -62,14 +62,14 @@ export interface AdminUserResponse {
   id: number;
   email: string;
   username: string;
-  first_name: string;
-  last_name: string;
-  is_admin: boolean;
-  is_active: boolean;
+  firstName: string;
+  lastName: string;
+  isAdmin: boolean;
+  isActive: boolean;
   bio?: string;
-  avatar_url?: string;
-  created_at: string;
-  updated_at: string;
+  avatarUrl?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
