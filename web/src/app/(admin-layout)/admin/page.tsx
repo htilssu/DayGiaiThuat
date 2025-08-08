@@ -6,6 +6,7 @@ import {
   IconUpload,
   IconUsers,
   IconArrowRight,
+  IconHome,
 } from "@tabler/icons-react";
 import Link from "next/link";
 
@@ -40,10 +41,10 @@ export default function AdminDashboard() {
       color: "purple",
     },
     {
-      title: "Upload Documents",
-      description: "Quản lý và upload tài liệu cho hệ thống",
-      icon: IconUpload,
-      href: "/documents",
+      title: "Trang chủ",
+      description: "Đến giao diện người dùng",
+      icon: IconHome,
+      href: "/",
       color: "orange",
     },
   ];
