@@ -18,8 +18,8 @@ export interface CourseProgress {
     id: number;
     name: string;
     progress: number;
-    color_from: string;
-    color_to: string;
+    colorFrom: string;
+    colorTo: string;
 }
 
 export interface Badge {

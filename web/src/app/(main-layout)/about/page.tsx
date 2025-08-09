@@ -2,7 +2,12 @@
 
 // import { Metadata } from "next";
 import { useState } from "react";
-import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
+import {
+  IconChevronDown,
+  IconChevronRight,
+  IconMail,
+} from "@tabler/icons-react";
+import Link from "next/link";
 
 // export const metadata: Metadata = {
 //   title: "Câu hỏi thường gặp (FAQ) | Ứng dụng học giải thuật thông minh",
@@ -106,6 +111,26 @@ export default function FAQPage() {
               )}
             </div>
           ))}
+        </div>
+
+        {/* Contact Link Section */}
+        <div className="mt-12 text-center">
+          <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-8 border border-primary/20">
+            <h3 className="text-2xl font-bold text-foreground mb-4">
+              Vẫn còn thắc mắc?
+            </h3>
+            <p className="text-foreground/70 mb-6 max-w-2xl mx-auto">
+              Nếu bạn không tìm thấy câu trả lời trong danh sách trên, đừng ngần
+              ngại liên hệ với chúng tôi. Đội ngũ hỗ trợ luôn sẵn sàng giúp đỡ
+              bạn!
+            </p>
+            <Link
+              href="/contact"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-primary to-secondary text-white font-semibold px-8 py-3 rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200">
+              <IconMail className="w-5 h-5" />
+              Liên hệ với chúng tôi
+            </Link>
+          </div>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { AdminHeader } from "@/components/admin/Header";
+import { AdminProtection } from "@/components/admin/AdminProtection";
 import Footer from "@/components/ui/Footer";
 import { MantineThemeProvider } from "@/components/MantineThemeProvider";
 import StoreWrapper from "@/components/wrapper/StoreWrapper";
@@ -9,7 +10,6 @@ import ClientWrapper from "@/components/wrapper/ClientWrapper";
 import ThemeInitializer from "@/components/ThemeInitializer";
 import { useEffect } from "react";
 import "../globals.css";
-
 
 export default function AdminLayout({
   children,
@@ -36,11 +36,14 @@ export default function AdminLayout({
   }, []);
 
   return (
-    <div className={`antialiased min-h-screen flex flex-col bg-background text-foreground transition-theme`}>
-      <AdminHeader />
-      <main className="flex-grow container mx-auto px-4 sm:px-6 py-8 md:py-12">
-        {children}
-      </main>
-    </div>
+    <AdminProtection>
+      <div
+        className={`antialiased min-h-screen flex flex-col bg-background text-foreground transition-theme`}>
+        <AdminHeader />
+        <main className="flex-grow container mx-auto px-4 sm:px-6 py-8 md:py-12">
+          {children}
+        </main>
+      </div>
+    </AdminProtection>
   );
 }

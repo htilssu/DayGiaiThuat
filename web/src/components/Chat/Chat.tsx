@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useRef, useEffect } from "react";
 import {
   Box,
@@ -50,7 +52,7 @@ export function Chat() {
           systemInstruction:
             "You are a professional algorithm expert. You professionally create algorithm exercises. Your mission is to think of clear, concise and life related topic for the student to practice algorithm.",
         },
-      }); 
+      });
       if (response.text) {
         const assistantMessage: ChatMessage = {
           role: "assistant",

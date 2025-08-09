@@ -10,12 +10,12 @@ import { get, post, put, del } from "./client";
  */
 export interface Quiz {
   id: number;
-  lesson_id: number;
+  lessonId: number;
   title: string;
   description: string;
   questions: QuizQuestion[];
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -23,10 +23,10 @@ export interface Quiz {
  */
 export interface QuizQuestion {
   id: number;
-  quiz_id: number;
+  quizId: number;
   question: string;
   options: string[];
-  correct_answer: number;
+  correctAnswer: number;
   explanation?: string;
   order: number;
 }

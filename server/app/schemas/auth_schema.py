@@ -60,6 +60,7 @@ class LoginResponse(BaseModel):
         id: int
         email: EmailStr
         username: str
+        is_admin: bool
 
     access_token: str
     token_type: str

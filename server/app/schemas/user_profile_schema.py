@@ -13,6 +13,20 @@ from app.schemas.user_stats_schema import (
 )
 
 
+class ProfileBadge(BaseModel):
+    """
+    Schema cho huy hiệu trong profile response
+    """
+    id: int
+    name: str
+    icon: Optional[str] = None
+    description: Optional[str] = None
+    unlocked: bool = False
+
+    class Config:
+        from_attributes = True
+
+
 class UserUpdate(BaseModel):
     """
     Schema cho việc cập nhật thông tin người dùng
@@ -110,7 +124,7 @@ class UserProfileResponse(BaseModel):
     stats: UserStats
     learningProgress: LearningProgress
     courses: List[CourseProgress]
-    badges: List[Badge]
+    badges: List[ProfileBadge]
     activities: List[Activity]
 
     class Config:

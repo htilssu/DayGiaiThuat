@@ -2,82 +2,65 @@
 Fixtures cho pytest để sử dụng trong các test case.
 """
 
-import asyncio
-import os
-from typing import AsyncGenerator, Generator
-
 import pytest
-from fastapi import FastAPI
+from typing import Generator, AsyncGenerator
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
-from app.database.database import Base, get_db
+from app.database.database import get_async_db
 from app.models.user_model import User
-from server.app.routers.router import register_router
-from app.core.config import settings
-from app.utils.oauth2.token import create_access_token
+from app.utils.utils import create_access_token
+from app.routers import router
 
-# Tạo database URL cho test
-TEST_DB_USER = os.getenv("TEST_DB_USER", settings.DB_USER)
-TEST_DB_PASSWORD = os.getenv("TEST_DB_PASSWORD", settings.DB_PASSWORD)
-TEST_DB_HOST = os.getenv("TEST_DB_HOST", settings.DB_HOST)
-TEST_DB_PORT = os.getenv("TEST_DB_PORT", settings.DB_PORT)
-TEST_DB_NAME = os.getenv("TEST_DB_NAME", "test_db")
+# Test database URL
+TEST_DATABASE_URL = "postgresql+asyncpg://test_user:test_password@localhost:5432/test_db"
 
-# Connection string cho SQLAlchemy
-TEST_DATABASE_URL = f"postgresql://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HOST}:{TEST_DB_PORT}/{TEST_DB_NAME}"
+# Create async engine for tests
+test_engine = create_async_engine(TEST_DATABASE_URL)
+TestingSessionLocal = async_sessionmaker(
+    test_engine, class_=AsyncSession, expire_on_commit=False
+)
 
-# Tạo engine cho test database
-engine = create_engine(TEST_DATABASE_URL)
 
-# Tạo session factory cho test
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def register_router(app):
+    """
+    Register all routers to the FastAPI app.
+    """
+    app.include_router(router)
 
 
 @pytest.fixture(scope="session")
 def setup_test_db():
     """
-    Fixture để thiết lập database cho test.
-    Tạo tất cả các bảng trước khi chạy test và xóa sau khi test hoàn thành.
+    Setup test database.
     """
-    # Tạo database nếu chưa tồn tại
-    temp_engine = create_engine(
-        f"postgresql://{TEST_DB_USER}:{TEST_DB_PASSWORD}@{TEST_DB_HOST}:{TEST_DB_PORT}/postgres"
-    )
-    with temp_engine.connect() as conn:
-        conn.execute(text("COMMIT"))
-        # Xóa database nếu đã tồn tại
-        conn.execute(text(f"DROP DATABASE IF EXISTS {TEST_DB_NAME}"))
-        conn.execute(text("COMMIT"))
-        # Tạo database mới
-        conn.execute(text(f"CREATE DATABASE {TEST_DB_NAME}"))
-
-    # Tạo tất cả các bảng trong database test
-    Base.metadata.create_all(bind=engine)
-
+    # Create tables
+    from app.database.database import Base
+    import asyncio
+    
+    async def create_tables():
+        async with test_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    
+    asyncio.run(create_tables())
     yield
-
-    # Xóa tất cả các bảng sau khi test hoàn thành
-    Base.metadata.drop_all(bind=engine)
+    
+    # Cleanup
+    async def drop_tables():
+        async with test_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+    
+    asyncio.run(drop_tables())
 
 
 @pytest.fixture(scope="function")
-def db(setup_test_db) -> Generator:
+async def db(setup_test_db) -> AsyncGenerator[AsyncSession, None]:
     """
-    Fixture để cung cấp database session cho mỗi test function.
+    Fixture để tạo database session cho test.
     """
-    connection = engine.connect()
-    transaction = connection.begin()
-    session = TestingSessionLocal(bind=connection)
-
-    try:
+    async with TestingSessionLocal() as session:
         yield session
-    finally:
-        session.close()
-        transaction.rollback()
-        connection.close()
+        await session.rollback()
 
 
 @pytest.fixture(scope="function")
@@ -86,60 +69,60 @@ def client(db) -> Generator:
     Fixture để tạo TestClient cho FastAPI app.
     """
     # Tạo app test
+    from fastapi import FastAPI
     app = FastAPI()
     register_router(app)
 
     # Override dependency
-    def override_get_db():
-        try:
-            yield db
-        finally:
-            pass
+    async def override_get_async_db():
+        yield db
 
-    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_async_db] = override_get_async_db
 
     with TestClient(app) as test_client:
         yield test_client
 
 
 @pytest.fixture(scope="function")
-def test_user(db) -> User:
+async def test_user(db) -> User:
     """
     Fixture để tạo user test trong database.
     """
     user_data = {
         "email": "test@example.com",
+        "username": "testuser",
         "hashed_password": "$2b$12$1InH9LlUVpWA.cvbA9MrI.8CL1NW6vNrTZREV/ByPuXpBMWQnN3Uy",  # password: password123
         "full_name": "Test User",
         "is_active": True,
-        "is_superuser": False,
+        "is_admin": False,
     }
 
     user = User(**user_data)
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
 
     return user
 
 
 @pytest.fixture(scope="function")
-def test_superuser(db) -> User:
+async def test_superuser(db) -> User:
     """
     Fixture để tạo superuser test trong database.
     """
     user_data = {
         "email": "admin@example.com",
+        "username": "adminuser",
         "hashed_password": "$2b$12$1InH9LlUVpWA.cvbA9MrI.8CL1NW6vNrTZREV/ByPuXpBMWQnN3Uy",  # password: password123
         "full_name": "Admin User",
         "is_active": True,
-        "is_superuser": True,
+        "is_admin": True,
     }
 
     user = User(**user_data)
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
 
     return user
 

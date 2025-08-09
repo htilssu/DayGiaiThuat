@@ -127,6 +127,7 @@ async def login(
             "id": user.id,
             "email": user.email,
             "username": user.username,
+            "is_admin": user.is_admin,
         },
     }
 
