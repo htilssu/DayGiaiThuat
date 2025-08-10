@@ -14,6 +14,7 @@ def register_router(app: FastAPI):
         discussions_router,
         document_router,
         exercise_router,
+        exercise_test_case_router,
         lesson_plan_router,
         lesson_router,
         replies_router,
@@ -31,6 +32,7 @@ def register_router(app: FastAPI):
     app.include_router(users_router.router)
     app.include_router(tutor_router.router)
     app.include_router(exercise_router.router)
+    app.include_router(exercise_test_case_router.router)
     app.include_router(document_router.router)
     app.include_router(document_router.webhook_router)
     app.include_router(test_router.router)

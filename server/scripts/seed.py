@@ -16,6 +16,7 @@ from passlib.context import CryptContext
 from app.models.badge_model import Badge
 from app.models.course_model import Course
 from app.models.exercise_model import Exercise
+from app.models.exercise_test_case_model import ExerciseTestCase
 from app.models.topic_model import Topic
 from app.models.test_model import Test
 from app.models.user_model import User
@@ -97,50 +98,38 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
         {
             "name": "Cài đặt Stack và Queue",
             "description": "Cài đặt cấu trúc dữ liệu Stack và Queue sử dụng mảng và danh sách liên kết",
-            "category": "Implementation",
             "difficulty": "Easy",
             "constraint": "Thời gian thực thi O(1) cho các thao tác cơ bản",
-            "topic_id": 1,
         },
         {
             "name": "Cài đặt Heap",
             "description": "Cài đặt cấu trúc dữ liệu Heap và các thao tác cơ bản",
-            "category": "Implementation",
             "difficulty": "Medium",
             "constraint": "Thời gian thực thi O(log n) cho các thao tác cơ bản",
-            "topic_id": 1,
         },
         {
             "name": "Quicksort",
             "description": "Cài đặt thuật toán Quicksort và phân tích độ phức tạp",
-            "category": "Algorithm",
             "difficulty": "Medium",
             "constraint": "Thời gian thực thi trung bình O(n log n)",
-            "topic_id": 2,
         },
         {
             "name": "Binary Search",
             "description": "Cài đặt thuật toán Binary Search và các biến thể",
-            "category": "Algorithm",
             "difficulty": "Easy",
             "constraint": "Thời gian thực thi O(log n)",
-            "topic_id": 3,
         },
         {
             "name": "Bài toán Knapsack",
             "description": "Giải quyết bài toán Knapsack bằng phương pháp quy hoạch động",
-            "category": "Dynamic Programming",
             "difficulty": "Hard",
             "constraint": "Giới hạn bộ nhớ và tối ưu hóa không gian",
-            "topic_id": 4,
         },
         {
             "name": "Thuật toán Dijkstra",
             "description": "Cài đặt thuật toán Dijkstra tìm đường đi ngắn nhất trên đồ thị",
-            "category": "Graph",
             "difficulty": "Medium",
             "constraint": "Thời gian thực thi O((V+E)logV)",
-            "topic_id": 5,
         },
     ]
 
@@ -167,6 +156,68 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
         db.close()
 
 
+def create_exercise_test_cases(exercises: List[Exercise]) -> int:
+    """
+    Tạo test cases mẫu cho mỗi bài tập (3 test cases/bài).
+
+    Args:
+        exercises (List[Exercise]): Danh sách bài tập đã tạo
+
+    Returns:
+        int: Tổng số test cases đã tạo
+    """
+    logger.info("Tạo dữ liệu mẫu cho Exercise Test Cases...")
+
+    if not exercises:
+        logger.warning("Không có bài tập nào để tạo test cases")
+        return 0
+
+    db = SessionLocal()
+    created = 0
+
+    try:
+        for ex in exercises:
+            # Tạo 3 test case mẫu cơ bản cho mỗi bài tập
+            samples = [
+                {
+                    "input_data": "1 2",
+                    "output_data": "3",
+                    "explain": "Tổng hai số đơn giản",
+                },
+                {
+                    "input_data": "2 3",
+                    "output_data": "5",
+                    "explain": "Trường hợp cơ bản tiếp theo",
+                },
+                {
+                    "input_data": "10 20",
+                    "output_data": "30",
+                    "explain": "Trường hợp giá trị lớn hơn",
+                },
+            ]
+
+            for s in samples:
+                db.add(
+                    ExerciseTestCase(
+                        exercise_id=ex.id,
+                        input_data=s["input_data"],
+                        output_data=s["output_data"],
+                        explain=s["explain"],
+                    )
+                )
+                created += 1
+
+        db.commit()
+        logger.info(f"Đã tạo {created} exercise test cases")
+        return created
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Lỗi khi tạo exercise test cases: {str(e)}")
+        return 0
+    finally:
+        db.close()
+
+
 def create_tests(topics: List[Topic]) -> List[Test]:
     """
     Tạo dữ liệu mẫu cho bảng tests
@@ -180,11 +231,11 @@ def create_tests(topics: List[Topic]) -> List[Test]:
     logger.info("Tạo dữ liệu mẫu cho Tests...")
 
     tests_data = [
-        {"name": "Kiểm tra kiến thức cấu trúc dữ liệu", "topic_id": 1},
-        {"name": "Kiểm tra thuật toán sắp xếp", "topic_id": 2},
-        {"name": "Kiểm tra thuật toán tìm kiếm", "topic_id": 3},
-        {"name": "Kiểm tra quy hoạch động", "topic_id": 4},
-        {"name": "Kiểm tra thuật toán đồ thị", "topic_id": 5},
+        {"topic_id": 1, "duration_minutes": 60},
+        {"topic_id": 2, "duration_minutes": 60},
+        {"topic_id": 3, "duration_minutes": 60},
+        {"topic_id": 4, "duration_minutes": 60},
+        {"topic_id": 5, "duration_minutes": 60},
     ]
 
     db = SessionLocal()
@@ -328,36 +379,7 @@ def create_courses() -> List[Course]:
                     "Giải quyết các bài toán cơ bản",
                 ]
             ),
-            "learning_path": json.dumps(
-                {
-                    "units": [
-                        {
-                            "id": 1,
-                            "title": "Giới thiệu",
-                            "lessons": [
-                                {"id": 1, "title": "Tổng quan về DSA", "duration": 15},
-                                {
-                                    "id": 2,
-                                    "title": "Phân tích độ phức tạp",
-                                    "duration": 20,
-                                },
-                            ],
-                        },
-                        {
-                            "id": 2,
-                            "title": "Cấu trúc dữ liệu cơ bản",
-                            "lessons": [
-                                {
-                                    "id": 3,
-                                    "title": "Array và Linked List",
-                                    "duration": 30,
-                                },
-                                {"id": 4, "title": "Stack và Queue", "duration": 25},
-                            ],
-                        },
-                    ]
-                }
-            ),
+            # Course model stores serialized fields as strings; omit extra JSON fields not in model
         },
         {
             "title": "Thuật toán nâng cao",
@@ -383,44 +405,7 @@ def create_courses() -> List[Course]:
                     "Kỹ thuật tối ưu hóa thuật toán",
                 ]
             ),
-            "learning_path": json.dumps(
-                {
-                    "units": [
-                        {
-                            "id": 1,
-                            "title": "Quy hoạch động nâng cao",
-                            "lessons": [
-                                {
-                                    "id": 1,
-                                    "title": "Bài toán dãy con tăng dài nhất",
-                                    "duration": 40,
-                                },
-                                {
-                                    "id": 2,
-                                    "title": "Bài toán cắt thanh",
-                                    "duration": 35,
-                                },
-                            ],
-                        },
-                        {
-                            "id": 2,
-                            "title": "Thuật toán đồ thị",
-                            "lessons": [
-                                {
-                                    "id": 3,
-                                    "title": "Thuật toán Dijkstra",
-                                    "duration": 45,
-                                },
-                                {
-                                    "id": 4,
-                                    "title": "Thuật toán Bellman-Ford",
-                                    "duration": 50,
-                                },
-                            ],
-                        },
-                    ]
-                }
-            ),
+            # omit learning_path (not a column)
         },
         {
             "title": "Chuẩn bị phỏng vấn kỹ thuật",
@@ -445,44 +430,7 @@ def create_courses() -> List[Course]:
                     "Chiến lược phỏng vấn hiệu quả",
                 ]
             ),
-            "learning_path": json.dumps(
-                {
-                    "units": [
-                        {
-                            "id": 1,
-                            "title": "Chuẩn bị cơ bản",
-                            "lessons": [
-                                {
-                                    "id": 1,
-                                    "title": "Quy trình phỏng vấn",
-                                    "duration": 20,
-                                },
-                                {
-                                    "id": 2,
-                                    "title": "Phương pháp giải quyết vấn đề",
-                                    "duration": 30,
-                                },
-                            ],
-                        },
-                        {
-                            "id": 2,
-                            "title": "Bài tập phỏng vấn",
-                            "lessons": [
-                                {
-                                    "id": 3,
-                                    "title": "Bài tập về mảng và chuỗi",
-                                    "duration": 40,
-                                },
-                                {
-                                    "id": 4,
-                                    "title": "Bài tập về cây và đồ thị",
-                                    "duration": 45,
-                                },
-                            ],
-                        },
-                    ]
-                }
-            ),
+            # omit learning_path (not a column)
         },
     ]
 
@@ -575,9 +523,6 @@ def create_users(badges: List[Badge], courses: List[Course]) -> List[User]:
                 completed_exercises=random.randint(0, 20),
                 completed_courses=random.randint(0, 3),
                 problems_solved=random.randint(0, 50),
-                algorithms_progress=random.randint(0, 100),
-                data_structures_progress=random.randint(0, 100),
-                dynamic_programming_progress=random.randint(0, 100),
             )
             db.add(user_state)
 
@@ -613,7 +558,8 @@ def seed_all():
     courses = create_courses()
 
     # Tạo dữ liệu liên quan
-    create_exercises(topics)
+    exercises = create_exercises(topics)
+    create_exercise_test_cases(exercises)
     create_tests(topics)
     create_users(badges, courses)
 

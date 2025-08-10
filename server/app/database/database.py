@@ -2,8 +2,13 @@ from datetime import datetime
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from sqlalchemy import func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import func, create_engine
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    sessionmaker,
+)
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
 from app.core.config import settings
@@ -30,6 +35,28 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False,
     expire_on_commit=False,
     class_=AsyncSession,
+)
+
+"""
+Synchronous SQLAlchemy engine and Session for scripting utilities
+
+Note: The application uses async sessions by default. The following sync engine
+and session factory are provided to support utility scripts like database
+seeders that run outside the ASGI context.
+"""
+
+# Sync engine (psycopg2)
+sync_engine = create_engine(
+    settings.DATABASE_URI,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+)
+
+# Sync Session factory
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=sync_engine,
 )
 
 
