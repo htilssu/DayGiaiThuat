@@ -191,16 +191,6 @@ class CourseCompositionAgent(BaseAgent):
                     self.base_llm, parser=self.output_parser
                 ).parse(result["output"])
 
-            await self.db_session.execute(
-                update(Course)
-                .where(Course.id == request.course_id)
-                .values(
-                    duration=agent_response.duration,
-                    description=agent_response.description,
-                )
-            )
-            await self.db_session.commit()
-
             print(f"✅ Đã tạo nội dung cho khóa học: {request.course_title}")
             return agent_response, session_id
 

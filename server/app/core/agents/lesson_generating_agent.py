@@ -70,6 +70,7 @@ Hướng dẫn về từng loại section:
 - Phải dựa vào layout của bài giảng từ đầu vào, không được tự ý thay đổi cấu trúc.
 - Bài giảng hoặc giới thiệu luôn nằm ở đầu tiên, sau đó là các phần khác.
 - Trường exercise là phần bài tập vận dụng (nó là phần có cấu trúc của section exercise), section exercise sẽ trình bày mô tả, ngữ cảnh bài tập, hướng dẫn thực hiện và các yêu cầu cụ thể.
+- Mỗi lession bắt buộc phải có exercise để vận dụng
 - Dưới mỗi bài giảng, cần có phần tóm tắt ngắn gọn các điểm chính đã học,phải thêm ví dụ và phần triển khai để người dùng hiểu rõ hơn.
 - Phải có phần bài tập ví dụ (bài tập này phải được giải thích kỹ),sau bài tập ví dụ đó có 1 bài tập vận dụng để học viên thực hành, Phần vận dụng hoặc bài tập sẽ nằm sau phần lý thuyết liên quan.
 - Type của section phải là một trong các giá trị sau: "text", "code", "quiz", "manipulate","teaching", "image", "exercise".

@@ -1,19 +1,11 @@
 from __future__ import annotations
-from typing import List, TYPE_CHECKING
-from enum import Enum
 
-from sqlalchemy import Boolean, Integer, String, Float, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from enum import Enum
+from typing import List
 
 from app.database.database import Base
-
-if TYPE_CHECKING:
-    from app.models.user_state_model import UserState
-    from app.models.topic_model import Topic
-    from app.models.test_model import Test
-    from app.models.document_processing_job_model import DocumentProcessingJob
-    from app.models.course_draft_model import CourseDraft
-    from app.models.user_assessment_model import UserAssessment
+from sqlalchemy import Boolean, Float, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class TestGenerationStatus(str, Enum):
@@ -54,29 +46,18 @@ class Course(Base):
     description: Mapped[str] = mapped_column(Text, nullable=True)
     thumbnail_url: Mapped[str] = mapped_column(String(500), nullable=True)
     level: Mapped[str] = mapped_column(String(50), default="Beginner")
-    duration: Mapped[int] = mapped_column(
-        Integer, default=0
-    )  # Thời lượng tính bằng phút
+    duration: Mapped[int] = mapped_column(Integer, default=0)
     price: Mapped[float] = mapped_column(Float, default=0.0)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Trạng thái tạo bài test đầu vào
     test_generation_status: Mapped[str] = mapped_column(
         String(20), default=TestGenerationStatus.NOT_STARTED
     )
 
-    # Các trường JSON
-    tags: Mapped[str] = mapped_column(
-        String(255), default=""
-    )  # Lưu dưới dạng chuỗi các tag cách nhau bởi dấu phẩy
-    requirements: Mapped[str] = mapped_column(
-        Text, nullable=True
-    )  # Lưu dưới dạng JSON string
-    what_you_will_learn: Mapped[str] = mapped_column(
-        Text, nullable=True
-    )  # Lưu dưới dạng JSON string
+    tags: Mapped[str] = mapped_column(String(255), default="")
+    requirements: Mapped[str] = mapped_column(Text, nullable=True)
+    what_you_will_learn: Mapped[str] = mapped_column(Text, nullable=True)
 
-    # Relationships
     topics: Mapped[List["Topic"]] = relationship(
         "Topic", back_populates="course", cascade="all, delete-orphan"
     )
@@ -86,6 +67,11 @@ class Course(Base):
     tests: Mapped[List["Test"]] = relationship(
         "Test", back_populates="course", cascade="all, delete-orphan"
     )
+
+    user_courses: Mapped[List["UserCourse"]] = relationship(
+        "UserCourse", back_populates="course", cascade="all"
+    )
+
     document_processing_jobs: Mapped[List["DocumentProcessingJob"]] = relationship(
         back_populates="course"
     )

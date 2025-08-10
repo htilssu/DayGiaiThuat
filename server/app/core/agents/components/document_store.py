@@ -16,7 +16,6 @@ def get_pinecone_client():
     Returns:
         Pinecone: Instance được cache của Pinecone client
     """
-    # Lazy import - chỉ import khi cần thiết
     from pinecone import Pinecone
 
     return Pinecone(api_key=settings.PINECONE_API_KEY)
@@ -35,7 +34,7 @@ def create_index(index_name: index_list):
     pc = get_pinecone_client()
     pc.create_index(
         index_name,
-        dimension=768,
+        dimension=3072,
         metric="cosine",
         spec=ServerlessSpec(cloud="aws", region="us-east-1"),
     )

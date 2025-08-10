@@ -34,6 +34,7 @@ from app.services.test_generation_service import (
     get_test_generation_service,
 )
 from app.utils.utils import get_current_user
+from app.services.course_generate_service import CourseGenerateService, get_course_generate_service
 
 router = APIRouter(
     prefix="/admin/courses",
@@ -79,6 +80,9 @@ async def create_course(
         course_data: CourseCreate,
         background_tasks: BackgroundTasks,
         db: AsyncSession = Depends(get_async_db),
+        course_generate_service: CourseGenerateService = Depends(
+            get_course_generate_service
+        ),
         course_service: CourseService = Depends(get_course_service),
         admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
@@ -87,6 +91,7 @@ async def create_course(
 
     Raises:
         HTTPException: Nếu có lỗi khi tạo khóa học
+        :param course_generate_service:
         :param course_data:
         :param admin_user:
         :param course_service:
@@ -101,9 +106,9 @@ async def create_course(
             course_title=new_course.title,
             course_description=new_course.description,
             course_level=new_course.level,
-            session_id=str(uuid.uuid4())
+            session_id=str(uuid.uuid4()),
         )
-        course_generate_service.generate_course()
+        await course_generate_service.generate(composition_request)
 
         return new_course
     except SQLAlchemyError as e:
@@ -147,7 +152,6 @@ async def update_course(
     Raises:
         HTTPException: Nếu không tìm thấy khóa học hoặc có lỗi khi cập nhật
     """
-    # Tìm khóa học cần cập nhật
     result = await db.execute(select(Course).filter(Course.id == course_id))
     course = result.scalar_one_or_none()
     if not course:
@@ -207,7 +211,6 @@ async def bulk_delete_courses(
         HTTPException: Nếu có lỗi trong quá trình xóa
     """
     try:
-        # Validate danh sách course_ids
         if not request.course_ids:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -489,9 +492,9 @@ async def get_course_review(
         course_id: int,
         db: AsyncSession = Depends(get_async_db),
         admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_daft_service: CourseDaftService = Depends(get_course_daft_service)
 ):
-    # TODO:importance
-    pass
+    course_daft = await course_daft_service.get_daft_by_course_id()
 
 
 @router.post(
