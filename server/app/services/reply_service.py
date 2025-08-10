@@ -1,6 +1,7 @@
 from typing import Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
+from sqlalchemy import select
 
 from app.models.reply_model import Reply
 from app.models.user_model import User
@@ -15,10 +16,11 @@ from app.schemas.reply_schema import (
 
 class ReplyService:
     @staticmethod
-    def create_reply(db: Session, reply_data: ReplyCreate, user_id: int) -> ReplyResponse:
+    async def create_reply(db: AsyncSession, reply_data: ReplyCreate, user_id: int) -> ReplyResponse:
         """Create a new reply"""
         # Verify discussion exists
-        discussion = db.query(Discussion).filter(Discussion.id == reply_data.discussion_id).first()
+        result = await db.execute(select(Discussion).filter(Discussion.id == reply_data.discussion_id))
+        discussion = result.scalars().first()
         if not discussion:
             raise ValueError("Discussion not found")
         
@@ -28,11 +30,12 @@ class ReplyService:
             user_id=user_id,
         )
         db.add(db_reply)
-        db.commit()
-        db.refresh(db_reply)
+        await db.commit()
+        await db.refresh(db_reply)
         
         # Get the author username
-        author = db.query(User).filter(User.id == user_id).first()
+        author_result = await db.execute(select(User).filter(User.id == user_id))
+        author = author_result.scalars().first()
         
         return ReplyResponse(
             id=db_reply.id,
@@ -45,16 +48,20 @@ class ReplyService:
         )
 
     @staticmethod
-    def get_replies_by_discussion(db: Session, discussion_id: int) -> ReplyListResponse:
+    async def get_replies_by_discussion(db: AsyncSession, discussion_id: int) -> ReplyListResponse:
         """Get all replies for a specific discussion"""
         # Verify discussion exists
-        discussion = db.query(Discussion).filter(Discussion.id == discussion_id).first()
+        result = await db.execute(select(Discussion).filter(Discussion.id == discussion_id))
+        discussion = result.scalars().first()
         if not discussion:
             raise ValueError("Discussion not found")
         
-        replies = db.query(Reply).options(joinedload(Reply.user)).filter(
-            Reply.discussion_id == discussion_id
-        ).order_by(Reply.created_at.asc()).all()
+        replies_result = await db.execute(
+            select(Reply).options(joinedload(Reply.user)).filter(
+                Reply.discussion_id == discussion_id
+            ).order_by(Reply.created_at.asc())
+        )
+        replies = replies_result.scalars().all()
         
         reply_responses = []
         for reply in replies:
@@ -76,14 +83,15 @@ class ReplyService:
         )
 
     @staticmethod
-    def update_reply(
-        db: Session, reply_id: int, reply_data: ReplyUpdate, user_id: int
+    async def update_reply(
+        db: AsyncSession, reply_id: int, reply_data: ReplyUpdate, user_id: int
     ) -> Optional[ReplyResponse]:
         """Update a reply (only by the author)"""
-        reply = db.query(Reply).filter(
+        result = await db.execute(select(Reply).filter(
             Reply.id == reply_id,
             Reply.user_id == user_id
-        ).first()
+        ))
+        reply = result.scalars().first()
         
         if not reply:
             return None
@@ -92,11 +100,12 @@ class ReplyService:
         if reply_data.content is not None:
             reply.content = reply_data.content
         
-        db.commit()
-        db.refresh(reply)
+        await db.commit()
+        await db.refresh(reply)
         
         # Get the author username
-        author = db.query(User).filter(User.id == user_id).first()
+        author_result = await db.execute(select(User).filter(User.id == user_id))
+        author = author_result.scalars().first()
         
         return ReplyResponse(
             id=reply.id,
@@ -109,16 +118,17 @@ class ReplyService:
         )
 
     @staticmethod
-    def delete_reply(db: Session, reply_id: int, user_id: int) -> bool:
+    async def delete_reply(db: AsyncSession, reply_id: int, user_id: int) -> bool:
         """Delete a reply (only by the author)"""
-        reply = db.query(Reply).filter(
+        result = await db.execute(select(Reply).filter(
             Reply.id == reply_id,
             Reply.user_id == user_id
-        ).first()
+        ))
+        reply = result.scalars().first()
         
         if not reply:
             return False
         
-        db.delete(reply)
-        db.commit()
+        await db.delete(reply)
+        await db.commit()
         return True 

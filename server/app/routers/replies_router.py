@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.database import get_db
+from app.database.database import get_async_db
 from app.schemas.reply_schema import (
     ReplyCreate,
     ReplyUpdate,
@@ -16,14 +16,14 @@ router = APIRouter(prefix="/replies", tags=["replies"])
 
 
 @router.post("/", response_model=ReplyResponse, status_code=status.HTTP_201_CREATED)
-def create_reply(
+async def create_reply(
     reply_data: ReplyCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Create a new reply"""
     try:
-        return ReplyService.create_reply(db, reply_data, current_user.id)
+        return await ReplyService.create_reply(db, reply_data, current_user.id)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -32,13 +32,13 @@ def create_reply(
 
 
 @router.get("/discussion/{discussion_id}", response_model=ReplyListResponse)
-def get_replies_by_discussion(
+async def get_replies_by_discussion(
     discussion_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get all replies for a specific discussion"""
     try:
-        return ReplyService.get_replies_by_discussion(db, discussion_id)
+        return await ReplyService.get_replies_by_discussion(db, discussion_id)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -47,14 +47,14 @@ def get_replies_by_discussion(
 
 
 @router.patch("/{reply_id}", response_model=ReplyResponse)
-def update_reply(
+async def update_reply(
     reply_id: int,
     reply_data: ReplyUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Update a reply (only by the author)"""
-    reply = ReplyService.update_reply(db, reply_id, reply_data, current_user.id)
+    reply = await ReplyService.update_reply(db, reply_id, reply_data, current_user.id)
     if not reply:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -64,13 +64,13 @@ def update_reply(
 
 
 @router.delete("/{reply_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_reply(
+async def delete_reply(
     reply_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Delete a reply (only by the author)"""
-    success = ReplyService.delete_reply(db, reply_id, current_user.id)
+    success = await ReplyService.delete_reply(db, reply_id, current_user.id)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

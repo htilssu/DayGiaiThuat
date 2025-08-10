@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useRef, useEffect } from "react";
 import { ChatMessage } from "@/lib/api/chat";
 import { GoogleGenAI } from "@google/genai";
@@ -7,10 +9,6 @@ export function useAdminChat(courseId?: number) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const ai = new GoogleGenAI({
-    apiKey: "AIzaSyAoWvIFmtiL1MwP1y8ariEm61Zaq4-uNZo",
-  });
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -37,35 +35,17 @@ export function useAdminChat(courseId?: number) {
     setInput("");
     setIsLoading(true);
 
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-05-20",
-        contents: input,
-        config: {
-          systemInstruction:
-            "You are a professional algorithm expert. You professionally create algorithm exercises. Your mission is to think of clear, concise and life related topic for the student to practice algorithm.",
-        },
-      });
-
-      if (response.text) {
-        const assistantMessage: ChatMessage = {
-          role: "assistant",
-          content: response.text,
-          timestamp: new Date().toISOString(),
-        };
-        addMessage(assistantMessage);
-      }
-    } catch (error) {
-      console.error("Error sending message:", error);
-      const errorMessage: ChatMessage = {
+    // TODO: Add actual chat logic here
+    // For now, just simulate a response
+    setTimeout(() => {
+      const botMessage: ChatMessage = {
         role: "assistant",
-        content: "❌ Sorry, I encountered an error. Please try again.",
+        content: "Đây là phản hồi mẫu từ admin chat.",
         timestamp: new Date().toISOString(),
       };
-      addMessage(errorMessage);
-    } finally {
+      addMessage(botMessage);
       setIsLoading(false);
-    }
+    }, 1000);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

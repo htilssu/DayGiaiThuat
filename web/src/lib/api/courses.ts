@@ -107,8 +107,8 @@ export async function getCourses(page = 1, limit = 10) {
 export async function getCourseById(id: number): Promise<UserCourseDetail> {
   const course = await get<UserCourseDetail>(`/courses/${id}`);
   // Đảm bảo tính tương thích giữa backend (is_enrolled) và frontend (isEnrolled)
-  if ((course as any).is_enrolled !== undefined) {
-    course.isEnrolled = (course as any).is_enrolled;
+  if ((course as any).isEnrolled !== undefined) {
+    course.isEnrolled = (course as any).isEnrolled;
   }
   return course;
 }
@@ -122,7 +122,7 @@ export async function enrollCourse(
   courseId: number
 ): Promise<CourseEnrollmentResponse> {
   return post<CourseEnrollmentResponse>(`/courses/enroll`, {
-    course_id: courseId,
+    courseId: courseId,
   });
 }
 

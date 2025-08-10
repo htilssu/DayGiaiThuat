@@ -17,7 +17,7 @@ export interface LessonSection {
 }
 
 export interface LessonCompleteResponseSchema {
-  lesson_id: number;
+  lessonId: number;
   nextLessonId: number | null;
   isCompleted: boolean;
 }
@@ -43,13 +43,13 @@ export interface Lesson {
  * Kiểu dữ liệu cho yêu cầu tạo bài học
  */
 export interface CreateLessonRequest {
-  external_id: string;
+  externalId: string;
   title: string;
   description: string;
-  topic_id: number;
+  topicId: number;
   order: number;
-  next_lesson_id?: string;
-  prev_lesson_id?: string;
+  nextLessonId?: string;
+  prevLessonId?: string;
   sections: LessonSection[];
 }
 
@@ -60,22 +60,22 @@ export interface UpdateLessonRequest {
   title?: string;
   description?: string;
   order?: number;
-  next_lesson_id?: string;
-  prev_lesson_id?: string;
+  nextLessonId?: string;
+  prevLessonId?: string;
 }
 
 /**
  * Kiểu dữ liệu cho yêu cầu tạo bài học bằng AI
  */
 export interface GenerateLessonRequest {
-  topic_name: string;
-  lesson_title: string;
-  lesson_description: string;
-  difficulty_level?: string; // "beginner", "intermediate", "advanced"
-  lesson_type?: string; // "theory", "practice", "mixed"
-  include_examples?: boolean;
-  include_exercises?: boolean;
-  max_sections?: number;
+  topicName: string;
+  lessonTitle: string;
+  lessonDescription: string;
+  difficultyLevel?: string; // "beginner", "intermediate", "advanced"
+  lessonType?: string; // "theory", "practice", "mixed"
+  includeExamples?: boolean;
+  includeExercises?: boolean;
+  maxSections?: number;
 }
 
 /**
@@ -127,7 +127,7 @@ async function generateLesson(
   requestData: GenerateLessonRequest
 ) {
   return post<Lesson>(`/lessons/generate`, requestData, {
-    params: { topic_id: topicId, order },
+    params: { topicId, order },
   });
 }
 

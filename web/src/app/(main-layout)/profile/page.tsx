@@ -234,7 +234,7 @@ const ProfilePage = () => {
                     key={course.id}
                     className="border border-foreground/10 rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-background/50 theme-transition">
                     <div
-                      className={`h-40 bg-gradient-to-r from-${course.color_from} to-${course.color_to} relative`}>
+                      className={`h-40 bg-gradient-to-r from-${course.colorFrom} to-${course.colorTo} relative`}>
                       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent">
                         <h3 className="text-white font-medium">
                           {course.name}

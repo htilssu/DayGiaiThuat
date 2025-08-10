@@ -1,73 +1,84 @@
-from http.client import HTTPException
 from typing import Any, Generic, List, Optional, Type, TypeVar
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from fastapi import HTTPException, Depends
+
 from app.core.config import settings
-from app.database.database import Base, get_db
-from fastapi import Depends
+from app.database.database import Base, get_async_db
 
 ModelType = TypeVar("ModelType", bound=Base)
 
 
 class BaseRepository(Generic[ModelType]):
-    def __init__(self, model: Type[ModelType], db: Session = Depends(get_db)):
+    def __init__(self, model: Type[ModelType], db: AsyncSession = Depends(get_async_db)):
         self.model = model
         self.db = db
         self.setting = settings
 
-    def get(self, id: Any) -> Optional[ModelType]:
-        return self.db.query(self.model).filter(self.model.id == id).first()
+    async def get(self, id: Any) -> Optional[ModelType]:
+        result = await self.db.execute(select(self.model).where(self.model.id == id))
+        return result.scalar_one_or_none()
 
-    def get_multi(self, *, skip: int = 0, limit: int = 100) -> List[ModelType]:
-        return self.db.query(self.model).offset(skip).limit(limit).all()
+    async def get_multi(self, *, skip: int = 0, limit: int = 100) -> List[ModelType]:
+        result = await self.db.execute(
+            select(self.model).offset(skip).limit(limit)
+        )
+        return list(result.scalars().all())
 
-    def remove(self, *, id: int) -> ModelType:
-        obj = self.db.query(self.model).get(id)
+    async def remove(self, *, id: int) -> ModelType:
+        result = await self.db.execute(select(self.model).where(self.model.id == id))
+        obj = result.scalar_one_or_none()
         if not obj:
             raise HTTPException(status_code=404, detail="Object not found")
-        self.db.delete(obj)
-        self.db.commit()
+        await self.db.delete(obj)
+        await self.db.commit()
         return obj
 
-    def save(self, obj: ModelType) -> ModelType:
+    async def save(self, obj: ModelType) -> ModelType:
         self.db.add(obj)
-        self.db.commit()
-        self.db.refresh(obj)
+        await self.db.commit()
+        await self.db.refresh(obj)
         return obj
 
     async def get_async(self, id: Any) -> Optional[ModelType]:
-        return self.db.query(self.model).filter(self.model.id == id).first()
+        result = await self.db.execute(select(self.model).where(self.model.id == id))
+        return result.scalar_one_or_none()
 
     async def get_multi_async(
         self, *, skip: int = 0, limit: int = 100
     ) -> List[ModelType]:
-        return self.db.query(self.model).offset(skip).limit(limit).all()
+        result = await self.db.execute(
+            select(self.model).offset(skip).limit(limit)
+        )
+        return list(result.scalars().all())
 
     async def remove_async(self, *, id: int) -> ModelType:
-        obj = self.db.query(self.model).get(id)
+        result = await self.db.execute(select(self.model).where(self.model.id == id))
+        obj = result.scalar_one_or_none()
         if not obj:
             raise HTTPException(status_code=404, detail="Object not found")
         try:
-            self.db.delete(obj)
-            self.db.commit()
+            await self.db.delete(obj)
+            await self.db.commit()
             return obj
         except Exception as e:
             if self.setting.DEV_MODE:
                 raise HTTPException(status_code=500, detail=str(e))
             else:
-                self.db.rollback()
+                await self.db.rollback()
                 raise HTTPException(status_code=500, detail="Có lỗi xảy ra")
 
     async def save_async(self, obj: ModelType) -> ModelType:
         try:
             self.db.add(obj)
-            self.db.commit()
-            self.db.refresh(obj)
+            await self.db.commit()
+            await self.db.refresh(obj)
             return obj
         except Exception as e:
             if self.setting.DEV_MODE:
                 raise HTTPException(status_code=500, detail=str(e))
             else:
-                self.db.rollback()
+                await self.db.rollback()
                 raise HTTPException(status_code=500, detail="Có lỗi xảy ra")
 
 
@@ -79,7 +90,7 @@ class Repository(BaseRepository[ModelType], Generic[ModelType]):
         model (Type[ModelType]): SQLAlchemy model class
     """
 
-    def __init__(self, model: Type[ModelType], db: Session):
+    def __init__(self, model: Type[ModelType], db: AsyncSession):
         """
         Khởi tạo CRUD object với model
 
@@ -88,17 +99,17 @@ class Repository(BaseRepository[ModelType], Generic[ModelType]):
         """
         super().__init__(model, db)
 
-    def create(self, data: ModelType) -> ModelType:
+    async def create(self, data: ModelType) -> ModelType:
         try:
             self.db.add(data)
-            self.db.commit()
-            self.db.refresh(data)
+            await self.db.commit()
+            await self.db.refresh(data)
             return data
         except Exception as e:
             if self.setting.DEV_MODE:
                 raise HTTPException(status_code=500, detail=str(e))
             else:
-                self.db.rollback()
+                await self.db.rollback()
                 raise HTTPException(status_code=500, detail="Có lỗi xảy ra")
 
     async def create_async(self, data: ModelType) -> ModelType:
@@ -113,12 +124,12 @@ class Repository(BaseRepository[ModelType], Generic[ModelType]):
         """
         try:
             self.db.add(data)
-            self.db.commit()
-            self.db.refresh(data)
+            await self.db.commit()
+            await self.db.refresh(data)
             return data
         except Exception as e:
             if self.setting.DEV_MODE:
                 raise HTTPException(status_code=500, detail=str(e))
             else:
-                self.db.rollback()
+                await self.db.rollback()
                 raise HTTPException(status_code=500, detail="Có lỗi xảy ra")

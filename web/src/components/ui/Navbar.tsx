@@ -80,6 +80,7 @@ export default function Navbar() {
    */
   const getInitials = () => {
     if (!user) return "?";
+    console.log("user", user);
     return user.username?.charAt(0).toUpperCase();
   };
 
@@ -92,8 +93,9 @@ export default function Navbar() {
           ? `0 4px 10px -2px rgba(0, 0, 0, ${shadowOpacity})`
           : "none",
       }}
-      className={`w-full py-4 sticky top-0 z-50 transition-all duration-500 bg-background/95 border-b theme-transition ${scrollY > 10
-        }`}>
+      className={`w-full py-4 sticky top-0 z-50 transition-all duration-500 bg-background/95 border-b theme-transition ${
+        scrollY > 10
+      }`}>
       <div className="container mx-auto flex items-center justify-between px-4">
         {/* Logo */}
         <Link
@@ -104,20 +106,28 @@ export default function Navbar() {
             <span
               className={`absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full border-2  animate-pulse-slow theme-transition`}></span>
           </div>
-          <span className="font-bold text-xl theme-transition">
-            {appName}
-          </span>
+          <span className="font-bold text-xl theme-transition">{appName}</span>
         </Link>
 
         {/* Menu chính - Desktop */}
         <nav className="hidden md:block">
           <ul className="flex items-center gap-8">
             <NavItem href="/" label="Trang chủ" isActive={pathname === "/"} />
-            <CoursesDropdown
-              isActive={
-                pathname === "/courses" || pathname.startsWith("/courses/")
-              }
-            />
+            {user ? (
+              <CoursesDropdown
+                isActive={
+                  pathname === "/courses" || pathname.startsWith("/courses/")
+                }
+              />
+            ) : (
+              <NavItem
+                href="/courses/explore"
+                label="Khóa học"
+                isActive={
+                  pathname === "/courses" || pathname.startsWith("/courses/")
+                }
+              />
+            )}
             {/* <NavItem
               href="/learn"
               label="Bài học"
@@ -130,14 +140,16 @@ export default function Navbar() {
                 pathname === "/exercises" || pathname.startsWith("/exercises/")
               }
             /> */}
-            <NavItem
-              href="/discussions"
-              label="Thảo luận"
-              isActive={
-                pathname === "/discussions" ||
-                pathname.startsWith("/discussions/")
-              }
-            />
+            {user && (
+              <NavItem
+                href="/discussions"
+                label="Thảo luận"
+                isActive={
+                  pathname === "/discussions" ||
+                  pathname.startsWith("/discussions/")
+                }
+              />
+            )}
             <NavItem
               href="/contact"
               label="Liên hệ"
@@ -148,6 +160,15 @@ export default function Navbar() {
               label="FAQ"
               isActive={pathname === "/about"}
             />
+            {user?.isAdmin && (
+              <NavItem
+                href="/admin"
+                label="Quản trị"
+                isActive={
+                  pathname === "/admin" || pathname.startsWith("/admin/")
+                }
+              />
+            )}
           </ul>
         </nav>
 
@@ -271,12 +292,14 @@ export default function Navbar() {
               isActive={pathname === "/"}
               onClick={() => setIsMenuOpen(false)}
             />
-            <MobileNavItem
-              href="/courses"
-              label="Khóa học của bạn"
-              isActive={pathname === "/courses"}
-              onClick={() => setIsMenuOpen(false)}
-            />
+            {user && (
+              <MobileNavItem
+                href="/courses"
+                label="Khóa học của bạn"
+                isActive={pathname === "/courses"}
+                onClick={() => setIsMenuOpen(false)}
+              />
+            )}
             <MobileNavItem
               href="/courses/explore"
               label="Khám phá khóa học"
@@ -291,15 +314,17 @@ export default function Navbar() {
               }
               onClick={() => setIsMenuOpen(false)}
             /> */}
-            <MobileNavItem
-              href="/discussions"
-              label="Thảo luận"
-              isActive={
-                pathname === "/discussions" ||
-                pathname.startsWith("/discussions/")
-              }
-              onClick={() => setIsMenuOpen(false)}
-            />
+            {user && (
+              <MobileNavItem
+                href="/discussions"
+                label="Thảo luận"
+                isActive={
+                  pathname === "/discussions" ||
+                  pathname.startsWith("/discussions/")
+                }
+                onClick={() => setIsMenuOpen(false)}
+              />
+            )}
             <MobileNavItem
               href="/contact"
               label="Liên hệ"
@@ -312,6 +337,16 @@ export default function Navbar() {
               isActive={pathname === "/about"}
               onClick={() => setIsMenuOpen(false)}
             />
+            {user?.isAdmin && (
+              <MobileNavItem
+                href="/admin"
+                label="Quản trị"
+                isActive={
+                  pathname === "/admin" || pathname.startsWith("/admin/")
+                }
+                onClick={() => setIsMenuOpen(false)}
+              />
+            )}
           </nav>
 
           <div className="mt-5 flex flex-col gap-3">
@@ -401,8 +436,9 @@ function NavItem({
       <Link
         href={href}
         aria-current={isActive ? "page" : undefined}
-        className={`relative px-1 py-2 font-medium theme-transition flex items-center ${isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
-          } transition-colors`}>
+        className={`relative px-1 py-2 font-medium theme-transition flex items-center ${
+          isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
+        } transition-colors`}>
         {label}
 
         {/* Indicator thanh dưới chân - active */}
@@ -445,10 +481,11 @@ function MobileNavItem({
     <Link
       href={href}
       aria-current={isActive ? "page" : undefined}
-      className={`relative px-4 py-2.5 rounded-lg theme-transition overflow-hidden group ${isActive
-        ? "text-primary font-medium"
-        : "text-foreground/80 hover:bg-foreground/10 hover:text-primary"
-        } transition-all duration-300 hover:pl-6`}
+      className={`relative px-4 py-2.5 rounded-lg theme-transition overflow-hidden group ${
+        isActive
+          ? "text-primary font-medium"
+          : "text-foreground/80 hover:bg-foreground/10 hover:text-primary"
+      } transition-all duration-300 hover:pl-6`}
       onClick={onClick}>
       {/* Thanh indicator bên trái */}
       <span className="absolute left-0 top-0 bottom-0 w-0 bg-primary/20 transition-all duration-300 group-hover:w-1"></span>
@@ -492,19 +529,19 @@ function CoursesDropdown({ isActive }: { isActive: boolean }) {
   return (
     <li className="relative group" ref={dropdownRef}>
       <div
-        className={`relative d-flex px-1 py-2 font-medium theme-transition flex items-center gap-1 ${isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
-          } transition-colors`}
+        className={`relative d-flex px-1 py-2 font-medium theme-transition flex items-center gap-1 ${
+          isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
+        } transition-colors`}
         onClick={() => setIsOpen(!isOpen)}
-        onMouseEnter={() => setIsOpen(true)}
-      >
+        onMouseEnter={() => setIsOpen(true)}>
         Khóa học
         <svg
-          className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
-            }`}
+          className={`w-4 h-4 transition-transform duration-200 ${
+            isOpen ? "rotate-180" : ""
+          }`}
           fill="none"
           stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+          viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -512,12 +549,10 @@ function CoursesDropdown({ isActive }: { isActive: boolean }) {
             d="M19 9l-7 7-7-7"
           />
         </svg>
-
         {/* Indicator thanh dưới chân - active */}
         {isActive && (
           <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary rounded-full animate-fade-in theme-transition"></span>
         )}
-
         {/* Indicator thanh dưới chân - hover */}
         {!isActive && (
           <span className="absolute -bottom-1 left-1/2 right-1/2 h-0.5 bg-[rgb(var(--color-primary))] rounded-full transition-all duration-300 group-hover:left-0 group-hover:right-0 theme-transition"></span>
@@ -528,27 +563,26 @@ function CoursesDropdown({ isActive }: { isActive: boolean }) {
       {isOpen && (
         <div
           className="absolute top-full left-0 mt-2 w-48 bg-background border border-border rounded-lg shadow-lg z-50 theme-transition"
-          onMouseLeave={() => setIsOpen(false)}
-        >
+          onMouseLeave={() => setIsOpen(false)}>
           <div className="py-2">
             <Link
               href="/courses"
-              className={`block px-4 py-2 text-sm theme-transition ${pathname === "/courses"
-                ? "text-primary bg-primary/10"
-                : "text-foreground/80 hover:text-primary hover:bg-primary/5"
-                }`}
-              onClick={() => setIsOpen(false)}
-            >
+              className={`block px-4 py-2 text-sm theme-transition ${
+                pathname === "/courses"
+                  ? "text-primary bg-primary/10"
+                  : "text-foreground/80 hover:text-primary hover:bg-primary/5"
+              }`}
+              onClick={() => setIsOpen(false)}>
               Khóa học của bạn
             </Link>
             <Link
               href="/courses/explore"
-              className={`block px-4 py-2 text-sm theme-transition ${pathname === "/courses/explore"
-                ? "text-primary bg-primary/10"
-                : "text-foreground/80 hover:text-primary hover:bg-primary/5"
-                }`}
-              onClick={() => setIsOpen(false)}
-            >
+              className={`block px-4 py-2 text-sm theme-transition ${
+                pathname === "/courses/explore"
+                  ? "text-primary bg-primary/10"
+                  : "text-foreground/80 hover:text-primary hover:bg-primary/5"
+              }`}
+              onClick={() => setIsOpen(false)}>
               Khám phá khóa học
             </Link>
           </div>

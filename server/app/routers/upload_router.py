@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.services.storage_service import StorageService, get_storage_service
 from app.utils.utils import get_current_user
 from app.schemas.user_profile_schema import UserExcludeSecret
-from app.database.database import get_db
+from app.database.database import get_async_db
 
 router = APIRouter(
     prefix="/upload",
@@ -34,7 +35,7 @@ async def upload_user_avatar(
     file: UploadFile = File(...),
     storage_service: StorageService = Depends(get_storage_service),
     current_user: UserExcludeSecret = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Upload avatar cho người dùng hiện tại
@@ -43,7 +44,7 @@ async def upload_user_avatar(
         file (UploadFile): File ảnh cần upload
         storage_service (StorageService): Service xử lý lưu trữ
         current_user (UserExcludeSecret): Thông tin người dùng hiện tại
-        db (Session): Session database
+        db (AsyncSession): Session database
 
     Returns:
         FileUploadResponse: Thông tin file đã upload
@@ -55,14 +56,15 @@ async def upload_user_avatar(
         # Cập nhật URL avatar trong database
         from app.models.user_model import User
 
-        user = db.query(User).filter(User.id == current_user.id).first()
+        result_query = await db.execute(select(User).where(User.id == current_user.id))
+        user = result_query.scalar_one_or_none()
         if user:
-            user.avatarUrl = result["url"]
-            db.commit()
+            user.avatar = result["url"]
+            await db.commit()
 
         return result
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi upload avatar: {str(e)}",
