@@ -143,14 +143,14 @@ export function useContentCreation() {
             formData.lesson.topicId,
             formData.lesson.order,
             {
-              topic_name: formData.lesson.title,
-              lesson_title: formData.lesson.title,
-              lesson_description: formData.lesson.description,
-              difficulty_level: formData.lesson.difficultyLevel,
-              lesson_type: formData.lesson.lessonType,
-              include_examples: formData.lesson.includeExamples,
-              include_exercises: formData.lesson.includeExercises,
-              max_sections: formData.lesson.maxSections,
+              topicName: formData.lesson.title,
+              lessonTitle: formData.lesson.title,
+              lessonDescription: formData.lesson.description,
+              difficultyLevel: formData.lesson.difficultyLevel,
+              lessonType: formData.lesson.lessonType,
+              includeExamples: formData.lesson.includeExamples,
+              includeExercises: formData.lesson.includeExercises,
+              maxSections: formData.lesson.maxSections,
             }
           );
           successMessage = {
