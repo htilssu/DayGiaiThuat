@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { exercisesData } from "@/data/mockExercises";
+import { useEffect, useMemo, useState } from "react";
+import { exercisesApi } from "@/lib/api";
 
 /**
  * Danh sách các category để lọc
@@ -67,19 +67,76 @@ export default function ExercisesPage() {
   const [categoryFilter, setCategoryFilter] = useState("Tất cả");
   const [difficultyFilter, setDifficultyFilter] = useState("Tất cả");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [items, setItems] = useState<
+    Array<{
+      id: number;
+      title: string;
+      description: string;
+      category: string;
+      difficulty: "Beginner" | "Intermediate" | "Advanced";
+      estimatedTime: string;
+      completionRate: number;
+      completed: boolean;
+    }>
+  >([]);
+  const [loading, setLoading] = useState(true);
 
-  // Lọc bài tập theo các điều kiện
-  const filteredExercises = exercisesData.filter((exercise) => {
-    const matchesSearch =
-      exercise.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      exercise.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      categoryFilter === "Tất cả" || exercise.category === categoryFilter;
-    const matchesDifficulty =
-      difficultyFilter === "Tất cả" || exercise.difficulty === difficultyFilter;
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const list = await exercisesApi.listExercises(1, 50);
+        const mapped = list.map((ex) => {
+          const diffMap: Record<
+            string,
+            "Beginner" | "Intermediate" | "Advanced"
+          > = {
+            easy: "Beginner",
+            medium: "Intermediate",
+            hard: "Advanced",
+          };
+          const d =
+            diffMap[(ex.difficulty || "medium").toLowerCase()] ||
+            "Intermediate";
+          return {
+            id: ex.id,
+            title: ex.name,
+            description: ex.description,
+            category: "Thuật toán",
+            difficulty: d,
+            estimatedTime:
+              d === "Beginner"
+                ? "15 phút"
+                : d === "Intermediate"
+                ? "30 phút"
+                : "45 phút",
+            completionRate: 0,
+            completed: false,
+          };
+        });
+        setItems(mapped);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
-    return matchesSearch && matchesCategory && matchesDifficulty;
-  });
+  // Lọc bài tập theo các điều kiện (trên dữ liệu thực)
+  const filteredExercises = useMemo(() => {
+    const base = items;
+    return base.filter((exercise) => {
+      const matchesSearch =
+        exercise.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        exercise.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory =
+        categoryFilter === "Tất cả" || exercise.category === categoryFilter;
+      const matchesDifficulty =
+        difficultyFilter === "Tất cả" ||
+        exercise.difficulty === difficultyFilter;
+      return matchesSearch && matchesCategory && matchesDifficulty;
+    });
+  }, [items, searchTerm, categoryFilter, difficultyFilter]);
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -174,6 +231,7 @@ export default function ExercisesPage() {
           <div className="inline-flex rounded-md shadow-sm">
             <button
               type="button"
+              aria-label="Chuyển sang dạng lưới"
               className={`px-4 py-2 text-sm font-medium rounded-l-md border focus:z-10 focus:outline-none transition-colors ${
                 viewMode === "grid"
                   ? "bg-primary/10 border-primary/30 text-primary"
@@ -196,6 +254,7 @@ export default function ExercisesPage() {
             </button>
             <button
               type="button"
+              aria-label="Chuyển sang dạng danh sách"
               className={`px-4 py-2 text-sm font-medium rounded-r-md border focus:z-10 focus:outline-none transition-colors ${
                 viewMode === "list"
                   ? "bg-primary/10 border-primary/30 text-primary"
@@ -223,7 +282,9 @@ export default function ExercisesPage() {
       {/* Hiển thị kết quả lọc */}
       <div className="mb-4">
         <p className="text-foreground/60">
-          Hiển thị {filteredExercises.length} bài tập
+          {loading
+            ? "Đang tải..."
+            : `Hiển thị ${filteredExercises.length} bài tập`}
           {categoryFilter !== "Tất cả" && ` trong danh mục "${categoryFilter}"`}
           {difficultyFilter !== "Tất cả" &&
             ` với độ Advanced "${difficultyFilter}"`}

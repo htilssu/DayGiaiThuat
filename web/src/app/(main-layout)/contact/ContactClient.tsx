@@ -183,7 +183,7 @@ export default function ContactClient() {
                 <label
                   htmlFor="subject"
                   className="block text-sm font-medium text-foreground mb-2">
-                  Chủ đề *
+                  Tiêu đề *
                 </label>
                 <input
                   type="text"

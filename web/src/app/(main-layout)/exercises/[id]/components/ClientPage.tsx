@@ -55,7 +55,7 @@ export default function ClientPage({ exercise }: { exercise: ExerciseDetail }) {
     <div className="container mx-auto p-4 md:p-8 max-w-6xl">
       {/* Breadcrumb */}
       <div className="mb-6 text-sm text-foreground/60">
-        <Link href="/bai-tap" className="hover:text-primary">
+        <Link href="/exercises" className="hover:text-primary">
           Danh sách bài tập
         </Link>{" "}
         / <span className="text-foreground/90">{exercise.title}</span>
@@ -67,21 +67,21 @@ export default function ClientPage({ exercise }: { exercise: ExerciseDetail }) {
       {/* Tabs */}
       <div className="flex border-b border-foreground/10 mt-8 mb-6">
         <button
-          className={`px-4 py-2 font-medium text-sm ${currentTab === "description"
+          className={`px-4 py-2 font-medium text-sm ${
+            currentTab === "description"
               ? "text-primary border-b-2 border-primary"
               : "text-foreground/60 hover:text-foreground/90"
-            }`}
-          onClick={() => setCurrentTab("description")}
-        >
+          }`}
+          onClick={() => setCurrentTab("description")}>
           Mô tả bài tập
         </button>
         <button
-          className={`px-4 py-2 font-medium text-sm ${currentTab === "submission"
+          className={`px-4 py-2 font-medium text-sm ${
+            currentTab === "submission"
               ? "text-primary border-b-2 border-primary"
               : "text-foreground/60 hover:text-foreground/90"
-            }`}
-          onClick={() => setCurrentTab("submission")}
-        >
+          }`}
+          onClick={() => setCurrentTab("submission")}>
           Làm bài
         </button>
       </div>
@@ -91,10 +91,7 @@ export default function ClientPage({ exercise }: { exercise: ExerciseDetail }) {
         {currentTab === "description" ? (
           <ExerciseContent content={exercise.content} />
         ) : (
-          <ExerciseSubmission
-            exercise={exercise}
-            onSubmit={handleSubmit}
-          />
+          <ExerciseSubmission exercise={exercise} onSubmit={handleSubmit} />
         )}
       </div>
     </div>

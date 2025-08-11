@@ -1,5 +1,4 @@
 import asyncio
-import os
 
 import requests
 from app.core.agents.exercise_agent import ExerciseDetail as ExerciseSchema
@@ -8,6 +7,7 @@ from app.core.agents.exercise_agent import (
     get_exercise_agent,
 )
 from app.database.database import get_async_db
+from app.core.config import settings
 from app.models import Exercise
 from app.models.exercise_model import Exercise as ExerciseModel
 from app.models.lesson_model import Lesson
@@ -24,7 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-JUDGE0_API_URL = os.getenv("JUDGE0_API_URL")
+JUDGE0_API_URL = (settings.JUDGE0_API_URL or "").rstrip("/")
 
 
 def get_language_id(language: str) -> int:
@@ -73,7 +73,7 @@ class ExerciseService:
         self.db = session
         self.topic_service = topic_service
 
-    async def get_exercise(self, exercise_id: int) -> type[Exercise]:
+    async def get_exercise(self, exercise_id: int) -> Exercise:
         """
         Lấy thông tin bài tập theo ID
 
@@ -83,13 +83,25 @@ class ExerciseService:
         Returns:
             ExerciseModel: Thông tin bài tập
         """
-        exercise = await self.db.get(ExerciseModel, exercise_id)
+        exercise = await self.db.execute(
+            select(ExerciseModel)
+            .where(ExerciseModel.id == exercise_id)
+            .options(selectinload(ExerciseModel.test_cases))
+        )
+        exercise = exercise.scalars().first()
         if not exercise:
             raise HTTPException(
                 status_code=404,
                 detail=f"Không tìm thấy bài tập với ID {exercise_id}",
             )
         return exercise
+
+    async def list_exercises(self, page: int = 1, limit: int = 12) -> list[ExerciseModel]:
+        offset = max(0, (page - 1) * limit)
+        result = await self.db.execute(
+            select(ExerciseModel).order_by(ExerciseModel.created_at.desc()).offset(offset).limit(limit)
+        )
+        return list(result.scalars().all())
 
     async def create_exercise(
         self, create_data: CreateExerciseSchema
@@ -123,18 +135,20 @@ class ExerciseService:
             description: str | None = None
             sections: list[SectionA]
 
-        lesson_schema = LessonA(
-            name=lesson.title if lesson else None,
-            description=lesson.description if lesson else None,
-            sections=[
-                SectionA(
-                    content=section.content,
-                    answer=section.answer,
-                    explanation=section.explanation,
-                )
-                for section in lesson.sections
-            ],
-        )
+        lesson_schema = None
+        if lesson:
+            lesson_schema = LessonA(
+                name=lesson.title,
+                description=lesson.description,
+                sections=[
+                    SectionA(
+                        content=section.content,
+                        answer=section.answer,
+                        explanation=section.explanation,
+                    )
+                    for section in lesson.sections
+                ],
+            )
 
         if not topic:
             raise ValueError(f"Không tìm thấy chủ đề với ID {create_data.topic_id}")
@@ -144,7 +158,7 @@ class ExerciseService:
             session_id=create_data.session_id,
             topic=topic.name,
             difficulty=create_data.difficulty,
-            lesson=lesson_schema.model_dump() if lesson else None,
+            lesson=lesson_schema.model_dump() if lesson_schema else None,
         )
 
         exercise_model = ExerciseModel.exercise_from_schema(exercise_detail)
@@ -164,28 +178,40 @@ class ExerciseService:
         if not exercise:
             raise ValueError(f"Không tìm thấy bài tập với ID {exercise_id}")
 
-        # Assume exercise has a .case attribute with test cases (list of TestCase)
-        test_cases = getattr(exercise, "case", None)
+        # Ưu tiên dùng test cases quan hệ nếu có; fallback sang JSON `case`
+        test_cases = getattr(exercise, "test_cases", None) or getattr(
+            exercise, "case", None
+        )
         if not test_cases:
             raise ValueError("Bài tập không có test case để kiểm tra")
 
         results = []
         all_passed = True
         for test_case in test_cases:
-            input_data = getattr(test_case, "input_data", None) or getattr(
-                test_case, "input", None
+            input_data = (
+                getattr(test_case, "input_data", None)
+                or getattr(test_case, "input", None)
+                or (test_case.get("input") if isinstance(test_case, dict) else None)
             )
-            expected_output = getattr(test_case, "output_data", None) or getattr(
-                test_case, "output", None
+            expected_output = (
+                getattr(test_case, "output_data", None)
+                or getattr(test_case, "output", None)
+                or (test_case.get("output") if isinstance(test_case, dict) else None)
             )
+            if input_data is None or expected_output is None:
+                # Bỏ qua test case không hợp lệ
+                continue
             actual_output, passed, error = await run_code_in_docker(
-                submission.code, submission.language, input_data, expected_output
+                submission.code,
+                submission.language,
+                str(input_data),
+                str(expected_output),
             )
             results.append(
                 TestCaseResult(
-                    input=input_data,
-                    expected_output=expected_output,
-                    actual_output=actual_output,
+                    input=str(input_data),
+                    expected_output=str(expected_output),
+                    actual_output=str(actual_output),
                     passed=passed,
                     error=error,
                 )
@@ -204,7 +230,9 @@ class ExerciseService:
         if not exercise:
             raise ValueError(f"Không tìm thấy bài tập với ID {exercise_id}")
 
-        test_cases = getattr(exercise, "case", None)
+        test_cases = getattr(exercise, "test_cases", None) or getattr(
+            exercise, "case", None
+        )
         if not test_cases:
             raise ValueError("Bài tập không có test case để kiểm tra")
 
@@ -212,11 +240,15 @@ class ExerciseService:
         all_passed = True
 
         for test_case in test_cases:
-            input_data = getattr(test_case, "input_data", None) or getattr(
-                test_case, "input", None
+            input_data = (
+                getattr(test_case, "input_data", None)
+                or getattr(test_case, "input", None)
+                or (test_case.get("input") if isinstance(test_case, dict) else None)
             )
-            expected_output = getattr(test_case, "output_data", None) or getattr(
-                test_case, "output", None
+            expected_output = (
+                getattr(test_case, "output_data", None)
+                or getattr(test_case, "output", None)
+                or (test_case.get("output") if isinstance(test_case, dict) else None)
             )
 
             # Submit to Judge0
@@ -233,8 +265,10 @@ class ExerciseService:
             if not response.ok:
                 results.append(
                     TestCaseResult(
-                        input=input_data,
-                        expected_output=expected_output,
+                        input=str(input_data) if input_data is not None else "",
+                        expected_output=str(expected_output)
+                        if expected_output is not None
+                        else "",
                         actual_output="",
                         passed=False,
                         error=f"Judge0 error: {response.text}",
@@ -246,13 +280,15 @@ class ExerciseService:
             result_data = response.json()
             actual_output = (result_data.get("stdout") or "").strip()
             error = result_data.get("stderr") or result_data.get("compile_output") or ""
-            passed = actual_output == (expected_output or "").strip() and not error
+            passed = actual_output == (str(expected_output or "").strip()) and not error
 
             results.append(
                 TestCaseResult(
-                    input=input_data,
-                    expected_output=expected_output,
-                    actual_output=actual_output,
+                    input=str(input_data) if input_data is not None else "",
+                    expected_output=str(expected_output)
+                    if expected_output is not None
+                    else "",
+                    actual_output=str(actual_output),
                     passed=passed,
                     error=error,
                 )

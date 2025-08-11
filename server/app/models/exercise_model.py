@@ -6,6 +6,7 @@ from app.schemas.exercise_schema import ExerciseDetail
 
 if TYPE_CHECKING:
     from app.models.lesson_model import Lesson
+    from app.models.exercise_test_case_model import ExerciseTestCase
 
 
 class Exercise(Base):
@@ -39,6 +40,13 @@ class Exercise(Base):
     suggest: Mapped[str] = mapped_column(String, nullable=True)
 
     lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="exercises")
+    # Quan hệ tới test cases dạng quan hệ thay vì JSON `case`
+    test_cases: Mapped[list["ExerciseTestCase"]] = relationship(
+        "ExerciseTestCase",
+        back_populates="exercise",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     class Config:
         from_attributes = True
