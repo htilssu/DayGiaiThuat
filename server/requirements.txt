@@ -50,3 +50,6 @@ starlette
 PyYAML
 openai
 pinecone
+
+pymongo
+requests

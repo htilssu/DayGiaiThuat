@@ -5,7 +5,6 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from app.core.config import settings
 
 
-@lru_cache(maxsize=1)
 def get_embedding_model():
     from langchain_google_genai import GoogleGenerativeAIEmbeddings
 

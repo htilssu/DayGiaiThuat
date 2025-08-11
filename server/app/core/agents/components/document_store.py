@@ -8,7 +8,6 @@ from functools import lru_cache
 from app.core.agents.components.embedding_model import get_embedding_model
 
 
-@lru_cache(maxsize=1)
 def get_pinecone_client():
     """
     Trả về một instance được cache của Pinecone client
@@ -41,15 +40,6 @@ def create_index(index_name: index_list):
 
 
 def get_vector_store(index_name: index_list):
-    """
-    Trả về một vector store được liên kết với index được chỉ định
-
-    Args:
-        index_name: Tên của index cần sử dụng
-
-    Returns:
-        PineconeVectorStore: Vector store được liên kết với index
-    """
     from langchain_pinecone import PineconeVectorStore
 
     pc_index = get_index(index_name)

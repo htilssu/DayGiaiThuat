@@ -1,8 +1,10 @@
+from abc import ABC, abstractmethod
+
 from ..agents.components.llm_model import create_new_llm_model
 from app.core.tracing import get_callback_manager
 
 
-class BaseAgent(object):
+class BaseAgent(ABC):
     """
     Base class for all agents.
     """
@@ -26,6 +28,7 @@ class BaseAgent(object):
             self._base_llm = create_new_llm_model(temperature=0.3, top_p=0.7)
         return self._base_llm
 
+    @abstractmethod
     def act(self, *args, **kwargs):
         self.check_available_args(*args, **kwargs)
 

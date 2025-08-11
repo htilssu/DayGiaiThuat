@@ -25,9 +25,9 @@ class CourseDraft(Base):
     status: Mapped[str] = mapped_column(
         String(50), default="pending"
     )  # pending, approved, rejected
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now())
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=datetime.now(), onupdate=datetime.utcnow
     )
 
     # Relationship

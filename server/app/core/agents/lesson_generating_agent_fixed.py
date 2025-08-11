@@ -236,7 +236,6 @@ class LessonGeneratingAgent(BaseAgent):
             )
 
             if isinstance(response, dict) and response.get("output"):
-                # Agent sẽ trả về một chuỗi JSON, cần parse nó
                 final_lesson = self.structure_parser.parse(response["output"])
                 return final_lesson.list_schema
             else:

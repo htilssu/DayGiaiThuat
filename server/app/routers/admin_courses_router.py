@@ -1,4 +1,4 @@
-import json
+import asyncio
 import uuid
 from typing import Annotated
 
@@ -10,15 +10,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.agents.course_composition_agent import CourseCompositionAgent
 from app.database.database import get_async_db
+from app.database.mongodb import get_mongo_collection
 from app.models.course_draft_model import CourseDraft
 from app.models.course_model import Course
 from app.models.topic_model import Topic
-from app.schemas.course_review_schema import (
-    CourseReviewResponse,
-    ApproveDraftRequest,
-)
+from app.schemas.course_review_schema import ApproveDraftRequest
 from app.schemas.course_schema import (
     BulkDeleteCoursesRequest,
     BulkDeleteCoursesResponse,
@@ -28,13 +25,19 @@ from app.schemas.course_schema import (
     CourseUpdate,
 )
 from app.schemas.user_profile_schema import UserExcludeSecret
+from app.services.course_daft_service import (
+    get_course_daft_by_course_id,
+)
+from app.services.course_generate_service import (
+    CourseGenerateService,
+    get_course_generate_service,
+)
 from app.services.course_service import CourseService, get_course_service
 from app.services.test_generation_service import (
     TestGenerationService,
     get_test_generation_service,
 )
 from app.utils.utils import get_current_user
-from app.services.course_generate_service import CourseGenerateService, get_course_generate_service
 
 router = APIRouter(
     prefix="/admin/courses",
@@ -108,7 +111,10 @@ async def create_course(
             course_level=new_course.level,
             session_id=str(uuid.uuid4()),
         )
-        await course_generate_service.generate(composition_request)
+
+        asyncio.create_task(
+            course_generate_service.background_create(composition_request)
+        )
 
         return new_course
     except SQLAlchemyError as e:
@@ -480,7 +486,7 @@ async def update_course_thumbnail(
 # API endpoints mới cho workflow review
 @router.get(
     "/{course_id}/review",
-    response_model=CourseReviewResponse,
+    response_model=CourseDraft,
     summary="Lấy thông tin review khóa học (Admin)",
     responses={
         200: {"description": "OK"},
@@ -490,11 +496,10 @@ async def update_course_thumbnail(
 )
 async def get_course_review(
         course_id: int,
-        db: AsyncSession = Depends(get_async_db),
         admin_user: UserExcludeSecret = Depends(get_admin_user),
-        course_daft_service: CourseDaftService = Depends(get_course_daft_service)
 ):
-    course_daft = await course_daft_service.get_daft_by_course_id()
+    course_draft = get_course_daft_by_course_id(course_id)
+    return
 
 
 @router.post(
@@ -541,19 +546,15 @@ async def approve_course_draft(
 
     try:
         if approve_request.approved:
-            # Parse agent content và lưu vào database
-            agent_content = json.loads(draft.agent_content)
-            await save_agent_content_to_db(course_id, agent_content, db)
-
-            # Cập nhật status draft
-            draft.status = "approved"
-
-            await db.commit()
-            return {"message": "Draft đã được approved thành công"}
+            collection = get_mongo_collection("course_daft")
+            daft_list = collection.find(
+                {
+                    "course_id": course_id,
+                    "session_id": draft.session_id,
+                }
+            )
 
         else:
-            # Reject và yêu cầu agent tái tạo nội dung
-            # Lưu feedback reject
 
             composition_request = CourseCompositionRequestSchema(
                 course_id=course_id,

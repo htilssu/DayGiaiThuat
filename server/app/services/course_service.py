@@ -9,7 +9,7 @@ from app.database.database import get_async_db
 from app.models.user_course_model import UserCourse
 from app.models.user_course_progress_model import UserCourseProgress, ProgressStatus
 from app.models.topic_model import Topic
-from app.models.course_model import Course
+from app.models.course_model import Course, CourseStatus
 from app.schemas.course_schema import (
     BulkDeleteCoursesResponse,
     CourseCreate,
@@ -29,8 +29,8 @@ from typing import Optional
 
 class CourseService:
     def __init__(
-        self,
-        db: AsyncSession,
+            self,
+            db: AsyncSession,
     ):
         self.db = db
 
@@ -173,15 +173,12 @@ class CourseService:
             Course: Thông tin của khóa học vừa tạo
         """
         try:
-            # Tạo đối tượng Course từ dữ liệu đầu vào
             new_course = Course(**course_data.model_dump())
 
-            # Thêm vào database
             self.db.add(new_course)
             await self.db.commit()
             await self.db.refresh(new_course)
 
-            # Tải lại course với topics để tránh lỗi lazy loading
             result = await self.db.execute(
                 select(Course)
                 .options(selectinload(Course.topics))
@@ -198,18 +195,7 @@ class CourseService:
             )
 
     async def update_course(self, course_id: int, course_data):
-        """
-        Cập nhật thông tin một khóa học
-
-        Args:
-            course_id: ID của khóa học cần cập nhật
-            course_data: Dữ liệu cập nhật
-
-        Returns:
-            Course: Thông tin khóa học sau khi cập nhật
-        """
         try:
-            # Tìm khóa học cần cập nhật
             result = await self.db.execute(
                 select(Course).filter(Course.id == course_id)
             )
@@ -220,12 +206,10 @@ class CourseService:
                     detail=f"Không tìm thấy khóa học với ID {course_id}",
                 )
 
-            # Cập nhật thông tin khóa học từ dữ liệu đầu vào
             course_dict = course_data.dict(exclude_unset=True)
             for key, value in course_dict.items():
                 setattr(course, key, value)
 
-            # Lưu thay đổi vào database
             await self.db.commit()
             await self.db.refresh(course)
 
@@ -271,21 +255,6 @@ class CourseService:
             )
 
     async def bulk_delete_courses(self, course_ids: list[int]):
-        """
-        Xóa nhiều khóa học cùng lúc, bao gồm tất cả topics, lessons, và lesson sections
-
-        Args:
-            course_ids: Danh sách ID các khóa học cần xóa
-
-        Returns:
-            dict: Thông tin về quá trình xóa bao gồm:
-                - deleted_count: Số lượng khóa học đã xóa thành công
-                - failed_count: Số lượng khóa học không thể xóa
-                - deleted_courses: Danh sách ID các khóa học đã xóa
-                - failed_courses: Danh sách ID các khóa học không thể xóa
-                - errors: Danh sách lỗi chi tiết
-                - deleted_items: Thống kê chi tiết số lượng items đã xóa
-        """
         from app.models.topic_model import Topic
         from app.models.lesson_model import Lesson, LessonSection
 
@@ -296,7 +265,6 @@ class CourseService:
 
         for course_id in course_ids:
             try:
-                # Tìm khóa học cần xóa
                 result = await self.db.execute(
                     select(Course).filter(Course.id == course_id)
                 )
@@ -536,7 +504,7 @@ class CourseService:
                         if found_current:
                             break
                         for lesson in sorted(
-                            topic.lessons, key=lambda lesson: lesson.order
+                                topic.lessons, key=lambda lesson: lesson.order
                         ):
                             if lesson.id not in completed_lesson_ids:
                                 current_topic_id = topic.id
@@ -686,7 +654,7 @@ class CourseService:
 
     # Methods with Progress Support
     async def get_course_with_progress(
-        self, course_id: int, user_id: Optional[int] = None
+            self, course_id: int, user_id: Optional[int] = None
     ) -> CourseDetailWithProgressResponse:
         """Lấy course với nested progress data"""
         # Get course with topics and lessons
@@ -775,7 +743,7 @@ class CourseService:
                         current_lesson_id = lesson.id
 
                     if not last_activity_at or (
-                        progress.updated_at and progress.updated_at > last_activity_at
+                            progress.updated_at and progress.updated_at > last_activity_at
                     ):
                         last_activity_at = progress.updated_at
 

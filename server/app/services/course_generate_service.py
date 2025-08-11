@@ -1,3 +1,5 @@
+import asyncio
+
 from sqlalchemy import update
 
 from app.core.agents.course_composition_agent import CourseCompositionAgent
@@ -9,9 +11,9 @@ from app.services.base_generate_service import BaseGenerateService
 
 class CourseGenerateService(BaseGenerateService[Course]):
     async def generate(
-        self,
-        course_request: CourseCompositionRequestSchema,
-        **kwargs,
+            self,
+            course_request: CourseCompositionRequestSchema,
+            **kwargs,
     ):
         async with get_independent_db_session() as db:
             agent = CourseCompositionAgent(db)
@@ -31,6 +33,9 @@ class CourseGenerateService(BaseGenerateService[Course]):
                     f"Course with ID {course_request.course_id} not found."
                 )
             return course_model
+
+    async def background_create(self, composition_request: CourseCompositionRequestSchema):
+        asyncio.create_task(self.generate(composition_request))
 
 
 def get_course_generate_service() -> BaseGenerateService[Course]:

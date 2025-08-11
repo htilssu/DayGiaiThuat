@@ -11,7 +11,6 @@ class Settings(BaseSettings):
     # CORS
     BACKEND_CORS_ORIGINS: List[str]
 
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
         """
@@ -28,10 +27,8 @@ class Settings(BaseSettings):
         """
         if isinstance(v, str):
             try:
-                # Thử parse JSON string
                 return json.loads(v)
             except json.JSONDecodeError:
-                # Nếu không phải JSON, split theo dấu phẩy
                 return [i.strip() for i in v.split(",")]
         return v
 
@@ -65,10 +62,8 @@ class Settings(BaseSettings):
     LANGSMITH_TRACING: bool = False
     LANGSMITH_PROJECT: str = "default"
 
-    # File Upload Settings
     UPLOAD_DIR: str = "uploads"  # Thư mục lưu file tạm thời
 
-    # Document Processing Settings
     DOCUMENT_PROCESSING_ENDPOINT: Optional[str] = (
         None  # External API endpoint for document processing
     )
@@ -76,7 +71,6 @@ class Settings(BaseSettings):
     S3_DOCUMENT_PREFIX: str = "documents/"
     BASE_URL: str = "http://localhost:8000"
 
-    # AWS S3 Settings / Cloudflare R2 Settings
     S3_ACCESS_KEY_ID: Optional[str] = None
     S3_SECRET_ACCESS_KEY: Optional[str] = None
     S3_REGION: Optional[str] = (

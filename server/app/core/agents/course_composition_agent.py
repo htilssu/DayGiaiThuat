@@ -11,19 +11,11 @@ from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
 from app.core.tracing import trace_agent
 from app.models import Course
+from app.schemas.course_draft_schema import CourseDraftSchema
 from app.schemas.course_schema import (
     CourseCompositionRequestSchema,
 )
 from app.schemas.topic_schema import TopicBase
-
-
-class CourseAgentResponse(BaseModel):
-    duration: int = Field(..., description="Thời gian cần để hoàn thành khóa học")
-    description: str = Field(..., description="Mô tả chi tiết về khóa học")
-    topics: list[TopicBase] = Field(
-        ...,
-        description="Danh sách các chủ đề trong khóa học, mỗi chủ đề bao gồm tên, mô tả và kiến thức tiên quyết",
-    )
 
 
 SYSTEM_PROMPT = """
@@ -68,7 +60,7 @@ Lưu ý:
 
 SYSTEM_PROMPT = SYSTEM_PROMPT.format(
     instruction=PydanticOutputParser(
-        pydantic_object=CourseAgentResponse
+        pydantic_object=CourseDraftSchema
     ).get_format_instructions()
 )
 
@@ -83,8 +75,8 @@ class CourseCompositionAgent(BaseAgent):
         self.current_course_id = None
         self.db_session = db_session
         self.vector_store = get_vector_store("document")
-        self.mongodb_db_name = "course_composition_history"
-        self.mongodb_collection_name = "chat_history"
+        self.mongodb_db_name = "chat_history"
+        self.mongodb_collection_name = "course_composition"
         self._setup_tools()
         self._init_agent()
 
@@ -98,7 +90,7 @@ class CourseCompositionAgent(BaseAgent):
             description="Truy vấn RAG để lấy nội dung liên quan đến khóa học.",
         )
 
-        self.output_parser = PydanticOutputParser(pydantic_object=CourseAgentResponse)
+        self.output_parser = PydanticOutputParser(pydantic_object=CourseDraftSchema)
         self.tools = [self.retrieval_tool]
 
     def _init_agent(self):
@@ -135,7 +127,7 @@ class CourseCompositionAgent(BaseAgent):
     @trace_agent(project_name="default", tags=["course", "composition"])
     async def act(
         self, request: CourseCompositionRequestSchema
-    ) -> tuple[CourseAgentResponse, str]:
+    ) -> tuple[CourseDraftSchema, str]:
         from langchain_core.runnables import RunnableConfig
         from app.core.config import settings
         from langchain_mongodb import MongoDBChatMessageHistory

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 from enum import Enum
 from typing import List
 
@@ -15,6 +16,13 @@ class TestGenerationStatus(str, Enum):
     SUCCESS = "success"
     FAILED = "failed"
     NOT_STARTED = "not_started"
+
+
+class CourseStatus(str, Enum):
+    DRAFT = "draft"
+    APPROVED = "approved"
+    COMPOSITING = "compositing"
+    PUBLISHED = "published"
 
 
 class Course(Base):
@@ -49,6 +57,7 @@ class Course(Base):
     duration: Mapped[int] = mapped_column(Integer, default=0)
     price: Mapped[float] = mapped_column(Float, default=0.0)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(255), nullable=True, default=CourseStatus.COMPOSITING)
 
     test_generation_status: Mapped[str] = mapped_column(
         String(20), default=TestGenerationStatus.NOT_STARTED
