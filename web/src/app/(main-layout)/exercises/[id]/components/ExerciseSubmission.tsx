@@ -10,6 +10,7 @@ import { ExerciseDetail, TestResult } from "./types";
 import AIChat from "./AIChat";
 import MonacoEditor from "@/components/ui/MonacoEditor";
 import { exercisesApi } from "@/lib/api";
+import { wrapUserCode } from "@/lib/utils/codeWrapper";
 import { sendAIChatRequest } from "@/lib/api/aiChat";
 
 /**
@@ -34,44 +35,23 @@ export default function ExerciseSubmission({
   const initialCode = [
     {
       language: "javascript",
-      code: `function yourFunction(arr) {
-  if (arr.length <= 1) return arr;
-
-  const pivot = arr[arr.length - 1]; // Choose the last element as pivot
-  const left = [];
-  const right = [];
-
-  for (let i = 0; i < arr.length - 1; i++) {
-    if (arr[i] < pivot) {
-      left.push(arr[i]);
-    } else {
-      right.push(arr[i]);
-    }
-  }
-
-  return [...yourFunction(left), pivot, ...yourFunction(right)];
-}
-
-const input = require('fs').readFileSync(0, 'utf-8').trim();
-const arr = JSON.parse(input);
-
-console.log(JSON.stringify(yourFunction(arr)));`,
+      code: `function yourFunction(input) {
+  // Write your code here. The system will automatically pass params from test cases.
+  return input;
+}`,
     },
     {
       language: "python",
-      code: `def your_function():
-    # Write your code here
-    pass
-
-your_function()`,
+      code: `def your_function(input):
+    # Write your code here. The system will automatically pass params from test cases.
+    return input`,
     },
     {
       language: "typescript",
-      code: `function yourFunction(): void {
-  // Write your code here
-  return;
-}
-yourFunction();`,
+      code: `function yourFunction(input: unknown) {
+  // Write your code here. The system will automatically pass params from test cases.
+  return input as unknown;
+}`,
     },
     {
       language: "c",
@@ -162,8 +142,9 @@ yourFunction()`,
     setIsLoading(true);
     try {
       // Call backend API for Judge0 submission
+      const wrapped = wrapUserCode(code, language);
       const response = await exercisesApi.sendCodeToJudge(Number(exercise.id), {
-        code,
+        code: wrapped,
         language,
       });
       // Ensure error is always a string

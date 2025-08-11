@@ -1,5 +1,4 @@
 import asyncio
-import os
 
 import requests
 from app.core.agents.exercise_agent import ExerciseDetail as ExerciseSchema
@@ -8,6 +7,7 @@ from app.core.agents.exercise_agent import (
     get_exercise_agent,
 )
 from app.database.database import get_async_db
+from app.core.config import settings
 from app.models import Exercise
 from app.models.exercise_model import Exercise as ExerciseModel
 from app.models.lesson_model import Lesson
@@ -24,7 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-JUDGE0_API_URL = os.getenv("JUDGE0_API_URL")
+JUDGE0_API_URL = (settings.JUDGE0_API_URL or "").rstrip("/")
 
 
 def get_language_id(language: str) -> int:
@@ -83,13 +83,25 @@ class ExerciseService:
         Returns:
             ExerciseModel: Thông tin bài tập
         """
-        exercise = await self.db.get(ExerciseModel, exercise_id)
+        exercise = await self.db.execute(
+            select(ExerciseModel)
+            .where(ExerciseModel.id == exercise_id)
+            .options(selectinload(ExerciseModel.test_cases))
+        )
+        exercise = exercise.scalars().first()
         if not exercise:
             raise HTTPException(
                 status_code=404,
                 detail=f"Không tìm thấy bài tập với ID {exercise_id}",
             )
         return exercise
+
+    async def list_exercises(self, page: int = 1, limit: int = 12) -> list[ExerciseModel]:
+        offset = max(0, (page - 1) * limit)
+        result = await self.db.execute(
+            select(ExerciseModel).order_by(ExerciseModel.created_at.desc()).offset(offset).limit(limit)
+        )
+        return list(result.scalars().all())
 
     async def create_exercise(
         self, create_data: CreateExerciseSchema

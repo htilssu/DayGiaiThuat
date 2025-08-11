@@ -42,7 +42,10 @@ class Exercise(Base):
     lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="exercises")
     # Quan hệ tới test cases dạng quan hệ thay vì JSON `case`
     test_cases: Mapped[list["ExerciseTestCase"]] = relationship(
-        "ExerciseTestCase", back_populates="exercise", cascade="all, delete-orphan"
+        "ExerciseTestCase",
+        back_populates="exercise",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
     class Config:

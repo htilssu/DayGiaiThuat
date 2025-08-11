@@ -35,10 +35,10 @@ export interface CreateExerciseRequest {
 
 export interface Exercise {
   id: number;
-  lessonId: number;
-  sessionId: string;
+  name: string;
+  description: string;
   difficulty: string;
-  topicId: number;
+  constraint?: string | null;
 }
 
 /**
@@ -72,6 +72,113 @@ export interface Judge0SubmissionResponse {
  */
 async function getExerciseById(id: number) {
   return get<Exercise>(`/exercise/${id}`);
+}
+
+async function listExercises(page = 1, limit = 12) {
+  return get<Exercise[]>(`/exercise?page=${page}&limit=${limit}`);
+}
+
+/**
+ * Lấy danh sách test case của một bài tập
+ */
+async function getExerciseTestCases(exerciseId: number) {
+  return get<
+    Array<{
+      id: number;
+      exercise_id: number;
+      input_data: string;
+      output_data: string;
+      explain?: string | null;
+    }>
+  >(`/exercise/${exerciseId}/test-cases`);
+}
+
+/**
+ * Lấy chi tiết bài tập kèm test cases và map sang cấu trúc UI
+ */
+type BackendExercise = {
+  id: number;
+  name: string;
+  description: string;
+  difficulty: string;
+  constraint?: string | null;
+};
+
+type BackendTestCase = {
+  id: number;
+  exercise_id: number;
+  input_data: string;
+  output_data: string;
+  explain?: string | null;
+};
+
+type UiExerciseDetail = {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: "Dễ" | "Trung bình" | "Khó";
+  estimatedTime: string;
+  completionRate: number;
+  completed: boolean;
+  content: string;
+  codeTemplate: string;
+  testCases: Array<{ input: string; expectedOutput: string }>;
+};
+
+async function getExerciseDetailForUi(
+  exerciseId: number
+): Promise<UiExerciseDetail> {
+  const [exercise, testCases] = await Promise.all([
+    getExerciseById(exerciseId) as unknown as Promise<BackendExercise>,
+    getExerciseTestCases(exerciseId) as Promise<BackendTestCase[]>,
+  ]);
+
+  const difficultyMap: Record<string, "Dễ" | "Trung bình" | "Khó"> = {
+    easy: "Dễ",
+    medium: "Trung bình",
+    hard: "Khó",
+    beginner: "Dễ",
+    intermediate: "Trung bình",
+    advanced: "Khó",
+  };
+
+  const difficultyRaw = exercise.difficulty || "medium";
+  const difficultyKey = String(difficultyRaw).toLowerCase();
+  const difficulty = difficultyMap[difficultyKey] || "Trung bình";
+
+  const testCasesUi = (testCases || []).map((tc) => ({
+    input: tc.input_data,
+    expectedOutput: tc.output_data,
+  }));
+
+  const codeTemplate = `function yourFunction(input) {
+  // TODO: implement
+  return input;
+}`;
+
+  return {
+    id: exercise.id,
+    title: exercise.name,
+    description: exercise.description,
+    category: "Thuật toán",
+    difficulty,
+    estimatedTime:
+      difficulty === "Dễ"
+        ? "15 phút"
+        : difficulty === "Trung bình"
+        ? "30 phút"
+        : "45 phút",
+    completionRate: 0,
+    completed: false,
+    content:
+      (exercise.description || "") +
+      ((exercise.constraint &&
+        `\n\nRàng buộc: ${String(exercise.constraint)}`) ||
+        ""),
+    codeTemplate,
+    testCases: testCasesUi,
+  };
 }
 
 /**
@@ -136,6 +243,9 @@ async function sendCodeToJudge(
 
 export const exercisesApi = {
   getExerciseById,
+  listExercises,
+  getExerciseTestCases,
+  getExerciseDetailForUi,
   createExercise,
   updateExercise,
   deleteExercise,

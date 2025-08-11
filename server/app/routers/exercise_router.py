@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 
 from app.schemas.exercise_schema import CreateExerciseSchema, CodeSubmissionRequest, CodeSubmissionResponse
 from app.services.exercise_service import ExerciseService, get_exercise_service
@@ -32,6 +32,18 @@ async def create_exercise(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi khi tạo bài tập: {str(e)}")
+
+
+@router.get(
+    "",
+    summary="Lấy danh sách bài tập",
+)
+async def list_exercises(
+    page: int = Query(1, gt=0, description="Số trang"),
+    limit: int = Query(12, gt=1, le=100, description="Số item mỗi trang"),
+    exercise_service: ExerciseService = Depends(get_exercise_service),
+):
+    return await exercise_service.list_exercises(page=page, limit=limit)
 
 
 @router.get(
