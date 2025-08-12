@@ -208,7 +208,7 @@ def create_exercise_test_cases(exercises: List[Exercise]) -> int:
 
     try:
         for ex in exercises:
-            name = ex.name.lower()
+            name = ex.title.lower()
             test_cases: List[dict] = []
 
             if "tìm kiếm nhị phân" in name or "binary" in name:
@@ -720,14 +720,14 @@ def seed_all():
         logger.error("Không thể tạo topics, dừng quá trình seed")
         return
 
-    badges = create_badges()
-    courses = create_courses()
+    # badges = create_badges()
+    # courses = create_courses()
 
     # Tạo dữ liệu liên quan
     exercises = create_exercises(topics)
     create_exercise_test_cases(exercises)
-    create_tests(topics)
-    create_users(badges, courses)
+    # create_tests(topics)
+    # create_users(badges, courses)
 
     logger.info("Hoàn thành tạo dữ liệu mẫu!")
 

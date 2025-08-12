@@ -86,7 +86,7 @@ export default function ExercisesPage() {
       setLoading(true);
       try {
         const list = await exercisesApi.listExercises(1, 50);
-        const mapped = list.map((ex) => {
+        const mapped = list.map((ex: any) => {
           const diffMap: Record<
             string,
             "Beginner" | "Intermediate" | "Advanced"
@@ -96,22 +96,17 @@ export default function ExercisesPage() {
             hard: "Advanced",
           };
           const d =
-            diffMap[(ex.difficulty || "medium").toLowerCase()] ||
+            diffMap[String(ex?.difficulty || "medium").toLowerCase()] ||
             "Intermediate";
           return {
             id: ex.id,
-            title: ex.name,
-            description: ex.description,
-            category: "Thuật toán",
+            title: ex?.title || ex?.name || "",
+            description: ex?.description || "",
+            category: ex?.category || "Thuật toán",
             difficulty: d,
-            estimatedTime:
-              d === "Beginner"
-                ? "15 phút"
-                : d === "Intermediate"
-                ? "30 phút"
-                : "45 phút",
-            completionRate: 0,
-            completed: false,
+            estimatedTime: ex?.estimatedTime || "",
+            completionRate: ex?.completionRate || 0,
+            completed: ex?.completed || false,
           };
         });
         setItems(mapped);
@@ -126,9 +121,11 @@ export default function ExercisesPage() {
   const filteredExercises = useMemo(() => {
     const base = items;
     return base.filter((exercise) => {
+      const titleLc = String(exercise.title || "").toLowerCase();
+      const descLc = String(exercise.description || "").toLowerCase();
+      const searchLc = searchTerm.toLowerCase();
       const matchesSearch =
-        exercise.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        exercise.description.toLowerCase().includes(searchTerm.toLowerCase());
+        titleLc.includes(searchLc) || descLc.includes(searchLc);
       const matchesCategory =
         categoryFilter === "Tất cả" || exercise.category === categoryFilter;
       const matchesDifficulty =

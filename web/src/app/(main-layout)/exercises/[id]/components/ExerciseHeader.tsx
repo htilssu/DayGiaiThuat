@@ -13,13 +13,13 @@ import { ExerciseDetail } from "./types";
 const DifficultyBadge = ({ difficulty }: { difficulty: string }) => {
   let colorClass = "";
 
-  if (difficulty === "Dễ") {
+  if (difficulty === "Beginner") {
     colorClass =
       "bg-green-200 text-green-900 dark:bg-green-900/30 dark:text-green-300";
-  } else if (difficulty === "Trung bình") {
+  } else if (difficulty === "Intermediate") {
     colorClass =
       "bg-yellow-200 text-yellow-900 dark:bg-yellow-900/30 dark:text-yellow-300";
-  } else if (difficulty === "Khó") {
+  } else if (difficulty === "Advanced") {
     colorClass = "bg-red-200 text-red-900 dark:bg-red-900/30 dark:text-red-300";
   }
 
@@ -137,7 +137,7 @@ export default function ExerciseHeader({
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                 />
               </svg>
-              {exercise.completionRate}% học viên
+              {exercise.completionRate}%
             </div>
           </div>
         </div>
