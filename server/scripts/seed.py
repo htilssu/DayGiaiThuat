@@ -16,6 +16,7 @@ from passlib.context import CryptContext
 from app.models.badge_model import Badge
 from app.models.course_model import Course
 from app.models.exercise_model import Exercise
+from app.models.exercise_test_case_model import ExerciseTestCase
 from app.models.topic_model import Topic
 from app.models.test_model import Test
 from app.models.user_model import User
@@ -93,54 +94,235 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
     """
     logger.info("Tạo dữ liệu mẫu cho Exercises...")
 
+    # Seed exercises based on web/src/data/mockExercises.ts
     exercises_data = [
         {
-            "name": "Cài đặt Stack và Queue",
-            "description": "Cài đặt cấu trúc dữ liệu Stack và Queue sử dụng mảng và danh sách liên kết",
-            "category": "Implementation",
-            "difficulty": "Easy",
-            "constraint": "Thời gian thực thi O(1) cho các thao tác cơ bản",
-            "topic_id": 1,
+            "title": "Tìm kiếm nhị phân",
+            "description": "Cài đặt thuật toán tìm kiếm nhị phân và phân tích độ phức tạp",
+            "difficulty": "Beginner",
+            "category": "Tìm kiếm",
+            "estimated_time": "30 phút",
+            "completion_rate": 78,
+            "completed": True,
+            "content": '''# Tìm kiếm nhị phân
+
+Tìm kiếm nhị phân là một thuật toán tìm kiếm hiệu quả cho mảng đã sắp xếp. Thuật toán này thực hiện theo nguyên tắc chia để trị, liên tục thu hẹp phạm vi tìm kiếm một nửa sau mỗi lần so sánh.
+
+## Yêu cầu
+
+Viết hàm tìm kiếm nhị phân thực hiện tìm kiếm một giá trị trong mảng đã sắp xếp. Hàm sẽ trả về vị trí của giá trị nếu tìm thấy, hoặc -1 nếu không tìm thấy.
+
+### Đặc tả hàm
+
+```python
+def binary_search(arr: list[int], target: int) -> int:
+    """
+    Tìm kiếm nhị phân trên mảng đã sắp xếp
+    
+    Args:
+        arr: Mảng các số nguyên đã sắp xếp tăng dần
+        target: Giá trị cần tìm kiếm
+        
+    Returns:
+        Vị trí của target trong mảng nếu tìm thấy, -1 nếu không tìm thấy
+    """
+    # Triển khai thuật toán tại đây
+    pass
+```
+
+## Ví dụ
+
+Đầu vào:
+- arr = [1, 3, 5, 7, 9, 11, 13, 15]
+- target = 7
+
+Đầu ra:
+- 3 (vì 7 nằm ở vị trí thứ 3 trong mảng, chỉ số bắt đầu từ 0)
+
+## Phân tích
+
+Thuật toán tìm kiếm nhị phân có độ phức tạp thời gian O(log n) do loại bỏ một nửa phạm vi tìm kiếm sau mỗi lần so sánh. Điều này làm cho nó hiệu quả hơn nhiều so với tìm kiếm tuyến tính (O(n)) đối với các tập dữ liệu lớn.
+
+## Gợi ý
+
+1. Khởi tạo hai biến left và right là chỉ số trái và phải của mảng.
+2. Lặp lại cho đến khi left > right:
+   - Tính chỉ số giữa mid = (left + right) // 2
+   - Nếu arr[mid] == target, trả về mid
+   - Nếu arr[mid] < target, cập nhật left = mid + 1
+   - Nếu arr[mid] > target, cập nhật right = mid - 1
+3. Trả về -1 nếu không tìm thấy target trong mảng.
+''',
+            "code_template": '''def binary_search(arr, target):
+    """
+    Tìm kiếm nhị phân trên mảng đã sắp xếp
+    
+    Args:
+        arr: Mảng các số nguyên đã sắp xếp tăng dần
+        target: Giá trị cần tìm kiếm
+        
+    Returns:
+        Vị trí của target trong mảng nếu tìm thấy, -1 nếu không tìm thấy
+    """
+    # Triển khai thuật toán tại đây
+    pass
+    
+# Test case
+arr = [1, 3, 5, 7, 9, 11, 13, 15]
+target = 7
+print(binary_search(arr, target))  # Kết quả mong đợi: 3
+''',
         },
         {
-            "name": "Cài đặt Heap",
-            "description": "Cài đặt cấu trúc dữ liệu Heap và các thao tác cơ bản",
-            "category": "Implementation",
-            "difficulty": "Medium",
-            "constraint": "Thời gian thực thi O(log n) cho các thao tác cơ bản",
-            "topic_id": 1,
+            "title": "Sắp xếp nhanh (Quick Sort)",
+            "description": "Cài đặt thuật toán sắp xếp nhanh với phân hoạch Lomuto",
+            "difficulty": "Intermediate",
+            "category": "Sắp xếp",
+            "estimated_time": "45 phút",
+            "completion_rate": 65,
+            "completed": False,
+            "content": '''# Sắp xếp nhanh (Quick Sort)
+
+Quick Sort là một thuật toán sắp xếp hiệu quả dựa trên nguyên tắc chia để trị. Thuật toán chọn một phần tử làm \"khóa\" (pivot), phân hoạch mảng thành hai phần: những phần tử nhỏ hơn pivot và những phần tử lớn hơn pivot, sau đó đệ quy sắp xếp hai phần này.
+
+## Yêu cầu
+
+Viết hàm quick_sort thực hiện thuật toán sắp xếp nhanh với phân hoạch Lomuto. Hàm sẽ nhận vào một mảng các số nguyên và trả về mảng đã được sắp xếp tăng dần.
+
+### Đặc tả hàm
+
+```python
+def quick_sort(arr: list[int]) -> list[int]:
+    """
+    Sắp xếp mảng sử dụng thuật toán Quick Sort
+    
+    Args:
+        arr: Mảng các số nguyên cần sắp xếp
+        
+    Returns:
+        Mảng đã được sắp xếp
+    """
+    # Triển khai thuật toán tại đây
+    pass
+```
+
+## Ví dụ
+
+Đầu vào:
+- arr = [9, 7, 5, 11, 12, 2, 14, 3, 10, 6]
+
+Đầu ra:
+- [2, 3, 5, 6, 7, 9, 10, 11, 12, 14]
+
+## Phân tích
+
+Thuật toán Quick Sort có độ phức tạp thời gian trung bình là O(n log n), nhưng trong trường hợp xấu nhất có thể lên tới O(n²). Tuy nhiên, với cách chọn pivot hợp lý, trường hợp xấu nhất hiếm khi xảy ra trong thực tế.
+
+## Gợi ý
+
+1. Viết hàm phân hoạch Lomuto:
+   - Chọn pivot là phần tử cuối cùng của mảng
+   - Đặt chỉ số i để theo dõi vị trí phân hoạch
+   - Duyệt qua mảng, di chuyển tất cả phần tử nhỏ hơn pivot về bên trái
+   - Hoán đổi pivot vào vị trí cuối cùng của nhóm phần tử nhỏ hơn pivot
+   - Trả về vị trí của pivot sau khi hoán đổi
+
+2. Viết hàm quick_sort đệ quy:
+   - Nếu mảng có ít hơn 2 phần tử, trả về mảng (điều kiện dừng)
+   - Sử dụng hàm phân hoạch để nhận vị trí pivot
+   - Gọi đệ quy quick_sort cho phần bên trái và bên phải của pivot
+   - Kết hợp các phần đã sắp xếp lại với nhau
+''',
+            "code_template": '''def quick_sort(arr):
+    """
+    Sắp xếp mảng sử dụng thuật toán Quick Sort
+    
+    Args:
+        arr: Mảng các số nguyên cần sắp xếp
+        
+    Returns:
+        Mảng đã được sắp xếp
+    """
+    # Triển khai thuật toán tại đây
+    pass
+    
+# Test case
+arr = [9, 7, 5, 11, 12, 2, 14, 3, 10, 6]
+print(quick_sort(arr))  # Kết quả mong đợi: [2, 3, 5, 6, 7, 9, 10, 11, 12, 14]
+''',
         },
         {
-            "name": "Quicksort",
-            "description": "Cài đặt thuật toán Quicksort và phân tích độ phức tạp",
-            "category": "Algorithm",
-            "difficulty": "Medium",
-            "constraint": "Thời gian thực thi trung bình O(n log n)",
-            "topic_id": 2,
+            "title": "Cây nhị phân tìm kiếm",
+            "description": "Cài đặt cấu trúc dữ liệu cây nhị phân tìm kiếm với các thao tác cơ bản",
+            "difficulty": "Intermediate",
+            "category": "Cấu trúc dữ liệu",
+            "estimated_time": "60 phút",
+            "completion_rate": 52,
+            "completed": False,
+            "content": '''# Cây nhị phân tìm kiếm
+
+Viết các hàm cơ bản cho cây nhị phân tìm kiếm (BST): thêm, tìm kiếm, xóa.
+''',
+            "code_template": '''class Node:
+    def __init__(self, key):
+        self.left = None
+        self.right = None
+        self.val = key
+
+# Viết các hàm insert, search, delete tại đây
+''',
         },
         {
-            "name": "Binary Search",
-            "description": "Cài đặt thuật toán Binary Search và các biến thể",
-            "category": "Algorithm",
-            "difficulty": "Easy",
-            "constraint": "Thời gian thực thi O(log n)",
-            "topic_id": 3,
+            "title": "Thuật toán Dijkstra",
+            "description": "Tìm đường đi ngắn nhất trên đồ thị có trọng số không âm",
+            "difficulty": "Advanced",
+            "category": "Đồ thị",
+            "estimated_time": "90 phút",
+            "completion_rate": 42,
+            "completed": False,
+            "content": '''# Thuật toán Dijkstra
+
+Cài đặt thuật toán Dijkstra để tìm đường đi ngắn nhất từ một đỉnh đến các đỉnh còn lại trong đồ thị có trọng số không âm.
+''',
+            "code_template": '''def dijkstra(graph, start):
+    # graph: dict, start: int
+    # Triển khai thuật toán tại đây
+    pass
+''',
         },
         {
-            "name": "Bài toán Knapsack",
-            "description": "Giải quyết bài toán Knapsack bằng phương pháp quy hoạch động",
-            "category": "Dynamic Programming",
-            "difficulty": "Hard",
-            "constraint": "Giới hạn bộ nhớ và tối ưu hóa không gian",
-            "topic_id": 4,
+            "title": "Quy hoạch động - Dãy con tăng dài nhất",
+            "description": "Giải quyết bài toán tìm dãy con tăng dài nhất bằng quy hoạch động",
+            "difficulty": "Advanced",
+            "category": "Quy hoạch động",
+            "estimated_time": "75 phút",
+            "completion_rate": 38,
+            "completed": False,
+            "content": '''# Dãy con tăng dài nhất
+
+Tìm độ dài dãy con tăng dài nhất trong một dãy số nguyên.
+''',
+            "code_template": '''def length_of_lis(nums):
+    # Triển khai thuật toán tại đây
+    pass
+''',
         },
         {
-            "name": "Thuật toán Dijkstra",
-            "description": "Cài đặt thuật toán Dijkstra tìm đường đi ngắn nhất trên đồ thị",
-            "category": "Graph",
-            "difficulty": "Medium",
-            "constraint": "Thời gian thực thi O((V+E)logV)",
-            "topic_id": 5,
+            "title": "Số Fibonacci",
+            "description": "Cài đặt các phương pháp tính số Fibonacci và so sánh hiệu suất",
+            "difficulty": "Beginner",
+            "category": "Đệ quy",
+            "estimated_time": "30 phút",
+            "completion_rate": 85,
+            "completed": True,
+            "content": '''# Số Fibonacci
+
+Viết hàm tính số Fibonacci thứ n bằng cả phương pháp đệ quy và quy hoạch động.
+''',
+            "code_template": '''def fibonacci(n):
+    # Triển khai thuật toán tại đây
+    pass
+''',
         },
     ]
 
@@ -167,6 +349,206 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
         db.close()
 
 
+def create_exercise_test_cases(exercises: List[Exercise]) -> int:
+    """
+    Tạo test cases mẫu cho mỗi bài tập (3 test cases/bài).
+
+    Args:
+        exercises (List[Exercise]): Danh sách bài tập đã tạo
+
+    Returns:
+        int: Tổng số test cases đã tạo
+    """
+    logger.info("Tạo dữ liệu mẫu cho Exercise Test Cases dựa trên nội dung bài tập...")
+
+    if not exercises:
+        logger.warning("Không có bài tập nào để tạo test cases")
+        return 0
+
+    db = SessionLocal()
+    created = 0
+
+    try:
+        for ex in exercises:
+            name = ex.title.lower()
+            test_cases: List[dict] = []
+
+            if "tìm kiếm nhị phân" in name or "binary" in name:
+                # 10 cases: arrays and targets -> index or -1. Input as JSON array of args: [[arr], target]
+                cases = [
+                    (([1, 3, 5, 7, 9, 11, 13, 15], 7), "3"),
+                    (([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 1), "0"),
+                    (([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 10), "9"),
+                    (([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 11), "-1"),
+                    (([0, 5, 10, 15, 20, 25, 30], 0), "0"),
+                    (([0, 5, 10, 15, 20, 25, 30], 25), "5"),
+                    (([0, 5, 10, 15, 20, 25, 30], -5), "-1"),
+                    (([2, 4, 6, 8, 10, 12], 6), "2"),
+                    (([2, 4, 6, 8, 10, 12], 5), "-1"),
+                    (([100, 200, 300, 400, 500], 500), "4"),
+                ]
+                for (args, out) in cases:
+                    test_cases.append({
+                        "input_data": json.dumps([list(args[0]), args[1]]),
+                        "output_data": out,
+                        "explain": "Binary search expected index"
+                    })
+
+            elif "sắp xếp nhanh" in name or "quick" in name:
+                arrays = [
+                    [9, 7, 5, 11, 12, 2, 14, 3, 10, 6],
+                    [5, 4, 3, 2, 1],
+                    [1, 1, 1, 1, 1],
+                    [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5],
+                    [],
+                    [0],
+                    [-1, -3, -2, 0, 2, 1],
+                    [10, -1, 2, -10, 5, 0],
+                    [100, 50, 100, 50, 25],
+                    [2, 2, 2, 1, 1, 3, 3, 0],
+                ]
+                for arr in arrays:
+                    sorted_arr = sorted(arr)
+                    test_cases.append({
+                        "input_data": json.dumps([arr]),  # [[...]] so it becomes fn(arr)
+                        # Remove spaces and ensure integers are not stringified beyond JSON defaults
+                        "output_data": json.dumps(sorted_arr, separators=(",", ":")),
+                        "explain": "Quick sort expected sorted array",
+                    })
+
+            elif "dãy con tăng dài nhất" in name or "lis" in name:
+                arrays = [
+                    [10, 9, 2, 5, 3, 7, 101, 18],
+                    [0, 1, 0, 3, 2, 3],
+                    [7, 7, 7, 7, 7, 7, 7],
+                    [1, 3, 6, 7, 9, 4, 10, 5, 6],
+                    [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                    [9, 8, 7, 6, 5, 4, 3, 2, 1],
+                    [3, 10, 2, 1, 20],
+                    [50, 3, 10, 7, 40, 80],
+                    [2],
+                    [],
+                ]
+                # Compute LIS length straightforwardly here for expected
+
+                def lis_len(nums: List[int]) -> int:
+                    if not nums:
+                        return 0
+                    dp = []
+                    import bisect
+                    for x in nums:
+                        i = bisect.bisect_left(dp, x)
+                        if i == len(dp):
+                            dp.append(x)
+                        else:
+                            dp[i] = x
+                    return len(dp)
+
+                for arr in arrays:
+                    test_cases.append({
+                        "input_data": json.dumps([arr]),
+                        # scalar output; keep as string
+                        "output_data": str(lis_len(arr)),
+                        "explain": "Length of LIS",
+                    })
+
+            elif "fibonacci" in name:
+                ns = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10]
+
+                def fib(n: int) -> int:
+                    a, b = 0, 1
+                    for _ in range(n):
+                        a, b = b, a + b
+                    return a
+                for n in ns:
+                    test_cases.append({
+                        "input_data": json.dumps([n]),
+                        "output_data": str(fib(n)),
+                        "explain": "Fibonacci number",
+                    })
+
+            elif "dijkstra" in name:
+                graphs = [
+                    ({"0": [[1, 2], [2, 4]], "1": [[2, 1]], "2": []}, 0, {"0": 0, "1": 2, "2": 3}),
+                    ({"0": [[1, 1]], "1": [[2, 2]], "2": [[0, 4]]}, 0, {"0": 0, "1": 1, "2": 3}),
+                    ({"0": [[1, 5], [2, 2]], "1": [[2, 1]], "2": [[1, 1]]}, 0, {"0": 0, "1": 3, "2": 2}),
+                    ({"0": [[1, 10]], "1": [], "2": []}, 0, {"0": 0, "1": 10, "2": None}),
+                    ({"0": [[1, 3], [3, 7]], "1": [[2, 4]], "2": [[3, 1]], "3": []}, 0, {"0": 0, "1": 3, "2": 7, "3": 8}),
+                ]
+                # Duplicate to reach 10 by reusing first five with slight variations on start
+                graphs = graphs + graphs
+                for g, start, dist in graphs[:10]:
+                    # Replace None distances with a large value or string if desired; keep None -> null
+                    test_cases.append({
+                        "input_data": json.dumps([g, start]),
+                        # Compact JSON without spaces for consistency with UI expected formatting
+                        "output_data": json.dumps(dist, separators=(",", ":")),
+                        "explain": "Shortest path distances from start",
+                    })
+
+            elif "cây nhị phân tìm kiếm" in name or "bst" in name:
+                scenarios = [
+                    (["insert", [5, 3, 7, 2, 4, 6, 8], "search", 4], "True"),
+                    (["insert", [5, 3, 7, 2, 4, 6, 8], "search", 10], "False"),
+                    (["insert", [10, 5, 15, 3, 7, 12, 18], "search", 12], "True"),
+                    (["insert", [10, 5, 15, 3, 7, 12, 18], "search", 11], "False"),
+                    (["insert", [2, 1, 3], "search", 1], "True"),
+                    (["insert", [2, 1, 3], "search", 4], "False"),
+                    (["insert", [8, 3, 10, 1, 6, 14, 4, 7, 13], "search", 7], "True"),
+                    (["insert", [8, 3, 10, 1, 6, 14, 4, 7, 13], "search", 2], "False"),
+                    (["insert", [1], "search", 1], "True"),
+                    (["insert", [], "search", 1], "False"),
+                ]
+                for args, out in scenarios:
+                    test_cases.append({
+                        "input_data": json.dumps(args),
+                        "output_data": out,
+                        "explain": "BST operations result",
+                    })
+
+            else:
+                # Fallback: simple arithmetic placeholder to reach 10 cases
+                for a, b in [
+                    (1, 2),
+                    (2, 3),
+                    (3, 5),
+                    (5, 8),
+                    (8, 13),
+                    (13, 21),
+                    (21, 34),
+                    (34, 55),
+                    (55, 89),
+                    (89, 144),
+                ]:
+                    test_cases.append({
+                        "input_data": json.dumps([a, b]),
+                        "output_data": str(a + b),
+                        "explain": "Placeholder test case",
+                    })
+
+            # Persist up to 10 test cases per exercise
+            for tc in test_cases[:10]:
+                db.add(
+                    ExerciseTestCase(
+                        exercise_id=ex.id,
+                        input_data=tc["input_data"],
+                        output_data=tc["output_data"],
+                        explain=tc.get("explain"),
+                    )
+                )
+                created += 1
+
+        db.commit()
+        logger.info(f"Đã tạo {created} exercise test cases")
+        return created
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Lỗi khi tạo exercise test cases: {str(e)}")
+        return 0
+    finally:
+        db.close()
+
+
 def create_tests(topics: List[Topic]) -> List[Test]:
     """
     Tạo dữ liệu mẫu cho bảng tests
@@ -180,11 +562,11 @@ def create_tests(topics: List[Topic]) -> List[Test]:
     logger.info("Tạo dữ liệu mẫu cho Tests...")
 
     tests_data = [
-        {"name": "Kiểm tra kiến thức cấu trúc dữ liệu", "topic_id": 1},
-        {"name": "Kiểm tra thuật toán sắp xếp", "topic_id": 2},
-        {"name": "Kiểm tra thuật toán tìm kiếm", "topic_id": 3},
-        {"name": "Kiểm tra quy hoạch động", "topic_id": 4},
-        {"name": "Kiểm tra thuật toán đồ thị", "topic_id": 5},
+        {"topic_id": 1, "duration_minutes": 60},
+        {"topic_id": 2, "duration_minutes": 60},
+        {"topic_id": 3, "duration_minutes": 60},
+        {"topic_id": 4, "duration_minutes": 60},
+        {"topic_id": 5, "duration_minutes": 60},
     ]
 
     db = SessionLocal()
@@ -328,36 +710,7 @@ def create_courses() -> List[Course]:
                     "Giải quyết các bài toán cơ bản",
                 ]
             ),
-            "learning_path": json.dumps(
-                {
-                    "units": [
-                        {
-                            "id": 1,
-                            "title": "Giới thiệu",
-                            "lessons": [
-                                {"id": 1, "title": "Tổng quan về DSA", "duration": 15},
-                                {
-                                    "id": 2,
-                                    "title": "Phân tích độ phức tạp",
-                                    "duration": 20,
-                                },
-                            ],
-                        },
-                        {
-                            "id": 2,
-                            "title": "Cấu trúc dữ liệu cơ bản",
-                            "lessons": [
-                                {
-                                    "id": 3,
-                                    "title": "Array và Linked List",
-                                    "duration": 30,
-                                },
-                                {"id": 4, "title": "Stack và Queue", "duration": 25},
-                            ],
-                        },
-                    ]
-                }
-            ),
+            # Course model stores serialized fields as strings; omit extra JSON fields not in model
         },
         {
             "title": "Thuật toán nâng cao",
@@ -383,44 +736,7 @@ def create_courses() -> List[Course]:
                     "Kỹ thuật tối ưu hóa thuật toán",
                 ]
             ),
-            "learning_path": json.dumps(
-                {
-                    "units": [
-                        {
-                            "id": 1,
-                            "title": "Quy hoạch động nâng cao",
-                            "lessons": [
-                                {
-                                    "id": 1,
-                                    "title": "Bài toán dãy con tăng dài nhất",
-                                    "duration": 40,
-                                },
-                                {
-                                    "id": 2,
-                                    "title": "Bài toán cắt thanh",
-                                    "duration": 35,
-                                },
-                            ],
-                        },
-                        {
-                            "id": 2,
-                            "title": "Thuật toán đồ thị",
-                            "lessons": [
-                                {
-                                    "id": 3,
-                                    "title": "Thuật toán Dijkstra",
-                                    "duration": 45,
-                                },
-                                {
-                                    "id": 4,
-                                    "title": "Thuật toán Bellman-Ford",
-                                    "duration": 50,
-                                },
-                            ],
-                        },
-                    ]
-                }
-            ),
+            # omit learning_path (not a column)
         },
         {
             "title": "Chuẩn bị phỏng vấn kỹ thuật",
@@ -445,44 +761,7 @@ def create_courses() -> List[Course]:
                     "Chiến lược phỏng vấn hiệu quả",
                 ]
             ),
-            "learning_path": json.dumps(
-                {
-                    "units": [
-                        {
-                            "id": 1,
-                            "title": "Chuẩn bị cơ bản",
-                            "lessons": [
-                                {
-                                    "id": 1,
-                                    "title": "Quy trình phỏng vấn",
-                                    "duration": 20,
-                                },
-                                {
-                                    "id": 2,
-                                    "title": "Phương pháp giải quyết vấn đề",
-                                    "duration": 30,
-                                },
-                            ],
-                        },
-                        {
-                            "id": 2,
-                            "title": "Bài tập phỏng vấn",
-                            "lessons": [
-                                {
-                                    "id": 3,
-                                    "title": "Bài tập về mảng và chuỗi",
-                                    "duration": 40,
-                                },
-                                {
-                                    "id": 4,
-                                    "title": "Bài tập về cây và đồ thị",
-                                    "duration": 45,
-                                },
-                            ],
-                        },
-                    ]
-                }
-            ),
+            # omit learning_path (not a column)
         },
     ]
 
@@ -575,9 +854,6 @@ def create_users(badges: List[Badge], courses: List[Course]) -> List[User]:
                 completed_exercises=random.randint(0, 20),
                 completed_courses=random.randint(0, 3),
                 problems_solved=random.randint(0, 50),
-                algorithms_progress=random.randint(0, 100),
-                data_structures_progress=random.randint(0, 100),
-                dynamic_programming_progress=random.randint(0, 100),
             )
             db.add(user_state)
 
@@ -609,13 +885,14 @@ def seed_all():
         logger.error("Không thể tạo topics, dừng quá trình seed")
         return
 
-    badges = create_badges()
-    courses = create_courses()
+    # badges = create_badges()
+    # courses = create_courses()
 
     # Tạo dữ liệu liên quan
-    create_exercises(topics)
-    create_tests(topics)
-    create_users(badges, courses)
+    exercises = create_exercises(topics)
+    create_exercise_test_cases(exercises)
+    # create_tests(topics)
+    # create_users(badges, courses)
 
     logger.info("Hoàn thành tạo dữ liệu mẫu!")
 

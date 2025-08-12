@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, ForeignKey, Integer, String
+from sqlalchemy import JSON, ForeignKey, Integer, String, Text, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
 from app.database.database import Base
@@ -6,23 +6,38 @@ from app.schemas.exercise_schema import ExerciseDetail
 
 if TYPE_CHECKING:
     from app.models.lesson_model import Lesson
+    from app.models.exercise_test_case_model import ExerciseTestCase
 
 
 class Exercise(Base):
     __tablename__ = "exercises"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String)
+    # New fields aligned with frontend `ExerciseItem`
+    title: Mapped[str] = mapped_column(String)
+    # Keep `name` for backward compatibility if any code still references it
+    name: Mapped[str | None] = mapped_column(String, nullable=True)
     description: Mapped[str] = mapped_column(String)
+    category: Mapped[str | None] = mapped_column(String, nullable=True)
     difficulty: Mapped[str] = mapped_column(String)
-    constraint: Mapped[str] = mapped_column(String, nullable=True)
+    estimated_time: Mapped[str | None] = mapped_column(String, nullable=True)
+    completion_rate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    completed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    code_template: Mapped[str | None] = mapped_column(Text, nullable=True)
     lesson_id: Mapped[int] = mapped_column(
         ForeignKey("lessons.id"), index=True, nullable=True
     )
     case: Mapped[str] = mapped_column(JSON, nullable=True)
-    suggest: Mapped[str] = mapped_column(String, nullable=True)
 
     lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="exercises")
+    # Quan hệ tới test cases dạng quan hệ thay vì JSON `case`
+    test_cases: Mapped[list["ExerciseTestCase"]] = relationship(
+        "ExerciseTestCase",
+        back_populates="exercise",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     class Config:
         from_attributes = True
@@ -31,13 +46,19 @@ class Exercise(Base):
     def exercise_from_schema(data: ExerciseDetail):
         exercise = Exercise()
 
-        # Các trường bắt buộc
-        exercise.name = data.name
+        # Các trường bắt buộc / ưu tiên title, fallback sang name nếu có
+        exercise.title = getattr(data, "title", None) or getattr(data, "name", None) or ""
+        # Ghi lại `name` để tương thích nếu nơi khác còn dùng
+        exercise.name = getattr(data, "name", None) or exercise.title
         exercise.description = data.description
         exercise.difficulty = data.difficulty
 
-        # Các trường có thể None
-        exercise.constraint = data.constraint or ""
-        exercise.suggest = data.suggest or ""
+        # Các trường mở rộng có thể None
+        exercise.category = getattr(data, "category", None)
+        exercise.estimated_time = getattr(data, "estimated_time", None)
+        exercise.completion_rate = getattr(data, "completion_rate", None)
+        exercise.completed = getattr(data, "completed", None)
+        exercise.content = getattr(data, "content", None)
+        exercise.code_template = getattr(data, "code_template", None)
 
         return exercise

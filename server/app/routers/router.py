@@ -12,6 +12,7 @@ def register_router(app: FastAPI):
         discussions_router,
         document_router,
         exercise_router,
+        exercise_test_case_router,
         lesson_plan_router,
         lesson_router,
         replies_router,

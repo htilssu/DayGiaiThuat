@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ExerciseDetail } from "./types";
+import { exercisesApi } from "@/lib/api";
 import ExerciseSubmission from "./ExerciseSubmission";
 import ExerciseHeader from "./ExerciseHeader";
 import ExerciseContent from "./ExerciseContent";
@@ -29,14 +30,17 @@ export default function ClientPage({ exercise }: { exercise: ExerciseDetail }) {
     setIsLoading(false);
   }, [exercise]);
 
-  const handleSubmit = () => {
-    // Giả lập gửi bài tập lên server
-    alert(
-      "Bài tập đã được nộp thành công! Trong thực tế, code sẽ được gửi lên server để chấm điểm."
-    );
-
-    // Cập nhật trạng thái đã hoàn thành
-    exercise.completed = true;
+  const handleSubmit = async () => {
+    try {
+      // Gửi cập nhật trạng thái hoàn thành lên server
+      await exercisesApi.updateExercise(exercise.id, { completed: true });
+      alert("Bài tập đã được nộp thành công!");
+      // Làm mới dữ liệu để phản ánh trạng thái mới từ server
+      router.refresh();
+    } catch (e) {
+      // Thông báo đơn giản khi thất bại
+      alert("Cập nhật trạng thái hoàn thành thất bại. Vui lòng thử lại.");
+    }
   };
 
   // Hiển thị trạng thái đang tải
@@ -55,7 +59,7 @@ export default function ClientPage({ exercise }: { exercise: ExerciseDetail }) {
     <div className="container mx-auto p-4 md:p-8 max-w-6xl">
       {/* Breadcrumb */}
       <div className="mb-6 text-sm text-foreground/60">
-        <Link href="/bai-tap" className="hover:text-primary">
+        <Link href="/exercises" className="hover:text-primary">
           Danh sách bài tập
         </Link>{" "}
         / <span className="text-foreground/90">{exercise.title}</span>
@@ -67,21 +71,21 @@ export default function ClientPage({ exercise }: { exercise: ExerciseDetail }) {
       {/* Tabs */}
       <div className="flex border-b border-foreground/10 mt-8 mb-6">
         <button
-          className={`px-4 py-2 font-medium text-sm ${currentTab === "description"
+          className={`px-4 py-2 font-medium text-sm ${
+            currentTab === "description"
               ? "text-primary border-b-2 border-primary"
               : "text-foreground/60 hover:text-foreground/90"
-            }`}
-          onClick={() => setCurrentTab("description")}
-        >
+          }`}
+          onClick={() => setCurrentTab("description")}>
           Mô tả bài tập
         </button>
         <button
-          className={`px-4 py-2 font-medium text-sm ${currentTab === "submission"
+          className={`px-4 py-2 font-medium text-sm ${
+            currentTab === "submission"
               ? "text-primary border-b-2 border-primary"
               : "text-foreground/60 hover:text-foreground/90"
-            }`}
-          onClick={() => setCurrentTab("submission")}
-        >
+          }`}
+          onClick={() => setCurrentTab("submission")}>
           Làm bài
         </button>
       </div>
@@ -91,10 +95,7 @@ export default function ClientPage({ exercise }: { exercise: ExerciseDetail }) {
         {currentTab === "description" ? (
           <ExerciseContent content={exercise.content} />
         ) : (
-          <ExerciseSubmission
-            exercise={exercise}
-            onSubmit={handleSubmit}
-          />
+          <ExerciseSubmission exercise={exercise} onSubmit={handleSubmit} />
         )}
       </div>
     </div>

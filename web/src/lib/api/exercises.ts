@@ -35,10 +35,16 @@ export interface CreateExerciseRequest {
 
 export interface Exercise {
   id: number;
-  lessonId: number;
-  sessionId: string;
+  title?: string;
+  name?: string;
+  description: string;
+  category?: string | null;
   difficulty: string;
-  topicId: number;
+  estimatedTime?: string | null;
+  completionRate?: number | null;
+  completed?: boolean | null;
+  content?: string | null;
+  codeTemplate?: string | null;
 }
 
 /**
@@ -72,6 +78,110 @@ export interface Judge0SubmissionResponse {
  */
 async function getExerciseById(id: number) {
   return get<Exercise>(`/exercise/${id}`);
+}
+
+async function listExercises(page = 1, limit = 12) {
+  return get<Exercise[]>(`/exercise?page=${page}&limit=${limit}`);
+}
+
+/**
+ * Lấy danh sách test case của một bài tập
+ */
+async function getExerciseTestCases(exerciseId: number) {
+  return get<
+    Array<{
+      id: number;
+      exercise_id: number;
+      input_data: string;
+      output_data: string;
+      explain?: string | null;
+    }>
+  >(`/exercise/${exerciseId}/test-cases`);
+}
+
+/**
+ * Lấy chi tiết bài tập kèm test cases và map sang cấu trúc UI
+ */
+type BackendExercise = {
+  id: number;
+  title?: string;
+  name?: string;
+  description: string;
+  category?: string | null;
+  difficulty: string;
+  estimatedTime?: string | null;
+  completionRate?: number | null;
+  completed?: boolean | null;
+  content?: string | null;
+  codeTemplate?: string | null;
+};
+
+type BackendTestCase = {
+  id: number;
+  exercise_id: number;
+  input_data: string;
+  output_data: string;
+  explain?: string | null;
+};
+
+type UiExerciseDetail = {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
+  estimatedTime: string;
+  completionRate: number;
+  completed: boolean;
+  content: string;
+  codeTemplate: string;
+  testCases: Array<{ input: string; expectedOutput: string }>;
+};
+
+async function getExerciseDetailForUi(
+  exerciseId: number
+): Promise<UiExerciseDetail> {
+  const [exercise, testCases] = await Promise.all([
+    getExerciseById(exerciseId) as unknown as Promise<BackendExercise>,
+    getExerciseTestCases(exerciseId) as Promise<BackendTestCase[]>,
+  ]);
+
+  const difficultyMap: Record<
+    string,
+    "Beginner" | "Intermediate" | "Advanced"
+  > = {
+    beginner: "Beginner",
+    intermediate: "Intermediate",
+    advanced: "Advanced",
+  };
+
+  const difficultyRaw = (exercise.difficulty as string) || "medium";
+  const difficultyKey = String(difficultyRaw).toLowerCase();
+  const difficulty = difficultyMap[difficultyKey] || "Intermediate";
+
+  const testCasesUi = (testCases || []).map((tc) => ({
+    input: tc.input_data,
+    expectedOutput: tc.output_data,
+  }));
+
+  const codeTemplate = `function yourFunction(input) {
+  // TODO: implement
+  return input;
+}`;
+
+  return {
+    id: exercise.id,
+    title: exercise.title || exercise.name || "",
+    description: exercise.description || "",
+    category: exercise.category || "Thuật toán",
+    difficulty,
+    estimatedTime: exercise.estimatedTime || "",
+    completionRate: exercise.completionRate || 0,
+    completed: exercise.completed || false,
+    content: exercise.content || exercise.description || "",
+    codeTemplate: exercise.codeTemplate || codeTemplate,
+    testCases: testCasesUi,
+  };
 }
 
 /**
@@ -136,6 +246,9 @@ async function sendCodeToJudge(
 
 export const exercisesApi = {
   getExerciseById,
+  listExercises,
+  getExerciseTestCases,
+  getExerciseDetailForUi,
   createExercise,
   updateExercise,
   deleteExercise,

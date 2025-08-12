@@ -1,6 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 
-from app.schemas.exercise_schema import CreateExerciseSchema, CodeSubmissionRequest, CodeSubmissionResponse
+from app.schemas.exercise_schema import (
+    CreateExerciseSchema,
+    CodeSubmissionRequest,
+    CodeSubmissionResponse,
+    ExerciseUpdate,
+)
 from app.services.exercise_service import ExerciseService, get_exercise_service
 
 router = APIRouter(prefix="/exercise", tags=["Bài tập"])
@@ -35,6 +40,18 @@ async def create_exercise(
 
 
 @router.get(
+    "",
+    summary="Lấy danh sách bài tập",
+)
+async def list_exercises(
+    page: int = Query(1, gt=0, description="Số trang"),
+    limit: int = Query(12, gt=1, le=100, description="Số item mỗi trang"),
+    exercise_service: ExerciseService = Depends(get_exercise_service),
+):
+    return await exercise_service.list_exercises(page=page, limit=limit)
+
+
+@router.get(
     "/{exercise_id}",
     summary="Lấy thông tin bài tập",
     description="Lấy thông tin chi tiết của bài tập theo ID",
@@ -59,6 +76,18 @@ async def get_exercise(
             status_code=404, detail=f"Không tìm thấy bài tập với ID {exercise_id}"
         )
     return exercise
+
+
+@router.put(
+    "/{exercise_id}",
+    summary="Cập nhật bài tập",
+)
+async def update_exercise(
+    exercise_id: int,
+    data: ExerciseUpdate,
+    exercise_service: ExerciseService = Depends(get_exercise_service),
+):
+    return await exercise_service.update_exercise(exercise_id, data)
 
 
 @router.post(
