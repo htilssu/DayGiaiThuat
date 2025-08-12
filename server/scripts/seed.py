@@ -104,8 +104,74 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
             "estimated_time": "30 phút",
             "completion_rate": 78,
             "completed": True,
-            "content": "# Tìm kiếm nhị phân...",
-            "code_template": "def binary_search(arr, target):\n    pass",
+            "content": '''# Tìm kiếm nhị phân
+
+Tìm kiếm nhị phân là một thuật toán tìm kiếm hiệu quả cho mảng đã sắp xếp. Thuật toán này thực hiện theo nguyên tắc chia để trị, liên tục thu hẹp phạm vi tìm kiếm một nửa sau mỗi lần so sánh.
+
+## Yêu cầu
+
+Viết hàm tìm kiếm nhị phân thực hiện tìm kiếm một giá trị trong mảng đã sắp xếp. Hàm sẽ trả về vị trí của giá trị nếu tìm thấy, hoặc -1 nếu không tìm thấy.
+
+### Đặc tả hàm
+
+```python
+def binary_search(arr: list[int], target: int) -> int:
+    """
+    Tìm kiếm nhị phân trên mảng đã sắp xếp
+    
+    Args:
+        arr: Mảng các số nguyên đã sắp xếp tăng dần
+        target: Giá trị cần tìm kiếm
+        
+    Returns:
+        Vị trí của target trong mảng nếu tìm thấy, -1 nếu không tìm thấy
+    """
+    # Triển khai thuật toán tại đây
+    pass
+```
+
+## Ví dụ
+
+Đầu vào:
+- arr = [1, 3, 5, 7, 9, 11, 13, 15]
+- target = 7
+
+Đầu ra:
+- 3 (vì 7 nằm ở vị trí thứ 3 trong mảng, chỉ số bắt đầu từ 0)
+
+## Phân tích
+
+Thuật toán tìm kiếm nhị phân có độ phức tạp thời gian O(log n) do loại bỏ một nửa phạm vi tìm kiếm sau mỗi lần so sánh. Điều này làm cho nó hiệu quả hơn nhiều so với tìm kiếm tuyến tính (O(n)) đối với các tập dữ liệu lớn.
+
+## Gợi ý
+
+1. Khởi tạo hai biến left và right là chỉ số trái và phải của mảng.
+2. Lặp lại cho đến khi left > right:
+   - Tính chỉ số giữa mid = (left + right) // 2
+   - Nếu arr[mid] == target, trả về mid
+   - Nếu arr[mid] < target, cập nhật left = mid + 1
+   - Nếu arr[mid] > target, cập nhật right = mid - 1
+3. Trả về -1 nếu không tìm thấy target trong mảng.
+''',
+            "code_template": '''def binary_search(arr, target):
+    """
+    Tìm kiếm nhị phân trên mảng đã sắp xếp
+    
+    Args:
+        arr: Mảng các số nguyên đã sắp xếp tăng dần
+        target: Giá trị cần tìm kiếm
+        
+    Returns:
+        Vị trí của target trong mảng nếu tìm thấy, -1 nếu không tìm thấy
+    """
+    # Triển khai thuật toán tại đây
+    pass
+    
+# Test case
+arr = [1, 3, 5, 7, 9, 11, 13, 15]
+target = 7
+print(binary_search(arr, target))  # Kết quả mong đợi: 3
+''',
         },
         {
             "title": "Sắp xếp nhanh (Quick Sort)",
@@ -115,8 +181,75 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
             "estimated_time": "45 phút",
             "completion_rate": 65,
             "completed": False,
-            "content": "# Sắp xếp nhanh...",
-            "code_template": "def quick_sort(arr):\n    pass",
+            "content": '''# Sắp xếp nhanh (Quick Sort)
+
+Quick Sort là một thuật toán sắp xếp hiệu quả dựa trên nguyên tắc chia để trị. Thuật toán chọn một phần tử làm \"khóa\" (pivot), phân hoạch mảng thành hai phần: những phần tử nhỏ hơn pivot và những phần tử lớn hơn pivot, sau đó đệ quy sắp xếp hai phần này.
+
+## Yêu cầu
+
+Viết hàm quick_sort thực hiện thuật toán sắp xếp nhanh với phân hoạch Lomuto. Hàm sẽ nhận vào một mảng các số nguyên và trả về mảng đã được sắp xếp tăng dần.
+
+### Đặc tả hàm
+
+```python
+def quick_sort(arr: list[int]) -> list[int]:
+    """
+    Sắp xếp mảng sử dụng thuật toán Quick Sort
+    
+    Args:
+        arr: Mảng các số nguyên cần sắp xếp
+        
+    Returns:
+        Mảng đã được sắp xếp
+    """
+    # Triển khai thuật toán tại đây
+    pass
+```
+
+## Ví dụ
+
+Đầu vào:
+- arr = [9, 7, 5, 11, 12, 2, 14, 3, 10, 6]
+
+Đầu ra:
+- [2, 3, 5, 6, 7, 9, 10, 11, 12, 14]
+
+## Phân tích
+
+Thuật toán Quick Sort có độ phức tạp thời gian trung bình là O(n log n), nhưng trong trường hợp xấu nhất có thể lên tới O(n²). Tuy nhiên, với cách chọn pivot hợp lý, trường hợp xấu nhất hiếm khi xảy ra trong thực tế.
+
+## Gợi ý
+
+1. Viết hàm phân hoạch Lomuto:
+   - Chọn pivot là phần tử cuối cùng của mảng
+   - Đặt chỉ số i để theo dõi vị trí phân hoạch
+   - Duyệt qua mảng, di chuyển tất cả phần tử nhỏ hơn pivot về bên trái
+   - Hoán đổi pivot vào vị trí cuối cùng của nhóm phần tử nhỏ hơn pivot
+   - Trả về vị trí của pivot sau khi hoán đổi
+
+2. Viết hàm quick_sort đệ quy:
+   - Nếu mảng có ít hơn 2 phần tử, trả về mảng (điều kiện dừng)
+   - Sử dụng hàm phân hoạch để nhận vị trí pivot
+   - Gọi đệ quy quick_sort cho phần bên trái và bên phải của pivot
+   - Kết hợp các phần đã sắp xếp lại với nhau
+''',
+            "code_template": '''def quick_sort(arr):
+    """
+    Sắp xếp mảng sử dụng thuật toán Quick Sort
+    
+    Args:
+        arr: Mảng các số nguyên cần sắp xếp
+        
+    Returns:
+        Mảng đã được sắp xếp
+    """
+    # Triển khai thuật toán tại đây
+    pass
+    
+# Test case
+arr = [9, 7, 5, 11, 12, 2, 14, 3, 10, 6]
+print(quick_sort(arr))  # Kết quả mong đợi: [2, 3, 5, 6, 7, 9, 10, 11, 12, 14]
+''',
         },
         {
             "title": "Cây nhị phân tìm kiếm",
@@ -126,8 +259,18 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
             "estimated_time": "60 phút",
             "completion_rate": 52,
             "completed": False,
-            "content": "# BST...",
-            "code_template": "class Node: ...",
+            "content": '''# Cây nhị phân tìm kiếm
+
+Viết các hàm cơ bản cho cây nhị phân tìm kiếm (BST): thêm, tìm kiếm, xóa.
+''',
+            "code_template": '''class Node:
+    def __init__(self, key):
+        self.left = None
+        self.right = None
+        self.val = key
+
+# Viết các hàm insert, search, delete tại đây
+''',
         },
         {
             "title": "Thuật toán Dijkstra",
@@ -137,8 +280,15 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
             "estimated_time": "90 phút",
             "completion_rate": 42,
             "completed": False,
-            "content": "# Dijkstra...",
-            "code_template": "def dijkstra(graph, start):\n    pass",
+            "content": '''# Thuật toán Dijkstra
+
+Cài đặt thuật toán Dijkstra để tìm đường đi ngắn nhất từ một đỉnh đến các đỉnh còn lại trong đồ thị có trọng số không âm.
+''',
+            "code_template": '''def dijkstra(graph, start):
+    # graph: dict, start: int
+    # Triển khai thuật toán tại đây
+    pass
+''',
         },
         {
             "title": "Quy hoạch động - Dãy con tăng dài nhất",
@@ -148,8 +298,14 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
             "estimated_time": "75 phút",
             "completion_rate": 38,
             "completed": False,
-            "content": "# LIS...",
-            "code_template": "def length_of_lis(nums):\n    pass",
+            "content": '''# Dãy con tăng dài nhất
+
+Tìm độ dài dãy con tăng dài nhất trong một dãy số nguyên.
+''',
+            "code_template": '''def length_of_lis(nums):
+    # Triển khai thuật toán tại đây
+    pass
+''',
         },
         {
             "title": "Số Fibonacci",
@@ -159,8 +315,14 @@ def create_exercises(topics: List[Topic]) -> List[Exercise]:
             "estimated_time": "30 phút",
             "completion_rate": 85,
             "completed": True,
-            "content": "# Fibonacci...",
-            "code_template": "def fibonacci(n):\n    pass",
+            "content": '''# Số Fibonacci
+
+Viết hàm tính số Fibonacci thứ n bằng cả phương pháp đệ quy và quy hoạch động.
+''',
+            "code_template": '''def fibonacci(n):
+    # Triển khai thuật toán tại đây
+    pass
+''',
         },
     ]
 
@@ -249,7 +411,8 @@ def create_exercise_test_cases(exercises: List[Exercise]) -> int:
                     sorted_arr = sorted(arr)
                     test_cases.append({
                         "input_data": json.dumps([arr]),  # [[...]] so it becomes fn(arr)
-                        "output_data": json.dumps(sorted_arr),
+                        # Remove spaces and ensure integers are not stringified beyond JSON defaults
+                        "output_data": json.dumps(sorted_arr, separators=(",", ":")),
                         "explain": "Quick sort expected sorted array",
                     })
 
@@ -284,6 +447,7 @@ def create_exercise_test_cases(exercises: List[Exercise]) -> int:
                 for arr in arrays:
                     test_cases.append({
                         "input_data": json.dumps([arr]),
+                        # scalar output; keep as string
                         "output_data": str(lis_len(arr)),
                         "explain": "Length of LIS",
                     })
@@ -317,7 +481,8 @@ def create_exercise_test_cases(exercises: List[Exercise]) -> int:
                     # Replace None distances with a large value or string if desired; keep None -> null
                     test_cases.append({
                         "input_data": json.dumps([g, start]),
-                        "output_data": json.dumps(dist),
+                        # Compact JSON without spaces for consistency with UI expected formatting
+                        "output_data": json.dumps(dist, separators=(",", ":")),
                         "explain": "Shortest path distances from start",
                     })
 
