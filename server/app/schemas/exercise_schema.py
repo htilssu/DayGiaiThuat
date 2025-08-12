@@ -13,18 +13,14 @@ class TestCase(BaseModel):
     Mô tả một trường hợp thử nghiệm cho bài toán giải thuật.
 
     Attributes:
-        input_data (str): Dữ liệu đầu vào cho trường hợp thử nghiệm. Alias là "input".
-        output_data (str): Kết quả đầu ra mong đợi. Alias là "output".
-        explain (str): Giải thích cho trường hợp thử nghiệm.
+        input (str): Dữ liệu đầu vào cho trường hợp thử nghiệm.
+        expected_output (str): Kết quả đầu ra mong đợi.
+        explain (Optional[str]): Giải thích cho trường hợp thử nghiệm.
     """
 
-    input_data: str = Field(
-        ..., alias="input", description="Dữ liệu đầu vào cho trường hợp thử nghiệm."
-    )
-    output_data: str = Field(
-        ..., alias="output", description="Kết quả đầu ra mong đợi."
-    )
-    explain: str = Field(..., description="Giải thích cho trường hợp thử nghiệm.")
+    input: str = Field(..., description="Dữ liệu đầu vào cho trường hợp thử nghiệm.")
+    expected_output: str = Field(..., description="Kết quả đầu ra mong đợi.")
+    explain: Optional[str] = Field(None, description="Giải thích cho trường hợp thử nghiệm.")
 
 
 class ExerciseDetail(BaseModel):
@@ -32,20 +28,27 @@ class ExerciseDetail(BaseModel):
     Mô tả chi tiết một bài tập giải thuật được tạo ra.
 
     Attributes:
-        name (str): Tên của bài toán.
+        title (str): Tiêu đề của bài toán.
         description (str): Mô tả chi tiết về bài toán.
-        constraints (Optional[str]): Các ràng buộc của bài toán (ví dụ: giới hạn đầu vào).
-        suggest (Optional[str]): Gợi ý để giải bài toán.
-        case (List[TestCase]): Danh sách các trường hợp thử nghiệm, yêu cầu tối thiểu 3 trường hợp.
+        category (Optional[str]): Danh mục bài toán.
+        difficulty (str): Độ khó của bài toán (Beginner/Intermediate/Advanced).
+        estimated_time (Optional[str]): Thời gian ước tính hoàn thành.
+        completion_rate (Optional[int]): Tỉ lệ hoàn thành (%).
+        completed (Optional[bool]): Đã hoàn thành hay chưa.
+        content (Optional[str]): Nội dung chi tiết (Markdown).
+        code_template (Optional[str]): Mẫu code khởi đầu.
+        case (List[TestCase]): Danh sách các trường hợp thử nghiệm (tối thiểu 3).
     """
 
-    name: str = Field(..., description="Tên của bài toán.")
+    title: str = Field(..., description="Tiêu đề của bài toán.")
     description: str = Field(..., description="Mô tả chi tiết về bài toán.")
+    category: Optional[str] = Field(None, description="Danh mục bài toán")
     difficulty: str = Field(..., description="Độ khó của bài toán. bằng tiếng anh")
-    constraint: Optional[str] = Field(
-        None, description="Các ràng buộc của bài toán (ví dụ: giới hạn đầu vào)."
-    )
-    suggest: Optional[str] = Field(None, description="Gợi ý để giải bài toán.")
+    estimated_time: Optional[str] = Field(None, description="Thời gian ước tính hoàn thành")
+    completion_rate: Optional[int] = Field(None, description="Tỉ lệ hoàn thành (%)")
+    completed: Optional[bool] = Field(None, description="Trạng thái hoàn thành")
+    content: Optional[str] = Field(None, description="Nội dung chi tiết (Markdown)")
+    code_template: Optional[str] = Field(None, description="Mẫu code khởi đầu")
     case: List[TestCase] = Field(
         min_length=3,
         description="Danh sách các trường hợp thử nghiệm, yêu cầu tối thiểu 3 trường hợp.",
@@ -68,22 +71,30 @@ class CreateExerciseSchema(BaseModel):
 class ExerciseResponse(BaseModel):
     """
     Schema cho response khi truy vấn thông tin bài tập
-    
+
     Attributes:
         id: ID của bài tập
-        name: Tên bài tập
+        title: Tiêu đề bài tập
         description: Mô tả chi tiết về bài tập
+        category: Danh mục bài tập
         difficulty: Độ khó của bài tập
-        constraint: Các ràng buộc hoặc yêu cầu của bài tập
-        suggest: Gợi ý để giải bài tập
+        estimated_time: Thời gian ước tính
+        completion_rate: Tỉ lệ hoàn thành
+        completed: Trạng thái hoàn thành
+        content: Nội dung chi tiết
+        code_template: Mẫu code
         lesson_id: ID của bài học liên quan
     """
     id: int = Field(..., description="ID của bài tập")
-    name: str = Field(..., description="Tên bài tập")
+    title: str = Field(..., description="Tiêu đề bài tập")
     description: str = Field(..., description="Mô tả chi tiết về bài tập")
+    category: Optional[str] = Field(None, description="Danh mục bài tập")
     difficulty: str = Field(..., description="Độ khó của bài tập")
-    constraint: Optional[str] = Field(None, description="Các ràng buộc hoặc yêu cầu của bài tập")
-    suggest: Optional[str] = Field(None, description="Gợi ý để giải bài tập")
+    estimated_time: Optional[str] = Field(None, description="Thời gian ước tính")
+    completion_rate: Optional[int] = Field(None, description="Tỉ lệ hoàn thành")
+    completed: Optional[bool] = Field(None, description="Trạng thái hoàn thành")
+    content: Optional[str] = Field(None, description="Nội dung chi tiết")
+    code_template: Optional[str] = Field(None, description="Mẫu code")
     lesson_id: int = Field(..., description="ID của bài học liên quan")
 
     class Config:

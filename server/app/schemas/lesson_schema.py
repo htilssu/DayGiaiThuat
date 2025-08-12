@@ -3,7 +3,7 @@ from typing import Optional, List, Dict, Any
 from app.models.user_course_progress_model import ProgressStatus
 from datetime import datetime
 
-from app.schemas.exercise_schema import ExerciseDetail
+from app.schemas.exercise_schema import ExerciseDetail  # noqa: F401 - used by other modules
 
 
 class LessonCompleteResponseSchema(BaseModel):
@@ -44,18 +44,26 @@ class ExerciseBase(BaseModel):
     Schema cơ bản cho bài tập
 
     Attributes:
-        name: Tên bài tập
+        title: Tiêu đề bài tập
         description: Mô tả chi tiết về bài tập
+        category: Danh mục bài tập
         difficulty: Độ khó của bài tập
-        constraint: Các ràng buộc hoặc yêu cầu của bài tập
-        suggest: Gợi ý để giải bài tập
+        estimated_time: Thời gian ước tính
+        completion_rate: Tỉ lệ hoàn thành
+        completed: Trạng thái hoàn thành
+        content: Nội dung chi tiết
+        code_template: Mẫu code
     """
 
-    name: str
+    title: str
     description: str
+    category: Optional[str] = None
     difficulty: str
-    constraint: Optional[str] = None
-    suggest: Optional[str] = None
+    estimated_time: Optional[str] = None
+    completion_rate: Optional[int] = None
+    completed: Optional[bool] = None
+    content: Optional[str] = None
+    code_template: Optional[str] = None
 
 
 class ExerciseResponse(ExerciseBase):
@@ -116,12 +124,14 @@ class CreateLessonSchema(LessonBase):
     topic_id: int
     sections: List[LessonSectionSchema]
 
+
 class AgentCreateLessonSchema(CreateLessonSchema):
     exercises: List[ExerciseBase]
 
 
 class UpdateLessonSchema(LessonBase):
     pass
+
 
 class LessonWithChildSchema(LessonResponseSchema):
     sections: List[LessonSectionSchema] = Field(
