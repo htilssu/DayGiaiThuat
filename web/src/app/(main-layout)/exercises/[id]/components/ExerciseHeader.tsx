@@ -47,8 +47,10 @@ export default function ExerciseHeader({
     <div className="mb-8">
       {/* Breadcrumb */}
       <div className="flex items-center text-sm mb-4 text-foreground/60">
-        <Link href="/bai-tap" className="hover:text-primary transition-colors">
-          Bài tập
+        <Link
+          href="/exercises"
+          className="hover:text-primary transition-colors">
+          Danh sách bài tập
         </Link>
         <svg
           className="mx-2 h-4 w-4"
