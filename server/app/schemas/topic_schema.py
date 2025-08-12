@@ -10,15 +10,6 @@ from app.schemas.skill_schema import SkillBase
 
 
 class TopicBase(BaseModel):
-    """
-    Schema cơ bản cho chủ đề
-
-    Attributes:
-        name: Tên chủ đề
-        description: Mô tả chi tiết về chủ đề
-        prerequisites: Danh sách các điều kiện tiên quyết
-    """
-
     name: str = Field(..., min_length=1, max_length=255, description="Tên chủ đề")
     description: Optional[str] = Field(None, description="Mô tả chi tiết về chủ đề")
     prerequisites: Optional[List[str]] = Field(

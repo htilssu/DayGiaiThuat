@@ -15,13 +15,8 @@ class SkillCreate(SkillBase):
     topic_id: int = Field(..., description="ID của topic mà kỹ năng này thuộc về")
 
 
-class SkillUpdate(BaseModel):
+class SkillUpdate(SkillBase):
     """Schema để cập nhật Skill"""
-
-    name: Optional[str] = Field(
-        None, description="Tên kỹ năng", min_length=1, max_length=255
-    )
-    description: Optional[str] = Field(None, description="Mô tả chi tiết về kỹ năng")
 
 
 class SkillResponse(SkillBase):
@@ -32,9 +27,3 @@ class SkillResponse(SkillBase):
 
     class Config:
         from_attributes = True
-
-
-class SkillInDB(SkillResponse):
-    """Schema đầy đủ cho Skill trong database"""
-
-    pass
