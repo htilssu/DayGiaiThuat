@@ -56,25 +56,23 @@ def convert_lesson_to_schema(
         exercises_data.append(
             ExerciseResponse(
                 id=exercise.id,
-                name=exercise.name,
+                title=getattr(exercise, "title", None) or getattr(exercise, "name", ""),
                 description=exercise.description,
+                category=getattr(exercise, "category", None),
                 difficulty=exercise.difficulty,
-                constraint=exercise.constraint,
-                suggest=exercise.suggest,
+                estimated_time=getattr(exercise, "estimated_time", None),
+                completion_rate=getattr(exercise, "completion_rate", None),
+                completed=getattr(exercise, "completed", None),
+                content=getattr(exercise, "content", None),
+                code_template=getattr(exercise, "code_template", None),
                 lesson_id=exercise.lesson_id,
             )
         )
 
     # Kiểm tra trạng thái completed nếu có user_id và db
     is_completed = False
-    if user_id and db:
-        user_lesson = (
-            db.query(UserLesson)
-            .filter(UserLesson.user_id == user_id, UserLesson.lesson_id == lesson.id)
-            .first()
-        )
-        if user_lesson:
-            is_completed = user_lesson.is_completed
+    # Ghi chú: UserLesson model không tồn tại trong codebase hiện tại. Nếu cần,
+    # có thể bổ sung sau. Tạm thời đánh dấu False.
 
     # Tạo lesson response
     return LessonWithChildSchema(
@@ -82,7 +80,6 @@ def convert_lesson_to_schema(
         external_id=lesson.external_id,
         title=lesson.title,
         description=lesson.description,
-        topic_id=lesson.topic_id,
         order=lesson.order,
         next_lesson_id=lesson.next_lesson_id,
         prev_lesson_id=lesson.prev_lesson_id,

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ExerciseDetail } from "./types";
+import { exercisesApi } from "@/lib/api";
 import ExerciseSubmission from "./ExerciseSubmission";
 import ExerciseHeader from "./ExerciseHeader";
 import ExerciseContent from "./ExerciseContent";
@@ -29,14 +30,17 @@ export default function ClientPage({ exercise }: { exercise: ExerciseDetail }) {
     setIsLoading(false);
   }, [exercise]);
 
-  const handleSubmit = () => {
-    // Giả lập gửi bài tập lên server
-    alert(
-      "Bài tập đã được nộp thành công! Trong thực tế, code sẽ được gửi lên server để chấm điểm."
-    );
-
-    // Cập nhật trạng thái đã hoàn thành
-    exercise.completed = true;
+  const handleSubmit = async () => {
+    try {
+      // Gửi cập nhật trạng thái hoàn thành lên server
+      await exercisesApi.updateExercise(exercise.id, { completed: true });
+      alert("Bài tập đã được nộp thành công!");
+      // Làm mới dữ liệu để phản ánh trạng thái mới từ server
+      router.refresh();
+    } catch (e) {
+      // Thông báo đơn giản khi thất bại
+      alert("Cập nhật trạng thái hoàn thành thất bại. Vui lòng thử lại.");
+    }
   };
 
   // Hiển thị trạng thái đang tải

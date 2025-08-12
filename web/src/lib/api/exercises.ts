@@ -35,10 +35,16 @@ export interface CreateExerciseRequest {
 
 export interface Exercise {
   id: number;
-  name: string;
+  title?: string;
+  name?: string;
   description: string;
+  category?: string | null;
   difficulty: string;
-  constraint?: string | null;
+  estimatedTime?: string | null;
+  completionRate?: number | null;
+  completed?: boolean | null;
+  content?: string | null;
+  codeTemplate?: string | null;
 }
 
 /**
@@ -98,10 +104,16 @@ async function getExerciseTestCases(exerciseId: number) {
  */
 type BackendExercise = {
   id: number;
-  name: string;
+  title?: string;
+  name?: string;
   description: string;
+  category?: string | null;
   difficulty: string;
-  constraint?: string | null;
+  estimatedTime?: string | null;
+  completionRate?: number | null;
+  completed?: boolean | null;
+  content?: string | null;
+  codeTemplate?: string | null;
 };
 
 type BackendTestCase = {
@@ -117,7 +129,7 @@ type UiExerciseDetail = {
   title: string;
   description: string;
   category: string;
-  difficulty: "Dễ" | "Trung bình" | "Khó";
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
   estimatedTime: string;
   completionRate: number;
   completed: boolean;
@@ -134,18 +146,18 @@ async function getExerciseDetailForUi(
     getExerciseTestCases(exerciseId) as Promise<BackendTestCase[]>,
   ]);
 
-  const difficultyMap: Record<string, "Dễ" | "Trung bình" | "Khó"> = {
-    easy: "Dễ",
-    medium: "Trung bình",
-    hard: "Khó",
-    beginner: "Dễ",
-    intermediate: "Trung bình",
-    advanced: "Khó",
+  const difficultyMap: Record<
+    string,
+    "Beginner" | "Intermediate" | "Advanced"
+  > = {
+    beginner: "Beginner",
+    intermediate: "Intermediate",
+    advanced: "Advanced",
   };
 
-  const difficultyRaw = exercise.difficulty || "medium";
+  const difficultyRaw = (exercise.difficulty as string) || "medium";
   const difficultyKey = String(difficultyRaw).toLowerCase();
-  const difficulty = difficultyMap[difficultyKey] || "Trung bình";
+  const difficulty = difficultyMap[difficultyKey] || "Intermediate";
 
   const testCasesUi = (testCases || []).map((tc) => ({
     input: tc.input_data,
@@ -159,24 +171,15 @@ async function getExerciseDetailForUi(
 
   return {
     id: exercise.id,
-    title: exercise.name,
-    description: exercise.description,
-    category: "Thuật toán",
+    title: exercise.title || exercise.name || "",
+    description: exercise.description || "",
+    category: exercise.category || "Thuật toán",
     difficulty,
-    estimatedTime:
-      difficulty === "Dễ"
-        ? "15 phút"
-        : difficulty === "Trung bình"
-        ? "30 phút"
-        : "45 phút",
-    completionRate: 0,
-    completed: false,
-    content:
-      (exercise.description || "") +
-      ((exercise.constraint &&
-        `\n\nRàng buộc: ${String(exercise.constraint)}`) ||
-        ""),
-    codeTemplate,
+    estimatedTime: exercise.estimatedTime || "",
+    completionRate: exercise.completionRate || 0,
+    completed: exercise.completed || false,
+    content: exercise.content || exercise.description || "",
+    codeTemplate: exercise.codeTemplate || codeTemplate,
     testCases: testCasesUi,
   };
 }

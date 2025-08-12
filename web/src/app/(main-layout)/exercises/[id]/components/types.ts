@@ -18,7 +18,7 @@ export interface ExerciseDetail {
   title: string;
   description: string;
   category: string;
-  difficulty: "Dễ" | "Trung bình" | "Khó";
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
   estimatedTime: string;
   completionRate: number;
   completed: boolean;
