@@ -4,7 +4,7 @@ from starlette import status
 
 from app.database.database import get_async_db
 from app.database.mongodb import get_mongo_collection
-from app.schemas.course_draft_schema import CourseDraftSchema
+from app.schemas.course_draft_schema import CourseDraftSchema, TopicOrderRequest
 
 
 def get_course_daft_by_course_id(course_id: int) -> CourseDraftSchema:
@@ -38,6 +38,22 @@ def update_or_create_course_draft(
         doc = collection.find_one({"course_id": course_id})
 
     return CourseDraftSchema(**doc)
+
+
+def reorder_topic_course_draft(
+        topics: TopicOrderRequest,
+        course_id: int = None,
+):
+    collection = get_mongo_collection("course_drafts")
+
+    update_data = topics.model_dump(exclude_unset=True)
+
+    result = collection.update_one(
+        {"course_id": course_id},
+        {"$set": {"topic": update_data["topics"]}},
+    )
+
+    return get_course_daft_by_course_id(topics.course_id)
 
 
 class CourseDaftService:

@@ -24,7 +24,7 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
-import { IconPlus, IconChevronRight, IconPencil, IconTrash, IconAlertCircle } from "@tabler/icons-react";
+import { IconPlus, IconChevronRight, IconPencil, IconTrash, IconAlertCircle, IconEye } from "@tabler/icons-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -277,6 +277,16 @@ export default function CourseAdminClient() {
             </Table.Td>
             <Table.Td>
                 <Group gap="xs">
+                    <Tooltip label="Xem review khóa học">
+                        <ActionIcon
+                            variant="light"
+                            color="violet"
+                            size="sm"
+                            onClick={() => router.push(`/admin/course/${course.id}/review`)}
+                        >
+                            <IconEye size={14} />
+                        </ActionIcon>
+                    </Tooltip>
                     <Tooltip label="Chỉnh sửa khóa học">
                         <ActionIcon
                             variant="light"
