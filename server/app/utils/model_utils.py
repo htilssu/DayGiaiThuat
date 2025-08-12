@@ -45,7 +45,7 @@ def pydantic_to_sqlalchemy_scalar(pydantic_obj: BaseModel, sa_model: Type[T]) ->
 
 
 def convert_lesson_to_schema(
-        lesson: Lesson, user_id: Optional[int] = None, db: Optional[Session] = None
+    lesson: Lesson, user_id: Optional[int] = None, db: Optional[Session] = None
 ) -> LessonWithChildSchema:
     """
     Chuyển đổi từ model Lesson sang LessonResponseSchema
@@ -80,7 +80,6 @@ def convert_lesson_to_schema(
 
         sections_data.append(LessonSectionSchema(**section_data))
 
-    # Tạo exercises data
     exercises_data = []
     for exercise in lesson.exercises:
         exercises_data.append(

@@ -10,8 +10,13 @@ from app.schemas.document_schema import (
     RunpodWebhookRequest,
 )
 from app.schemas.user_profile_schema import UserExcludeSecret
-from app.services.document_service import get_document_service, DocumentService, call_external_document_processing_api, \
-    create_document_processing_job, update_job_status
+from app.services.document_service import (
+    get_document_service,
+    DocumentService,
+    call_external_document_processing_api,
+    create_document_processing_job,
+    update_job_status,
+)
 from app.services.storage_service import get_storage_service, StorageService
 from app.utils.utils import get_current_user
 
@@ -31,10 +36,10 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
 
 @router.post("/store")
 async def store_document(
-        files: List[UploadFile],
-        course_id: Optional[int] = None,
-        storage_service: StorageService = Depends(get_storage_service),
-        admin_user: UserExcludeSecret = Depends(get_admin_user),
+    files: List[UploadFile],
+    course_id: Optional[int] = None,
+    storage_service: StorageService = Depends(get_storage_service),
+    admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
@@ -49,8 +54,10 @@ async def store_document(
             document_url = upload_result["url"]
 
             job_id = await call_external_document_processing_api(
-                DocumentRequestExternal(document_url, "https://short-times-create.loca.lt/document/webhook"
-                                        ))
+                DocumentRequestExternal(
+                    document_url, "https://spicy-ways-behave.loca.lt/document/webhook"
+                )
+            )
 
             await create_document_processing_job(
                 document_id=document_id,
@@ -83,9 +90,9 @@ async def store_document(
 
 @webhook_router.post("/webhook")
 async def handle_runpod_webhook(
-        webhook_data: RunpodWebhookRequest,
-        background_tasks: BackgroundTasks,
-        document_service: DocumentService = Depends(get_document_service),
+    webhook_data: RunpodWebhookRequest,
+    background_tasks: BackgroundTasks,
+    document_service: DocumentService = Depends(get_document_service),
 ):
     try:
         job = await update_job_status(
@@ -117,7 +124,7 @@ async def handle_runpod_webhook(
 
 @router.get("/status")
 async def get_document_status(
-        ids: str, document_service: DocumentService = Depends(get_document_service)
+    ids: str, document_service: DocumentService = Depends(get_document_service)
 ):
     document_ids = ids.split(",")
     statuses = document_service.get_document_status(document_ids)
@@ -126,11 +133,11 @@ async def get_document_status(
 
 @router.get("/search")
 async def search_documents(
-        query: str,
-        limit: int = 5,
-        source: str = "",
-        document_id: str = "",
-        document_service: DocumentService = Depends(get_document_service),
+    query: str,
+    limit: int = 5,
+    source: str = "",
+    document_id: str = "",
+    document_service: DocumentService = Depends(get_document_service),
 ):
     try:
         filter_metadata = {}
@@ -153,7 +160,7 @@ async def search_documents(
 
 @router.get("/statistics")
 async def get_document_statistics(
-        document_service: DocumentService = Depends(get_document_service),
+    document_service: DocumentService = Depends(get_document_service),
 ):
     try:
         stats = await document_service.get_document_statistics()

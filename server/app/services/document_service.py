@@ -1,16 +1,16 @@
-from typing import List, Dict, Optional, Any
-from datetime import datetime
-import os
-import shutil
-from pathlib import Path
-import httpx
-import logging
 import json
+import logging
+import shutil
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
+
+import httpx
 from sqlalchemy import select
 
 from app.core.agents.components.document_store import get_vector_store
 from app.core.config import settings
-from app.database.database import get_independent_db_session, get_async_db
+from app.database.database import get_independent_db_session
 from app.models.document_processing_job_model import DocumentProcessingJob
 from app.schemas.DocumentRequestExternal import DocumentRequestExternal
 from app.schemas.document_schema import DocumentStatus
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 async def call_external_document_processing_api(
-        document: DocumentRequestExternal,
+    document: DocumentRequestExternal,
 ) -> str:
     if not settings.DOCUMENT_PROCESSING_ENDPOINT:
         raise Exception("DOCUMENT_PROCESSING_ENDPOINT chưa được cấu hình")
@@ -31,7 +31,7 @@ async def call_external_document_processing_api(
         }
 
         async with httpx.AsyncClient(
-                timeout=settings.DOCUMENT_PROCESSING_TIMEOUT
+            timeout=settings.DOCUMENT_PROCESSING_TIMEOUT
         ) as client:
             response = await client.post(
                 settings.DOCUMENT_PROCESSING_ENDPOINT,
@@ -70,11 +70,11 @@ async def call_external_document_processing_api(
 
 
 async def create_document_processing_job(
-        document_id: str,
-        job_id: str,
-        filename: str,
-        document_url: str,
-        course_id: Optional[int] = None,
+    document_id: str,
+    job_id: str,
+    filename: str,
+    document_url: str,
+    course_id: Optional[int] = None,
 ) -> DocumentProcessingJob:
     """
     Tạo record DocumentProcessingJob trong database
@@ -101,10 +101,10 @@ async def create_document_processing_job(
 
 
 async def update_job_status(
-        job_id: str,
-        status: str,
-        result: Optional[Dict[str, Any]] = None,
-        error_message: Optional[str] = None,
+    job_id: str,
+    status: str,
+    result: str,
+    error_message: Optional[str] = None,
 ) -> Optional[DocumentProcessingJob]:
     """
     Cập nhật trạng thái job từ webhook
@@ -143,7 +143,6 @@ async def update_job_status(
 class DocumentService:
     def __init__(self):
         self.document_status: Dict[str, DocumentStatus] = {}
-        # Initialize embeddings for semantic chunking
         from app.core.agents.components.embedding_model import get_embedding_model
 
         self.embeddings = get_embedding_model()
@@ -162,7 +161,6 @@ class DocumentService:
                 if not job:
                     raise Exception(f"Job {job_id} not found")
 
-                # Xử lý kết quả từ Docling
                 await self._process_docling_result(job, result)
 
                 # Nếu thuộc về course, gọi agent tạo topic và lesson
@@ -178,13 +176,13 @@ class DocumentService:
                 await db.close()
 
     async def _process_docling_result(
-            self, job: DocumentProcessingJob, result: str
+        self, job: DocumentProcessingJob, result: str
     ) -> None:
         """
         Xử lý kết quả từ Docling và lưu vào vector database
         """
-        from langchain_experimental.text_splitter import SemanticChunker
         from langchain_core.documents import Document
+        from langchain_experimental.text_splitter import SemanticChunker
 
         try:
             if not result:
@@ -250,8 +248,8 @@ class DocumentService:
 
             batch_size = 50
             for i in range(0, len(texts), batch_size):
-                batch_texts = texts[i: i + batch_size]
-                batch_metadata = metadatas[i: i + batch_size]
+                batch_texts = texts[i : i + batch_size]
+                batch_metadata = metadatas[i : i + batch_size]
 
                 vector_store.add_texts(
                     texts=batch_texts,
@@ -287,7 +285,7 @@ class DocumentService:
             if isinstance(value, (str, int, float, bool)):
                 cleaned_metadata[key] = value
             elif isinstance(value, list) and all(
-                    isinstance(item, str) for item in value
+                isinstance(item, str) for item in value
             ):
                 cleaned_metadata[key] = value
             elif value is not None:
@@ -309,14 +307,16 @@ class DocumentService:
             file.file.close()
 
     async def get_document_status(
-            self, document_ids: List[str]
+        self, document_ids: List[str]
     ) -> List[DocumentStatus]:
         async with get_independent_db_session() as db:
             try:
                 jobs = (
-                    await db.execute(
-                        select(DocumentProcessingJob).where(
-                            DocumentProcessingJob.id.in_(document_ids)
+                    (
+                        await db.execute(
+                            select(DocumentProcessingJob).where(
+                                DocumentProcessingJob.id.in_(document_ids)
+                            )
                         )
                     )
                     .scalars()
@@ -338,7 +338,7 @@ class DocumentService:
                 raise Exception(f"Failed to get document status: {str(e)}")
 
     async def search_documents(
-            self, query: str, limit: int = 5, filter_metadata: Dict = None
+        self, query: str, limit: int = 5, filter_metadata: Dict = None
     ) -> Dict:
         try:
             vector_store = get_vector_store("document")
@@ -373,11 +373,17 @@ class DocumentService:
 
         async with get_independent_db_session() as db:
             try:
-                total_docs = db.execute(select(DocumentProcessingJob)).scalars().all()
+                total_docs = (
+                    (await db.execute(select(DocumentProcessingJob))).scalars().all()
+                )
 
                 total_count = len(total_docs)
-                processing_count = len([j for j in total_docs if j.status == "IN_PROGRESS"])
-                completed_count = len([j for j in total_docs if j.status == "COMPLETED"])
+                processing_count = len(
+                    [j for j in total_docs if j.status == "IN_PROGRESS"]
+                )
+                completed_count = len(
+                    [j for j in total_docs if j.status == "COMPLETED"]
+                )
                 failed_count = len([j for j in total_docs if j.status == "FAILED"])
 
                 # TODO: Calculate total chunks from vector DB
@@ -391,13 +397,10 @@ class DocumentService:
                     "total_chunks": total_chunks,
                 }
             finally:
-                db.close()
+                await db.close()
 
             return {}
 
 
-def get_document_service() -> DocumentService:
-    """
-    Dependency để inject DocumentService
-    """
+async def get_document_service() -> DocumentService:
     return DocumentService()

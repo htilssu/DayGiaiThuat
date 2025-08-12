@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 
+from app.routers.document_router import webhook_router
+
 
 def register_router(app: FastAPI):
     """Register all routers with lazy loading for faster startup"""
@@ -34,6 +36,7 @@ def register_router(app: FastAPI):
     app.include_router(upload_router.router)
     app.include_router(lesson_plan_router.router)
     app.include_router(lesson_router.router)
+    app.include_router(webhook_router)
     app.include_router(courses_router.router)
     app.include_router(websocket_router.router)
     app.include_router(discussions_router.router)

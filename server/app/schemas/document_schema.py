@@ -37,7 +37,7 @@ class RunpodWebhookRequest(BaseModel):
 
     id: str
     status: str
-    output: Optional[str] = None
+    output: str
     error: Optional[str] = None
     executionTime: Optional[int] = None
     delayTime: Optional[int] = None

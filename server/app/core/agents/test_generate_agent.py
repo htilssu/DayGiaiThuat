@@ -1,14 +1,15 @@
 import logging
 from typing import Any, Dict, override
 
+from pydantic import BaseModel, Field, ValidationError
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
 from app.core.agents.base_agent import BaseAgent
 from app.core.tracing import trace_agent
 from app.database.database import get_independent_db_session
 from app.models.topic_model import Topic
 from app.schemas.topic_schema import TopicForTestGenerateAgent
-from pydantic import BaseModel, Field, ValidationError
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ class InputTestAgentOutput(BaseModel):
 class InputTestAgent(BaseAgent):
     def __init__(self):
         super().__init__()
+        self._output_fix_parser = None
         self.available_args = ["course_id"]
 
         self.max_retries = 3
@@ -67,7 +69,6 @@ class InputTestAgent(BaseAgent):
         self._init_tools()
 
     def _init_tools(self):
-        """Khởi tạo tools với lazy import"""
         from langchain_core.tools import Tool
 
         async def get_all_course_skill(course_id: int):
@@ -166,18 +167,8 @@ class InputTestAgent(BaseAgent):
         return self._agent_executor
 
     async def _parse_output_with_fix(
-        self, output: Dict[str, Any], course_id: int
+            self, output: Dict[str, Any], course_id: int
     ) -> InputTestAgentOutput:
-        """
-        Parse output từ agent với khả năng fix lỗi format
-
-        Args:
-            output: Output từ agent
-            course_id: ID của khóa học
-
-        Returns:
-            InputTestAgentOutput: Kết quả đã parse
-        """
         if not output or "output" not in output:
             raise ValueError("Output không hợp lệ từ agent")
 
