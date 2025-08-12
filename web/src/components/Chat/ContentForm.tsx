@@ -34,9 +34,9 @@ export function ContentForm({
     });
   };
 
-  const updateTopicData = (
-    field: keyof ContentFormData["topic"],
-    value: any
+  const updateTopicData = <K extends keyof ContentFormData["topic"]>(
+    field: K,
+    value: ContentFormData["topic"][K]
   ) => {
     updateFormData("topic", {
       ...formData.topic,
@@ -44,9 +44,9 @@ export function ContentForm({
     });
   };
 
-  const updateLessonData = (
-    field: keyof ContentFormData["lesson"],
-    value: any
+  const updateLessonData = <K extends keyof ContentFormData["lesson"]>(
+    field: K,
+    value: ContentFormData["lesson"][K]
   ) => {
     updateFormData("lesson", {
       ...formData.lesson,
@@ -54,9 +54,9 @@ export function ContentForm({
     });
   };
 
-  const updateExerciseData = (
-    field: keyof ContentFormData["exercise"],
-    value: any
+  const updateExerciseData = <K extends keyof ContentFormData["exercise"]>(
+    field: K,
+    value: ContentFormData["exercise"][K]
   ) => {
     updateFormData("exercise", {
       ...formData.exercise,
@@ -64,7 +64,10 @@ export function ContentForm({
     });
   };
 
-  const updateQuizData = (field: keyof ContentFormData["quiz"], value: any) => {
+  const updateQuizData = <K extends keyof ContentFormData["quiz"]>(
+    field: K,
+    value: ContentFormData["quiz"][K]
+  ) => {
     updateFormData("quiz", {
       ...formData.quiz,
       [field]: value,
@@ -100,6 +103,9 @@ export function ContentForm({
           setTopics(res || []);
           if (res && res.length > 0 && !selectedTopicId) {
             setSelectedTopicId(res[0].id);
+            if (contentType === "exercise" && !formData.exercise.topicId) {
+              updateExerciseData("topicId", res[0].id);
+            }
           }
           // Auto-set topic order to topics.length + 1
           if (contentType === "topic") {

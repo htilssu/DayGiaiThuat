@@ -18,6 +18,7 @@ from app.models.course_model import Course
 from app.models.exercise_model import Exercise
 from app.models.exercise_test_case_model import ExerciseTestCase
 from app.models.topic_model import Topic
+from app.models.lesson_model import Lesson, LessonSection
 from app.models.test_model import Test
 from app.models.user_model import User
 from app.models.user_state_model import UserState
@@ -30,7 +31,7 @@ logger = logging.getLogger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def create_topics() -> List[Topic]:
+def create_topics(courses: List[Course]) -> List[Topic]:
     """
     Tạo dữ liệu mẫu cho bảng topics
 
@@ -63,8 +64,17 @@ def create_topics() -> List[Topic]:
     topics = []
 
     try:
-        for topic_data in topics_data:
-            topic = Topic(**topic_data)
+        if not courses:
+            raise ValueError("Không có courses để gán course_id cho topics")
+
+        for idx, topic_data in enumerate(topics_data):
+            # Gán tuần tự các topic vào các course có sẵn
+            course = courses[idx % len(courses)]
+            topic = Topic(
+                **topic_data,
+                course_id=course.id,
+                order=idx + 1,
+            )
             db.add(topic)
             topics.append(topic)
 
@@ -77,6 +87,76 @@ def create_topics() -> List[Topic]:
     except Exception as e:
         db.rollback()
         logger.error(f"Lỗi khi tạo topics: {str(e)}")
+        return []
+    finally:
+        db.close()
+
+
+def create_lessons(topics: List[Topic]) -> List[Lesson]:
+    """
+    Tạo dữ liệu mẫu cho bảng lessons, mỗi topic có một vài bài học cơ bản.
+
+    Args:
+        topics (List[Topic]): Danh sách topic đã tạo để liên kết
+
+    Returns:
+        List[Lesson]: Danh sách lesson đã tạo
+    """
+    logger.info("Tạo dữ liệu mẫu cho Lessons...")
+
+    if not topics:
+        logger.warning("Không có topic nào để tạo lessons")
+        return []
+
+    db = SessionLocal()
+    lessons: List[Lesson] = []
+
+    try:
+        for topic in topics:
+            # Với mỗi topic, tạo 3 bài học cơ bản
+            per_topic_lessons: List[Lesson] = []
+            for i in range(3):
+                order = i + 1
+                external_id = f"T{topic.id}-L{order}"
+                title = f"{topic.name} - Bài {order}"
+                description = f"Bài học {order} cho chủ đề {topic.name}"
+
+                lesson = Lesson(
+                    external_id=external_id,
+                    title=title,
+                    description=description,
+                    topic_id=topic.id,
+                    order=order,
+                    prev_lesson_id=f"T{topic.id}-L{order - 1}" if order > 1 else None,
+                    next_lesson_id=f"T{topic.id}-L{order + 1}" if order < 3 else None,
+                )
+                db.add(lesson)
+                db.flush()  # có id để thêm sections
+
+                # Tạo 1-2 sections mẫu cho mỗi lesson
+                intro_section = LessonSection(
+                    lesson_id=lesson.id,
+                    type="text",
+                    content=(
+                        f"Giới thiệu về '{topic.name}' - Bài {order}. "
+                        "Nội dung được tạo cho mục đích seed dữ liệu."
+                    ),
+                    order=1,
+                )
+                db.add(intro_section)
+
+                per_topic_lessons.append(lesson)
+                lessons.append(lesson)
+
+        db.commit()
+        for lesson_item in lessons:
+            db.refresh(lesson_item)
+
+        logger.info(f"Đã tạo {len(lessons)} lessons")
+        return lessons
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Lỗi khi tạo lessons: {str(e)}")
         return []
     finally:
         db.close()
@@ -118,11 +198,11 @@ Viết hàm tìm kiếm nhị phân thực hiện tìm kiếm một giá trị t
 def binary_search(arr: list[int], target: int) -> int:
     """
     Tìm kiếm nhị phân trên mảng đã sắp xếp
-    
+
     Args:
         arr: Mảng các số nguyên đã sắp xếp tăng dần
         target: Giá trị cần tìm kiếm
-        
+
     Returns:
         Vị trí của target trong mảng nếu tìm thấy, -1 nếu không tìm thấy
     """
@@ -156,17 +236,17 @@ Thuật toán tìm kiếm nhị phân có độ phức tạp thời gian O(log n
             "code_template": '''def binary_search(arr, target):
     """
     Tìm kiếm nhị phân trên mảng đã sắp xếp
-    
+
     Args:
         arr: Mảng các số nguyên đã sắp xếp tăng dần
         target: Giá trị cần tìm kiếm
-        
+
     Returns:
         Vị trí của target trong mảng nếu tìm thấy, -1 nếu không tìm thấy
     """
     # Triển khai thuật toán tại đây
     pass
-    
+
 # Test case
 arr = [1, 3, 5, 7, 9, 11, 13, 15]
 target = 7
@@ -195,10 +275,10 @@ Viết hàm quick_sort thực hiện thuật toán sắp xếp nhanh với phân
 def quick_sort(arr: list[int]) -> list[int]:
     """
     Sắp xếp mảng sử dụng thuật toán Quick Sort
-    
+
     Args:
         arr: Mảng các số nguyên cần sắp xếp
-        
+
     Returns:
         Mảng đã được sắp xếp
     """
@@ -561,12 +641,9 @@ def create_tests(topics: List[Topic]) -> List[Test]:
     """
     logger.info("Tạo dữ liệu mẫu cho Tests...")
 
+    # Tạo test dựa theo các topic thực tế đã tạo (tối đa 5)
     tests_data = [
-        {"topic_id": 1, "duration_minutes": 60},
-        {"topic_id": 2, "duration_minutes": 60},
-        {"topic_id": 3, "duration_minutes": 60},
-        {"topic_id": 4, "duration_minutes": 60},
-        {"topic_id": 5, "duration_minutes": 60},
+        {"topic_id": t.id, "duration_minutes": 60} for t in topics[:5]
     ]
 
     db = SessionLocal()
@@ -880,13 +957,17 @@ def seed_all():
     logger.info("Bắt đầu tạo dữ liệu mẫu...")
 
     # Tạo dữ liệu theo thứ tự phù hợp để tránh lỗi khóa ngoại
-    topics = create_topics()
+    badges = create_badges()
+    courses = create_courses()
+
+    # Sau khi có courses, tạo topics và gán course_id cho topics
+    topics = create_topics(courses)
     if not topics:
         logger.error("Không thể tạo topics, dừng quá trình seed")
         return
 
-    badges = create_badges()
-    courses = create_courses()
+    # Tạo lessons gắn với topic
+    create_lessons(topics)
 
     # Tạo dữ liệu liên quan
     exercises = create_exercises(topics)
