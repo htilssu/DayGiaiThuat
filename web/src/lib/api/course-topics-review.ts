@@ -52,5 +52,5 @@ export async function approveTopicsAndNext(courseId: number): Promise<{ success:
  * @returns Kết quả xử lý
  */
 export async function rejectTopicsAndRegenerate(courseId: number, feedback: string): Promise<{ success: boolean; message: string }> {
-    return post<{ success: boolean; message: string }>(`/admin/courses/${courseId}/topics/reject`, { feedback });
+    return post<{ success: boolean; message: string }>(`/admin/courses/${courseId}/topic/reject`, { feedback });
 }

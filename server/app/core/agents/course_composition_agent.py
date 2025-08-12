@@ -122,7 +122,7 @@ class CourseCompositionAgent(BaseAgent):
 
     @trace_agent(project_name="default", tags=["course", "composition"])
     async def act(
-            self, request: CourseCompositionRequestSchema
+        self, request: CourseCompositionRequestSchema
     ) -> tuple[CourseDraftSchema, str]:
         from langchain_core.runnables import RunnableConfig
         from app.core.config import settings
@@ -150,6 +150,8 @@ class CourseCompositionAgent(BaseAgent):
             Khóa học: {request.course_title}
             Mô tả: {request.course_description}
             Cấp độ: {request.course_level}
+            Yêu cầu sửa của admin: {request.user_requirements}
+            Số topic tối đa: {request.max_topics}
             """
 
             runnable_with_history = RunnableWithMessageHistory(
@@ -165,15 +167,16 @@ class CourseCompositionAgent(BaseAgent):
             )
 
             result = await runnable_with_history.ainvoke(
-                {"input": request_input},
-                config=run_config
+                {"input": request_input}, config=run_config
             )
 
             if not result or not result.get("output"):
                 raise Exception("Không thể tạo topics cho khóa học")
 
             try:
-                agent_response: CourseDraftSchema = self.output_parser.parse(result["output"])
+                agent_response: CourseDraftSchema = self.output_parser.parse(
+                    result["output"]
+                )
             except OutputParserException:
                 agent_response = OutputFixingParser.from_llm(
                     self.base_llm, parser=self.output_parser

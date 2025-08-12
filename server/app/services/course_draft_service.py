@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from app.database.database import get_async_db
+from app.database.database import get_async_db, get_independent_db_session
 from app.database.mongodb import get_mongo_collection
 from app.models import CourseDraft, Course
 from app.schemas import CourseCompositionRequestSchema
@@ -44,12 +44,7 @@ def update_or_create_course_draft(
         upsert=True,
     )
 
-    if result.upserted_id:
-        doc = collection.find_one({"_id": result.upserted_id})
-    else:
-        doc = collection.find_one({"course_id": course_id})
-
-    return CourseDraftSchema(**doc)
+    return get_course_draft_by_course_id(course_id)
 
 
 def reorder_topic_course_draft(
@@ -71,7 +66,7 @@ def reorder_topic_course_draft(
 async def approve_course_draft_handler(
     course_id: int, approve_request: ApproveDraftRequest
 ):
-    async with get_async_db() as db:
+    async with get_independent_db_session() as db:
         course_generate_service: CourseGenerateService = get_course_generate_service()
         course_result = await db.execute(select(Course).filter(Course.id == course_id))
         course = course_result.scalar_one_or_none()
@@ -80,29 +75,9 @@ async def approve_course_draft_handler(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Không tìm thấy khóa học với ID {course_id}",
             )
-
-        draft_result = await db.execute(
-            select(CourseDraft)
-            .filter(CourseDraft.course_id == course_id)
-            .order_by(CourseDraft.created_at.desc())
-            .limit(1)
-        )
-        draft = draft_result.scalar_one_or_none()
-        if not draft:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Không tìm thấy draft cho khóa học này",
-            )
-
+        course_draft: CourseDraftSchema = get_course_draft_by_course_id(course_id)
         try:
             if approve_request.approved:
-                collection = get_mongo_collection("course_daft")
-                course_draft = collection.find_one(
-                    {
-                        "course_id": course_id,
-                        "session_id": draft.session_id,
-                    }
-                )
                 await save_course_from_draft(course_draft)
             else:
                 composition_request = CourseCompositionRequestSchema(
@@ -110,7 +85,7 @@ async def approve_course_draft_handler(
                     course_title=course.title,
                     course_description=course.description,
                     course_level=course.level,
-                    session_id=draft.session_id,
+                    session_id=course_draft.session_id,
                     user_requirements=approve_request.feedback,
                 )
 

@@ -344,7 +344,7 @@ export default function CourseTopicsReviewPageClient({ courseId }: CourseTopicsR
                         <Text size="lg" fw={500}>Mô tả khóa học</Text>
                         <Text size="sm" c="dimmed">{reviewData.description}</Text>
                         <Text size="sm" c="dimmed">
-                            <strong>Thời lượng ước tính:</strong> {reviewData.duration} phút
+                            <strong>Thời lượng ước tính:</strong> {reviewData.duration} giờ
                         </Text>
                         <Text size="sm" c="dimmed">
                             <strong>Session ID:</strong> {reviewData.sessionId}

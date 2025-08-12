@@ -134,6 +134,17 @@ async def approve_course_draft(
     return get_course_draft_by_course_id(course_id)
 
 
+@router.post("/{course_id}/topic/reject", )
+async def reject_topic_draft(
+        course_id: int,
+        approve_request: ApproveDraftRequest,
+        admin_user: UserExcludeSecret = Depends(get_admin_user)
+):
+    approve_request.approved = False
+    await approve_course_draft_handler(course_id, approve_request)
+    return get_course_draft_by_course_id(course_id)
+
+
 @router.post(
     "/{course_id}/topic/approve",
     summary="Approve topic draft và lưu vào database (Admin)",

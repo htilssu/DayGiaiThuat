@@ -4,5 +4,5 @@ from pydantic import BaseModel
 
 
 class ApproveDraftRequest(BaseModel):
-    approved: bool
+    approved: Optional[bool] = True
     feedback: Optional[str] = None

@@ -169,14 +169,7 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
                             {/* Action Buttons */}
                             {reviewData.topics && reviewData.topics.length > 0 && (
                                 <Group justify="center" mt={20}>
-                                    <Button
-                                        color="red"
-                                        variant="outline"
-                                        leftSection={<IconX size={16} />}
-                                        onClick={handleRejectContent}
-                                    >
-                                        Từ chối và yêu cầu tạo lại
-                                    </Button>
+
                                     <Button
                                         color="green"
                                         leftSection={<IconCheck size={16} />}
