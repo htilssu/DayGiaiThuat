@@ -236,16 +236,16 @@ Thuật toán Quick Sort có độ phức tạp thời gian trung bình là O(n 
             "code_template": '''def quick_sort(arr):
     """
     Sắp xếp mảng sử dụng thuật toán Quick Sort
-    
+
     Args:
         arr: Mảng các số nguyên cần sắp xếp
-        
+
     Returns:
         Mảng đã được sắp xếp
     """
     # Triển khai thuật toán tại đây
     pass
-    
+
 # Test case
 arr = [9, 7, 5, 11, 12, 2, 14, 3, 10, 6]
 print(quick_sort(arr))  # Kết quả mong đợi: [2, 3, 5, 6, 7, 9, 10, 11, 12, 14]
@@ -885,14 +885,14 @@ def seed_all():
         logger.error("Không thể tạo topics, dừng quá trình seed")
         return
 
-    # badges = create_badges()
-    # courses = create_courses()
+    badges = create_badges()
+    courses = create_courses()
 
     # Tạo dữ liệu liên quan
     exercises = create_exercises(topics)
     create_exercise_test_cases(exercises)
-    # create_tests(topics)
-    # create_users(badges, courses)
+    create_tests(topics)
+    create_users(badges, courses)
 
     logger.info("Hoàn thành tạo dữ liệu mẫu!")
 
