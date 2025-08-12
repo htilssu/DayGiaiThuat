@@ -87,23 +87,12 @@ export default function ExercisesPage() {
       try {
         const list = await exercisesApi.listExercises(1, 50);
         const mapped = list.map((ex: any) => {
-          const diffMap: Record<
-            string,
-            "Beginner" | "Intermediate" | "Advanced"
-          > = {
-            easy: "Beginner",
-            medium: "Intermediate",
-            hard: "Advanced",
-          };
-          const d =
-            diffMap[String(ex?.difficulty || "medium").toLowerCase()] ||
-            "Intermediate";
           return {
             id: ex.id,
             title: ex?.title || ex?.name || "",
             description: ex?.description || "",
             category: ex?.category || "Thuật toán",
-            difficulty: d,
+            difficulty: ex?.difficulty || "Intermediate",
             estimatedTime: ex?.estimatedTime || "",
             completionRate: ex?.completionRate || 0,
             completed: ex?.completed || false,

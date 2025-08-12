@@ -117,3 +117,17 @@ class TestCaseResult(BaseModel):
 class CodeSubmissionResponse(BaseModel):
     results: list[TestCaseResult]
     all_passed: bool
+
+
+class ExerciseUpdate(BaseModel):
+    """Schema cập nhật bài tập (partial update)."""
+
+    title: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    difficulty: Optional[str] = None
+    estimated_time: Optional[str] = None
+    completion_rate: Optional[int] = None
+    completed: Optional[bool] = None
+    content: Optional[str] = None
+    code_template: Optional[str] = None

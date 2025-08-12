@@ -17,6 +17,7 @@ from app.schemas.exercise_schema import (
     CreateExerciseSchema,
     TestCaseResult,
 )
+from app.schemas.exercise_schema import ExerciseUpdate
 from app.services.topic_service import TopicService, get_topic_service
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel
@@ -102,6 +103,20 @@ class ExerciseService:
             select(ExerciseModel).order_by(ExerciseModel.created_at.desc()).offset(offset).limit(limit)
         )
         return list(result.scalars().all())
+
+    async def update_exercise(self, exercise_id: int, data: ExerciseUpdate) -> ExerciseModel:
+        exercise = await self.db.get(ExerciseModel, exercise_id)
+        if not exercise:
+            raise HTTPException(status_code=404, detail="Exercise not found")
+
+        update_dict = data.model_dump(exclude_unset=True)
+        for field, value in update_dict.items():
+            if hasattr(exercise, field):
+                setattr(exercise, field, value)
+
+        await self.db.commit()
+        await self.db.refresh(exercise)
+        return exercise
 
     async def create_exercise(
         self, create_data: CreateExerciseSchema
