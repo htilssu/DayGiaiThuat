@@ -30,8 +30,8 @@ from typing import Optional
 
 class CourseService:
     def __init__(
-            self,
-            db: AsyncSession,
+        self,
+        db: AsyncSession,
     ):
         self.db = db
 
@@ -505,7 +505,7 @@ class CourseService:
                         if found_current:
                             break
                         for lesson in sorted(
-                                topic.lessons, key=lambda lesson: lesson.order
+                            topic.lessons, key=lambda lesson: lesson.order
                         ):
                             if lesson.id not in completed_lesson_ids:
                                 current_topic_id = topic.id
@@ -655,7 +655,7 @@ class CourseService:
 
     # Methods with Progress Support
     async def get_course_with_progress(
-            self, course_id: int, user_id: Optional[int] = None
+        self, course_id: int, user_id: Optional[int] = None
     ) -> CourseDetailWithProgressResponse:
         """Lấy course với nested progress data"""
         # Get course with topics and lessons
@@ -744,7 +744,7 @@ class CourseService:
                         current_lesson_id = lesson.id
 
                     if not last_activity_at or (
-                            progress.updated_at and progress.updated_at > last_activity_at
+                        progress.updated_at and progress.updated_at > last_activity_at
                     ):
                         last_activity_at = progress.updated_at
 
@@ -786,7 +786,6 @@ class CourseService:
             topics.append(
                 TopicWithProgressResponse(
                     id=topic.id,
-                    external_id=topic.external_id,
                     name=topic.name,
                     description=topic.description,
                     order=topic.order,

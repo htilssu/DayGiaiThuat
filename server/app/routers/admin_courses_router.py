@@ -32,6 +32,7 @@ from app.services.course_generate_service import (
     get_course_generate_service,
 )
 from app.services.course_service import CourseService, get_course_service
+from app.services.lesson_generate_service import LessonGenerateService
 from app.services.test_generation_service import (
     TestGenerationService,
     get_test_generation_service,
@@ -78,10 +79,10 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
     },
 )
 async def update_course_thumbnail(
-    course_id: int,
-    thumbnail_data: ThumbnailUpdateRequest,
-    course_service: CourseService = Depends(get_course_service),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int,
+        thumbnail_data: ThumbnailUpdateRequest,
+        course_service: CourseService = Depends(get_course_service),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     try:
         updated_course = await course_service.update_course_thumbnail(
@@ -108,8 +109,8 @@ async def update_course_thumbnail(
     },
 )
 async def get_course_review(
-    course_id: int,
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int,
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     course_draft = get_course_draft_by_course_id(course_id)
     return course_draft
@@ -125,9 +126,9 @@ async def get_course_review(
     },
 )
 async def approve_course_draft(
-    course_id: int,
-    approve_request: ApproveDraftRequest,
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int,
+        approve_request: ApproveDraftRequest,
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     await approve_course_draft_handler(course_id, approve_request)
     return get_course_draft_by_course_id(course_id)
@@ -138,12 +139,50 @@ async def approve_course_draft(
     summary="Approve topic draft và lưu vào database (Admin)",
 )
 async def approve_topic_draft(
-    course_id: int, admin_user: UserExcludeSecret = Depends(get_admin_user)
+        course_id: int, admin_user: UserExcludeSecret = Depends(get_admin_user)
 ):
-    await approve_topic_draft_handler(course_id)
+    topic_list = await approve_topic_draft_handler(course_id)
+    lesson_generate_service = LessonGenerateService()
+    asyncio.create_task(lesson_generate_service.generate_all_by_topic(topic_list))
     return {
         "message": "Đã phê duyệt bản nháp topic thành công",
     }
+
+
+@router.delete(
+    "/bulk",
+    response_model=BulkDeleteCoursesResponse,
+    summary="Xóa nhiều khóa học cùng lúc (Admin)",
+    responses={
+        200: {"description": "Xóa thành công"},
+        400: {"description": "Dữ liệu không hợp lệ"},
+        403: {"description": "Không có quyền truy cập"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def bulk_delete_courses(
+        request: BulkDeleteCoursesRequest,
+        course_service: CourseService = Depends(get_course_service),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
+    try:
+        if not request.course_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Danh sách course_ids không được rỗng",
+            )
+
+        result = await course_service.bulk_delete_courses(request.course_ids)
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi không xác định khi xóa khóa học: {str(e)}",
+        )
 
 
 @router.delete(
@@ -159,12 +198,12 @@ async def approve_topic_draft(
     },
 )
 async def delete_course(
-    course_id: int,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
-    force: Annotated[
-        int, Query(ge=0, le=1, description="Force delete without checking enrollments")
-    ] = 0,
+        course_id: int,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
+        force: Annotated[
+            int, Query(ge=0, le=1, description="Force delete without checking enrollments")
+        ] = 0,
 ):
     from app.models.lesson_model import Lesson, LessonSection
     from app.models.topic_model import Topic
@@ -258,11 +297,11 @@ async def delete_course(
     },
 )
 async def create_test(
-    course_id: int,
-    test_generation_service: TestGenerationService = Depends(
-        get_test_generation_service
-    ),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int,
+        test_generation_service: TestGenerationService = Depends(
+            get_test_generation_service
+        ),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     await test_generation_service.generate_input_test_async(course_id)
     return {"message": "Đã bắt đầu tạo test trong background", "course_id": course_id}
@@ -277,8 +316,8 @@ async def create_test(
     },
 )
 async def get_all_courses_admin(
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     result = await db.execute(
         select(Course)
@@ -299,9 +338,9 @@ async def get_all_courses_admin(
     },
 )
 async def get_course_by_id_admin(
-    course_id: int,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     result = await db.execute(select(Course).filter(Course.id == course_id))
     course = result.scalar_one_or_none()
@@ -329,14 +368,14 @@ async def get_course_by_id_admin(
     },
 )
 async def create_course(
-    course_data: CourseCreate,
-    background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_async_db),
-    course_generate_service: CourseGenerateService = Depends(
-        get_course_generate_service
-    ),
-    course_service: CourseService = Depends(get_course_service),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_data: CourseCreate,
+        background_tasks: BackgroundTasks,
+        db: AsyncSession = Depends(get_async_db),
+        course_generate_service: CourseGenerateService = Depends(
+            get_course_generate_service
+        ),
+        course_service: CourseService = Depends(get_course_service),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     try:
         new_course = await course_service.create_course(course_data)
@@ -375,10 +414,10 @@ async def create_course(
     },
 )
 async def update_course(
-    course_id: int,
-    course_data: CourseUpdate,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int,
+        course_data: CourseUpdate,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     result = await db.execute(select(Course).filter(Course.id == course_id))
     course = result.scalar_one_or_none()
@@ -405,40 +444,4 @@ async def update_course(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi cập nhật khóa học: {str(e)}",
-        )
-
-
-@router.delete(
-    "/bulk",
-    response_model=BulkDeleteCoursesResponse,
-    summary="Xóa nhiều khóa học cùng lúc (Admin)",
-    responses={
-        200: {"description": "Xóa thành công"},
-        400: {"description": "Dữ liệu không hợp lệ"},
-        403: {"description": "Không có quyền truy cập"},
-        500: {"description": "Internal server error"},
-    },
-)
-async def bulk_delete_courses(
-    request: BulkDeleteCoursesRequest,
-    course_service: CourseService = Depends(get_course_service),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
-):
-    try:
-        if not request.course_ids:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Danh sách course_ids không được rỗng",
-            )
-
-        result = await course_service.bulk_delete_courses(request.course_ids)
-
-        return result
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi không xác định khi xóa khóa học: {str(e)}",
         )

@@ -13,10 +13,7 @@ class Exercise(Base):
     __tablename__ = "exercises"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # New fields aligned with frontend `ExerciseItem`
     title: Mapped[str] = mapped_column(String)
-    # Keep `name` for backward compatibility if any code still references it
-    name: Mapped[str | None] = mapped_column(String, nullable=True)
     description: Mapped[str] = mapped_column(String)
     category: Mapped[str | None] = mapped_column(String, nullable=True)
     difficulty: Mapped[str] = mapped_column(String)
@@ -31,7 +28,6 @@ class Exercise(Base):
     case: Mapped[str] = mapped_column(JSON, nullable=True)
 
     lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="exercises")
-    # Quan hệ tới test cases dạng quan hệ thay vì JSON `case`
     test_cases: Mapped[list["ExerciseTestCase"]] = relationship(
         "ExerciseTestCase",
         back_populates="exercise",
@@ -46,14 +42,10 @@ class Exercise(Base):
     def exercise_from_schema(data: ExerciseDetail):
         exercise = Exercise()
 
-        # Các trường bắt buộc / ưu tiên title, fallback sang name nếu có
         exercise.title = getattr(data, "title", None) or getattr(data, "name", None) or ""
-        # Ghi lại `name` để tương thích nếu nơi khác còn dùng
-        exercise.name = getattr(data, "name", None) or exercise.title
         exercise.description = data.description
         exercise.difficulty = data.difficulty
 
-        # Các trường mở rộng có thể None
         exercise.category = getattr(data, "category", None)
         exercise.estimated_time = getattr(data, "estimated_time", None)
         exercise.completion_rate = getattr(data, "completion_rate", None)

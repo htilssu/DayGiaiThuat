@@ -48,20 +48,6 @@ class LessonResponseSchema(LessonBase):
 
 
 class ExerciseBase(BaseModel):
-    """
-    Schema cơ bản cho bài tập
-
-    Attributes:
-        title: Tiêu đề bài tập
-        description: Mô tả chi tiết về bài tập
-        category: Danh mục bài tập
-        difficulty: Độ khó của bài tập
-        estimated_time: Thời gian ước tính
-        completion_rate: Tỉ lệ hoàn thành
-        completed: Trạng thái hoàn thành
-        content: Nội dung chi tiết
-        code_template: Mẫu code
-    """
 
     title: str
     description: str
@@ -75,13 +61,6 @@ class ExerciseBase(BaseModel):
 
 
 class ExerciseResponse(ExerciseBase):
-    """
-    Schema cho response khi truy vấn thông tin bài tập
-
-    Attributes:
-        id: ID của bài tập
-        lesson_id: ID của bài học liên quan
-    """
 
     id: int
     lesson_id: int

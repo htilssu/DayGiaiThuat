@@ -34,10 +34,14 @@ T = TypeVar("T", bound=DeclarativeBase)
 
 
 def pydantic_to_sqlalchemy_scalar(pydantic_obj: BaseModel, sa_model: Type[T]) -> T:
-    sa_columns = {col.name for col in sa_model.__table__.columns}
-    data = pydantic_obj.model_dump()
-    filtered_data = {k: v for k, v in data.items() if k in sa_columns}
-    return sa_model(**filtered_data)
+    try:
+        sa_columns = {col.name for col in sa_model.__table__.columns}
+        data = pydantic_obj.model_dump()
+        filtered_data = {k: v for k, v in data.items() if k in sa_columns}
+        return sa_model(**filtered_data)
+    except Exception as e:
+        print()
+        raise ValueError(f"Error converting Pydantic model to SQLAlchemy model: {e}")
 
 
 def convert_lesson_to_schema(

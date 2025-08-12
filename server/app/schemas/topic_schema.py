@@ -19,6 +19,7 @@ class TopicBase(BaseModel):
     class Config:
         from_attributes = True
 
+
 class TopicHasSkill(TopicBase):
     skills: list[SkillBase] = Field(
         default_factory=list, description="Danh sách các kỹ năng liên quan đến chủ đề"
@@ -163,7 +164,6 @@ class TopicWithUserState(BaseModel):
 
 class TopicWithProgressResponse(BaseModel):
     id: int = Field(..., description="ID của topic")
-    external_id: Optional[str] = Field(None, description="External ID của topic")
     name: str = Field(..., description="Tên topic")
     description: str = Field(..., description="Mô tả topic")
     order: Optional[int] = Field(None, description="Thứ tự topic trong course")

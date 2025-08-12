@@ -1,10 +1,17 @@
 import asyncio
-from app.core.agents.test_generate_agent import get_input_test_agent
+import uuid
+
+from sqlalchemy import select
+
+from app.database.database import get_independent_db_session
+from app.models import Topic
+from app.services.lesson_generate_service import LessonGenerateService
 
 
 async def main():
-    ip_ag = get_input_test_agent()
-    await ip_ag.act(course_id=215)
+    async with get_independent_db_session() as db:
+        topic_list = (await db.execute(select(Topic).filter(Topic.course_id == 236))).scalars().all()
+        await LessonGenerateService().generate_all_by_topic(topic_list=topic_list, session_id=uuid.uuid4().hex)
 
 
 if __name__ == "__main__":

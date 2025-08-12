@@ -1,9 +1,5 @@
-import json
 from typing import List
-from app.core.agents.base_agent import BaseAgent
-from app.core.agents.components.llm_model import (
-    get_llm_model,
-)
+
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.messages import SystemMessage
 from langchain_core.prompts import (
@@ -11,11 +7,18 @@ from langchain_core.prompts import (
     HumanMessagePromptTemplate,
     MessagesPlaceholder,
 )
+
+from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
+from app.core.agents.components.llm_model import (
+    get_llm_model,
+)
 from app.core.config import settings
 from app.core.tracing import trace_agent
+from app.models import Topic
 from app.schemas import AgentCreateLessonSchema
 from app.schemas.lesson_schema import CreateLessonSchema
+from app.schemas.topic_schema import TopicBase
 
 SYSTEM_PROMPT_TEMPLATE = """
 Bạn là một chuyên gia thiết kế chương trình học, có nhiệm vụ tạo ra các bài giảng lập trình và giải thuật chất lượng cao.
@@ -33,7 +36,7 @@ LƯU Ý QUAN TRỌNG:
 - Đối số của `generate_lesson_tool` là miêu tả kịch bản học chi tiết có đưa dữ liệu lấy từ retriever_document_tool để tham chiếu,lesson này học gì, section này có những gì, bổ sung kiến thức nào, có thể có các câu hỏi, lời giải thích, lời giảng dạy như một người giáo viên
   layout tạo ra phải không được có lesson trùng với các topic khác ,dựa vào tài liệu đã thu thập. 1 đoạn văn bản string, không phải json.
 
-{format_instructions}
+- Trả về nguyên kết quả của generate_lesson_tool
 """
 
 STRUCTURE_PROMPT_TEMPLATE = """Bạn là một chuyên gia thiết kế chương trình học. Hãy tạo cấu trúc cho nhiều bài giảng (lesson) dựa vào đầu vào.
@@ -74,21 +77,16 @@ Hướng dẫn về từng loại section:
 - Dưới mỗi bài giảng, cần có phần tóm tắt ngắn gọn các điểm chính đã học,phải thêm ví dụ và phần triển khai để người dùng hiểu rõ hơn.
 - Phải có phần bài tập ví dụ (bài tập này phải được giải thích kỹ),sau bài tập ví dụ đó có 1 bài tập vận dụng để học viên thực hành, Phần vận dụng hoặc bài tập sẽ nằm sau phần lý thuyết liên quan.
 - Type của section phải là một trong các giá trị sau: "text", "code", "quiz", "manipulate","teaching", "image", "exercise".
+
 {format_instructions}
 """
 
 
 class LessonGeneratingAgent(BaseAgent):
-    """
-    Một AI agent sử dụng Langchain để tạo ra nội dung bài giảng.
-    Agent này có khả năng sử dụng các tool để truy vấn kiến thức,
-    tạo cấu trúc, soạn nội dung và đảm bảo định dạng đầu ra.
-    """
-
     def __init__(
-        self,
-        mongodb_db_name: str = "chat_history",
-        mongodb_collection_name: str = "lesson_chat_history",
+            self,
+            mongodb_db_name: str = "chat_history",
+            mongodb_collection_name: str = "lesson_chat_history",
     ):
         super().__init__()
         self.available_args = [
@@ -123,9 +121,6 @@ class LessonGeneratingAgent(BaseAgent):
         from pydantic import BaseModel
 
         class ListCreateLessonSchema(BaseModel):
-            """
-            Danh sách các bài giảng được tạo ra."""
-
             list_schema: List[AgentCreateLessonSchema]
 
         self.structure_parser = PydanticOutputParser(
@@ -154,7 +149,6 @@ class LessonGeneratingAgent(BaseAgent):
         )
 
     def _init_tools(self):
-        """Khởi tạo tools."""
         from langchain.output_parsers import OutputFixingParser
         from langchain_core.tools import Tool
 
@@ -176,21 +170,12 @@ class LessonGeneratingAgent(BaseAgent):
             self.base_llm, self.structure_parser
         )
 
-        self.output_fixing_parser_tool = Tool(
-            name="output_fixing_parser_tool",
-            func=self.output_fixing_parser.invoke,
-            coroutine=self.output_fixing_parser.ainvoke,
-            description="Sửa lỗi định dạng đầu ra để đảm bảo kết quả cuối cùng là một JSON hoàn chỉnh. PHẢI sử dụng cuối cùng để hoàn thiện output.",
-        )
-
         self.tools = [
             self.retriever_document_tool,
             self.generate_lesson_structure_tool,
         ]
 
     def _init_agent(self):
-        """Khởi tạo agent."""
-
         self.prompt = ChatPromptTemplate.from_messages(
             [
                 SystemMessage(
@@ -212,17 +197,12 @@ class LessonGeneratingAgent(BaseAgent):
         )
 
     @trace_agent(project_name="default", tags=["lesson", "generator"])
-    async def act(self, *args, **kwargs) -> List[CreateLessonSchema]:
-        """
-        Thực thi quy trình tạo bài giảng bằng agent.
-        """
-        super().act(*args, **kwargs)
+    async def act(self, topic: Topic, session_id: str) -> List[CreateLessonSchema]:
         from langchain_core.runnables import RunnableConfig, RunnableWithMessageHistory
         from langchain_mongodb import MongoDBChatMessageHistory
 
-        session_id = kwargs.get("session_id")
         if not session_id:
-            raise ValueError("Cần cung cấp 'session_id' để tạo bài giảng.")
+            raise ValueError("Session ID không được để trống.")
 
         run_config = RunnableConfig(
             callbacks=self._callback_manager.handlers,
@@ -241,20 +221,17 @@ class LessonGeneratingAgent(BaseAgent):
             ),
         )
 
-        input_data = {k: v for k, v in kwargs.items() if k in self.available_args}
-
         try:
             response = await agent_with_chat_history.ainvoke(
-                {"input": json.dumps(input_data, ensure_ascii=False)},
+                {"input": TopicBase.model_validate(topic).model_dump_json()},
                 config=run_config,
             )
 
-            if isinstance(response, dict) and response.get("output"):
+            try:
                 final_lesson = self.structure_parser.parse(response["output"])
                 return final_lesson.list_schema
-            else:
-                raise ValueError("Agent không trả về kết quả hợp lệ.")
-
+            except Exception as e:
+                return (await self.output_fixing_parser.ainvoke(response["output"])).list_schema
         except Exception as e:
             print(f"Lỗi trong quá trình tạo Lesson: {e}")
             raise Exception(f"Không thể tạo bài giảng: {str(e)}")

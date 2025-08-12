@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Optional
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,10 +41,6 @@ class LessonService:
     async def generate_lesson(
         self, request: GenerateLessonRequestSchema, topic_id: int, order: int
     ) -> Optional[LessonWithChildSchema]:
-        """
-        Generate a lesson using the RAG AI agent and log the state.
-        """
-        # Validate topic
         topic = await self.topic_service.get_topic_by_id(topic_id)
         if not topic:
             raise HTTPException(
@@ -135,16 +132,9 @@ class LessonService:
         await self.db.commit()
         await self.db.refresh(lesson)
 
-        # Tải rõ ràng các mối quan hệ trước khi chuyển đổi
         await self.db.refresh(lesson, ["sections", "exercises"])
 
-        # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
-        return convert_lesson_to_schema(lesson)
-
     async def get_lesson_by_id(self, lesson_id: int) -> Optional[LessonWithChildSchema]:
-        """
-        Get a lesson by ID.
-        """
         stmt = (
             select(Lesson)
             .where(Lesson.id == lesson_id)
@@ -156,15 +146,11 @@ class LessonService:
         if not lesson:
             return None
 
-        # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
         return convert_lesson_to_schema(lesson)
 
     async def get_lesson_by_order(
         self, topic_id: int, order: int
     ) -> Optional[LessonWithChildSchema]:
-        """
-        Get a lesson by order.
-        """
         stmt = select(Lesson).where(Lesson.topic_id == topic_id, Lesson.order == order)
         result = await self.db.execute(stmt)
         lesson = result.scalar_one_or_none()
@@ -172,15 +158,11 @@ class LessonService:
         if not lesson:
             return None
 
-        # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
         return convert_lesson_to_schema(lesson)
 
     async def get_lesson_by_external_id(
         self, external_id: str
     ) -> Optional[LessonWithChildSchema]:
-        """
-        Get a lesson by external ID.
-        """
         stmt = (
             select(Lesson)
             .where(Lesson.external_id == external_id)
@@ -192,13 +174,9 @@ class LessonService:
         if not lesson:
             return None
 
-        # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
         return convert_lesson_to_schema(lesson)
 
     async def get_lessons_by_topic(self, topic_id: int) -> List[LessonWithChildSchema]:
-        """
-        Get all lessons for a topic.
-        """
         stmt = (
             select(Lesson)
             .where(Lesson.topic_id == topic_id)

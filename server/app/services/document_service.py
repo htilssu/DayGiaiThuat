@@ -12,9 +12,123 @@ from app.core.agents.components.document_store import get_vector_store
 from app.core.config import settings
 from app.database.database import get_independent_db_session, get_async_db
 from app.models.document_processing_job_model import DocumentProcessingJob
+from app.schemas.DocumentRequestExternal import DocumentRequestExternal
 from app.schemas.document_schema import DocumentStatus
 
 logger = logging.getLogger(__name__)
+
+
+async def call_external_document_processing_api(document: DocumentRequestExternal) -> str:
+    if not settings.DOCUMENT_PROCESSING_ENDPOINT:
+        raise Exception("DOCUMENT_PROCESSING_ENDPOINT chưa được cấu hình")
+
+    try:
+        payload = {
+            "input": {"url": document.document_url},
+            "webhook": document.webhook_url,
+        }
+
+        async with httpx.AsyncClient(
+                timeout=settings.DOCUMENT_PROCESSING_TIMEOUT
+        ) as client:
+            response = await client.post(
+                settings.DOCUMENT_PROCESSING_ENDPOINT,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+
+            response.raise_for_status()
+            result = response.json()
+
+            job_id = result.get("id")
+            if not job_id:
+                raise Exception("No job ID returned from external API")
+
+            return job_id
+
+    except httpx.TimeoutException:
+        error_msg = f"Timeout khi gọi external API sau {settings.DOCUMENT_PROCESSING_TIMEOUT}s"
+        logger.error(error_msg)
+        raise Exception(error_msg)
+
+    except httpx.HTTPStatusError as e:
+        error_msg = f"HTTP error {e.response.status_code}: {e.response.text}"
+        logger.error(error_msg)
+        raise Exception(error_msg)
+
+    except Exception as e:
+        error_msg = f"Lỗi khi gọi external API: {str(e)}"
+        logger.error(error_msg)
+        raise Exception(error_msg)
+
+
+async def create_document_processing_job(
+        document_id: str,
+        job_id: str,
+        filename: str,
+        document_url: str,
+        course_id: Optional[int] = None,
+) -> DocumentProcessingJob:
+    """
+    Tạo record DocumentProcessingJob trong database
+    """
+    async with get_independent_db_session() as db:
+        try:
+            job = DocumentProcessingJob(
+                id=document_id,
+                job_id=job_id,
+                filename=filename,
+                document_url=document_url,
+                course_id=course_id,
+                status="IN_QUEUE",
+            )
+            db.add(job)
+            await db.commit()
+            await db.refresh(job)
+            return job
+        except Exception as e:
+            await db.rollback()
+            raise Exception(f"Failed to create document processing job: {str(e)}")
+        finally:
+            await db.close()
+
+
+async def update_job_status(
+        job_id: str,
+        status: str,
+        result: Optional[Dict[str, Any]] = None,
+        error_message: Optional[str] = None,
+) -> Optional[DocumentProcessingJob]:
+    """
+    Cập nhật trạng thái job từ webhook
+    """
+    db = next(get_db())
+    try:
+        job = db.execute(
+            select(DocumentProcessingJob).where(
+                DocumentProcessingJob.job_id == job_id
+            )
+        ).scalar_one_or_none()
+
+        if not job:
+            return None
+
+        job.status = status
+        if result:
+            job.result = json.dumps(result)
+        if error_message:
+            job.error_message = error_message
+        if status == "COMPLETED":
+            job.processed_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(job)
+        return job
+    except Exception as e:
+        db.rollback()
+        raise Exception(f"Failed to update job status: {str(e)}")
+    finally:
+        db.close()
 
 
 class DocumentService:
@@ -25,109 +139,37 @@ class DocumentService:
 
         self.embeddings = get_embedding_model()
 
-    async def create_document_processing_job(
-            self,
-            document_id: str,
-            job_id: str,
-            filename: str,
-            document_url: str,
-            course_id: Optional[int] = None,
-    ) -> DocumentProcessingJob:
-        """
-        Tạo record DocumentProcessingJob trong database
-        """
+    async def process_completed_document(
+            self, job_id: str, result: str
+    ) -> None:
         async with get_independent_db_session() as db:
             try:
-                job = DocumentProcessingJob(
-                    id=document_id,
-                    job_id=job_id,
-                    filename=filename,
-                    document_url=document_url,
-                    course_id=course_id,
-                    status="IN_QUEUE",
-                )
-                db.add(job)
-                await db.commit()
-                await db.refresh(job)
-                return job
+                job = (await db.execute(
+                    select(DocumentProcessingJob).where(
+                        DocumentProcessingJob.job_id == job_id
+                    )
+                )).scalar_one_or_none()
+
+                if not job:
+                    raise Exception(f"Job {job_id} not found")
+
+                # Xử lý kết quả từ Docling
+                await self._process_docling_result(job, result)
+
+                # Nếu thuộc về course, gọi agent tạo topic và lesson
+                if job.course_id:
+                    await self._trigger_course_content_generation(job.course_id)
+
+                logger.info(f"Document processing completed for job {job_id}")
+
             except Exception as e:
-                await db.rollback()
-                raise Exception(f"Failed to create document processing job: {str(e)}")
+                logger.error(f"Error processing completed document {job_id}: {str(e)}")
+                raise e
             finally:
-                await db.close()
-
-    async def update_job_status(
-            self,
-            job_id: str,
-            status: str,
-            result: Optional[Dict[str, Any]] = None,
-            error_message: Optional[str] = None,
-    ) -> Optional[DocumentProcessingJob]:
-        """
-        Cập nhật trạng thái job từ webhook
-        """
-        db = next(get_db())
-        try:
-            job = db.execute(
-                select(DocumentProcessingJob).where(
-                    DocumentProcessingJob.job_id == job_id
-                )
-            ).scalar_one_or_none()
-
-            if not job:
-                return None
-
-            job.status = status
-            if result:
-                job.result = json.dumps(result)
-            if error_message:
-                job.error_message = error_message
-            if status == "COMPLETED":
-                job.processed_at = datetime.utcnow()
-
-            db.commit()
-            db.refresh(job)
-            return job
-        except Exception as e:
-            db.rollback()
-            raise Exception(f"Failed to update job status: {str(e)}")
-        finally:
-            db.close()
-
-    async def process_completed_document(
-            self, job_id: str, result: Dict[str, Any]
-    ) -> None:
-        """
-        Xử lý tài liệu đã hoàn thành: semantic chunking và lưu vào RAG
-        """
-        db = next(get_db())
-        try:
-            job = db.execute(
-                select(DocumentProcessingJob).where(
-                    DocumentProcessingJob.job_id == job_id
-                )
-            ).scalar_one_or_none()
-
-            if not job:
-                raise Exception(f"Job {job_id} not found")
-
-            # Xử lý kết quả từ Docling
-            await self._process_docling_result(job, result)
-
-            # Nếu thuộc về course, gọi agent tạo topic và lesson
-            if job.course_id:
-                await self._trigger_course_content_generation(job.course_id)
-
-            logger.info(f"Document processing completed for job {job_id}")
-
-        except Exception as e:
-            logger.error(f"Error processing completed document {job_id}: {str(e)}")
-            raise e
-        finally:
-            db.close()
+                db.close()
 
     async def _process_docling_result(
-            self, job: DocumentProcessingJob, result: Dict[str, Any]
+            self, job: DocumentProcessingJob, result: str
     ) -> None:
         """
         Xử lý kết quả từ Docling và lưu vào vector database
@@ -136,14 +178,11 @@ class DocumentService:
         from langchain_core.documents import Document
 
         try:
-            # Lấy content từ result (tùy thuộc vào format của Docling)
-            content = result.get("content", "")
-            if not content:
+            if not result:
                 raise ValueError("No content found in processing result")
 
-            # Tạo document object
             doc = Document(
-                page_content=content,
+                page_content=result,
                 metadata={
                     "source": job.filename,
                     "document_id": job.id,
@@ -153,7 +192,6 @@ class DocumentService:
                 },
             )
 
-            # Semantic chunking
             semantic_chunker = SemanticChunker(
                 embeddings=self.embeddings,
                 breakpoint_threshold_type="percentile",
@@ -166,7 +204,6 @@ class DocumentService:
             if not chunks:
                 raise ValueError("No meaningful chunks could be created")
 
-            # Thêm metadata cho chunks
             for i, chunk in enumerate(chunks):
                 chunk.metadata.update(
                     {
@@ -176,7 +213,6 @@ class DocumentService:
                     }
                 )
 
-            # Lưu vào vector database
             await self._store_chunks_in_vector_db(chunks)
 
             logger.info(f"Processed {len(chunks)} chunks for document {job.id}")
@@ -294,11 +330,9 @@ class DocumentService:
         try:
             vector_store = get_vector_store("document")
 
-            # Extract texts and clean metadata
             texts = [chunk.page_content for chunk in chunks]
             metadatas = [self._clean_metadata(chunk.metadata) for chunk in chunks]
 
-            # Store in batches to avoid overwhelming the vector store
             batch_size = 50
             for i in range(0, len(texts), batch_size):
                 batch_texts = texts[i: i + batch_size]
@@ -402,13 +436,9 @@ class DocumentService:
     async def search_documents(
             self, query: str, limit: int = 5, filter_metadata: Dict = None
     ) -> Dict:
-        """
-        Search documents in vector database with optional metadata filtering
-        """
         try:
             vector_store = get_vector_store("document")
 
-            # Perform similarity search
             if filter_metadata:
                 results = vector_store.similarity_search(
                     query, k=limit, filter=filter_metadata
@@ -436,7 +466,7 @@ class DocumentService:
         """
         Get statistics about processed documents from database
         """
-        db = next(get_db())
+        db = next(get_async_db())
         try:
             total_docs = db.execute(select(DocumentProcessingJob)).scalars().all()
 
@@ -457,67 +487,6 @@ class DocumentService:
             }
         finally:
             db.close()
-
-    async def call_external_document_processing_api(self, document_url: str) -> str:
-        """
-        Gọi external API để xử lý document với URL đã upload lên object storage
-        Cập nhật để include webhook URL và return job_id
-
-        Args:
-            document_url (str): URL của document đã upload
-            document_id (str): ID của document
-            filename (str): Tên file gốc
-
-        Returns:
-            str: Job ID từ Runpod
-
-        Raises:
-            Exception: Nếu có lỗi khi gọi API
-        """
-        if not settings.DOCUMENT_PROCESSING_ENDPOINT:
-            raise Exception("DOCUMENT_PROCESSING_ENDPOINT chưa được cấu hình")
-
-        try:
-            # Payload với webhook URL
-            webhook_url = f"{settings.BASE_URL}/document/webhook"
-            payload = {
-                "input": {"url": document_url},
-                "webhook": webhook_url,
-            }
-
-            async with httpx.AsyncClient(
-                    timeout=settings.DOCUMENT_PROCESSING_TIMEOUT
-            ) as client:
-                response = await client.post(
-                    settings.DOCUMENT_PROCESSING_ENDPOINT,
-                    json=payload,
-                    headers={"Content-Type": "application/json"},
-                )
-
-                response.raise_for_status()
-                result = response.json()
-
-                # Return job ID
-                job_id = result.get("id")
-                if not job_id:
-                    raise Exception("No job ID returned from external API")
-
-                return job_id
-
-        except httpx.TimeoutException:
-            error_msg = f"Timeout khi gọi external API sau {settings.DOCUMENT_PROCESSING_TIMEOUT}s"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-
-        except httpx.HTTPStatusError as e:
-            error_msg = f"HTTP error {e.response.status_code}: {e.response.text}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-
-        except Exception as e:
-            error_msg = f"Lỗi khi gọi external API: {str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
 
 
 def get_document_service() -> DocumentService:

@@ -4,6 +4,8 @@ import enum
 from enum import Enum
 from typing import List
 
+import sqlalchemy
+
 from app.database.database import Base
 from sqlalchemy import Boolean, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -19,10 +21,12 @@ class TestGenerationStatus(str, Enum):
 
 
 class CourseStatus(str, Enum):
-    DRAFT = "draft"
-    APPROVED = "approved"
-    COMPOSITING = "compositing"
-    PUBLISHED = "published"
+    DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
+    TOPIC_APPROVED = "TOPIC_APPROVED"
+    LESSON_APPROVED = "LESSON_APPROVED"
+    EXERCISE_APPROVED = "EXERCISE_APPROVED"
+    COMPOSITING = "COMPOSITING"
 
 
 class Course(Base):
@@ -57,7 +61,7 @@ class Course(Base):
     duration: Mapped[int] = mapped_column(Integer, default=0)
     price: Mapped[float] = mapped_column(Float, default=0.0)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False)
-    status: Mapped[str] = mapped_column(String(255), nullable=True, default=CourseStatus.COMPOSITING)
+    status: Mapped[str] = mapped_column(sqlalchemy.Enum(CourseStatus, native_enum = False), nullable=True, default=CourseStatus.COMPOSITING)
 
     test_generation_status: Mapped[str] = mapped_column(
         String(20), default=TestGenerationStatus.NOT_STARTED
