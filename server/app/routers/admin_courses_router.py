@@ -15,6 +15,7 @@ from app.database.mongodb import get_mongo_collection
 from app.models.course_draft_model import CourseDraft
 from app.models.course_model import Course
 from app.models.topic_model import Topic
+from app.schemas.course_draft_schema import CourseDraftSchema
 from app.schemas.course_review_schema import ApproveDraftRequest
 from app.schemas.course_schema import (
     BulkDeleteCoursesRequest,
@@ -486,7 +487,7 @@ async def update_course_thumbnail(
 # API endpoints mới cho workflow review
 @router.get(
     "/{course_id}/review",
-    response_model=CourseDraft,
+    response_model=CourseDraftSchema,
     summary="Lấy thông tin review khóa học (Admin)",
     responses={
         200: {"description": "OK"},

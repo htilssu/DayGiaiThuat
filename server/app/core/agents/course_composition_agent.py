@@ -1,22 +1,19 @@
-from langchain.output_parsers import OutputFixingParser
-from langchain_core.output_parsers import PydanticOutputParser
-from langchain_core.tools import Tool
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from pydantic import BaseModel, Field
-from sqlalchemy import update
-from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
+
+from langchain.output_parsers import OutputFixingParser
+from langchain_core.exceptions import OutputParserException
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.tools import Tool
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
 from app.core.tracing import trace_agent
-from app.models import Course
 from app.schemas.course_draft_schema import CourseDraftSchema
 from app.schemas.course_schema import (
     CourseCompositionRequestSchema,
 )
-from app.schemas.topic_schema import TopicBase
-
 
 SYSTEM_PROMPT = """
 Bạn là chuyên gia giáo dục về lập trình và giải thuật. Dựa trên thông tin khóa học và tài liệu tham khảo được lấy từ retrieval_tool, hãy phân tích và tạo danh sách các chủ đề (topics) cho khóa học.
@@ -56,7 +53,6 @@ Lưu ý:
 - Không vượt quá số lượng topics tối đa
 - Phải luôn tuân thủ đầu ra, không được trả lời lan man, không được yêu cầu thêm thông tin
 """
-
 
 SYSTEM_PROMPT = SYSTEM_PROMPT.format(
     instruction=PydanticOutputParser(
@@ -126,7 +122,7 @@ class CourseCompositionAgent(BaseAgent):
 
     @trace_agent(project_name="default", tags=["course", "composition"])
     async def act(
-        self, request: CourseCompositionRequestSchema
+            self, request: CourseCompositionRequestSchema
     ) -> tuple[CourseDraftSchema, str]:
         from langchain_core.runnables import RunnableConfig
         from app.core.config import settings
@@ -158,7 +154,7 @@ class CourseCompositionAgent(BaseAgent):
 
             runnable_with_history = RunnableWithMessageHistory(
                 runnable=self.agent_executor,
-                get_session_history=lambda session_id: MongoDBChatMessageHistory(
+                get_session_history=lambda: MongoDBChatMessageHistory(
                     connection_string=settings.MONGO_URI,
                     session_id=session_id,
                     database_name=self.mongodb_db_name,
@@ -170,20 +166,19 @@ class CourseCompositionAgent(BaseAgent):
 
             result = await runnable_with_history.ainvoke(
                 {"input": request_input},
-                config={"configurable": {"session_id": session_id}, **run_config},
+                config=run_config
             )
 
             if not result or not result.get("output"):
                 raise Exception("Không thể tạo topics cho khóa học")
 
             try:
-                agent_response = self.output_parser.parse(result["output"])
-            except Exception:
+                agent_response: CourseDraftSchema = self.output_parser.parse(result["output"])
+            except OutputParserException:
                 agent_response = OutputFixingParser.from_llm(
                     self.base_llm, parser=self.output_parser
                 ).parse(result["output"])
-
-            print(f"✅ Đã tạo nội dung cho khóa học: {request.course_title}")
+            agent_response.session_id = session_id
             return agent_response, session_id
 
         except Exception as e:
