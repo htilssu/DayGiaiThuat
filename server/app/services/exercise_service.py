@@ -8,9 +8,10 @@ from app.core.agents.exercise_agent import (
 )
 from app.database.database import get_async_db
 from app.core.config import settings
-from app.models import Exercise
+from app.models import Exercise, ExerciseTestCase
 from app.models.exercise_model import Exercise as ExerciseModel
 from app.models.lesson_model import Lesson
+from app.models.exercise_test_case_model import ExerciseTestCase
 from app.schemas.exercise_schema import (
     CodeSubmissionRequest,
     CodeSubmissionResponse,
@@ -177,9 +178,40 @@ class ExerciseService:
         )
 
         exercise_model = ExerciseModel.exercise_from_schema(exercise_detail)
-
+        exercise_model.test_cases = [ExerciseTestCase(**testc) for testc in exercise_detail.case]
         self.db.add(exercise_model)
         await self.db.commit()
+        await self.db.refresh(exercise_model)
+
+        # Persist generated test cases (if provided by agent)
+        try:
+            cases = getattr(exercise_detail, "case", None) or []
+            if isinstance(cases, list) and exercise_model.id:
+                for tc in cases:
+                    input_data = (
+                        getattr(tc, "input", None)
+                        or getattr(tc, "input_data", None)
+                    )
+                    output_data = (
+                        getattr(tc, "expected_output", None)
+                        or getattr(tc, "output_data", None)
+                        or getattr(tc, "output", None)
+                    )
+                    explain = getattr(tc, "explain", None)
+                    if input_data is None or output_data is None:
+                        continue
+                    self.db.add(
+                        ExerciseTestCase(
+                            exercise_id=exercise_model.id,
+                            input_data=str(input_data),
+                            output_data=str(output_data),
+                            explain=explain,
+                        )
+                    )
+                await self.db.commit()
+        except Exception:
+            # Don't block exercise creation if test case persistence fails
+            await self.db.rollback()
 
         return exercise_detail
 

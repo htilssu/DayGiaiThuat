@@ -121,7 +121,7 @@ class UpdateLessonSchema(LessonBase):
 
 
 class LessonWithChildSchema(LessonResponseSchema):
-    sections: List[LessonSectionSchema] = Field(
+    sections: List[LessonSectionResponse] = Field(
         default_factory=list, description="Danh sách các section của lesson"
     )
     exercises: List[ExerciseResponse] = Field(

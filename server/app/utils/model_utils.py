@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 from app.schemas.lesson_schema import (
     LessonWithChildSchema,
-    LessonSectionSchema,
+    LessonSectionResponse,
     ExerciseResponse,
     Options,
 )
@@ -60,6 +60,7 @@ def convert_lesson_to_schema(
     sections_data = []
     for section in lesson.sections:
         section_data = {
+            "id": section.id,
             "type": section.type,
             "content": section.content,
             "order": section.order,
@@ -78,7 +79,7 @@ def convert_lesson_to_schema(
                     D=section.options["D"],
                 )
 
-        sections_data.append(LessonSectionSchema(**section_data))
+        sections_data.append(LessonSectionResponse(**section_data))
 
     exercises_data = []
     for exercise in lesson.exercises:

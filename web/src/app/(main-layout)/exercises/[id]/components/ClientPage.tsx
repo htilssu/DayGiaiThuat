@@ -57,14 +57,6 @@ export default function ClientPage({ exercise }: { exercise: ExerciseDetail }) {
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-6xl">
-      {/* Breadcrumb */}
-      <div className="mb-6 text-sm text-foreground/60">
-        <Link href="/exercises" className="hover:text-primary">
-          Danh sách bài tập
-        </Link>{" "}
-        / <span className="text-foreground/90">{exercise.title}</span>
-      </div>
-
       {/* Exercise Header */}
       <ExerciseHeader exercise={exercise} />
 

@@ -103,6 +103,12 @@ class TopicService:
         stmt = (
             select(Topic)
             .where(Topic.course_id == course_id)
+            .options(
+                selectinload(Topic.lessons)
+                .selectinload(Lesson.sections),
+                selectinload(Topic.lessons)
+                .selectinload(Lesson.exercises),
+            )
             .order_by(Topic.order.asc().nulls_last(), Topic.id.asc())
         )
 
