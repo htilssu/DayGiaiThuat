@@ -59,7 +59,6 @@ class ThumbnailUpdateRequest(BaseModel):
 
 
 def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
-    """Kiểm tra quyền admin"""
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -500,7 +499,7 @@ async def get_course_review(
         admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     course_draft = get_course_daft_by_course_id(course_id)
-    return
+    return course_draft
 
 
 @router.post(
@@ -515,14 +514,10 @@ async def get_course_review(
 async def approve_course_draft(
         course_id: int,
         approve_request: ApproveDraftRequest,
-        background_tasks: BackgroundTasks,
+        course_generate_service: CourseGenerateService = Depends(get_course_generate_service),
         db: AsyncSession = Depends(get_async_db),
         admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
-    """
-    Approve draft content và lưu vào database chính hoặc reject và gọi lại agent
-    """
-    # Tìm course
     course_result = await db.execute(select(Course).filter(Course.id == course_id))
     course = course_result.scalar_one_or_none()
     if not course:
@@ -531,7 +526,6 @@ async def approve_course_draft(
             detail=f"Không tìm thấy khóa học với ID {course_id}",
         )
 
-    # Tìm draft duy nhất của course này
     draft_result = await db.execute(
         select(CourseDraft)
         .filter(CourseDraft.course_id == course_id)
@@ -554,22 +548,19 @@ async def approve_course_draft(
                     "session_id": draft.session_id,
                 }
             )
-
+        #     TODO: Lưu nội dung agent vào database chính
         else:
-
             composition_request = CourseCompositionRequestSchema(
                 course_id=course_id,
                 course_title=course.title,
                 course_description=course.description,
                 course_level=course.level,
-                session_id=draft.session_id,  # Sử dụng session_id từ draft
+                session_id=draft.session_id,
+                user_requirements=approve_request.feedback,
             )
 
-            background_tasks.add_task(
-                run_course_recomposition_background,
-                composition_request,
-                approve_request.feedback or "Vui lòng cải thiện nội dung khóa học",
-                db,
+            asyncio.create_task(
+                course_generate_service.background_create(composition_request)
             )
 
             return {"message": "Draft đã được rejected và agent đang tái tạo nội dung"}
@@ -582,38 +573,17 @@ async def approve_course_draft(
         )
 
 
-async def process_agent_response(course_id: int, user_message: str, user_id: int):
-    """
-    Xử lý phản hồi từ agent trong background
-    """
-    try:
-        # TODO: Tích hợp với agent để xử lý tin nhắn
-        pass
-
-    except Exception as e:
-        import logging
-
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error processing agent response: {str(e)}")
-
-
 async def save_agent_content_to_db(
         course_id: int, agent_content: dict, db: AsyncSession
 ):
-    """
-    Lưu nội dung agent tạo ra vào database chính
-    """
-    # Parse và lưu topics
     for index, topic_data in enumerate(agent_content.get("topics", [])):
-        # Tạo topic
         topic = Topic(
             course_id=course_id,
             name=topic_data.get("name"),
             description=topic_data.get("description"),
             prerequisites=topic_data.get("prerequisites", []),
-            order=index + 1,  # Sắp xếp theo thứ tự trong list
+            order=index + 1,
         )
         db.add(topic)
 
-    # Commit tất cả các thay đổi
     await db.commit()

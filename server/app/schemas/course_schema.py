@@ -292,6 +292,9 @@ class CourseCompositionRequestSchema(BaseModel):
     session_id: Optional[str] = Field(
         None, description="Session ID cho message history"
     )
+    user_requirements: Optional[str] = Field(
+        None, description="Yêu cầu của người dùng"
+    )
     max_topics: int = Field(default=10, description="Số lượng topic tối đa")
     lessons_per_topic: int = Field(default=5, description="Số lessons cho mỗi topic")
 

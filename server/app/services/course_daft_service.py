@@ -1,19 +1,21 @@
-from fastapi import Depends
-from pymongo import ASCENDING
+from fastapi import Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 
-from app.database.database import AsyncSessionLocal, get_async_db
+from app.database.database import get_async_db
 from app.database.mongodb import get_mongo_collection
 from app.schemas.course_draft_schema import CourseDraftSchema
 
 
-def get_course_daft_by_course_id(course_id: int) -> list[CourseDraftSchema]:
+def get_course_daft_by_course_id(course_id: int) -> CourseDraftSchema:
     collection = get_mongo_collection("course_drafts")
-    course_draft = collection.find({"course_id": course_id}).sort("created_at", ASCENDING)
-    course_daft_list = [
-        CourseDraftSchema(**draft) for draft in course_draft.to_list()
-    ]
-    return course_daft_list
+    course_draft = collection.find_one({"course_id": course_id})
+    if not course_draft:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy bản nháp khóa học với ID {course_id}",
+        )
+    return CourseDraftSchema.model_validate(course_draft)
 
 
 def update_or_create_course_draft(
@@ -44,5 +46,7 @@ class CourseDaftService:
         self.db = db
 
 
-def get_course_draft_service(db: AsyncSession = Depends(get_async_db())) -> CourseDaftService:
+def get_course_draft_service(
+        db: AsyncSession = Depends(get_async_db()),
+) -> CourseDaftService:
     return CourseDaftService(db=db)
