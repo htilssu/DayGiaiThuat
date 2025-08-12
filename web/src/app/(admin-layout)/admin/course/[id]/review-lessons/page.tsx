@@ -24,7 +24,7 @@ export default async function ReviewLessonsPage({ params }: ReviewLessonsPagePro
         <div className="container mx-auto py-8">
             <h1 className="text-2xl font-bold mb-4">Review Lessons - Khóa học {id}</h1>
             <p className="text-muted-foreground">
-                Trang review lessons đang được phát triển. Bạn sẽ có thể review và chỉnh sửa các bài học ở đây.
+                Trang review lessons đang được phát triển.
             </p>
         </div>
     );

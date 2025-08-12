@@ -1,11 +1,13 @@
+from pydantic import BaseModel
+
 from app.schemas.lesson_schema import (
     LessonWithChildSchema,
     LessonSectionSchema,
     ExerciseResponse,
     Options,
 )
-from sqlalchemy.orm import Session
-from typing import Optional
+from sqlalchemy.orm import Session, DeclarativeBase
+from typing import Optional, TypeVar, Type
 
 from app.models.lesson_model import Lesson
 
@@ -28,8 +30,18 @@ def model_to_dict(instance, deep=False):
     return data
 
 
+T = TypeVar("T", bound=DeclarativeBase)
+
+
+def pydantic_to_sqlalchemy_scalar(pydantic_obj: BaseModel, sa_model: Type[T]) -> T:
+    sa_columns = {col.name for col in sa_model.__table__.columns}
+    data = pydantic_obj.model_dump()
+    filtered_data = {k: v for k, v in data.items() if k in sa_columns}
+    return sa_model(**filtered_data)
+
+
 def convert_lesson_to_schema(
-    lesson: Lesson, user_id: Optional[int] = None, db: Optional[Session] = None
+        lesson: Lesson, user_id: Optional[int] = None, db: Optional[Session] = None
 ) -> LessonWithChildSchema:
     """
     Chuyển đổi từ model Lesson sang LessonResponseSchema

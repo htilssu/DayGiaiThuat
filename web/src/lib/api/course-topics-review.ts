@@ -42,7 +42,7 @@ export async function reorderTopics(courseId: number, data: UpdateTopicRequest):
  * @returns Kết quả xử lý
  */
 export async function approveTopicsAndNext(courseId: number): Promise<{ success: boolean; message: string }> {
-    return post<{ success: boolean; message: string }>(`/admin/courses/${courseId}/topics/approve`, {});
+    return post<{ success: boolean; message: string }>(`/admin/courses/${courseId}/topic/approve`, {});
 }
 
 /**
