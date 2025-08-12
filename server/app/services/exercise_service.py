@@ -8,7 +8,7 @@ from app.core.agents.exercise_agent import (
 )
 from app.database.database import get_async_db
 from app.core.config import settings
-from app.models import Exercise
+from app.models import Exercise, ExerciseTestCase
 from app.models.exercise_model import Exercise as ExerciseModel
 from app.models.lesson_model import Lesson
 from app.schemas.exercise_schema import (
@@ -177,7 +177,7 @@ class ExerciseService:
         )
 
         exercise_model = ExerciseModel.exercise_from_schema(exercise_detail)
-
+        exercise_model.test_cases = [ExerciseTestCase(**testc) for testc in exercise_detail.case]
         self.db.add(exercise_model)
         await self.db.commit()
 
