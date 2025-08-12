@@ -3,7 +3,7 @@
  */
 
 import { get, post, put } from "./client";
-import { CourseTopicsReview, UpdateTopicRequest, ReorderTopicsRequest } from "@/types/course-review";
+import { CourseTopicsReview, UpdateTopicRequest } from "@/types/course-review";
 
 /**
  * Lấy thông tin review topics của khóa học
@@ -21,8 +21,8 @@ export async function getCourseTopicsReview(courseId: number): Promise<CourseTop
  * @param data Dữ liệu cập nhật
  * @returns Kết quả cập nhật
  */
-export async function updateTopic(courseId: number, topicId: string, data: UpdateTopicRequest): Promise<{ success: boolean; message: string }> {
-    return put<{ success: boolean; message: string }>(`/admin/courses/${courseId}/topics/${topicId}`, data);
+export async function updateTopic(courseId: number, data: UpdateTopicRequest): Promise<{ success: boolean; message: string }> {
+    return put<{ success: boolean; message: string }>(`/admin/topics/draft/${courseId}`, data);
 }
 
 /**
@@ -31,9 +31,10 @@ export async function updateTopic(courseId: number, topicId: string, data: Updat
  * @param data Dữ liệu topics đầy đủ với thứ tự mới
  * @returns Kết quả cập nhật
  */
-export async function reorderTopics(courseId: number, data: ReorderTopicsRequest): Promise<{ success: boolean; message: string }> {
-    return put<{ success: boolean; message: string }>(`/admin/topics/draft/${courseId}/reorder`, data);
+export async function reorderTopics(courseId: number, data: UpdateTopicRequest): Promise<{ success: boolean; message: string }> {
+    return put<{ success: boolean; message: string }>(`/admin/courses/${courseId}/topics/reorder`, data);
 }
+
 
 /**
  * Chấp nhận và chuyển sang bước tiếp theo (tạo lessons)

@@ -4,12 +4,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database.database import get_async_db
+from app.database.database import get_async_db, AsyncSessionLocal
 
 from app.models.user_course_model import UserCourse
 from app.models.user_course_progress_model import UserCourseProgress, ProgressStatus
 from app.models.topic_model import Topic
 from app.models.course_model import Course, CourseStatus
+from app.schemas.course_draft_schema import CourseDraftSchema
 from app.schemas.course_schema import (
     BulkDeleteCoursesResponse,
     CourseCreate,
@@ -851,6 +852,24 @@ class CourseService:
         }
 
         return CourseDetailWithProgressResponse(**course_dict)
+
+
+async def save_course_from_draft(draft: CourseDraftSchema):
+    async with AsyncSessionLocal() as db:
+        query_result = db.execute(select(Course).filter(Course.id == draft.course_id))
+        course = query_result.scalar_one_or_none()
+
+        if course is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy khóa học với ID {draft.course_id}",
+            )
+
+        course.duration = draft.duration
+        course.description = draft.description
+        course.what_you_will_learn = draft.what_you_will_learn
+
+        db.commit()
 
 
 def get_course_service(db: AsyncSession = Depends(get_async_db)):

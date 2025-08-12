@@ -59,7 +59,8 @@ import {
     getCourseTopicsReview,
     reorderTopics,
     approveTopicsAndNext,
-    rejectTopicsAndRegenerate
+    rejectTopicsAndRegenerate,
+    updateTopic
 } from "@/lib/api/course-topics-review";
 import { CourseTopicsReview, TopicReview } from "@/types/course-review";
 import TopicCard from "./TopicCard";
@@ -68,7 +69,7 @@ interface SortableTopicProps {
     topic: TopicReview;
     courseId: number;
     index: number;
-    onTopicUpdate: (topicId: string, updatedTopic: Partial<TopicReview>) => void;
+    onTopicUpdate: (updatedTopicsOrTopic: TopicReview[] | TopicReview) => void;
 }
 
 function SortableTopic({ topic, courseId, index, onTopicUpdate }: SortableTopicProps) {
@@ -135,11 +136,11 @@ export default function CourseTopicsReviewPageClient({ courseId }: CourseTopicsR
     // Reorder topics mutation
     const reorderMutation = useMutation({
         mutationFn: (reorderedTopics: TopicReview[]) =>
-            reorderTopics(parseInt(courseId), { topics: reorderedTopics }),
+            updateTopic(parseInt(courseId), { topics: reorderedTopics }),
         onSuccess: (data) => {
             notifications.show({
                 title: 'Thành công',
-                message: data.message || 'Đã cập nhật thứ tự topics',
+                message: data.message || 'Đã cập nhật topic thành công',
                 color: 'green',
             });
             queryClient.invalidateQueries({ queryKey: ['courseTopicsReview', courseId] });
@@ -175,6 +176,31 @@ export default function CourseTopicsReviewPageClient({ courseId }: CourseTopicsR
                 message: error.message || 'Có lỗi xảy ra',
                 color: 'red',
             });
+        },
+    });
+
+    // Update topic mutation (gửi toàn bộ topics)
+    const updateTopicMutation = useMutation({
+        mutationFn: (topics: TopicReview[]) =>
+            reorderTopics(parseInt(courseId), { topics }),
+        onSuccess: (data: any) => {
+            notifications.show({
+                title: 'Thành công',
+                message: data.message || 'Đã cập nhật topic thành công',
+                color: 'green',
+            });
+            queryClient.invalidateQueries({ queryKey: ['courseTopicsReview', courseId] });
+        },
+        onError: (error: any) => {
+            notifications.show({
+                title: 'Lỗi',
+                message: error.message || 'Có lỗi khi cập nhật topic',
+                color: 'red',
+            });
+            // Revert local state
+            if (reviewData?.topics) {
+                setLocalTopics([...reviewData.topics].sort((a, b) => a.order - b.order));
+            }
         },
     });
 
@@ -218,19 +244,29 @@ export default function CourseTopicsReviewPageClient({ courseId }: CourseTopicsR
 
             setLocalTopics(reorderedTopics);
 
-            // Send complete topics data to server
-            reorderMutation.mutate(reorderedTopics);
+            // Use the common update function
+            handleTopicUpdate(reorderedTopics);
         }
     };
 
-    const handleTopicUpdate = (topicId: string, updatedData: Partial<TopicReview>) => {
-        setLocalTopics(prev =>
-            prev.map(topic =>
-                topic.id === topicId
-                    ? { ...topic, ...updatedData }
-                    : topic
-            )
-        );
+    const handleTopicUpdate = (updatedTopicsOrTopic: TopicReview[] | TopicReview) => {
+        let updatedTopics: TopicReview[];
+
+        if (Array.isArray(updatedTopicsOrTopic)) {
+            // For reorder - already have the complete list
+            updatedTopics = updatedTopicsOrTopic;
+            setLocalTopics(updatedTopics);
+        } else {
+            // For single topic update
+            const updatedTopic = updatedTopicsOrTopic;
+            updatedTopics = localTopics.map(topic =>
+                topic.id === updatedTopic.id ? updatedTopic : topic
+            );
+            setLocalTopics(updatedTopics);
+        }
+
+        // Send complete topics data to server
+        reorderMutation.mutate(updatedTopics);
     };
 
     const handleApproveTopics = () => {

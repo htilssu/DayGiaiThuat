@@ -29,11 +29,11 @@ export interface CourseTopicsReview {
 }
 
 export interface UpdateTopicRequest {
+    topics: TopicReview[];
+}
+
+export interface UpdateTopicItem {
     name: string;
     description: string;
     prerequisites: string[];
-}
-
-export interface ReorderTopicsRequest {
-    topics: TopicReview[];
 }

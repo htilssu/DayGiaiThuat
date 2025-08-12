@@ -10,30 +10,27 @@ from app.schemas.test_schema import TestBase
 from app.schemas.topic_schema import TopicBase
 
 
-class BaseSchemaNoAlias(BaseModel):
-    def model_dump(self, **kwargs):
-        return super().model_dump(by_alias=False, **kwargs)
-
-    def model_dump_json(self, **kwargs):
-        return super().model_dump_json(by_alias=False, **kwargs)
-
-
-class LessonDraft(LessonSummary, BaseSchemaNoAlias):
-    id: PyObjectId = Field(..., description="ID của bài học", )
+class LessonDraft(LessonSummary):
+    id: PyObjectId = Field(
+        ...,
+        description="ID của bài học",
+    )
     sections: List[LessonSectionSchema] = Field(
-        default_factory=list, description="Danh sách các phần trong bài học")
+        default_factory=list, description="Danh sách các phần trong bài học"
+    )
 
     class Config:
         from_attributes = True
         populate_by_name = True
         arbitrary_types_allowed = True
-        json_encoders = {
-            ObjectId: str
-        }
+        json_encoders = {ObjectId: str}
 
 
-class SkillDraft(BaseSchemaNoAlias):
-    id: PyObjectId = Field(..., description="ID của kỹ năng", )
+class SkillDraft(BaseModel):
+    id: PyObjectId = Field(
+        ...,
+        description="ID của kỹ năng",
+    )
     name: str = Field(..., description="Tên kỹ năng")
     description: Optional[str] = Field(None, description="Mô tả chi tiết về kỹ năng")
 
@@ -41,46 +38,60 @@ class SkillDraft(BaseSchemaNoAlias):
         from_attributes = True
         populate_by_name = True
         arbitrary_types_allowed = True
-        json_encoders = {
-            ObjectId: str
-        }
+        json_encoders = {ObjectId: str}
 
 
-class TestDraft(TestBase, BaseSchemaNoAlias):
-    questions: List[Question] = Field(default_factory=list, description="Danh sách các câu hỏi trong bài kiểm tra")
-    id: PyObjectId = Field(..., description="ID của bài kiểm tra", )
+class TestDraft(TestBase, BaseModel):
+    questions: List[Question] = Field(
+        default_factory=list, description="Danh sách các câu hỏi trong bài kiểm tra"
+    )
+    id: PyObjectId = Field(
+        ...,
+        description="ID của bài kiểm tra",
+    )
 
     class Config:
         from_attributes = True
         populate_by_name = True
         arbitrary_types_allowed = True
-        json_encoders = {
-            ObjectId: str
-        }
+        json_encoders = {ObjectId: str}
 
 
-class TopicDraftSchema(TopicBase, BaseSchemaNoAlias):
+class TopicDraftSchema(TopicBase, BaseModel):
     id: PyObjectId = Field(..., description="ID của chủ đề")
     lessons: List[LessonDraft] = Field(
-        default_factory=list, description="Danh sách các bài học trong chủ đề")
+        default_factory=list, description="Danh sách các bài học trong chủ đề"
+    )
     skills: List[SkillDraft] = Field(
-        default_factory=list, description="Danh sách các kỹ năng liên quan đến chủ đề")
+        default_factory=list, description="Danh sách các kỹ năng liên quan đến chủ đề"
+    )
     tests: List[TestDraft] = Field(
-        default_factory=list, description="Danh sách các bài kiểm tra liên quan đến chủ đề")
+        default_factory=list,
+        description="Danh sách các bài kiểm tra liên quan đến chủ đề",
+    )
     order: Optional[int] = Field(
-        None, description="Thứ tự của chủ đề trong khóa học (nếu có)")
+        None, description="Thứ tự của chủ đề trong khóa học (nếu có)"
+    )
 
     class Config:
         from_attributes = True
         populate_by_name = True
         arbitrary_types_allowed = True
-        json_encoders = {
-            ObjectId: str
-        }
+        json_encoders = {ObjectId: str}
 
 
-class CourseDraftSchemaNoId(BaseSchemaNoAlias):
-    duration: int = Field(..., description="Thời gian ước lượng hoàn thành khóa học (số nguyên, đơn vị giờ)")
+class TopicOrderRequest(BaseModel):
+    topics: List[TopicDraftSchema] = Field(
+        ...,
+        description="Danh sách các chủ đề với thứ tự mới, mỗi chủ đề bao gồm ID và thứ tự mới",
+    )
+
+
+class CourseDraftSchemaNoId(BaseModel):
+    duration: int = Field(
+        ...,
+        description="Thời gian ước lượng hoàn thành khóa học (số nguyên, đơn vị giờ)",
+    )
     description: str = Field(..., description="Mô tả chi tiết về khóa học")
     session_id: str = Field(..., description="ID của phiên làm việc khóa học")
     topics: list[TopicDraftSchema] = Field(
@@ -92,11 +103,12 @@ class CourseDraftSchemaNoId(BaseSchemaNoAlias):
         from_attributes = True
         populate_by_name = True
         arbitrary_types_allowed = True
-        json_encoders = {
-            ObjectId: str
-        }
+        json_encoders = {ObjectId: str}
 
 
 class CourseDraftSchema(CourseDraftSchemaNoId):
-    id: PyObjectId = Field(..., description="Id của schema khóa học đã soạn thảo", )
+    id: PyObjectId = Field(
+        ...,
+        description="Id của schema khóa học đã soạn thảo",
+    )
     course_id: int = Field(..., description="ID của khóa học liên kết với schema này")

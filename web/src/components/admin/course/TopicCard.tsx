@@ -26,16 +26,14 @@ import {
     IconX
 } from "@tabler/icons-react";
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { notifications } from "@mantine/notifications";
-import { TopicReview, UpdateTopicRequest } from "@/types/course-review";
-import { updateTopic } from "@/lib/api/course-topics-review";
+import { TopicReview, UpdateTopicItem } from "@/types/course-review";
 
 interface TopicCardProps {
     topic: TopicReview;
     courseId: number;
     index: number;
-    onTopicUpdate: (topicId: string, updatedTopic: Partial<TopicReview>) => void;
+    onTopicUpdate: (topic: TopicReview) => void;
     isDragging?: boolean;
     dragHandleProps?: any;
 }
@@ -50,37 +48,10 @@ export default function TopicCard({
 }: TopicCardProps) {
     const [expanded, setExpanded] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
-    const [editForm, setEditForm] = useState<UpdateTopicRequest>({
+    const [editForm, setEditForm] = useState<UpdateTopicItem>({
         name: topic.name,
         description: topic.description,
         prerequisites: topic.prerequisites || [],
-    });
-
-    const updateTopicMutation = useMutation({
-        mutationFn: (data: UpdateTopicRequest) => updateTopic(courseId, topic.id, data),
-        onSuccess: (response) => {
-            notifications.show({
-                title: 'Thành công',
-                message: response.message || 'Cập nhật topic thành công',
-                color: 'green',
-            });
-
-            // Cập nhật local state
-            onTopicUpdate(topic.id, {
-                name: editForm.name,
-                description: editForm.description,
-                prerequisites: editForm.prerequisites,
-            });
-
-            setEditModalOpen(false);
-        },
-        onError: (error: any) => {
-            notifications.show({
-                title: 'Lỗi',
-                message: error.message || 'Có lỗi xảy ra khi cập nhật topic',
-                color: 'red',
-            });
-        },
     });
 
     const handleSaveEdit = () => {
@@ -93,7 +64,17 @@ export default function TopicCard({
             return;
         }
 
-        updateTopicMutation.mutate(editForm);
+        // Tạo topic updated với thông tin mới
+        const updatedTopic: TopicReview = {
+            ...topic,
+            name: editForm.name,
+            description: editForm.description,
+            prerequisites: editForm.prerequisites,
+        };
+
+        // Gọi callback từ cha để cập nhật
+        onTopicUpdate(updatedTopic);
+        setEditModalOpen(false);
     };
 
     const handleCancelEdit = () => {
@@ -245,9 +226,10 @@ export default function TopicCard({
                         label="Tên topic"
                         placeholder="Nhập tên topic..."
                         value={editForm.name}
-                        onChange={(event) =>
-                            setEditForm(prev => ({ ...prev, name: event.currentTarget.value }))
-                        }
+                        onChange={(event) => {
+                            const value = event.currentTarget?.value || '';
+                            setEditForm(prev => ({ ...prev, name: value }));
+                        }}
                         required
                         error={!editForm.name.trim() ? "Tên topic không được để trống" : undefined}
                     />
@@ -256,9 +238,10 @@ export default function TopicCard({
                         label="Mô tả"
                         placeholder="Nhập mô tả chi tiết về topic..."
                         value={editForm.description}
-                        onChange={(event) =>
-                            setEditForm(prev => ({ ...prev, description: event.currentTarget.value }))
-                        }
+                        onChange={(event) => {
+                            const value = event.currentTarget?.value || '';
+                            setEditForm(prev => ({ ...prev, description: value }));
+                        }}
                         minRows={3}
                         maxRows={6}
                         autosize
@@ -279,14 +262,12 @@ export default function TopicCard({
                         <Button
                             variant="outline"
                             onClick={handleCancelEdit}
-                            disabled={updateTopicMutation.isPending}
                         >
                             Hủy
                         </Button>
 
                         <Button
                             onClick={handleSaveEdit}
-                            loading={updateTopicMutation.isPending}
                             leftSection={<IconCheck size={16} />}
                         >
                             Lưu thay đổi

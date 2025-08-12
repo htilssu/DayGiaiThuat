@@ -19,7 +19,6 @@ class TopicBase(BaseModel):
     class Config:
         from_attributes = True
 
-
 class TopicHasSkill(TopicBase):
     skills: list[SkillBase] = Field(
         default_factory=list, description="Danh sách các kỹ năng liên quan đến chủ đề"

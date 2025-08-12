@@ -5,7 +5,6 @@ from app.database.database import get_independent_db_session
 from app.models import Course
 from app.schemas import CourseCompositionRequestSchema
 from app.services.base_generate_service import BaseGenerateService
-from app.services.course_daft_service import update_or_create_course_draft
 
 
 class CourseGenerateService(BaseGenerateService[Course]):
@@ -18,6 +17,7 @@ class CourseGenerateService(BaseGenerateService[Course]):
             agent = CourseCompositionAgent(db)
             [course, _] = await agent.act(course_request)
             course.course_id = course_request.course_id
+            from app.services.course_draft_service import update_or_create_course_draft
 
             update_or_create_course_draft(course_request.course_id, course_draft=course)
 
@@ -33,5 +33,5 @@ class CourseGenerateService(BaseGenerateService[Course]):
         asyncio.create_task(self.generate(composition_request))
 
 
-def get_course_generate_service() -> BaseGenerateService[Course]:
+def get_course_generate_service() -> CourseGenerateService:
     return CourseGenerateService()

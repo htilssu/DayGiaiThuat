@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database.database import get_async_db
 from app.models.topic_model import Topic
+from app.schemas.course_draft_schema import TopicOrderRequest
 from app.schemas.topic_schema import (
     TopicCreate,
     TopicResponse,
@@ -12,6 +15,9 @@ from app.schemas.topic_schema import (
     TopicCourseAssignment,
 )
 from app.schemas.user_profile_schema import UserExcludeSecret
+from app.services.course_draft_service import (
+    reorder_topic_course_draft,
+)
 from app.utils.utils import get_current_user
 
 router = APIRouter(
@@ -78,13 +84,6 @@ async def get_topics_admin(
         db: AsyncSession = Depends(get_async_db),
         admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
-    """
-    Lấy danh sách các chủ đề (chỉ admin)
-    - Nếu có course_id: lấy chủ đề của khóa học đó
-    - Nếu không có course_id: lấy tất cả chủ đề
-    """
-    from sqlalchemy.orm import selectinload
-
     query = select(Topic).options(selectinload(Topic.lessons))
     if course_id is not None:
         query = query.filter(Topic.course_id == course_id)
@@ -186,9 +185,6 @@ async def assign_topic_to_course(
         db: AsyncSession = Depends(get_async_db),
         admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
-    """
-    Assign hoặc unassign chủ đề với khóa học (chỉ admin)
-    """
     result = await db.execute(select(Topic).filter(Topic.id == topic_id))
     topic = result.scalar_one_or_none()
     if not topic:
@@ -248,3 +244,12 @@ async def delete_topic(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi xóa chủ đề: {str(e)}",
         )
+
+
+@router.put("/draft/{course_id}")
+async def reorder(
+        topics: TopicOrderRequest,
+        course_id: int,
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
+    return reorder_topic_course_draft(topics, course_id)
