@@ -64,9 +64,8 @@ class Settings(BaseSettings):
 
     UPLOAD_DIR: str = "uploads"  # Thư mục lưu file tạm thời
 
-    DOCUMENT_PROCESSING_ENDPOINT: Optional[str] = (
-        None  # External API endpoint for document processing
-    )
+    DOCUMENT_PROCESSING_ENDPOINT: Optional[str] = None
+    RUNPOD_API_KEY: str
     DOCUMENT_PROCESSING_TIMEOUT: int = 300
     S3_DOCUMENT_PREFIX: str = "documents/"
     BASE_URL: str = "http://localhost:8000"

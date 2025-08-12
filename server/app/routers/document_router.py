@@ -33,7 +33,6 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
 async def store_document(
         files: List[UploadFile],
         course_id: Optional[int] = None,
-        document_service: DocumentService = Depends(get_document_service),
         storage_service: StorageService = Depends(get_storage_service),
         admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
@@ -157,7 +156,7 @@ async def get_document_statistics(
         document_service: DocumentService = Depends(get_document_service),
 ):
     try:
-        stats = document_service.get_document_statistics()
+        stats = await document_service.get_document_statistics()
         return stats
     except Exception as e:
         raise HTTPException(

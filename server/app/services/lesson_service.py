@@ -94,10 +94,6 @@ class LessonService:
         """
         Create a new lesson with sections.
         """
-        # Create lesson
-        if isinstance(lesson_data, AgentCreateLessonSchema):
-            exercises = lesson_data.exercises
-
         lesson = Lesson(
             external_id=lesson_data.external_id,
             title=lesson_data.title,
@@ -111,9 +107,7 @@ class LessonService:
         self.db.add(lesson)
         await self.db.flush()  # Get the lesson ID
 
-        # Create lesson sections
         for section_data in lesson_data.sections:
-            # Chuyển đổi options từ Pydantic model sang dict nếu tồn tại
             options_dict = None
             if section_data.options:
                 options_dict = section_data.options.model_dump()
@@ -222,7 +216,6 @@ class LessonService:
         if user_course is None:
             raise HTTPException(status_code=404, detail="User state not found")
 
-        # Lưu thông tin hoàn thành bài học vào UserCourseProgress
         progress_stmt = select(UserCourseProgress).where(
             UserCourseProgress.user_course_id == user_course.id,
             UserCourseProgress.topic_id == current_lesson.topic_id,
@@ -295,17 +288,14 @@ class LessonService:
         if not lesson:
             return None
 
-        # Update fields
         for field, value in lesson_data.model_dump(exclude_unset=True).items():
             setattr(lesson, field, value)
 
         await self.db.commit()
         await self.db.refresh(lesson)
 
-        # Tải rõ ràng các mối quan hệ
         await self.db.refresh(lesson, ["sections", "exercises"])
 
-        # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
         return convert_lesson_to_schema(lesson)
 
     async def mark_lesson_completed(self, lesson_id: int, user_id: int):
@@ -319,7 +309,6 @@ class LessonService:
         if not lesson:
             return False
 
-        # lesson.is_completed = True
         await self.db.commit()
 
     async def delete_lesson(self, lesson_id: int) -> bool:
@@ -352,11 +341,9 @@ class LessonService:
         if not lesson:
             raise HTTPException(status_code=404, detail="Lesson not found")
 
-        # Get topic and course info
         topic = await self.db.execute(select(Topic).filter(Topic.id == lesson.topic_id))
         topic = topic.scalar_one_or_none()
 
-        # Check enrollment
         user_course_id = None
         if user_id and topic:
             user_course = await self.db.execute(
@@ -369,7 +356,7 @@ class LessonService:
             if user_course:
                 user_course_id = user_course.id
 
-        # Get progress for this lesson
+        # Get progress for thi lesson
         lesson_status = ProgressStatus.NOT_STARTED
         lesson_last_viewed = None
         lesson_completed_at = None

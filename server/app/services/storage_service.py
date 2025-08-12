@@ -30,30 +30,23 @@ class StorageService:
         """
         Khởi tạo service với các thông tin cấu hình từ settings
         """
-        # Set environment variables để fix lỗi MissingContentLength với boto3 ≥1.36.0
-        os.environ["AWS_REQUEST_CHECKSUM_CALCULATION"] = (
-            settings.AWS_REQUEST_CHECKSUM_CALCULATION
-        )
-        os.environ["AWS_RESPONSE_CHECKSUM_VALIDATION"] = (
-            settings.AWS_RESPONSE_CHECKSUM_VALIDATION
-        )
+        self.RETRY_ATTEMPTS = 3
+        os.environ["AWS_REQUEST_CHECKSUM_CALCULATION"] = "when_required"
+        os.environ["AWS_RESPONSE_CHECKSUM_VALIDATION"] = "when_required"
 
         if not settings.S3_ENABLED:
             raise Exception("S3/R2 không được cấu hình đầy đủ.")
 
         try:
-            # Cấu hình client cho S3/R2
             client_config = {
                 "aws_access_key_id": settings.S3_ACCESS_KEY_ID,
                 "aws_secret_access_key": settings.S3_SECRET_ACCESS_KEY,
                 "region_name": settings.S3_REGION,
             }
 
-            # Nếu có endpoint URL (cho Cloudflare R2), thêm vào config
             if settings.S3_ENDPOINT_URL:
                 client_config["endpoint_url"] = settings.S3_ENDPOINT_URL
 
-            # retry if cannot connect to s3
             for i in range(self.RETRY_ATTEMPTS):
                 try:
                     self.s3_client = boto3.client("s3", **client_config)
