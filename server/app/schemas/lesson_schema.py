@@ -34,9 +34,6 @@ class LessonBase(LessonSummary):
         prev_lesson_id: ID của lesson trước đó (nếu có)
     """
 
-    external_id: str = Field(..., description="External ID của lesson")
-    title: str = Field(..., description="Tiêu đề lesson")
-    description: str = Field(..., description="Mô tả lesson")
     order: int = Field(..., description="Thứ tự lesson trong topic")
     next_lesson_id: Optional[str] = Field(None, description="ID của lesson tiếp theo")
     prev_lesson_id: Optional[str] = Field(None, description="ID của lesson trước đó")

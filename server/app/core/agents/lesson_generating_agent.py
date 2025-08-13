@@ -84,9 +84,9 @@ Hướng dẫn về từng loại section:
 
 class LessonGeneratingAgent(BaseAgent):
     def __init__(
-            self,
-            mongodb_db_name: str = "chat_history",
-            mongodb_collection_name: str = "lesson_chat_history",
+        self,
+        mongodb_db_name: str = "chat_history",
+        mongodb_collection_name: str = "lesson_chat_history",
     ):
         super().__init__()
         self.available_args = [
@@ -223,7 +223,7 @@ class LessonGeneratingAgent(BaseAgent):
 
         try:
             response = await agent_with_chat_history.ainvoke(
-                {"input": TopicBase.model_validate(topic).model_dump_json()},
+                {"input": (TopicBase.model_validate(topic)).model_dump_json()},
                 config=run_config,
             )
 
@@ -231,11 +231,13 @@ class LessonGeneratingAgent(BaseAgent):
                 final_lesson = self.structure_parser.parse(response["output"])
                 return final_lesson.list_schema
             except Exception as e:
-                return (await self.output_fixing_parser.ainvoke(response["output"])).list_schema
+                return (
+                    await self.output_fixing_parser.ainvoke(response["output"])
+                ).list_schema
         except Exception as e:
             print(f"Lỗi trong quá trình tạo Lesson: {e}")
             raise Exception(f"Không thể tạo bài giảng: {str(e)}")
 
 
-def get_lesson_generating_agent():
+async def get_lesson_generating_agent():
     return LessonGeneratingAgent()

@@ -70,7 +70,7 @@ class TopicDraftSchema(TopicBase, BaseModel):
         description="Danh sách các bài kiểm tra liên quan đến chủ đề",
     )
     order: Optional[int] = Field(
-        None, description="Thứ tự của chủ đề trong khóa học (nếu có)"
+        None, description="Thứ tự của chủ đề trong khóa học"
     )
 
     class Config:

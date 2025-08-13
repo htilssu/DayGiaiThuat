@@ -24,13 +24,13 @@ class LessonSection(Base):
     order: Mapped[int] = mapped_column(Integer)
     options: Mapped[Optional[Options]] = mapped_column(
         JSON, nullable=True
-    )  # Cho câu hỏi quiz
+    )
     answer: Mapped[Optional[str]] = mapped_column(
         String, nullable=True
-    )  # Đáp án đúng cho quiz
+    )
     explanation: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True
-    )  # Giải thích cho quiz
+    )
 
     # Relationship
     lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="sections")
@@ -40,13 +40,10 @@ class Lesson(Base):
     __tablename__ = "lessons"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    external_id: Mapped[str] = mapped_column(
-        String, index=True, unique=True
-    )  # ID hiển thị cho người dùng (ví dụ: "1", "2")
     title: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(String)
     topic_id: Mapped[int] = mapped_column(Integer, ForeignKey("topics.id"), index=True)
-    order: Mapped[int] = mapped_column(Integer)  # Thứ tự bài học trong chủ đề
+    order: Mapped[int] = mapped_column(Integer)
     next_lesson_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     prev_lesson_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
