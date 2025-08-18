@@ -1,18 +1,21 @@
-import asyncio
 from typing import List, Optional
-from sqlalchemy import update
+import uuid
+from datetime import datetime
+from typing import List, Optional
+
+from fastapi import Depends
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from fastapi import Depends
 from sqlalchemy.orm import selectinload
-import uuid
-from fastapi import HTTPException, status
 
+from app.core.agents.lesson_generating_agent import get_lesson_generating_agent
 from app.database.database import get_async_db
-from app.models.lesson_model import Lesson, LessonSection
 from app.models.lesson_generation_state_model import LessonGenerationState
+from app.models.lesson_model import Lesson, LessonSection
+from app.models.topic_model import Topic
 from app.models.user_course_model import UserCourse
-from app.schemas import AgentCreateLessonSchema
+from app.models.user_course_progress_model import ProgressStatus, UserCourseProgress
 from app.schemas.lesson_schema import (
     CreateLessonSchema,
     LessonDetailWithProgressResponse,
@@ -20,16 +23,9 @@ from app.schemas.lesson_schema import (
     LessonWithChildSchema,
     GenerateLessonRequestSchema,
     LessonCompleteResponseSchema,
-    LessonSectionSchema,
 )
-from app.core.agents.lesson_generating_agent import get_lesson_generating_agent
-from app.utils.model_utils import convert_lesson_to_schema
-
-
 from app.services.topic_service import get_topic_service, TopicService
-from app.models.user_course_progress_model import ProgressStatus, UserCourseProgress
-from app.models.topic_model import Topic
-from datetime import datetime
+from app.utils.model_utils import convert_lesson_to_schema
 
 
 class LessonService:
@@ -39,7 +35,7 @@ class LessonService:
         self.topic_service = topic_service
 
     async def generate_lesson(
-        self, request: GenerateLessonRequestSchema, topic_id: int, order: int
+            self, request: GenerateLessonRequestSchema, topic_id: int, order: int
     ) -> Optional[LessonWithChildSchema]:
         topic = await self.topic_service.get_topic_by_id(topic_id)
         if not topic:
@@ -74,7 +70,8 @@ class LessonService:
 
             # Update state to completed
             generation_state.status = "completed"  # type: ignore
-            generation_state.lesson_id = created_lessons[0].id if created_lessons else None  # type: ignore # Link to the first created lesson
+            generation_state.lesson_id = created_lessons[
+                0].id if created_lessons else None  # type: ignore # Link to the first created lesson
             await self.db.commit()
 
             return (
@@ -89,13 +86,12 @@ class LessonService:
             raise e
 
     async def create_lesson(
-        self, lesson_data: CreateLessonSchema
+            self, lesson_data: CreateLessonSchema
     ) -> LessonWithChildSchema:
         """
         Create a new lesson with sections.
         """
         lesson = Lesson(
-            external_id=lesson_data.external_id,
             title=lesson_data.title,
             description=lesson_data.description,
             topic_id=lesson_data.topic_id,
@@ -105,7 +101,7 @@ class LessonService:
         )
 
         self.db.add(lesson)
-        await self.db.flush()  # Get the lesson ID
+        await self.db.commit()
 
         for section_data in lesson_data.sections:
             options_dict = None
@@ -143,25 +139,9 @@ class LessonService:
         return convert_lesson_to_schema(lesson)
 
     async def get_lesson_by_order(
-        self, topic_id: int, order: int
+            self, topic_id: int, order: int
     ) -> Optional[LessonWithChildSchema]:
         stmt = select(Lesson).where(Lesson.topic_id == topic_id, Lesson.order == order)
-        result = await self.db.execute(stmt)
-        lesson = result.scalar_one_or_none()
-
-        if not lesson:
-            return None
-
-        return convert_lesson_to_schema(lesson)
-
-    async def get_lesson_by_external_id(
-        self, external_id: str
-    ) -> Optional[LessonWithChildSchema]:
-        stmt = (
-            select(Lesson)
-            .where(Lesson.external_id == external_id)
-            .options(selectinload(Lesson.sections), selectinload(Lesson.exercises))
-        )
         result = await self.db.execute(stmt)
         lesson = result.scalar_one_or_none()
 
@@ -180,11 +160,10 @@ class LessonService:
         result = await self.db.execute(stmt)
         lessons = result.scalars().all()
 
-        # Sử dụng hàm tiện ích để chuyển đổi từ model sang schema
         return [convert_lesson_to_schema(lesson) for lesson in lessons]
 
     async def complete_lesson(
-        self, lesson_id: int, user_id: int
+            self, lesson_id: int, user_id: int
     ) -> LessonCompleteResponseSchema:
         # Lấy bài học hiện tại
         current_lesson = await self.db.execute(
@@ -276,7 +255,7 @@ class LessonService:
         )
 
     async def update_lesson(
-        self, lesson_id: int, lesson_data: UpdateLessonSchema
+            self, lesson_id: int, lesson_data: UpdateLessonSchema
     ) -> Optional[LessonWithChildSchema]:
         """
         Update a lesson.
@@ -328,7 +307,7 @@ class LessonService:
         return True
 
     async def get_lesson_with_progress(
-        self, lesson_id: int, user_id: Optional[int] = None
+            self, lesson_id: int, user_id: Optional[int] = None
     ) -> LessonDetailWithProgressResponse:
         """Lấy lesson với progress"""
         lesson = await self.db.execute(
@@ -356,7 +335,6 @@ class LessonService:
             if user_course:
                 user_course_id = user_course.id
 
-        # Get progress for thi lesson
         lesson_status = ProgressStatus.NOT_STARTED
         lesson_last_viewed = None
         lesson_completed_at = None
@@ -388,49 +366,14 @@ class LessonService:
                     )
                 )
 
-        return LessonDetailWithProgressResponse(
-            id=lesson.id,
-            external_id=lesson.external_id,
-            title=lesson.title,
-            description=lesson.description,
-            order=lesson.order,
-            is_completed=lesson_status == ProgressStatus.COMPLETED,
-            next_lesson_id=lesson.next_lesson_id,
-            prev_lesson_id=lesson.prev_lesson_id,
-            sections=(
-                [
-                    LessonSectionSchema(
-                        type=section.type,
-                        content=section.content,
-                        order=section.order,
-                        options=section.options,
-                        answer=section.answer,
-                        explanation=section.explanation,
-                    )
-                    for section in lesson.sections
-                ]
-                if lesson.sections
-                else []
-            ),
-            last_viewed_at=lesson_last_viewed,
-            completed_at=lesson_completed_at,
-            completion_percentage=lesson_completion,
-            user_course_id=user_course_id,
-        )
+        res = LessonDetailWithProgressResponse.model_validate(lesson)
+        res.completion_percentage = lesson_completion
+        res.completed_at = lesson_completed_at
+        return res
 
 
 def get_lesson_service(
-    db: AsyncSession = Depends(get_async_db),
-    topic_service: TopicService = Depends(get_topic_service),
+        db: AsyncSession = Depends(get_async_db),
+        topic_service: TopicService = Depends(get_topic_service),
 ) -> LessonService:
-    """
-    Dependency injection for LessonService
-
-    Args:
-        db: Async database session
-        topic_service: Topic service instance
-
-    Returns:
-        LessonService: Service instance
-    """
     return LessonService(db=db, topic_service=topic_service)

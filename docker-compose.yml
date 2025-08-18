@@ -33,7 +33,7 @@ services:
       - ./volumes/object_storage_data:/data
     command: server /data --console-address ":9001"
 
-  docling_server:
-    image: htilssu/docling_server:dev
-    ports:
-      - "8001:8001"
+  # docling_server:
+  #   image: htilssu/docling_server:dev
+  #   ports:
+  #     - "8001:8001"

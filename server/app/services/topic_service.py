@@ -104,10 +104,8 @@ class TopicService:
             select(Topic)
             .where(Topic.course_id == course_id)
             .options(
-                selectinload(Topic.lessons)
-                .selectinload(Lesson.sections),
-                selectinload(Topic.lessons)
-                .selectinload(Lesson.exercises),
+                selectinload(Topic.lessons).selectinload(Lesson.sections),
+                selectinload(Topic.lessons).selectinload(Lesson.exercises),
             )
             .order_by(Topic.order.asc().nulls_last(), Topic.id.asc())
         )
@@ -262,13 +260,4 @@ class TopicService:
 
 
 def get_topic_service(db: AsyncSession = Depends(get_async_db)) -> TopicService:
-    """
-    Dependency injection for TopicService
-
-    Args:
-        db: Async database session
-
-    Returns:
-        TopicService: Service instance
-    """
     return TopicService(db)

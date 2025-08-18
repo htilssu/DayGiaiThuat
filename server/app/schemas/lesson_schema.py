@@ -3,8 +3,6 @@ from typing import Optional, List, Dict, Any
 from app.models.user_course_progress_model import ProgressStatus
 from datetime import datetime
 
-from app.schemas.exercise_schema import ExerciseDetail  # noqa: F401 - used by other modules
-
 
 class LessonCompleteResponseSchema(BaseModel):
     lesson_id: int
@@ -21,19 +19,6 @@ class LessonSummary(BaseModel):
 
 
 class LessonBase(LessonSummary):
-    """
-    Schema cơ bản cho lesson
-
-    Attributes:
-        external_id: External ID của lesson
-        title: Tiêu đề của lesson
-        description: Mô tả chi tiết về lesson
-        topic_id: ID của topic mà lesson thuộc về
-        order: Thứ tự của lesson trong topic
-        next_lesson_id: ID của lesson tiếp theo (nếu có)
-        prev_lesson_id: ID của lesson trước đó (nếu có)
-    """
-
     order: int = Field(..., description="Thứ tự lesson trong topic")
     next_lesson_id: Optional[str] = Field(None, description="ID của lesson tiếp theo")
     prev_lesson_id: Optional[str] = Field(None, description="ID của lesson trước đó")
@@ -45,7 +30,6 @@ class LessonResponseSchema(LessonBase):
 
 
 class ExerciseBase(BaseModel):
-
     title: str
     description: str
     category: Optional[str] = None
@@ -58,12 +42,11 @@ class ExerciseBase(BaseModel):
 
 
 class ExerciseResponse(ExerciseBase):
-
     id: int
     lesson_id: int
 
 
-class LessonSectionResponse(BaseModel):
+class LessonSectionSchema(BaseModel):
     """
     Schema cho phản hồi thông tin section của lesson
     """
@@ -89,21 +72,6 @@ class Options(BaseModel):
     D: str
 
 
-class LessonSectionSchema(BaseModel):
-    type: str  # "text", "code", "image", "quiz", "teaching"
-    content: str
-    order: int = Field(..., description="Thứ tự section trong lesson")
-    options: Optional[Options] = Field(None, description="Tùy chọn cho quiz")
-    answer: Optional[str] = Field(
-        None,
-        description="Đáp án đúng cho quiz nếu type là quiz",
-    )
-    explanation: Optional[str] = Field(
-        None,
-        description="Giải thích cho quiz nếu type là quiz",
-    )
-
-
 class CreateLessonSchema(LessonBase):
     topic_id: int
     sections: List[LessonSectionSchema]
@@ -118,7 +86,7 @@ class UpdateLessonSchema(LessonBase):
 
 
 class LessonWithChildSchema(LessonResponseSchema):
-    sections: List[LessonSectionResponse] = Field(
+    sections: List[LessonSectionSchema] = Field(
         default_factory=list, description="Danh sách các section của lesson"
     )
     exercises: List[ExerciseResponse] = Field(
@@ -130,15 +98,11 @@ class LessonWithChildSchema(LessonResponseSchema):
 
 
 class LessonDetailWithProgressResponse(LessonWithChildSchema):
-    """
-    Schema cho lesson detail với progress
-    """
-
     last_viewed_at: Optional[datetime] = Field(
         None, description="Thời điểm xem gần nhất"
     )
     completed_at: Optional[datetime] = Field(None, description="Thời điểm hoàn thành")
-    completion_percentage: float = Field(
+    completion_percentage: Optional[float] = Field(
         default=0.0, description="Phần trăm hoàn thành"
     )
     user_course_id: Optional[int] = Field(
@@ -150,11 +114,6 @@ class LessonDetailWithProgressResponse(LessonWithChildSchema):
 
 
 class LessonWithProgressResponse(LessonWithChildSchema):
-    """
-    Schema cho lesson với thông tin progress
-    """
-
-    # Progress fields
     status: ProgressStatus = Field(
         default=ProgressStatus.NOT_STARTED, description="Trạng thái học tập"
     )
@@ -174,8 +133,8 @@ class GenerateLessonRequestSchema(BaseModel):
     topic_name: str
     lesson_title: str
     lesson_description: str
-    difficulty_level: str = "beginner"  # beginner, intermediate, advanced
-    lesson_type: str = "theory"  # theory, practice, mixed
+    difficulty_level: str = "beginner"
+    lesson_type: str = "theory"
     include_examples: bool = True
     include_exercises: bool = True
     max_sections: int = 10

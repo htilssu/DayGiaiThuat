@@ -91,7 +91,6 @@ class CourseService:
                         title=lesson.title,
                         description=lesson.description,
                         order=lesson.order,
-                        external_id=lesson.external_id,
                         sections=[
                             LessonSectionSchema(
                                 type=section.type,
@@ -762,7 +761,6 @@ class CourseService:
                 lessons.append(
                     LessonWithProgressResponse(
                         id=lesson.id,
-                        external_id=lesson.external_id,
                         title=lesson.title,
                         description=lesson.description,
                         order=lesson.order,
@@ -866,9 +864,8 @@ async def save_course_from_draft(draft: CourseDraftSchema):
 
         course.duration = draft.duration
         course.description = draft.description
-        course.what_you_will_learn = draft.what_you_will_learn
 
-        db.commit()
+        await db.commit()
 
 
 def get_course_service(db: AsyncSession = Depends(get_async_db)):

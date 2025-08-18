@@ -155,7 +155,6 @@ export default function CourseReviewPageClient({ courseId }: CourseReviewPageCli
                                                                 </Text>
                                                             )}
                                                         </div>
-                                                        <Text size="sm" c="dimmed">#{topic.order}</Text>
                                                     </Group>
                                                 ))}
                                             </Stack>

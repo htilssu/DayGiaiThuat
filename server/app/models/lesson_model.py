@@ -32,7 +32,6 @@ class LessonSection(Base):
         Text, nullable=True
     )
 
-    # Relationship
     lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="sections")
 
 

@@ -197,7 +197,7 @@ class LessonGeneratingAgent(BaseAgent):
         )
 
     @trace_agent(project_name="default", tags=["lesson", "generator"])
-    async def act(self, topic: Topic, session_id: str) -> List[CreateLessonSchema]:
+    async def act(self, topic: Topic, session_id: str) -> List[AgentCreateLessonSchema]:
         from langchain_core.runnables import RunnableConfig, RunnableWithMessageHistory
         from langchain_mongodb import MongoDBChatMessageHistory
 
