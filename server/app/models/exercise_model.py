@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, ForeignKey, Integer, String, Text, Boolean
+from sqlalchemy import ForeignKey, Integer, String, Text, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
 from app.database.database import Base
@@ -25,8 +25,6 @@ class Exercise(Base):
     lesson_id: Mapped[int] = mapped_column(
         ForeignKey("lessons.id"), index=True, nullable=True
     )
-    case: Mapped[str] = mapped_column(JSON, nullable=True)
-
     lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="exercises")
     test_cases: Mapped[list["ExerciseTestCase"]] = relationship(
         "ExerciseTestCase",
@@ -42,7 +40,9 @@ class Exercise(Base):
     def exercise_from_schema(data: ExerciseDetail):
         exercise = Exercise()
 
-        exercise.title = getattr(data, "title", None) or getattr(data, "name", None) or ""
+        exercise.title = (
+            getattr(data, "title", None) or getattr(data, "name", None) or ""
+        )
         exercise.description = data.description
         exercise.difficulty = data.difficulty
 

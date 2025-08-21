@@ -105,6 +105,8 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
     const handleNext = async () => {
         if (isQuiz && selectedAnswer === null) return;
 
+        if (isQuiz && selectedAnswer !== currentSection.answer) return;
+
         if (isLastSection) {
             setIsCompleted(true);
             const data = await lessonsApi.completeLesson(lesson.id);
@@ -403,9 +405,9 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                             ) : <div></div>}
                             <button
                                 onClick={handleNext}
-                                disabled={isQuiz && selectedAnswer === null}
-                                className={`px-6 py-2 rounded-lg ${isQuiz && selectedAnswer === null
-                                    ? "bg-primary text-white cursor-not-allowed"
+                                disabled={isQuiz && (selectedAnswer === null || selectedAnswer !== currentSection.answer)}
+                                className={`px-6 py-2 rounded-lg ${isQuiz && (selectedAnswer === null || selectedAnswer !== currentSection.answer)
+                                    ? "bg-gray-400 text-white cursor-not-allowed"
                                     : "bg-primary text-white hover:bg-primary/90"
                                     }`}
                             >

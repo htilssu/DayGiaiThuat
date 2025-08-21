@@ -244,9 +244,6 @@ class TopicService:
     async def get_lessons_by_topic_id(
         self, topic_id: int
     ) -> List[LessonWithChildSchema]:
-        """
-        Lấy danh sách lessons theo topic_id
-        """
         stmt = (
             select(Lesson)
             .where(Lesson.topic_id == topic_id)

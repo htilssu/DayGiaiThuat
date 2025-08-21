@@ -1,4 +1,3 @@
-from typing import List, Optional
 import uuid
 from datetime import datetime
 from typing import List, Optional
@@ -9,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.core.agents.lesson_generating_agent import get_lesson_generating_agent
+from app.core.agents.lesson_generating_agent import LessonGeneratingAgent, get_lesson_generating_agent
 from app.database.database import get_async_db
 from app.models.lesson_generation_state_model import LessonGenerationState
 from app.models.lesson_model import Lesson, LessonSection
@@ -18,7 +17,6 @@ from app.models.user_course_model import UserCourse
 from app.models.user_course_progress_model import ProgressStatus, UserCourseProgress
 from app.schemas.lesson_schema import (
     CreateLessonSchema,
-    LessonDetailWithProgressResponse,
     UpdateLessonSchema,
     LessonWithChildSchema,
     GenerateLessonRequestSchema,
@@ -68,29 +66,24 @@ class LessonService:
                 lesson = await self.create_lesson(lesson_data)
                 created_lessons.append(lesson)
 
-            # Update state to completed
-            generation_state.status = "completed"  # type: ignore
-            generation_state.lesson_id = created_lessons[
-                0].id if created_lessons else None  # type: ignore # Link to the first created lesson
+            generation_state.status = "completed"
+            generation_state.lesson_id = (
+                created_lessons[0].id if created_lessons else None
+            )
             await self.db.commit()
 
             return (
                 created_lessons[0] if created_lessons else None
-            )  # Return the first created lesson
+            )
 
         except Exception as e:
-            # Update state to failed
-            generation_state.status = "failed"  # type: ignore
+            generation_state.status = "failed"
             await self.db.commit()
-            # Re-raise the exception
             raise e
 
     async def create_lesson(
             self, lesson_data: CreateLessonSchema
     ) -> LessonWithChildSchema:
-        """
-        Create a new lesson with sections.
-        """
         lesson = Lesson(
             title=lesson_data.title,
             description=lesson_data.description,
@@ -226,7 +219,6 @@ class LessonService:
                 is_completed=True,
             )
         else:
-            # Nếu không có bài học tiếp theo, tìm chủ đề tiếp theo
             topic = await self.topic_service.get_next_topic(current_lesson.topic_id)
             if topic:
                 # Tìm bài học đầu tiên của chủ đề tiếp theo
@@ -308,12 +300,11 @@ class LessonService:
 
     async def get_lesson_with_progress(
             self, lesson_id: int, user_id: Optional[int] = None
-    ) -> LessonDetailWithProgressResponse:
-        """Lấy lesson với progress"""
+    ) -> LessonWithChildSchema:
         lesson = await self.db.execute(
             select(Lesson)
             .filter(Lesson.id == lesson_id)
-            .options(selectinload(Lesson.sections))
+            .options(selectinload(Lesson.sections), selectinload(Lesson.exercises))
         )
         lesson = lesson.scalar_one_or_none()
 
@@ -335,11 +326,6 @@ class LessonService:
             if user_course:
                 user_course_id = user_course.id
 
-        lesson_status = ProgressStatus.NOT_STARTED
-        lesson_last_viewed = None
-        lesson_completed_at = None
-        lesson_completion = 0.0
-
         if user_course_id:
             progress = await self.db.execute(
                 select(UserCourseProgress).filter(
@@ -350,25 +336,7 @@ class LessonService:
             )
             progress = progress.scalar_one_or_none()
 
-            if progress:
-                lesson_status = progress.status
-                lesson_last_viewed = progress.updated_at
-                lesson_completed_at = (
-                    progress.completed_at
-                    if progress.status == ProgressStatus.COMPLETED
-                    else None
-                )
-                lesson_completion = (
-                    100.0
-                    if progress.status == ProgressStatus.COMPLETED
-                    else (
-                        50.0 if progress.status == ProgressStatus.IN_PROGRESS else 0.0
-                    )
-                )
-
-        res = LessonDetailWithProgressResponse.model_validate(lesson)
-        res.completion_percentage = lesson_completion
-        res.completed_at = lesson_completed_at
+        res = LessonWithChildSchema.model_validate(lesson)
         return res
 
 

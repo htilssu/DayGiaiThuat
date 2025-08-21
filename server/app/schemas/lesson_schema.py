@@ -40,6 +40,9 @@ class ExerciseBase(BaseModel):
     content: Optional[str] = None
     code_template: Optional[str] = None
 
+    class Config:
+        from_attributes = True
+
 
 class ExerciseResponse(ExerciseBase):
     id: int
@@ -91,22 +94,6 @@ class LessonWithChildSchema(LessonResponseSchema):
     )
     exercises: List[ExerciseResponse] = Field(
         default_factory=list, description="Danh sách các bài tập của lesson"
-    )
-
-    class Config:
-        from_attributes = True
-
-
-class LessonDetailWithProgressResponse(LessonWithChildSchema):
-    last_viewed_at: Optional[datetime] = Field(
-        None, description="Thời điểm xem gần nhất"
-    )
-    completed_at: Optional[datetime] = Field(None, description="Thời điểm hoàn thành")
-    completion_percentage: Optional[float] = Field(
-        default=0.0, description="Phần trăm hoàn thành"
-    )
-    user_course_id: Optional[int] = Field(
-        None, description="ID của user course nếu đã đăng ký"
     )
 
     class Config:

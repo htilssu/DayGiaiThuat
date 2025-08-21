@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 from app.schemas.lesson_schema import (
     LessonSummary,
     LessonWithChildSchema,
-    LessonDetailWithProgressResponse,
 )
 from app.schemas.skill_schema import SkillBase
 
@@ -15,6 +14,7 @@ class TopicBase(BaseModel):
     prerequisites: Optional[List[str]] = Field(
         None, description="Danh sách các điều kiện tiên quyết"
     )
+    order: int = Field(description="Thứ tự của chủ đề trong khóa học, mặc định là 0")
 
     class Config:
         from_attributes = True
@@ -31,25 +31,11 @@ class TopicForTestGenerateAgent(TopicHasSkill):
 
 
 class CreateTopicSchema(TopicBase):
-    """
-    Schema cho việc tạo mới chủ đề
-
-    Attributes:
-        course_id: ID của khóa học chứa chủ đề này
-        external_id: ID hiển thị cho người dùng (tùy chọn)
-    """
-
     course_id: int = Field(..., description="ID của khóa học chứa chủ đề này")
     external_id: Optional[str] = Field(None, description="ID hiển thị cho người dùng")
 
 
 class UpdateTopicSchema(BaseModel):
-    """
-    Schema cho việc cập nhật chủ đề
-
-    Note:
-        Các trường đều là Optional vì khi cập nhật không nhất thiết phải cung cấp tất cả các trường.
-    """
 
     name: Optional[str] = Field(
         None, min_length=1, max_length=255, description="Tên chủ đề"
@@ -62,24 +48,12 @@ class UpdateTopicSchema(BaseModel):
 
 
 class TopicResponse(TopicBase):
-    """
-    Schema cho response khi truy vấn thông tin chủ đề
-
-    Attributes:
-        id: ID của chủ đề
-        external_id: ID hiển thị cho người dùng
-        course_id: ID của khóa học chứa chủ đề này
-        order: Thứ tự của chủ đề trong khóa học
-        created_at: Thời điểm tạo
-        updated_at: Thời điểm cập nhật
-    """
 
     id: int = Field(..., description="ID của chủ đề")
     external_id: Optional[str] = Field(None, description="ID hiển thị cho người dùng")
     course_id: Optional[int] = Field(
         None, description="ID của khóa học chứa chủ đề này"
     )
-    order: Optional[int] = Field(None, description="Thứ tự của chủ đề trong khóa học")
     is_completed: Optional[bool] = Field(
         None, description="Trạng thái hoàn thành của chủ đề"
     )
@@ -100,20 +74,11 @@ class TopicResponse(TopicBase):
 
 
 class TopicWithLessonsResponse(TopicResponse):
-    """
-    Schema cho response topic kèm lessons
-    """
-
-    lessons: List[LessonWithChildSchema] = Field(
-        default_factory=list, description="Danh sách lessons"
-    )
-
     class Config:
         from_attributes = True
 
 
 class TopicCreate(TopicBase):
-    """Schema cho việc tạo topic (admin)"""
 
     course_id: Optional[int] = Field(
         None, description="ID của khóa học chứa chủ đề này (có thể null)"
@@ -121,7 +86,6 @@ class TopicCreate(TopicBase):
 
 
 class TopicUpdate(BaseModel):
-    """Schema cho việc cập nhật topic (admin)"""
 
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
@@ -129,7 +93,6 @@ class TopicUpdate(BaseModel):
 
 
 class TopicCourseAssignment(BaseModel):
-    """Schema cho việc gán topic vào course"""
 
     course_id: Optional[int] = Field(
         None, description="ID của khóa học (null để unassign)"
@@ -137,7 +100,6 @@ class TopicCourseAssignment(BaseModel):
 
 
 class UserTopic(BaseModel):
-    """Schema cho trạng thái topic của user"""
 
     user_id: int
     topic_id: int
@@ -168,7 +130,7 @@ class TopicWithProgressResponse(BaseModel):
     description: str = Field(..., description="Mô tả topic")
     order: Optional[int] = Field(None, description="Thứ tự topic trong course")
 
-    lessons: List[LessonDetailWithProgressResponse] = Field(
+    lessons: List[LessonWithChildSchema] = Field(
         default=[], description="Danh sách lessons với progress"
     )
 
@@ -190,7 +152,7 @@ class TopicDetailWithProgressResponse(BaseModel):
     order: Optional[int] = Field(None, description="Thứ tự topic trong course")
     course_id: Optional[int] = Field(None, description="ID của course")
 
-    lessons: List[LessonDetailWithProgressResponse] = Field(
+    lessons: List[LessonWithChildSchema] = Field(
         default=[], description="Danh sách lessons với progress"
     )
 

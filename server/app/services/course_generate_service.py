@@ -1,10 +1,14 @@
 import asyncio
 
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
 from app.core.agents.course_composition_agent import CourseCompositionAgent
 from app.database.database import get_independent_db_session
-from app.models import Course
+from app.models import Course, Topic
 from app.schemas import CourseCompositionRequestSchema
 from app.services.base_generate_service import BaseGenerateService
+from app.utils.model_utils import pydantic_to_sqlalchemy_scalar
 
 
 class CourseGenerateService(BaseGenerateService[Course]):
@@ -14,15 +18,22 @@ class CourseGenerateService(BaseGenerateService[Course]):
             **kwargs,
     ):
         async with get_independent_db_session() as db:
-            agent = CourseCompositionAgent(db)
+            agent = CourseCompositionAgent()
             [course, _] = await agent.act(course_request)
-            course.course_id = course_request.course_id
-            from app.services.course_draft_service import update_or_create_course_draft
 
-            update_or_create_course_draft(course_request.course_id, course_draft=course)
+            topics = [pydantic_to_sqlalchemy_scalar(topic, Topic) for topic in course.topics]
+
+            course_model = await db.execute(
+                select(Course).options(selectinload(Course.topics)).where(Course.id == course_request.course_id)
+                )
+            course_model = course_model.scalar_one()
+            course_model.duration = course.duration
+            course_model.description = course.description
+
+            for topic in topics:
+                course_model.topics.append(topic)
 
             await db.commit()
-            course_model = await db.get(Course, course_request.course_id)
             if not course_model:
                 raise ValueError(
                     f"Course with ID {course_request.course_id} not found."

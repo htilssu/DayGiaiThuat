@@ -98,7 +98,6 @@ export default function CreateCourseModal({ opened, onClose, onSuccess }: Create
             duration: values.duration,
             isPublished: values.isPublished,
             tags: values.tags,
-            // requirements và whatYouWillLearn sẽ được agent tự generate
             requirements: null,
             whatYouWillLearn: null,
         };

@@ -7,9 +7,7 @@ from app.database.database import Base
 from app.schemas.lesson_schema import Options
 
 if TYPE_CHECKING:
-    from app.models.topic_model import Topic
-    from app.models.user_model import User
-    from app.models.exercise_model import Exercise
+    pass
 
 
 class LessonSection(Base):
@@ -43,8 +41,6 @@ class Lesson(Base):
     description: Mapped[str] = mapped_column(String)
     topic_id: Mapped[int] = mapped_column(Integer, ForeignKey("topics.id"), index=True)
     order: Mapped[int] = mapped_column(Integer)
-    next_lesson_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    prev_lesson_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     # Relationships
     sections: Mapped[List[LessonSection]] = relationship(

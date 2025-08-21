@@ -1,17 +1,20 @@
 import asyncio
-import uuid
 
-from sqlalchemy import select
-
-from app.database.database import get_independent_db_session
-from app.models import Topic
-from app.services.lesson_generate_service import LessonGenerateService
+from app.schemas import CourseCompositionRequestSchema
+from app.services.course_generate_service import CourseGenerateService
 
 
 async def main():
-    async with get_independent_db_session() as db:
-        topic_list = (await db.execute(select(Topic).filter(Topic.course_id == 236))).scalars().all()
-        await LessonGenerateService().generate_all_by_topic(topic_list=topic_list, session_id=uuid.uuid4().hex)
+    course_g = CourseGenerateService()
+    course_request = CourseCompositionRequestSchema(
+        course_id=251,
+        course_title="Cấu trúc dữ liệu và giải thuật",
+        course_description="Cấu trúc dữ liệu và giải thuật"
+    )
+
+    course = await course_g.generate(course_request)
+
+    print("Done")
 
 
 if __name__ == "__main__":

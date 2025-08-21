@@ -1,20 +1,12 @@
 from typing import Literal
+
 from pinecone import ServerlessSpec
 
-from app.core.config import settings
-
-from functools import lru_cache
-
 from app.core.agents.components.embedding_model import get_embedding_model
+from app.core.config import settings
 
 
 def get_pinecone_client():
-    """
-    Trả về một instance được cache của Pinecone client
-
-    Returns:
-        Pinecone: Instance được cache của Pinecone client
-    """
     from pinecone import Pinecone
 
     return Pinecone(api_key=settings.PINECONE_API_KEY)

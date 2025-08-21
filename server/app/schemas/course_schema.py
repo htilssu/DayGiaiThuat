@@ -283,22 +283,22 @@ def rebuild_course_models():
 
 
 class CourseCompositionRequestSchema(BaseModel):
-    """Schema cho request tạo khóa học tự động"""
-
-    course_id: int = Field(..., description="ID của khóa học")
+    lesson_id: Optional[int] = Field(
+        None, description="ID của lesson hiện tại (nếu có), dùng để lấy context"
+    )
+    course_id: Optional[int] = Field(default=None, description="ID của khóa học")
     course_title: str = Field(..., description="Tiêu đề khóa học")
     course_description: str = Field(..., description="Mô tả khóa học")
-    course_level: str = Field(..., description="Cấp độ khóa học")
+    course_level: Optional[str] = Field(default="Beginner", description="Cấp độ khóa học")
     session_id: Optional[str] = Field(
         None, description="Session ID cho message history"
     )
     user_requirements: Optional[str] = Field(None, description="Yêu cầu của người dùng")
-    max_topics: int = Field(default=8, description="Số lượng topic tối đa")
-    lessons_per_topic: int = Field(default=5, description="Số lessons cho mỗi topic")
+    max_topics: Optional[int] = Field(default=8, description="Số lượng topic tối đa")
+    lessons_per_topic: Optional[int] = Field(default=5, description="Số lessons cho mỗi topic")
 
 
 class TopicGenerationResult(BaseModel):
-    """Kết quả tạo topic"""
 
     name: str
     description: str
@@ -306,22 +306,26 @@ class TopicGenerationResult(BaseModel):
     skills: List[str] = Field(
         ..., description="Danh sách kỹ năng đạt được sau khi học topic này"
     )
-    order: int
+    order: int = Field(description="Thứ tự của topic trong khóa học")
+
+    class Config:
+        from_attributes = True
 
 
 class CourseCompositionResponseSchema(BaseModel):
-    """Schema cho response của CourseCompositionAgent"""
 
     topics: List[TopicGenerationResult] = Field(
         ..., description="Danh sách topics với skills"
     )
-    duration: str = Field(
+    duration: int = Field(
         ..., description="Thời gian ước lượng hoàn thành khóa học (giờ)"
     )
-    status: str = Field(default="success", description="Trạng thái thực hiện")
-    errors: Optional[List[str]] = Field(
-        default=None, description="Danh sách lỗi nếu có"
+    description: str = Field(
+        ..., description="Mô tả chi tiết về khóa học"
     )
+
+    class Config:
+        from_attributes = True
 
 
 class BulkDeleteCoursesRequest(BaseModel):

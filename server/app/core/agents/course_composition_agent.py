@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
 from app.core.tracing import trace_agent
+from app.schemas import CourseCompositionResponseSchema
 from app.schemas.course_draft_schema import CourseDraftSchema
 from app.schemas.course_schema import (
     CourseCompositionRequestSchema,
@@ -62,14 +63,10 @@ SYSTEM_PROMPT = SYSTEM_PROMPT.format(
 
 
 class CourseCompositionAgent(BaseAgent):
-    """
-    Agent tự động soạn bài giảng cho khóa học
-    """
 
-    def __init__(self, db_session: AsyncSession):
+    def __init__(self):
         super().__init__()
         self.current_course_id = None
-        self.db_session = db_session
         self.vector_store = get_vector_store("document")
         self.mongodb_db_name = "chat_history"
         self.mongodb_collection_name = "course_composition"
@@ -77,7 +74,6 @@ class CourseCompositionAgent(BaseAgent):
         self._init_agent()
 
     def _setup_tools(self):
-        """Khởi tạo các tools cho agent"""
         document_retriever = get_vector_store("document").as_retriever()
         self.retrieval_tool = Tool(
             name="course_context_retriever",
@@ -86,11 +82,10 @@ class CourseCompositionAgent(BaseAgent):
             description="Truy vấn RAG để lấy nội dung liên quan đến khóa học.",
         )
 
-        self.output_parser = PydanticOutputParser(pydantic_object=CourseDraftSchema)
+        self.output_parser = PydanticOutputParser(pydantic_object=CourseCompositionResponseSchema)
         self.tools = [self.retrieval_tool]
 
     def _init_agent(self):
-        """Khởi tạo agent với lazy import"""
         from langchain_core.messages import SystemMessage
         from langchain_core.prompts import (
             ChatPromptTemplate,
@@ -122,8 +117,8 @@ class CourseCompositionAgent(BaseAgent):
 
     @trace_agent(project_name="default", tags=["course", "composition"])
     async def act(
-        self, request: CourseCompositionRequestSchema
-    ) -> tuple[CourseDraftSchema, str]:
+            self, request: CourseCompositionRequestSchema
+    ) -> tuple[CourseCompositionResponseSchema, str]:
         from langchain_core.runnables import RunnableConfig
         from app.core.config import settings
         from langchain_mongodb import MongoDBChatMessageHistory
@@ -174,17 +169,15 @@ class CourseCompositionAgent(BaseAgent):
                 raise Exception("Không thể tạo topics cho khóa học")
 
             try:
-                agent_response: CourseDraftSchema = self.output_parser.parse(
+                agent_response = self.output_parser.parse(
                     result["output"]
                 )
             except OutputParserException:
                 agent_response = OutputFixingParser.from_llm(
                     self.base_llm, parser=self.output_parser
                 ).parse(result["output"])
-            agent_response.session_id = session_id
             return agent_response, session_id
 
         except Exception as e:
             print(f"❌ Lỗi khi soạn khóa học: {e}")
-            await self.db_session.rollback()
             raise e

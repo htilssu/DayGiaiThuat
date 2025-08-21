@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from typing import List
 
@@ -13,7 +14,7 @@ from app.utils.model_utils import model_to_dict, pydantic_to_sqlalchemy_scalar
 
 class LessonGenerateService(BaseGenerateService[List[Lesson]]):
 
-    async def generate(self, topic: Topic, session_id: str) -> T:
+    async def generate(self, topic: Topic, session_id: str) -> List[Lesson]:
         lesson_generate_agent = LessonGeneratingAgent()
         created_lesson_schema = await lesson_generate_agent.act(
             topic=topic, session_id=session_id
@@ -23,10 +24,13 @@ class LessonGenerateService(BaseGenerateService[List[Lesson]]):
             lesson_model = pydantic_to_sqlalchemy_scalar(lesson_item, Lesson)
             lesson_model.id = None
             lesson_model.topic_id = topic.id
-            lesson_model.sections = [
-                pydantic_to_sqlalchemy_scalar(section, LessonSection)
-                for section in lesson_item.sections
-            ]
+            section = []
+            for section_item in lesson_item.sections:
+                section_model = pydantic_to_sqlalchemy_scalar(section_item, LessonSection)
+                section_model.id = None
+                section_model.lesson_id = None  # Set to None to allow SQLAlchemy to generate a new ID
+                section.append(section_model)
+            lesson_model.sections = section
             lesson_model.exercises = [
                 pydantic_to_sqlalchemy_scalar(exercise, Exercise)
                 for exercise in lesson_item.exercises
@@ -36,14 +40,25 @@ class LessonGenerateService(BaseGenerateService[List[Lesson]]):
         return lesson_list
 
     async def generate_all_by_topic(self, topic_list: List[Topic]):
-        for topic in topic_list:
-            session_id = uuid.uuid4().hex
-            lesson = await self.generate(topic=topic, session_id=session_id)
-            async with get_independent_db_session() as db:
-                db.add_all(lesson)
+        async def process_topic(topic):
+            try:
+                session_id = uuid.uuid4().hex
+                lesson = await self.generate(topic=topic, session_id=session_id)
 
-                try:
+                for lesson_item in lesson:
+                    lesson_item.id = None
+                    lesson_item.topic_id = topic.id
+
+                async with get_independent_db_session() as db:
+                    db.add_all(lesson)
                     await db.commit()
-                except SQLAlchemyError as err:
-                    await db.rollback()
-                    print("SQLAlchemyError" + str(err))
+                    return True
+            except Exception as err:
+                print(f"Error topic {topic.id}: {err}")
+                return False
+
+        tasks = [process_topic(topic) for topic in topic_list]
+        results = await asyncio.gather(*tasks)
+
+        success_count = sum(results)
+        print(f"Completed: {success_count}/{len(topic_list)}")

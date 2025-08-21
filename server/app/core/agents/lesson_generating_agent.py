@@ -84,9 +84,9 @@ Hướng dẫn về từng loại section:
 
 class LessonGeneratingAgent(BaseAgent):
     def __init__(
-        self,
-        mongodb_db_name: str = "chat_history",
-        mongodb_collection_name: str = "lesson_chat_history",
+            self,
+            mongodb_db_name: str = "chat_history",
+            mongodb_collection_name: str = "lesson_chat_history",
     ):
         super().__init__()
         self.available_args = [
@@ -138,15 +138,6 @@ class LessonGeneratingAgent(BaseAgent):
             ]
         )
         self.generate_structure_chain = self.generate_structure_prompt | get_llm_model()
-
-        self.generate_content_prompt = ChatPromptTemplate.from_messages(
-            [
-                SystemMessage(
-                    content="Bạn là một người viết nội dung giáo dục. Hãy soạn nội dung chi tiết cho phần này của bài giảng."
-                ),
-                HumanMessagePromptTemplate.from_template("{input}"),
-            ]
-        )
 
     def _init_tools(self):
         from langchain.output_parsers import OutputFixingParser
@@ -222,8 +213,9 @@ class LessonGeneratingAgent(BaseAgent):
         )
 
         try:
+            agent_input = TopicBase.model_validate(topic, from_attributes=True).model_dump_json()
             response = await agent_with_chat_history.ainvoke(
-                {"input": (TopicBase.model_validate(topic)).model_dump_json()},
+                {"input": agent_input},
                 config=run_config,
             )
 
