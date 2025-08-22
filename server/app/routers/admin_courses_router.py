@@ -100,7 +100,7 @@ async def update_course_thumbnail(
 
 @router.get(
     "/{course_id}/review",
-    response_model=CourseDraftSchema,
+    response_model=CourseResponse,
     summary="Lấy thông tin review khóa học (Admin)",
     responses={
         200: {"description": "OK"},
@@ -111,9 +111,10 @@ async def update_course_thumbnail(
 async def get_course_review(
         course_id: int,
         admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_service: CourseService = Depends(get_course_service),
 ):
-    course_draft = get_course_draft_by_course_id(course_id)
-    return course_draft
+    course = await course_service.get_course(course_id)
+    return CourseResponse.model_validate(course)
 
 
 @router.post(

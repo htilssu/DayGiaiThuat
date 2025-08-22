@@ -2,14 +2,12 @@ import asyncio
 import uuid
 from typing import List
 
-from sqlalchemy.exc import SQLAlchemyError
-
-from app.core.agents.lesson_generating_agent import get_lesson_generating_agent, LessonGeneratingAgent
+from app.core.agents.lesson_generating_agent import LessonGeneratingAgent
 from app.database.database import get_independent_db_session
 from app.models import Topic, Lesson, Exercise
 from app.models.lesson_model import LessonSection
-from app.services.base_generate_service import BaseGenerateService, T
-from app.utils.model_utils import model_to_dict, pydantic_to_sqlalchemy_scalar
+from app.services.base_generate_service import BaseGenerateService
+from app.utils.model_utils import pydantic_to_sqlalchemy_scalar
 
 
 class LessonGenerateService(BaseGenerateService[List[Lesson]]):
@@ -28,7 +26,7 @@ class LessonGenerateService(BaseGenerateService[List[Lesson]]):
             for section_item in lesson_item.sections:
                 section_model = pydantic_to_sqlalchemy_scalar(section_item, LessonSection)
                 section_model.id = None
-                section_model.lesson_id = None  # Set to None to allow SQLAlchemy to generate a new ID
+                section_model.lesson_id = None
                 section.append(section_model)
             lesson_model.sections = section
             lesson_model.exercises = [

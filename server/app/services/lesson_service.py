@@ -155,10 +155,32 @@ class LessonService:
 
         return [convert_lesson_to_schema(lesson) for lesson in lessons]
 
+    async def get_next_lesson(self, lesson: Lesson) -> Optional[Lesson]:
+        next_lesson_stmt = (
+            select(Lesson)
+            .where(
+                Lesson.topic_id == lesson.topic_id,
+                Lesson.order == lesson.order + 1,
+            )
+            .limit(1)
+        )
+        next_lesson = (await self.db.execute(next_lesson_stmt)).scalar_one_or_none()
+        if not next_lesson:
+            next_topic: Topic = (await self.db.execute(
+                select(Topic).where(Topic.order > lesson.topic.order,
+                                    Topic.course_id == lesson.topic.course_id))).scalar_one_or_none()
+            if next_topic:
+                next_lesson = (await self.db.execute(select(Lesson).filter(
+                    Lesson.topic_id == next_topic.id
+                ).order_by(Lesson.order).limit(1))).scalar_one()
+            else:
+                next_lesson = None
+
+            return next_lesson
+
     async def complete_lesson(
             self, lesson_id: int, user_id: int
     ) -> LessonCompleteResponseSchema:
-        # Lấy bài học hiện tại
         current_lesson = await self.db.execute(
             select(Lesson)
             .options(selectinload(Lesson.topic))
@@ -168,16 +190,6 @@ class LessonService:
         if not current_lesson:
             raise HTTPException(status_code=404, detail="Lesson not found")
 
-        # Tìm bài học tiếp theo trong cùng một chủ đề
-        next_lesson_stmt = (
-            select(Lesson)
-            .where(
-                Lesson.topic_id == current_lesson.topic_id,
-                Lesson.order == current_lesson.order + 1,
-            )
-            .limit(1)
-        )
-        next_lesson = (await self.db.execute(next_lesson_stmt)).scalar_one_or_none()
         user_course = await self.db.execute(
             select(UserCourse).where(
                 UserCourse.user_id == user_id,
@@ -208,8 +220,9 @@ class LessonService:
             self.db.add(progress)
         await self.db.commit()
 
+        next_lesson = await self.get_next_lesson(current_lesson)
+
         if next_lesson:
-            # Nếu có bài học tiếp theo, cập nhật trạng thái người dùng
             user_course.current_lesson = next_lesson.id
             user_course.current_topic = next_lesson.topic_id
             await self.db.commit()
@@ -219,39 +232,15 @@ class LessonService:
                 is_completed=True,
             )
         else:
-            topic = await self.topic_service.get_next_topic(current_lesson.topic_id)
-            if topic:
-                # Tìm bài học đầu tiên của chủ đề tiếp theo
-                first_lesson_stmt = (
-                    select(Lesson)
-                    .where(Lesson.topic_id == topic.id)
-                    .order_by(Lesson.order)
-                    .limit(1)
-                )
-                first_lesson_of_next_topic = (
-                    await self.db.execute(first_lesson_stmt)
-                ).scalar_one_or_none()
-
-                if first_lesson_of_next_topic:
-                    user_course.current_lesson = first_lesson_of_next_topic.id
-                    user_course.current_topic = first_lesson_of_next_topic.topic_id
-                    await self.db.commit()
-                    return LessonCompleteResponseSchema(
-                        lesson_id=first_lesson_of_next_topic.id,
-                        next_lesson_id=first_lesson_of_next_topic.id,
-                        is_completed=True,
-                    )
-
-        return LessonCompleteResponseSchema(
-            lesson_id=lesson_id, next_lesson_id=None, is_completed=True
-        )
+            return LessonCompleteResponseSchema(
+                lesson_id=None,
+                next_lesson_id=None,
+                is_completed=True,
+            )
 
     async def update_lesson(
             self, lesson_id: int, lesson_data: UpdateLessonSchema
     ) -> Optional[LessonWithChildSchema]:
-        """
-        Update a lesson.
-        """
         stmt = select(Lesson).where(Lesson.id == lesson_id)
         result = await self.db.execute(stmt)
         lesson = result.scalar_one_or_none()
@@ -269,23 +258,8 @@ class LessonService:
 
         return convert_lesson_to_schema(lesson)
 
-    async def mark_lesson_completed(self, lesson_id: int, user_id: int):
-        """
-        Mark a lesson as completed.
-        """
-        stmt = select(Lesson).where(Lesson.id == lesson_id)
-        result = await self.db.execute(stmt)
-        lesson = result.scalar_one_or_none()
-
-        if not lesson:
-            return False
-
-        await self.db.commit()
 
     async def delete_lesson(self, lesson_id: int) -> bool:
-        """
-        Delete a lesson.
-        """
         stmt = select(Lesson).where(Lesson.id == lesson_id)
         result = await self.db.execute(stmt)
         lesson = result.scalar_one_or_none()
@@ -338,7 +312,6 @@ class LessonService:
 
         res = LessonWithChildSchema.model_validate(lesson)
         return res
-
 
 def get_lesson_service(
         db: AsyncSession = Depends(get_async_db),

@@ -10,7 +10,7 @@ from app.models.topic_model import Topic
 from app.schemas.course_draft_schema import TopicOrderRequest
 from app.schemas.topic_schema import (
     TopicCreate,
-    TopicResponse,
+    TopicWithLesson,
     TopicUpdate,
     TopicCourseAssignment,
 )
@@ -38,7 +38,7 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
 
 @router.post(
     "",
-    response_model=TopicResponse,
+    response_model=TopicWithLesson,
     status_code=status.HTTP_201_CREATED,
     summary="Tạo chủ đề mới (Admin)",
     responses={
@@ -72,7 +72,7 @@ async def create_topic(
 
 @router.get(
     "",
-    response_model=List[TopicResponse],
+    response_model=List[TopicWithLesson],
     summary="Lấy danh sách chủ đề (Admin)",
     responses={
         200: {"description": "OK"},
@@ -94,7 +94,7 @@ async def get_topics_admin(
 
 @router.get(
     "/{topic_id}",
-    response_model=TopicResponse,
+    response_model=TopicWithLesson,
     summary="Lấy chi tiết chủ đề (Admin)",
     responses={
         200: {"description": "OK"},
@@ -122,7 +122,7 @@ async def get_topic_by_id_admin(
 
 @router.put(
     "/{topic_id}",
-    response_model=TopicResponse,
+    response_model=TopicWithLesson,
     summary="Cập nhật chủ đề (Admin)",
     responses={
         200: {"description": "OK"},
@@ -170,7 +170,7 @@ async def update_topic(
 
 @router.patch(
     "/{topic_id}/assign-course",
-    response_model=TopicResponse,
+    response_model=TopicWithLesson,
     summary="Assign/Unassign khóa học cho chủ đề (Admin)",
     responses={
         200: {"description": "OK"},

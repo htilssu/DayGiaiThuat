@@ -4,6 +4,7 @@ from sqlalchemy import ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.database import Base
+from app.models.user_course_progress_model import ProgressStatus
 from app.schemas.lesson_schema import Options
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class LessonSection(Base):
     options: Mapped[Optional[Options]] = mapped_column(
         JSON, nullable=True
     )
+    exercise_id: Mapped[int] = mapped_column(Integer, ForeignKey("exercises.id"), nullable=True)
     answer: Mapped[Optional[str]] = mapped_column(
         String, nullable=True
     )
@@ -31,6 +33,7 @@ class LessonSection(Base):
     )
 
     lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="sections")
+    exercise: Mapped["Exercise"] = relationship("Exercise", back_populates="lesson_section")
 
 
 class Lesson(Base):
@@ -47,6 +50,13 @@ class Lesson(Base):
         "LessonSection", back_populates="lesson", cascade="all, delete-orphan"
     )
     topic: Mapped["Topic"] = relationship("Topic", back_populates="lessons")
-    exercises: Mapped[List["Exercise"]] = relationship(
-        "Exercise", back_populates="lesson", cascade="all, delete-orphan"
-    )
+
+    progress_records: Mapped["UserCourseProgress"] = relationship("UserCourseProgress", back_populates="lesson",
+                                                                  cascade="all, delete-orphan")
+
+    @property
+    def is_completed(self) -> bool:
+        if self.progress_records.status == ProgressStatus.COMPLETED.value:
+            return True
+        else:
+            return False

@@ -72,7 +72,6 @@ export default function CreateCourseModal({ opened, onClose, onSuccess }: Create
 
             sessionStorage.setItem('pendingCourseData', JSON.stringify(courseData));
 
-            router.push(`/admin/course/${createdCourse.id}/review`);
 
             handleClose();
             onSuccess();

@@ -5,9 +5,10 @@ from datetime import datetime
 
 
 class LessonCompleteResponseSchema(BaseModel):
-    lesson_id: int
+    lesson_id: Optional[int] = None
     next_lesson_id: Optional[int] = None
     is_completed: bool
+    is_course_completed: bool = False
 
 
 class LessonSummary(BaseModel):
@@ -20,8 +21,6 @@ class LessonSummary(BaseModel):
 
 class LessonBase(LessonSummary):
     order: int = Field(..., description="Thứ tự lesson trong topic")
-    next_lesson_id: Optional[str] = Field(None, description="ID của lesson tiếp theo")
-    prev_lesson_id: Optional[str] = Field(None, description="ID của lesson trước đó")
 
 
 class LessonResponseSchema(LessonBase):
@@ -48,13 +47,7 @@ class ExerciseResponse(ExerciseBase):
     id: int
     lesson_id: int
 
-
-class LessonSectionSchema(BaseModel):
-    """
-    Schema cho phản hồi thông tin section của lesson
-    """
-
-    id: int
+class LessonSectionAgentGenerated(BaseModel):
     type: str = Field(
         ..., description="Loại section: text, code, image, quiz, teaching"
     )
@@ -63,6 +56,13 @@ class LessonSectionSchema(BaseModel):
     options: Optional[Dict[str, Any]] = Field(None, description="Tùy chọn cho quiz")
     answer: Optional[str] = Field(None, description="Đáp án đúng cho quiz (A, B, C, D)")
     explanation: Optional[str] = Field(None, description="Giải thích cho quiz")
+
+    class Config:
+        from_attributes = True
+
+class LessonSectionSchema(LessonSectionAgentGenerated):
+
+    id: int
 
     class Config:
         from_attributes = True
@@ -77,7 +77,7 @@ class Options(BaseModel):
 
 class CreateLessonSchema(LessonBase):
     topic_id: int
-    sections: List[LessonSectionSchema]
+    sections: List[LessonSectionAgentGenerated]
 
 
 class AgentCreateLessonSchema(CreateLessonSchema):

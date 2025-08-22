@@ -1,9 +1,11 @@
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
+
 from pydantic import BaseModel, Field
+
 from app.schemas.lesson_schema import (
     LessonSummary,
-    LessonWithChildSchema,
+    LessonWithChildSchema, LessonResponseSchema,
 )
 from app.schemas.skill_schema import SkillBase
 
@@ -36,7 +38,6 @@ class CreateTopicSchema(TopicBase):
 
 
 class UpdateTopicSchema(BaseModel):
-
     name: Optional[str] = Field(
         None, min_length=1, max_length=255, description="Tên chủ đề"
     )
@@ -47,10 +48,9 @@ class UpdateTopicSchema(BaseModel):
     external_id: Optional[str] = Field(None, description="ID hiển thị cho người dùng")
 
 
-class TopicResponse(TopicBase):
 
+class TopicWithLesson(TopicBase):
     id: int = Field(..., description="ID của chủ đề")
-    external_id: Optional[str] = Field(None, description="ID hiển thị cho người dùng")
     course_id: Optional[int] = Field(
         None, description="ID của khóa học chứa chủ đề này"
     )
@@ -65,7 +65,7 @@ class TopicResponse(TopicBase):
     )
     created_at: datetime = Field(..., description="Thời điểm tạo")
     updated_at: datetime = Field(..., description="Thời điểm cập nhật")
-    lessons: List[LessonWithChildSchema] = Field(
+    lessons: List[LessonResponseSchema] = Field(
         default_factory=list, description="Danh sách lessons"
     )
 
@@ -73,34 +73,25 @@ class TopicResponse(TopicBase):
         from_attributes = True
 
 
-class TopicWithLessonsResponse(TopicResponse):
-    class Config:
-        from_attributes = True
-
-
 class TopicCreate(TopicBase):
-
     course_id: Optional[int] = Field(
         None, description="ID của khóa học chứa chủ đề này (có thể null)"
     )
 
 
 class TopicUpdate(BaseModel):
-
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     course_id: Optional[int] = None
 
 
 class TopicCourseAssignment(BaseModel):
-
     course_id: Optional[int] = Field(
         None, description="ID của khóa học (null để unassign)"
     )
 
 
 class UserTopic(BaseModel):
-
     user_id: int
     topic_id: int
     completed: bool

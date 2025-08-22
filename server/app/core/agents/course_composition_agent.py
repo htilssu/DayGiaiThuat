@@ -6,6 +6,7 @@ from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.tools import Tool
 from sqlalchemy.ext.asyncio import AsyncSession
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
@@ -44,8 +45,6 @@ Hãy tạo danh sách topics theo thứ tự logic học tập (từ cơ bản �
     }}
 ```
 
-instruction:
-{instruction}
 
 Lưu ý:
 - Topics phải bao quát toàn bộ nội dung khóa học
@@ -116,6 +115,7 @@ class CourseCompositionAgent(BaseAgent):
         )
 
     @trace_agent(project_name="default", tags=["course", "composition"])
+    @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3))
     async def act(
             self, request: CourseCompositionRequestSchema
     ) -> tuple[CourseCompositionResponseSchema, str]:

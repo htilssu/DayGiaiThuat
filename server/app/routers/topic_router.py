@@ -5,7 +5,7 @@ from app.schemas.topic_schema import (
     CreateTopicSchema,
     TopicDetailWithProgressResponse,
     UpdateTopicSchema,
-    TopicResponse,
+    TopicWithLesson,
 )
 
 from app.schemas.lesson_schema import LessonWithChildSchema
@@ -16,7 +16,7 @@ from app.utils.utils import get_current_user_optional
 router = APIRouter(prefix="/topics", tags=["Chủ đề"])
 
 
-@router.post("/", response_model=TopicResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=TopicWithLesson, status_code=status.HTTP_201_CREATED)
 async def create_topic(
     topic_data: CreateTopicSchema,
     topic_service: TopicService = Depends(get_topic_service),
@@ -26,7 +26,7 @@ async def create_topic(
     return topic
 
 
-@router.get("/course/{course_id}", response_model=List[TopicResponse])
+@router.get("/course/{course_id}", response_model=List[TopicWithLesson])
 async def list_topics_for_course(
     course_id: int, topic_service: TopicService = Depends(get_topic_service)
 ):
@@ -54,7 +54,7 @@ async def get_topic_by_id(
     return topic
 
 
-@router.get("/{topic_id}/basic", response_model=TopicResponse)
+@router.get("/{topic_id}/basic", response_model=TopicWithLesson)
 async def get_topic_basic_info(
     topic_id: int, topic_service: TopicService = Depends(get_topic_service)
 ):
@@ -63,7 +63,7 @@ async def get_topic_basic_info(
     return topic
 
 
-@router.get("/{topic_id}/with-lessons", response_model=TopicResponse)
+@router.get("/{topic_id}/with-lessons", response_model=TopicWithLesson)
 async def get_topic_with_lessons(
     topic_id: int, topic_service: TopicService = Depends(get_topic_service)
 ):
@@ -78,7 +78,7 @@ async def get_topic_with_lessons(
     return result
 
 
-@router.put("/{topic_id}", response_model=TopicResponse)
+@router.put("/{topic_id}", response_model=TopicWithLesson)
 async def update_topic(
     topic_id: int,
     topic_data: UpdateTopicSchema,
@@ -98,7 +98,7 @@ async def delete_topic(
     return None
 
 
-@router.get("/", response_model=List[TopicResponse])
+@router.get("/", response_model=List[TopicWithLesson])
 async def get_topics_by_course(
     course_id: int,
     topic_service: TopicService = Depends(get_topic_service),

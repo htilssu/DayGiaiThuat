@@ -1,3 +1,4 @@
+tenacity
 # Core async web stack
 fastapi
 uvicorn

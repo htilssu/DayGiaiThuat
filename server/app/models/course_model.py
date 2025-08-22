@@ -30,26 +30,7 @@ class CourseStatus(str, Enum):
 
 
 class Course(Base):
-    """
-    Model đại diện cho bảng courses trong database
 
-    Attributes:
-        id (int): ID của khóa học, là primary key
-        title (str): Tiêu đề của khóa học
-        description (text): Mô tả chi tiết về khóa học
-        thumbnail_url (str): Đường dẫn đến ảnh thumbnail của khóa học
-        level (str): Cấp độ khó của khóa học (Beginner, Intermediate, Advanced)
-        duration (int): Thời lượng ước tính để hoàn thành khóa học (tính bằng phút)
-        price (float): Giá của khóa học (0 nếu miễn phí)
-        is_published (bool): Trạng thái xuất bản của khóa học
-        test_generation_status (str): Trạng thái tạo bài test đầu vào
-        tags (List): Các thẻ tag liên quan đến khóa học
-        sections (List): Các phần học trong khóa học
-        requirements (List): Các yêu cầu cần có trước khi học
-        what_you_will_learn (List): Những gì người học sẽ đạt được sau khóa học
-        created_at (DateTime): Thời điểm tạo khóa học
-        updated_at (DateTime): Thời điểm cập nhật gần nhất
-    """
 
     __tablename__ = "courses"
 
