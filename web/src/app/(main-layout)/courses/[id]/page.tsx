@@ -39,18 +39,18 @@ export default function CourseDetailPage() {
   // Calculate if all lessons are completed
   const allLessonsCompleted = useMemo(() => {
     if (!courseData?.isEnrolled || !topicData?.length) return false;
-    
-    const totalLessons = topicData.reduce((total, topic) => 
+
+    const totalLessons = topicData.reduce((total, topic) =>
       total + (topic.lessons?.length || 0), 0);
-    const completedLessons = topicData.reduce((total, topic) => 
+    const completedLessons = topicData.reduce((total, topic) =>
       total + (topic.lessons?.filter(lesson => lesson.isCompleted).length || 0), 0);
-    
+
     return totalLessons > 0 && completedLessons === totalLessons;
   }, [courseData, topicData]);
 
   useEffect(() => {
     if (courseData) {
-      courseData.topics.sort((a, b) => a.order - b.order);
+      topicData?.sort((a, b) => a.order - b.order);
     }
   }, [courseData]);
 
