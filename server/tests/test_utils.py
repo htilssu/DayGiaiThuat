@@ -56,18 +56,18 @@ class TestAuthUtils:
         ).total_seconds() == settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
 
     def test_create_access_token_with_custom_expiry(self):
-        """Test tạo JWT token với thời gian hết hạn tùy chỉnh."""
+        """Test tạo JWT token với thời gian hết hạn mặc định từ settings."""
         data = {"sub": "test@example.com"}
-        expires_delta = timedelta(minutes=30)
-        token = create_access_token(data, expires_delta=expires_delta)
+        token = create_access_token(data)
 
         # Giải mã token để kiểm tra
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
 
-        # Kiểm tra thời gian hết hạn
+        # Kiểm tra thời gian hết hạn sử dụng settings mặc định
         exp_time = datetime.fromtimestamp(payload["exp"])
         iat_time = datetime.fromtimestamp(payload["iat"])
-        assert (exp_time - iat_time).total_seconds() == expires_delta.total_seconds()
+        expected_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        assert (exp_time - iat_time).total_seconds() == expected_delta.total_seconds()
 
 
 class TestCaseUtils:
