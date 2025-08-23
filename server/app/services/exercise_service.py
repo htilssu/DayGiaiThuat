@@ -6,7 +6,7 @@ from app.core.agents.exercise_agent import (
     GenerateExerciseQuestionAgent,
     get_exercise_agent,
 )
-from app.database.database import get_async_db
+from app.database.database import get_async_db, get_independent_db_session
 from app.core.config import settings
 from app.models import Exercise, ExerciseTestCase
 from app.models.exercise_model import Exercise as ExerciseModel
@@ -98,14 +98,21 @@ class ExerciseService:
             )
         return exercise
 
-    async def list_exercises(self, page: int = 1, limit: int = 12) -> list[ExerciseModel]:
+    async def list_exercises(
+        self, page: int = 1, limit: int = 12
+    ) -> list[ExerciseModel]:
         offset = max(0, (page - 1) * limit)
         result = await self.db.execute(
-            select(ExerciseModel).order_by(ExerciseModel.created_at.desc()).offset(offset).limit(limit)
+            select(ExerciseModel)
+            .order_by(ExerciseModel.created_at.desc())
+            .offset(offset)
+            .limit(limit)
         )
         return list(result.scalars().all())
 
-    async def update_exercise(self, exercise_id: int, data: ExerciseUpdate) -> ExerciseModel:
+    async def update_exercise(
+        self, exercise_id: int, data: ExerciseUpdate
+    ) -> ExerciseModel:
         exercise = await self.db.get(ExerciseModel, exercise_id)
         if not exercise:
             raise HTTPException(status_code=404, detail="Exercise not found")
@@ -178,7 +185,9 @@ class ExerciseService:
         )
 
         exercise_model = ExerciseModel.exercise_from_schema(exercise_detail)
-        exercise_model.test_cases = [ExerciseTestCase(**testc) for testc in exercise_detail.case]
+        exercise_model.test_cases = [
+            ExerciseTestCase(**testc) for testc in exercise_detail.case
+        ]
         self.db.add(exercise_model)
         await self.db.commit()
         await self.db.refresh(exercise_model)
@@ -188,9 +197,8 @@ class ExerciseService:
             cases = getattr(exercise_detail, "case", None) or []
             if isinstance(cases, list) and exercise_model.id:
                 for tc in cases:
-                    input_data = (
-                        getattr(tc, "input", None)
-                        or getattr(tc, "input_data", None)
+                    input_data = getattr(tc, "input", None) or getattr(
+                        tc, "input_data", None
                     )
                     output_data = (
                         getattr(tc, "expected_output", None)
@@ -267,84 +275,87 @@ class ExerciseService:
                 all_passed = False
         return CodeSubmissionResponse(results=results, all_passed=all_passed)
 
-    async def evaluate_submission_with_judge0(
-        self, exercise_id: int, submission: CodeSubmissionRequest
-    ) -> CodeSubmissionResponse:
-        """
-        Chấm code của học sinh với các test case của bài tập sử dụng Judge0.
-        """
-        exercise = await self.get_exercise(exercise_id)
-        if not exercise:
-            raise ValueError(f"Không tìm thấy bài tập với ID {exercise_id}")
 
-        test_cases = getattr(exercise, "test_cases", None) or getattr(
-            exercise, "case", None
+async def evaluate_submission_with_judge0(
+    exercise_id: int, submission: CodeSubmissionRequest
+) -> CodeSubmissionResponse:
+    """
+    Chấm code của học sinh với các test case của bài tập sử dụng Judge0.
+    """
+    async with get_independent_db_session() as db:
+        exercise = await db.execute(select(Exercise).where(Exercise.id == exercise_id))
+        exercise = exercise.scalar_one_or_none()
+    if not exercise:
+        raise ValueError(f"Không tìm thấy bài tập với ID {exercise_id}")
+
+    test_cases = getattr(exercise, "test_cases", None) or getattr(
+        exercise, "case", None
+    )
+    if not test_cases:
+        raise ValueError("Bài tập không có test case để kiểm tra")
+
+    results = []
+    all_passed = True
+
+    for test_case in test_cases:
+        input_data = (
+            getattr(test_case, "input_data", None)
+            or getattr(test_case, "input", None)
+            or (test_case.get("input") if isinstance(test_case, dict) else None)
         )
-        if not test_cases:
-            raise ValueError("Bài tập không có test case để kiểm tra")
+        expected_output = (
+            getattr(test_case, "output_data", None)
+            or getattr(test_case, "output", None)
+            or (test_case.get("output") if isinstance(test_case, dict) else None)
+        )
 
-        results = []
-        all_passed = True
+        # Submit to Judge0
+        response = requests.post(
+            f"{JUDGE0_API_URL}/submissions?base64_encoded=false&wait=true",
+            headers={"Content-Type": "application/json"},
+            json={
+                "source_code": submission.code,
+                "language_id": get_language_id(submission.language),
+                "stdin": input_data,
+            },
+        )
 
-        for test_case in test_cases:
-            input_data = (
-                getattr(test_case, "input_data", None)
-                or getattr(test_case, "input", None)
-                or (test_case.get("input") if isinstance(test_case, dict) else None)
-            )
-            expected_output = (
-                getattr(test_case, "output_data", None)
-                or getattr(test_case, "output", None)
-                or (test_case.get("output") if isinstance(test_case, dict) else None)
-            )
-
-            # Submit to Judge0
-            response = requests.post(
-                f"{JUDGE0_API_URL}/submissions?base64_encoded=false&wait=true",
-                headers={"Content-Type": "application/json"},
-                json={
-                    "source_code": submission.code,
-                    "language_id": get_language_id(submission.language),
-                    "stdin": input_data,
-                },
-            )
-
-            if not response.ok:
-                results.append(
-                    TestCaseResult(
-                        input=str(input_data) if input_data is not None else "",
-                        expected_output=str(expected_output)
-                        if expected_output is not None
-                        else "",
-                        actual_output="",
-                        passed=False,
-                        error=f"Judge0 error: {response.text}",
-                    )
-                )
-                all_passed = False
-                continue
-
-            result_data = response.json()
-            actual_output = (result_data.get("stdout") or "").strip()
-            error = result_data.get("stderr") or result_data.get("compile_output") or ""
-            passed = actual_output == (str(expected_output or "").strip()) and not error
-
+        if not response.ok:
             results.append(
                 TestCaseResult(
                     input=str(input_data) if input_data is not None else "",
-                    expected_output=str(expected_output)
-                    if expected_output is not None
-                    else "",
-                    actual_output=str(actual_output),
-                    passed=passed,
-                    error=error,
+                    expected_output=(
+                        str(expected_output) if expected_output is not None else ""
+                    ),
+                    actual_output="",
+                    passed=False,
+                    error=f"Judge0 error: {response.text}",
                 )
             )
+            all_passed = False
+            continue
 
-            if not passed:
-                all_passed = False
+        result_data = response.json()
+        actual_output = (result_data.get("stdout") or "").strip()
+        error = result_data.get("stderr") or result_data.get("compile_output") or ""
+        passed = actual_output == (str(expected_output or "").strip()) and not error
 
-        return CodeSubmissionResponse(results=results, all_passed=all_passed)
+        results.append(
+            TestCaseResult(
+                input=str(input_data) if input_data is not None else "",
+                expected_output=(
+                    str(expected_output) if expected_output is not None else ""
+                ),
+                actual_output=str(actual_output),
+                passed=passed,
+                error=error,
+            )
+        )
+
+        if not passed:
+            all_passed = False
+
+    return CodeSubmissionResponse(results=results, all_passed=all_passed)
 
 
 def get_exercise_service(

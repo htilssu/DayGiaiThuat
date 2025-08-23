@@ -55,7 +55,7 @@ async def store_document(
 
             job_id = await call_external_document_processing_api(
                 DocumentRequestExternal(
-                    document_url, "https://witty-bears-turn.loca.lt/document/webhook"
+                    document_url, "https://three-glasses-brush.loca.lt/document/webhook"
                 )
             )
 

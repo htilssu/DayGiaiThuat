@@ -21,7 +21,7 @@ export default async function ExerciseDetailPage({
   let exercise;
   try {
     exercise = await exercisesApi.getExerciseDetailForUi(exerciseId);
-  } catch {
+  } catch (e) {
     return (
       <div className="container mx-auto p-8">
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400">
