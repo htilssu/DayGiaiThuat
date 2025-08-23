@@ -26,7 +26,6 @@ class Test(Base):
         Integer, default=60, nullable=True
     )
 
-    # Lưu trữ cấu trúc câu hỏi dưới dạng JSON
     questions: Mapped[Optional[dict]] = mapped_column(JSON, default={}, nullable=True)
 
     # Relationships

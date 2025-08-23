@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from sqlalchemy import func, create_engine
+from sqlalchemy import DateTime, func, create_engine
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -63,14 +63,18 @@ SessionLocal = sessionmaker(
 # Tạo Base class để kế thừa cho các model
 class Base(DeclarativeBase):
     created_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), nullable=False, index=True
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
     updated_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), onupdate=func.now(), nullable=False, index=True
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+        index=True,
     )
 
 
-async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_async_db():
     """
     Tạo và trả về một database session bất đồng bộ mới cho mỗi request
     và đảm bảo đóng kết nối sau khi xử lý xong.

@@ -45,6 +45,7 @@ export interface UserCourseDetail {
   level: string;
   duration: number;
   price: number;
+  status: string | null;
   isPublished: boolean;
   tags: string;
   requirements: string | null;
@@ -153,7 +154,7 @@ export async function getEnrolledCourses(): Promise<EnrolledCourse[]> {
 }
 
 export async function getCourseTopics(courseId: number) {
-  return get(`/courses/${courseId}/user-topics`);
+  return get<Topic[]>(`/courses/${courseId}/topics`);
 }
 
 /**

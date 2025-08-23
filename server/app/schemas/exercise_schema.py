@@ -9,9 +9,13 @@ class GetExerciseSchema(BaseModel):
 
 
 class TestCase(BaseModel):
-    input_data: str = Field(..., description="Dữ liệu đầu vào cho trường hợp thử nghiệm.")
+    input_data: str = Field(
+        ..., description="Dữ liệu đầu vào cho trường hợp thử nghiệm."
+    )
     output_data: str = Field(..., description="Kết quả đầu ra mong đợi.")
-    explain: Optional[str] = Field(None, description="Giải thích cho trường hợp thử nghiệm.")
+    explain: Optional[str] = Field(
+        None, description="Giải thích cho trường hợp thử nghiệm."
+    )
 
 
 class ExerciseDetail(BaseModel):
@@ -27,6 +31,7 @@ class ExerciseDetail(BaseModel):
         completion_rate (Optional[int]): Tỉ lệ hoàn thành (%).
         completed (Optional[bool]): Đã hoàn thành hay chưa.
         content (Optional[str]): Nội dung chi tiết (Markdown).
+        executable (Optional[bool]): True nếu là bài tập code cần thực thi, False nếu là bài tập tự luận/suy luận.
         code_template (Optional[str]): Mẫu code khởi đầu.
         case (List[TestCase]): Danh sách các trường hợp thử nghiệm (tối thiểu 3).
     """
@@ -35,10 +40,16 @@ class ExerciseDetail(BaseModel):
     description: str = Field(..., description="Mô tả chi tiết về bài toán.")
     category: Optional[str] = Field(None, description="Danh mục bài toán")
     difficulty: str = Field(..., description="Độ khó của bài toán. bằng tiếng anh")
-    estimated_time: Optional[str] = Field(None, description="Thời gian ước tính hoàn thành")
+    estimated_time: Optional[str] = Field(
+        None, description="Thời gian ước tính hoàn thành"
+    )
     completion_rate: Optional[int] = Field(None, description="Tỉ lệ hoàn thành (%)")
     completed: Optional[bool] = Field(None, description="Trạng thái hoàn thành")
     content: Optional[str] = Field(None, description="Nội dung chi tiết (Markdown)")
+    executable: Optional[bool] = Field(
+        None,
+        description="True nếu là bài tập code cần thực thi, False nếu là bài tập tự luận/suy luận",
+    )
     code_template: Optional[str] = Field(None, description="Mẫu code khởi đầu")
     case: List[TestCase] = Field(
         min_length=10,
@@ -73,9 +84,11 @@ class ExerciseResponse(BaseModel):
         completion_rate: Tỉ lệ hoàn thành
         completed: Trạng thái hoàn thành
         content: Nội dung chi tiết
+        executable: True nếu là bài tập code, False nếu là bài tập tự luận
         code_template: Mẫu code
         lesson_id: ID của bài học liên quan
     """
+
     id: int = Field(..., description="ID của bài tập")
     title: str = Field(..., description="Tiêu đề bài tập")
     description: str = Field(..., description="Mô tả chi tiết về bài tập")
@@ -85,6 +98,9 @@ class ExerciseResponse(BaseModel):
     completion_rate: Optional[int] = Field(None, description="Tỉ lệ hoàn thành")
     completed: Optional[bool] = Field(None, description="Trạng thái hoàn thành")
     content: Optional[str] = Field(None, description="Nội dung chi tiết")
+    executable: Optional[bool] = Field(
+        None, description="True nếu là bài tập code, False nếu là bài tập tự luận"
+    )
     code_template: Optional[str] = Field(None, description="Mẫu code")
     lesson_id: int = Field(..., description="ID của bài học liên quan")
 
@@ -94,7 +110,10 @@ class ExerciseResponse(BaseModel):
 
 class CodeSubmissionRequest(BaseModel):
     code: str = Field(..., description="User's submitted code")
-    language: str = Field(..., description="Programming language (e.g., python, javascript, java, cpp, etc.)")
+    language: str = Field(
+        ...,
+        description="Programming language (e.g., python, javascript, java, cpp, etc.)",
+    )
 
 
 class TestCaseResult(BaseModel):
@@ -121,4 +140,5 @@ class ExerciseUpdate(BaseModel):
     completion_rate: Optional[int] = None
     completed: Optional[bool] = None
     content: Optional[str] = None
+    executable: Optional[bool] = None
     code_template: Optional[str] = None

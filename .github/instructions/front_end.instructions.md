@@ -32,6 +32,11 @@ applyTo: '**/web/**'
                 return <LessonPage topicId={topicId} lessonId={lessonId} />;
             }
         ```
-- Sử dùng các class màu như .text-primary, ..., hãy đọc file `web\src\app\globals.css` để biết các class màu đã được định nghĩa.
+- Sử dụng các class màu như .text-primary, ..., hãy đọc file `web\src\app\globals.css` để biết các class màu đã được định nghĩa.
 - Đang sử dụng pnpm để quản lý package, hãy sử dụng lệnh `pnpm install` để cài đặt package mới.
-- Các tên biến tạo ra phải là camelCase biến response api cũng thế.
+- Các tên biến, trường của interface, struct tạo ra phải là camelCase.
+- Không sử dụng next api routes, đã có fastapi server để xử lý các api.
+- Luôn định nghĩa các file api để call http trong thư mục `web\src\lib\api`, ví dụ:
+    ```
+    web\src\lib\api\learn.ts
+    ```

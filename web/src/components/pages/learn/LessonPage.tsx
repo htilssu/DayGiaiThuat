@@ -105,6 +105,8 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
     const handleNext = async () => {
         if (isQuiz && selectedAnswer === null) return;
 
+        if (isQuiz && selectedAnswer !== currentSection.answer) return;
+
         if (isLastSection) {
             setIsCompleted(true);
             const data = await lessonsApi.completeLesson(lesson.id);
@@ -307,6 +309,42 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                         )}
                     </div>
                 );
+            case "exercise":
+                return (
+                    <div className="bg-green-50 p-6 rounded-lg border border-green-200">
+                        <div className="flex items-center mb-4">
+                            <svg className="w-6 h-6 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <h3 className="text-lg font-semibold text-green-800">Bài tập thực hành</h3>
+                        </div>
+                        <div className="mb-6">
+                            {isMarkdown ? (
+                                <MarkdownRenderer
+                                    content={content}
+                                    className="prose-green"
+                                />
+                            ) : isHtml ? (
+                                <div className="prose prose-green max-w-none">
+                                    <div dangerouslySetInnerHTML={{ __html: content }} />
+                                </div>
+                            ) : (
+                                <div className="prose prose-green max-w-none">
+                                    <p className="text-green-900 leading-relaxed whitespace-pre-wrap">{content}</p>
+                                </div>
+                            )}
+                        </div>
+                        <div className="bg-white p-4 rounded-lg border border-green-200">
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="text-sm font-medium text-green-700">💡 Gợi ý:</span>
+                                <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">Thực hành</span>
+                            </div>
+                            <p className="text-sm text-green-700">
+                                Hãy thử thực hiện bài tập này để củng cố kiến thức vừa học. Bạn có thể sử dụng môi trường lập trình yêu thích của mình.
+                            </p>
+                        </div>
+                    </div>
+                );
             default:
                 return (
                     <div className="bg-gray-100 p-4 rounded-lg border border-gray-300 text-center">
@@ -403,9 +441,9 @@ export function LessonPage({ topicId, lessonId }: LessonPageProps) {
                             ) : <div></div>}
                             <button
                                 onClick={handleNext}
-                                disabled={isQuiz && selectedAnswer === null}
-                                className={`px-6 py-2 rounded-lg ${isQuiz && selectedAnswer === null
-                                    ? "bg-primary text-white cursor-not-allowed"
+                                disabled={isQuiz && (selectedAnswer === null || selectedAnswer !== currentSection.answer)}
+                                className={`px-6 py-2 rounded-lg ${isQuiz && (selectedAnswer === null || selectedAnswer !== currentSection.answer)
+                                    ? "bg-gray-400 text-white cursor-not-allowed"
                                     : "bg-primary text-white hover:bg-primary/90"
                                     }`}
                             >

@@ -34,11 +34,10 @@ class DocumentProcessingJobResponse(BaseModel):
 
 
 class RunpodWebhookRequest(BaseModel):
-    """Schema for Runpod webhook request"""
 
-    id: str  # Job ID
-    status: str  # COMPLETED, FAILED, etc.
-    output: Optional[Dict[str, Any]] = None
+    id: str
+    status: str
+    output: str
     error: Optional[str] = None
     executionTime: Optional[int] = None
     delayTime: Optional[int] = None

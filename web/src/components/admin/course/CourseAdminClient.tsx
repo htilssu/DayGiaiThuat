@@ -24,7 +24,7 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
-import { IconPlus, IconChevronRight, IconPencil, IconTrash, IconAlertCircle } from "@tabler/icons-react";
+import { IconPlus, IconChevronRight, IconPencil, IconTrash, IconAlertCircle, IconEye } from "@tabler/icons-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -32,12 +32,14 @@ import { Course, CourseCreatePayload, getAllCoursesAdmin, createCourseAdmin, del
 import { AdminTopic } from "@/lib/api/admin-topics";
 import { notifications } from '@mantine/notifications';
 import TestGenerationStatus from './TestGenerationStatus';
+import TopicsGenerationStatus from './TopicsGenerationStatus';
 import { useAppDispatch, useAppSelector } from "@/lib/store";
 import { addModal, removeModal } from "@/lib/store/modalStore";
 import { coursesApi } from "@/lib/api";
+import CreateCourseModal from "./CreateCourseModal";
 
 export default function CourseAdminClient() {
-    const [opened, { open, close }] = useDisclosure(false);
+    const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
     const [selectedCourses, setSelectedCourses] = useState<number[]>([]);
     const [bulkDeleteModalOpened, { open: openBulkDeleteModal, close: closeBulkDeleteModal }] = useDisclosure(false);
     const router = useRouter();
@@ -59,7 +61,7 @@ export default function CourseAdminClient() {
         retry: 3,
     });
 
-    // Mutation for creating courses
+    // Mutation for creating courses (giữ lại để tương thích nhưng không dùng)
     const createCourseMutation = useMutation({
         mutationFn: createCourseAdmin,
         onSuccess: (newCourse) => {
@@ -70,8 +72,6 @@ export default function CourseAdminClient() {
                 message: 'Khóa học đã được tạo thành công!',
                 color: 'green',
             });
-            close();
-            form.reset();
         },
         onError: (err) => {
             notifications.show({
@@ -179,28 +179,6 @@ export default function CourseAdminClient() {
         }
     });
 
-    const form = useForm({
-        initialValues: {
-            title: "",
-            description: "",
-            level: "Beginner",
-            price: 0,
-            duration: 0,
-            isPublished: false,
-            tags: "",
-            requirements: "",
-            whatYouWillLearn: "",
-        },
-        validate: {
-            title: (value) =>
-                value.length < 3 ? "Tiêu đề khóa học phải có ít nhất 3 ký tự" : null,
-        },
-    });
-
-    const handleCreateCourse = async (values: CourseCreatePayload) => {
-        createCourseMutation.mutate(values);
-    };
-
     const handleDeleteCourse = async (courseId: number) => {
         dispatch(addModal({
             id: `delete-course-${courseId}`,
@@ -283,6 +261,11 @@ export default function CourseAdminClient() {
                 </span>
             </Table.Td>
             <Table.Td>
+                <TopicsGenerationStatus
+                    status="not_started" // TODO: Add topicsGenerationStatus to Course interface
+                />
+            </Table.Td>
+            <Table.Td>
                 <TestGenerationStatus
                     status={course.testGenerationStatus || 'not_started'}
                 />
@@ -294,6 +277,16 @@ export default function CourseAdminClient() {
             </Table.Td>
             <Table.Td>
                 <Group gap="xs">
+                    <Tooltip label="Xem review khóa học">
+                        <ActionIcon
+                            variant="light"
+                            color="violet"
+                            size="sm"
+                            onClick={() => router.push(`/admin/course/${course.id}/review`)}
+                        >
+                            <IconEye size={14} />
+                        </ActionIcon>
+                    </Tooltip>
                     <Tooltip label="Chỉnh sửa khóa học">
                         <ActionIcon
                             variant="light"
@@ -361,8 +354,7 @@ export default function CourseAdminClient() {
                         )}
                         <Button
                             leftSection={<IconPlus size={16} />}
-                            onClick={open}
-                            loading={createCourseMutation.isPending}
+                            onClick={openModal}
                         >
                             Tạo khóa học mới
                         </Button>
@@ -383,6 +375,7 @@ export default function CourseAdminClient() {
                             <Table.Th>Thông tin khóa học</Table.Th>
                             <Table.Th>Cấp độ</Table.Th>
                             <Table.Th>Trạng thái</Table.Th>
+                            <Table.Th>Topics</Table.Th>
                             <Table.Th>Test đầu vào</Table.Th>
                             <Table.Th>Giá</Table.Th>
                             <Table.Th>Hành động</Table.Th>
@@ -390,99 +383,6 @@ export default function CourseAdminClient() {
                     </Table.Thead>
                     <Table.Tbody>{courseRows}</Table.Tbody>
                 </Table>
-
-                <Modal
-                    opened={opened}
-                    onClose={close}
-                    title="Tạo khóa học mới"
-                    size="lg"
-                >
-                    <form onSubmit={form.onSubmit(handleCreateCourse)}>
-                        <Grid>
-                            <Grid.Col span={12}>
-                                <TextInput
-                                    required
-                                    label="Tiêu đề khóa học"
-                                    placeholder="Nhập tiêu đề..."
-                                    {...form.getInputProps("title")}
-                                />
-                            </Grid.Col>
-                            <Grid.Col span={12}>
-                                <Textarea
-                                    label="Mô tả"
-                                    placeholder="Mô tả khóa học..."
-                                    rows={4}
-                                    {...form.getInputProps("description")}
-                                />
-                            </Grid.Col>
-                            <Grid.Col span={6}>
-                                <TextInput
-                                    required
-                                    label="Cấp độ"
-                                    placeholder="Beginner/Intermediate/Advanced"
-                                    {...form.getInputProps("level")}
-                                />
-                            </Grid.Col>
-                            <Grid.Col span={6}>
-                                <NumberInput
-                                    label="Giá (VNĐ)"
-                                    placeholder="0"
-                                    min={0}
-                                    {...form.getInputProps("price")}
-                                />
-                            </Grid.Col>
-                            <Grid.Col span={6}>
-                                <NumberInput
-                                    label="Thời lượng (phút)"
-                                    placeholder="0"
-                                    min={0}
-                                    {...form.getInputProps("duration")}
-                                />
-                            </Grid.Col>
-                            <Grid.Col span={6}>
-                                <Switch
-                                    label="Xuất bản khóa học"
-                                    {...form.getInputProps("isPublished", { type: "checkbox" })}
-                                />
-                            </Grid.Col>
-                            <Grid.Col span={12}>
-                                <TextInput
-                                    label="Tags"
-                                    placeholder="javascript,react,frontend"
-                                    {...form.getInputProps("tags")}
-                                />
-                            </Grid.Col>
-                            <Grid.Col span={12}>
-                                <Textarea
-                                    label="Yêu cầu"
-                                    placeholder="Các yêu cầu trước khi học..."
-                                    rows={3}
-                                    {...form.getInputProps("requirements")}
-                                />
-                            </Grid.Col>
-                            <Grid.Col span={12}>
-                                <Textarea
-                                    label="Những gì sẽ học được"
-                                    placeholder="Học viên sẽ học được..."
-                                    rows={3}
-                                    {...form.getInputProps("whatYouWillLearn")}
-                                />
-                            </Grid.Col>
-                        </Grid>
-
-                        <Group justify="flex-end" mt="md">
-                            <Button variant="outline" onClick={close}>
-                                Hủy
-                            </Button>
-                            <Button
-                                type="submit"
-                                loading={createCourseMutation.isPending}
-                            >
-                                Tạo khóa học
-                            </Button>
-                        </Group>
-                    </form>
-                </Modal>
 
                 {/* Bulk Delete Confirmation Modal */}
                 <Modal
@@ -515,6 +415,15 @@ export default function CourseAdminClient() {
                         </Button>
                     </Group>
                 </Modal>
+
+                {/* Create Course Modal */}
+                <CreateCourseModal
+                    opened={modalOpened}
+                    onClose={closeModal}
+                    onSuccess={() => {
+                        queryClient.invalidateQueries({ queryKey: ['admin', 'courses'] });
+                    }}
+                />
             </Paper>
         </Container>
     );

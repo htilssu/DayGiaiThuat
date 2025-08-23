@@ -2,7 +2,7 @@ from typing import override
 
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
-from app.core.agents.components.llm_model import get_llm_model, create_new_llm_model
+from app.core.agents.components.llm_model import create_new_llm_model
 from app.core.config import settings
 from app.core.tracing import trace_agent
 from app.schemas.exercise_schema import ExerciseDetail
@@ -12,9 +12,10 @@ Bạn là một chuyên gia, chuyên tạo ra các bài tập giải thuật đ�
 
 # Nhiệm vụ chính của bạn:
 1. Sử dụng tool retriever_algo_vault để tìm kiếm và truy xuất thông tin về các giải thuật liên quan đến chủ đề được yêu cầu.
-2. Sử dụng tool retriever_exercise để kiểm tra xem bài tập với mô tả tương tự đã tồn tại trong cơ sở dữ liệu hay chưa.
-3. Dựa trên thông tin thu thập được, sử dụng tool generate_exercise để tạo ra một bài tập phù hợp với chủ đề, bài học và độ khó được yêu cầu.
-4. Kiểm tra và sửa lỗi đầu ra bằng tool output_fixing_parser để đảm bảo định dạng chính xác.
+2. # Suy nghĩ kỹ:
+    - Khi người dùng học bài này thì họ đã có những kiến thức gì trước đó, nếu mới nhập môn thì cần tránh những ngữ cảnh quá phức tạp
+3. Dựa trên thông tin thu thập được, sử dụng tool generate_exercise để tạo ra một bài tập phù hợp với chủ đề, bài học và độ khó được yêu cầu đặc biệt là phải vừa sức với học sinh.
+4. Sử dụng tool retriever_exercise để kiểm tra xem bài tập với mô tả tương tự đã tồn tại trong cơ sở dữ liệu hay chưa nếu đã tồn tại thì quay lại bước 3.
 
 # Quy trình làm việc:
 1. Trước tiên, sử dụng retriever_algo_vault để tìm hiểu về chủ đề giải thuật
@@ -22,12 +23,18 @@ Bạn là một chuyên gia, chuyên tạo ra các bài tập giải thuật đ�
 3. Nếu chưa có bài tập tương tự tạo bài tập mới với generate_exercise
 
 # Tham số đầu vào:
-- tool generate_exercise: sẽ mô tả ngữ cảnh về topic, lesson và difficulty để tạo bài tập, khái niệm về lesson sẽ được sử dụng để tạo bài tập. cần tránh những ngữ cảnh không liên quan ví dụ: `Hãy tạo một bài tập theo thông tin sau:
+- tool generate_exercise: sẽ mô tả ngữ cảnh về topic, lesson và difficulty để tạo bài tập, khái niệm về lesson sẽ được sử dụng để tạo bài tập. cần tránh những ngữ cảnh không liên quan
+    *ví dụ*: ```Hãy tạo một bài tập theo thông tin sau:
         - Chủ đề: Giới thiệu về Lập trình
         - Bài học: Các khái niệm cơ bản về biến, kiểu dữ liệu và toán tử (tóm tắt ngắn gọn về lesson đầu vào, học sinh đã học được gì từ lesson này và tạo bài tập cho phù hợp)
         - Độ khó: trung bình
         - Chỉ sử dụng các khái niệm: biến, kiểu dữ liệu cơ bản, toán tử số học, ép kiểu, input/output đơn giản
-        - Không được sử dụng các ngữ cảnh: bài toán tài chính, lãi suất, ứng dụng thực tế phức tạp, vòng lặp, hàm`
+        - Không được sử dụng các ngữ cảnh: bài toán tài chính, lãi suất, ứng dụng thực tế phức tạp, vòng lặp, hàm
+        - Loại bài tập: executable=false (bài tập lý thuyết về khái niệm) hoặc executable=true (bài tập viết code)```
+
+# Hướng dẫn về loại bài tập:
+- executable=true: Tạo bài tập lập trình với input/output cụ thể, test cases để học sinh viết code
+- executable=false: Tạo bài tập lý thuyết, giải thích khái niệm, phân tích thuật toán không cần viết code
 
 
 Hãy luôn đảm bảo rằng bài tập được tạo ra có chất lượng cao và mang tính giáo dục tốt.
@@ -43,9 +50,15 @@ Hãy đảm bảo bài tập:
 4. Có constraints rõ ràng
 5. Cung cấp gợi ý hữu ích
 6. Bám sát ngữ cảnh của lesson
+7. Xác định loại bài tập phù hợp (executable hoặc non-executable):
+   - executable=true: Bài tập lập trình cần viết code để giải quyết (có input/output cụ thể, test cases)
+   - executable=false: Bài tập lý thuyết, giải thích khái niệm, phân tích thuật toán (không cần viết code)
 
 # Suy nghĩ kỹ:
 - Khi người dùng học bài này thì họ đã có những kiến thức gì trước đó, nếu mới nhập môn thì cần tránh những ngữ cảnh quá phức tạp
+- Xác định xem bài học tập trung vào lý thuyết hay thực hành để chọn loại bài tập phù hợp
+- Với các bài học về khái niệm cơ bản, có thể tạo bài tập lý thuyết (executable=false)
+- Với các bài học về thuật toán cụ thể, nên tạo bài tập lập trình (executable=true)
 
 Hãy trả về kết quả theo đúng format JSON được yêu cầu.
 
@@ -55,9 +68,9 @@ Hãy trả về kết quả theo đúng format JSON được yêu cầu.
 
 class GenerateExerciseQuestionAgent(BaseAgent):
     def __init__(
-            self,
-            mongodb_db_name: str = "chat_history",
-            mongodb_collection_name: str = "exercise_chat_history",
+        self,
+        mongodb_db_name: str = "chat_history",
+        mongodb_collection_name: str = "exercise_chat_history",
     ):
         super().__init__()
         self.available_args = ["topic", "session_id", "difficulty", "lesson"]
@@ -69,7 +82,7 @@ class GenerateExerciseQuestionAgent(BaseAgent):
         )
 
         self.exercise_retriever = get_vector_store("exercise").as_retriever(
-            search_kwargs={"k": 2}
+            search_kwargs={"k": 3}
         )
 
         self._init_parsers_and_chains()
@@ -102,7 +115,7 @@ class GenerateExerciseQuestionAgent(BaseAgent):
         )
 
         self.generate_exercise = self.generate_exercise_prompt | create_new_llm_model(
-            top_p=0.9, temperature=0.7
+            top_p=0.9, temperature=0.6
         ).with_structured_output(ExerciseDetail)
 
     def _init_tools(self):
@@ -183,7 +196,10 @@ class GenerateExerciseQuestionAgent(BaseAgent):
         )
 
         self.agent_executor = AgentExecutor(
-            agent=self.agent, tools=self.tools, verbose=True, handle_parsing_errors=True
+            agent=self.agent.with_retry(stop_after_attempt=5),
+            tools=self.tools,
+            verbose=True,
+            handle_parsing_errors=True,
         )
 
     @override

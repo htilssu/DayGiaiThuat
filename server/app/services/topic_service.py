@@ -9,7 +9,7 @@ from app.models.topic_model import Topic
 from app.models.lesson_model import Lesson
 from app.schemas.topic_schema import (
     TopicDetailWithProgressResponse,
-    TopicResponse,
+    TopicWithLesson,
     CreateTopicSchema,
     UpdateTopicSchema,
 )
@@ -23,7 +23,7 @@ class TopicService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create_topic(self, topic_data: CreateTopicSchema) -> TopicResponse:
+    async def create_topic(self, topic_data: CreateTopicSchema) -> TopicWithLesson:
         """
         Tạo topic mới
         """
@@ -39,7 +39,7 @@ class TopicService:
         await self.db.commit()
         await self.db.refresh(topic)
 
-        return TopicResponse.model_validate(topic)
+        return TopicWithLesson.model_validate(topic)
 
     async def get_topic_by_id(self, topic_id: int) -> Optional[Topic]:
         """
@@ -55,8 +55,8 @@ class TopicService:
         return topic
 
     async def update_topic(
-        self, topic_id: int, topic_data: UpdateTopicSchema
-    ) -> TopicResponse:
+            self, topic_id: int, topic_data: UpdateTopicSchema
+    ) -> TopicWithLesson:
         """
         Cập nhật topic
         """
@@ -80,7 +80,7 @@ class TopicService:
         await self.db.commit()
         await self.db.refresh(topic)
 
-        return TopicResponse.model_validate(topic)
+        return TopicWithLesson.model_validate(topic)
 
     async def delete_topic(self, topic_id: int) -> None:
         """
@@ -96,7 +96,7 @@ class TopicService:
         await self.db.delete(topic)
         await self.db.commit()
 
-    async def get_topics_by_course_id(self, course_id: int) -> List[TopicResponse]:
+    async def get_topics_by_course_id(self, course_id: int) -> List[TopicWithLesson]:
         """
         Lấy danh sách topics theo course_id
         """
@@ -104,10 +104,8 @@ class TopicService:
             select(Topic)
             .where(Topic.course_id == course_id)
             .options(
-                selectinload(Topic.lessons)
-                .selectinload(Lesson.sections),
-                selectinload(Topic.lessons)
-                .selectinload(Lesson.exercises),
+                selectinload(Topic.lessons).selectinload(Lesson.sections),
+                selectinload(Topic.lessons).selectinload(Lesson.exercises),
             )
             .order_by(Topic.order.asc().nulls_last(), Topic.id.asc())
         )
@@ -115,10 +113,10 @@ class TopicService:
         result = await self.db.execute(stmt)
         topics = result.scalars().all()
 
-        return [TopicResponse.model_validate(topic) for topic in topics]
+        return [TopicWithLesson.model_validate(topic) for topic in topics]
 
     async def get_topic_with_progress(
-        self, topic_id: int, user_id: Optional[int] = None
+            self, topic_id: int, user_id: Optional[int] = None
     ) -> TopicDetailWithProgressResponse:
         """Lấy topic với nested lessons và progress"""
         # Get topic with lessons
@@ -212,7 +210,6 @@ class TopicService:
 
         return TopicDetailWithProgressResponse(
             id=topic.id,
-            external_id=topic.external_id,
             name=topic.name,
             description=topic.description,
             order=topic.order,
@@ -225,9 +222,6 @@ class TopicService:
         )
 
     async def get_next_topic(self, current_topic_id: int) -> Optional[Topic]:
-        """
-        Lấy chủ đề tiếp theo trong cùng một khóa học.
-        """
         current_topic = await self.db.get(Topic, current_topic_id)
         if not current_topic:
             return None
@@ -244,11 +238,8 @@ class TopicService:
         return next_topic
 
     async def get_lessons_by_topic_id(
-        self, topic_id: int
+            self, topic_id: int
     ) -> List[LessonWithChildSchema]:
-        """
-        Lấy danh sách lessons theo topic_id
-        """
         stmt = (
             select(Lesson)
             .where(Lesson.topic_id == topic_id)
@@ -262,13 +253,4 @@ class TopicService:
 
 
 def get_topic_service(db: AsyncSession = Depends(get_async_db)) -> TopicService:
-    """
-    Dependency injection for TopicService
-
-    Args:
-        db: Async database session
-
-    Returns:
-        TopicService: Service instance
-    """
     return TopicService(db)

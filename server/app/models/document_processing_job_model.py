@@ -11,7 +11,7 @@ class DocumentProcessingJob(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, index=True)  # document_id
     job_id: Mapped[str] = mapped_column(
         String, nullable=False, unique=True, index=True
-    )  # Runpod job ID
+    )
     filename: Mapped[str] = mapped_column(String, nullable=False)
     document_url: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(
@@ -19,12 +19,11 @@ class DocumentProcessingJob(Base):
     )  # IN_QUEUE, IN_PROGRESS, COMPLETED, FAILED
     result: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True
-    )  # JSON result from Runpod
+    )
     course_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("courses.id"), nullable=True
-    )  # Nếu thuộc về course
+    )
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
-    # Relationships
     course = relationship("Course", back_populates="document_processing_jobs")

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 if TYPE_CHECKING:
     from app.models.test_model import Test
     from app.models.user_model import User
+    from app.models.user_assessment_model import UserAssessment
 
 
 class TestSession(Base):
@@ -26,7 +27,7 @@ class TestSession(Base):
     )
     end_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     last_activity: Mapped[datetime] = mapped_column(
-        DateTime, index=True, default=lambda: datetime.utcnow()
+        DateTime, index=True, default=lambda: datetime.now()
     )
     time_remaining_seconds: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -55,3 +56,6 @@ class TestSession(Base):
     # Relationships
     test: Mapped["Test"] = relationship("Test", back_populates="sessions")
     user: Mapped["User"] = relationship("User", back_populates="test_sessions")
+    assessment: Mapped[Optional["UserAssessment"]] = relationship(
+        "UserAssessment", back_populates="test_session", uselist=False
+    )

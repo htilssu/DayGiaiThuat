@@ -1,17 +1,47 @@
+from pydantic import BaseModel
+
 from app.schemas.lesson_schema import (
     LessonWithChildSchema,
-    LessonSectionResponse,
+    LessonSectionSchema,
     ExerciseResponse,
     Options,
 )
-from sqlalchemy.orm import Session
-from typing import Optional
+from sqlalchemy.orm import Session, DeclarativeBase
+from typing import Optional, TypeVar, Type
 
 from app.models.lesson_model import Lesson
 
 
-def model_to_dict(instance):
-    return {c.name: getattr(instance, c.name) for c in instance.__table__.columns}
+def model_to_dict(instance, deep=False):
+    data = {}
+    for c in instance.__table__.columns:
+        data[c.name] = getattr(instance, c.name)
+
+    if deep:
+        for rel in instance.__mapper__.relationships:
+            value = getattr(instance, rel.key)
+            if value is None:
+                data[rel.key] = None
+            elif isinstance(value, list):
+                data[rel.key] = [model_to_dict(i, deep=False) for i in value]
+            else:
+                data[rel.key] = model_to_dict(value, deep=False)
+
+    return data
+
+
+T = TypeVar("T", bound=DeclarativeBase)
+
+
+def pydantic_to_sqlalchemy_scalar(pydantic_obj: BaseModel, sa_model: Type[T]) -> T:
+    try:
+        sa_columns = {col.name for col in sa_model.__table__.columns}
+        data = pydantic_obj.model_dump()
+        filtered_data = {k: v for k, v in data.items() if k in sa_columns}
+        return sa_model(**filtered_data)
+    except Exception as e:
+        print()
+        raise ValueError(f"Error converting Pydantic model to SQLAlchemy model: {e}")
 
 
 def convert_lesson_to_schema(
@@ -49,26 +79,30 @@ def convert_lesson_to_schema(
                     D=section.options["D"],
                 )
 
-        sections_data.append(LessonSectionResponse(**section_data))
+        sections_data.append(LessonSectionSchema(**section_data))
 
-    # Tạo exercises data
+    # Lấy exercises từ lesson sections
     exercises_data = []
-    for exercise in lesson.exercises:
-        exercises_data.append(
-            ExerciseResponse(
-                id=exercise.id,
-                title=getattr(exercise, "title", None) or getattr(exercise, "name", ""),
-                description=exercise.description,
-                category=getattr(exercise, "category", None),
-                difficulty=exercise.difficulty,
-                estimated_time=getattr(exercise, "estimated_time", None),
-                completion_rate=getattr(exercise, "completion_rate", None),
-                completed=getattr(exercise, "completed", None),
-                content=getattr(exercise, "content", None),
-                code_template=getattr(exercise, "code_template", None),
-                lesson_id=exercise.lesson_id,
+    for section in lesson.sections:
+        if section.exercise_id and section.exercise:
+            exercise = section.exercise
+            exercises_data.append(
+                ExerciseResponse(
+                    id=exercise.id,
+                    title=getattr(exercise, "title", None)
+                    or getattr(exercise, "name", ""),
+                    description=exercise.description,
+                    category=getattr(exercise, "category", None),
+                    difficulty=exercise.difficulty,
+                    estimated_time=getattr(exercise, "estimated_time", None),
+                    completion_rate=getattr(exercise, "completion_rate", None),
+                    completed=getattr(exercise, "completed", None),
+                    content=getattr(exercise, "content", None),
+                    executable=getattr(exercise, "executable", None),
+                    code_template=getattr(exercise, "code_template", None),
+                    lesson_id=section.lesson_id,
+                )
             )
-        )
 
     # Kiểm tra trạng thái completed nếu có user_id và db
     is_completed = False
@@ -78,12 +112,10 @@ def convert_lesson_to_schema(
     # Tạo lesson response
     return LessonWithChildSchema(
         id=lesson.id,
-        external_id=lesson.external_id,
         title=lesson.title,
         description=lesson.description,
+        topic_id=lesson.topic_id,
         order=lesson.order,
-        next_lesson_id=lesson.next_lesson_id,
-        prev_lesson_id=lesson.prev_lesson_id,
         sections=sections_data,
         exercises=exercises_data,
         is_completed=is_completed,
