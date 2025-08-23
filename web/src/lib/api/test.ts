@@ -35,7 +35,11 @@ export interface TestResult {
     score: number;
     totalQuestions: number;
     correctAnswers: number;
-    completedAt: string;
+    completedAt?: string;
+    feedback?: Record<string, {
+        isCorrect: boolean;
+        feedback?: string;
+    }>;
 }
 
 export interface TestAnswer {

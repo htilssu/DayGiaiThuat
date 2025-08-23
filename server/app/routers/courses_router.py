@@ -1,4 +1,5 @@
 from typing import List
+from datetime import datetime
 
 from app.database.database import get_async_db
 from app.models.course_model import Course
@@ -349,3 +350,85 @@ async def start_course_entry_test(
     )
 
     return test_session
+
+
+@router.post(
+    "/{course_id}/complete",
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Khóa học được đánh dấu hoàn thành"},
+        403: {"description": "Chưa đăng ký khóa học hoặc chưa đạt yêu cầu"},
+        404: {"description": "Không tìm thấy khóa học"},
+    },
+)
+async def mark_course_completed(
+    course_id: int,
+    test_session_id: str = Body(..., description="ID của phiên test đã vượt qua"),
+    course_service: CourseService = Depends(get_course_service),
+    test_service: TestService = Depends(get_test_service),
+    current_user: UserExcludeSecret = Depends(get_current_user),
+):
+    """
+    Đánh dấu khóa học hoàn thành dựa trên việc vượt qua test
+    
+    Args:
+        course_id: ID của khóa học
+        test_session_id: ID của phiên test đã vượt qua
+        course_service: Service xử lý khóa học
+        test_service: Service xử lý test
+        current_user: Thông tin người dùng hiện tại
+        
+    Returns:
+        dict: Thông báo kết quả
+        
+    Raises:
+        HTTPException: Nếu có lỗi khi đánh dấu hoàn thành
+    """
+    # Kiểm tra người dùng đã đăng ký khóa học chưa
+    if not await course_service.is_enrolled(current_user.id, course_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn cần đăng ký khóa học trước",
+        )
+    
+    # Kiểm tra test session có thuộc về user không
+    test_session = await test_service.get_test_session(test_session_id)
+    if not test_session or test_session.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Phiên test không hợp lệ hoặc không thuộc về bạn",
+        )
+    
+    # Kiểm tra test session đã hoàn thành và đạt yêu cầu chưa
+    if not test_session.is_submitted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Test chưa được hoàn thành",
+        )
+    
+    # Lấy thông tin test để kiểm tra passing score
+    test = await test_service.get_test(test_session.test_id)
+    if not test or test.course_id != course_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Test không thuộc về khóa học này",
+        )
+    
+    # Kiểm tra điểm có đạt yêu cầu không
+    if test.passing_score:
+        score_percentage = (test_session.score / len(test.questions)) * 100 if test.questions else 0
+        if score_percentage < test.passing_score:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Điểm số chưa đạt yêu cầu. Cần tối thiểu {test.passing_score}%",
+            )
+    
+    # Đánh dấu khóa học hoàn thành (có thể implement trong course_service)
+    # Tạm thời trả về thành công
+    return {
+        "message": "Khóa học đã được đánh dấu hoàn thành",
+        "course_id": course_id,
+        "completed_at": datetime.utcnow().isoformat(),
+        "test_session_id": test_session_id,
+        "score": test_session.score,
+    }

@@ -269,6 +269,56 @@ async def submit_test(
     return result
 
 
+@router.get("/sessions/{session_id}/result", response_model=TestResult)
+async def get_test_result(
+    session_id: str,
+    test_service: TestService = Depends(get_test_service),
+    current_user=Depends(get_current_user),
+):
+    """Lấy kết quả bài kiểm tra theo session ID"""
+    # Kiểm tra quyền truy cập
+    session = await test_service.get_test_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy phiên làm bài"
+        )
+
+    if session.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Không có quyền xem kết quả bài kiểm tra của người dùng khác",
+        )
+
+    # Kiểm tra xem bài kiểm tra đã được nộp chưa
+    if not session.is_submitted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bài kiểm tra chưa được nộp",
+        )
+
+    # Trả về kết quả từ session
+    result = TestResult(
+        score=session.score or 0,
+        total_questions=len(session.answers) if session.answers else 0,
+        correct_answers=session.correct_answers or 0,
+        feedback={}
+    )
+
+    # Lấy feedback chi tiết nếu có
+    if session.answers:
+        test = await test_service.get_test(session.test_id)
+        if test:
+            result.total_questions = len(test.questions)
+            # Tạo feedback cho từng câu hỏi nếu cần
+            for question in test.questions:
+                if question.id in session.answers:
+                    answer_data = session.answers[question.id]
+                    if 'feedback' in answer_data:
+                        result.feedback[question.id] = answer_data['feedback']
+
+    return result
+
+
 @router.websocket("/ws/test-sessions/{session_id}")
 async def websocket_endpoint(
     websocket: WebSocket,

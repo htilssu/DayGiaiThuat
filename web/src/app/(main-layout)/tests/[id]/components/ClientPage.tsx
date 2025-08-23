@@ -112,75 +112,36 @@ const ClientPage: React.FC = () => {
         );
     }
 
-    // Submitted state - show completion message
+    // Submitted state - redirect to results page
     if (state === 'submitted' && testSession) {
-        const { test } = testSession;
-        const score = testSession.score ?? 0;
-        const correctAnswers = testSession.correctAnswers ?? 0;
-        const totalQuestions = test.questions.length;
-        const passed = test.passingScore ? score >= test.passingScore : true;
+        // Redirect to results page after successful submission
+        useEffect(() => {
+            const timer = setTimeout(() => {
+                router.push(`/tests/results/${sessionId}`);
+            }, 2000); // Show loading for 2 seconds then redirect
+
+            return () => clearTimeout(timer);
+        }, []);
 
         return (
             <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
                 <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl mx-auto text-center">
-                    <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 ${passed ? 'bg-green-100' : 'bg-red-100'
-                        }`}>
-                        {passed ? (
-                            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                        ) : (
-                            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        )}
+                    <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-6">
+                        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
                     </div>
 
                     <h1 className="text-2xl font-bold text-gray-800 mb-4">
-                        {passed ? 'Chúc mừng! Bạn đã hoàn thành bài kiểm tra!' : 'Bài kiểm tra đã hoàn thành'}
+                        Bài kiểm tra đã được nộp thành công!
                     </h1>
 
-                    <div className="bg-gray-50 rounded-xl p-6 mb-6">
-                        <div className="grid grid-cols-3 gap-4 text-center">
-                            <div>
-                                <div className="text-2xl font-bold text-blue-600">{score}%</div>
-                                <div className="text-sm text-gray-600">Điểm số</div>
-                            </div>
-                            <div>
-                                <div className="text-2xl font-bold text-green-600">{correctAnswers}</div>
-                                <div className="text-sm text-gray-600">Câu đúng</div>
-                            </div>
-                            <div>
-                                <div className="text-2xl font-bold text-gray-600">{totalQuestions}</div>
-                                <div className="text-sm text-gray-600">Tổng câu</div>
-                            </div>
-                        </div>
-                    </div>
+                    <p className="text-gray-600 mb-6">
+                        Đang chuyển hướng đến trang kết quả...
+                    </p>
 
-                    {test.passingScore && (
-                        <p className={`text-sm mb-6 ${passed ? 'text-green-600' : 'text-red-600'}`}>
-                            {passed
-                                ? `Bạn đã đạt điểm tối thiểu ${test.passingScore}% để vượt qua bài kiểm tra!`
-                                : `Bạn cần đạt tối thiểu ${test.passingScore}% để vượt qua bài kiểm tra.`
-                            }
-                        </p>
-                    )}
-
-                    <div className="flex gap-4 justify-center">
-                        <button
-                            onClick={() => window.history.back()}
-                            className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
-                        >
-                            Quay lại
-                        </button>
-                        {test.topicId && (
-                            <button
-                                onClick={() => window.location.href = `/topics/${test.topicId}`}
-                                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                            >
-                                Về chủ đề
-                            </button>
-                        )}
+                    <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                     </div>
                 </div>
             </div>
