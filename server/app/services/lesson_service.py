@@ -8,7 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.core.agents.lesson_generating_agent import LessonGeneratingAgent, get_lesson_generating_agent
+from app.core.agents.lesson_generating_agent import (
+    LessonGeneratingAgent,
+    get_lesson_generating_agent,
+)
 from app.database.database import get_async_db
 from app.models.lesson_generation_state_model import LessonGenerationState
 from app.models.lesson_model import Lesson, LessonSection
@@ -33,7 +36,7 @@ class LessonService:
         self.topic_service = topic_service
 
     async def generate_lesson(
-            self, request: GenerateLessonRequestSchema, topic_id: int, order: int
+        self, request: GenerateLessonRequestSchema, topic_id: int, order: int
     ) -> Optional[LessonWithChildSchema]:
         topic = await self.topic_service.get_topic_by_id(topic_id)
         if not topic:
@@ -72,9 +75,7 @@ class LessonService:
             )
             await self.db.commit()
 
-            return (
-                created_lessons[0] if created_lessons else None
-            )
+            return created_lessons[0] if created_lessons else None
 
         except Exception as e:
             generation_state.status = "failed"
@@ -82,15 +83,13 @@ class LessonService:
             raise e
 
     async def create_lesson(
-            self, lesson_data: CreateLessonSchema
+        self, lesson_data: CreateLessonSchema
     ) -> LessonWithChildSchema:
         lesson = Lesson(
             title=lesson_data.title,
             description=lesson_data.description,
             topic_id=lesson_data.topic_id,
             order=lesson_data.order,
-            next_lesson_id=lesson_data.next_lesson_id,
-            prev_lesson_id=lesson_data.prev_lesson_id,
         )
 
         self.db.add(lesson)
@@ -121,7 +120,7 @@ class LessonService:
         stmt = (
             select(Lesson)
             .where(Lesson.id == lesson_id)
-            .options(selectinload(Lesson.sections), selectinload(Lesson.exercises))
+            .options(selectinload(Lesson.sections))
         )
         result = await self.db.execute(stmt)
         lesson = result.scalar_one_or_none()
@@ -132,7 +131,7 @@ class LessonService:
         return convert_lesson_to_schema(lesson)
 
     async def get_lesson_by_order(
-            self, topic_id: int, order: int
+        self, topic_id: int, order: int
     ) -> Optional[LessonWithChildSchema]:
         stmt = select(Lesson).where(Lesson.topic_id == topic_id, Lesson.order == order)
         result = await self.db.execute(stmt)
@@ -148,7 +147,7 @@ class LessonService:
             select(Lesson)
             .where(Lesson.topic_id == topic_id)
             .order_by(Lesson.order)
-            .options(selectinload(Lesson.sections), selectinload(Lesson.exercises))
+            .options(selectinload(Lesson.sections))
         )
         result = await self.db.execute(stmt)
         lessons = result.scalars().all()
@@ -166,20 +165,30 @@ class LessonService:
         )
         next_lesson = (await self.db.execute(next_lesson_stmt)).scalar_one_or_none()
         if not next_lesson:
-            next_topic: Topic = (await self.db.execute(
-                select(Topic).where(Topic.order > lesson.topic.order,
-                                    Topic.course_id == lesson.topic.course_id))).scalar_one_or_none()
+            next_topic: Topic | None = (
+                await self.db.execute(
+                    select(Topic).where(
+                        Topic.order > lesson.topic.order,
+                        Topic.course_id == lesson.topic.course_id,
+                    )
+                )
+            ).scalar_one_or_none()
             if next_topic:
-                next_lesson = (await self.db.execute(select(Lesson).filter(
-                    Lesson.topic_id == next_topic.id
-                ).order_by(Lesson.order).limit(1))).scalar_one()
+                next_lesson = (
+                    await self.db.execute(
+                        select(Lesson)
+                        .filter(Lesson.topic_id == next_topic.id)
+                        .order_by(Lesson.order)
+                        .limit(1)
+                    )
+                ).scalar_one()
             else:
                 next_lesson = None
 
-            return next_lesson
+        return next_lesson
 
     async def complete_lesson(
-            self, lesson_id: int, user_id: int
+        self, lesson_id: int, user_id: int
     ) -> LessonCompleteResponseSchema:
         current_lesson = await self.db.execute(
             select(Lesson)
@@ -239,7 +248,7 @@ class LessonService:
             )
 
     async def update_lesson(
-            self, lesson_id: int, lesson_data: UpdateLessonSchema
+        self, lesson_id: int, lesson_data: UpdateLessonSchema
     ) -> Optional[LessonWithChildSchema]:
         stmt = select(Lesson).where(Lesson.id == lesson_id)
         result = await self.db.execute(stmt)
@@ -258,7 +267,6 @@ class LessonService:
 
         return convert_lesson_to_schema(lesson)
 
-
     async def delete_lesson(self, lesson_id: int) -> bool:
         stmt = select(Lesson).where(Lesson.id == lesson_id)
         result = await self.db.execute(stmt)
@@ -273,12 +281,14 @@ class LessonService:
         return True
 
     async def get_lesson_with_progress(
-            self, lesson_id: int, user_id: Optional[int] = None
+        self, lesson_id: int, user_id: Optional[int] = None
     ) -> LessonWithChildSchema:
         lesson = await self.db.execute(
             select(Lesson)
             .filter(Lesson.id == lesson_id)
-            .options(selectinload(Lesson.sections), selectinload(Lesson.exercises))
+            .options(
+                selectinload(Lesson.sections), selectinload(Lesson.progress_records)
+            )
         )
         lesson = lesson.scalar_one_or_none()
 
@@ -313,8 +323,9 @@ class LessonService:
         res = LessonWithChildSchema.model_validate(lesson)
         return res
 
+
 def get_lesson_service(
-        db: AsyncSession = Depends(get_async_db),
-        topic_service: TopicService = Depends(get_topic_service),
+    db: AsyncSession = Depends(get_async_db),
+    topic_service: TopicService = Depends(get_topic_service),
 ) -> LessonService:
     return LessonService(db=db, topic_service=topic_service)

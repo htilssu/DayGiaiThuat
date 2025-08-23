@@ -11,19 +11,17 @@ class LessonCompleteResponseSchema(BaseModel):
     is_course_completed: bool = False
 
 
-class LessonSummary(BaseModel):
+class BaseLesson(BaseModel):
     title: str
     description: str
+    topic_id: int
+    order: int
 
     class Config:
         from_attributes = True
 
 
-class LessonBase(LessonSummary):
-    order: int = Field(..., description="Thứ tự lesson trong topic")
-
-
-class LessonResponseSchema(LessonBase):
+class LessonResponseSchema(BaseLesson):
     id: int = Field(..., description="ID của lesson")
     is_completed: Optional[bool] = False
 
@@ -37,6 +35,7 @@ class ExerciseBase(BaseModel):
     completion_rate: Optional[int] = None
     completed: Optional[bool] = None
     content: Optional[str] = None
+    executable: Optional[bool] = None
     code_template: Optional[str] = None
 
     class Config:
@@ -46,6 +45,7 @@ class ExerciseBase(BaseModel):
 class ExerciseResponse(ExerciseBase):
     id: int
     lesson_id: int
+
 
 class LessonSectionAgentGenerated(BaseModel):
     type: str = Field(
@@ -60,8 +60,8 @@ class LessonSectionAgentGenerated(BaseModel):
     class Config:
         from_attributes = True
 
-class LessonSectionSchema(LessonSectionAgentGenerated):
 
+class LessonSectionSchema(LessonSectionAgentGenerated):
     id: int
 
     class Config:
@@ -75,8 +75,7 @@ class Options(BaseModel):
     D: str
 
 
-class CreateLessonSchema(LessonBase):
-    topic_id: int
+class CreateLessonSchema(BaseLesson):
     sections: List[LessonSectionAgentGenerated]
 
 
@@ -84,7 +83,7 @@ class AgentCreateLessonSchema(CreateLessonSchema):
     exercises: List[ExerciseBase]
 
 
-class UpdateLessonSchema(LessonBase):
+class UpdateLessonSchema(BaseLesson):
     pass
 
 

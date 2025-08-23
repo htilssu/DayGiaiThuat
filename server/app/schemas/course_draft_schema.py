@@ -5,12 +5,12 @@ from pydantic import BaseModel, Field
 
 from app.core.agents.test_generate_agent import Question
 from app.database.mongodb import PyObjectId
-from app.schemas import LessonSummary, LessonSectionSchema
+from app.schemas import BaseLesson, LessonSectionSchema
 from app.schemas.test_schema import TestBase
 from app.schemas.topic_schema import TopicBase
 
 
-class LessonDraft(LessonSummary):
+class LessonDraft(BaseLesson):
     id: PyObjectId = Field(
         ...,
         description="ID của bài học",

@@ -7,7 +7,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database.database import get_async_db, AsyncSessionLocal, get_independent_db_session
+from app.database.database import (
+    get_async_db,
+    AsyncSessionLocal,
+    get_independent_db_session,
+)
 from app.models import Lesson
 from app.models.course_model import Course
 from app.models.topic_model import Topic
@@ -20,7 +24,8 @@ from app.schemas.course_schema import (
     CourseDetailResponse,
     CourseDetailWithProgressResponse,
     TopicWithProgressResponse,
-    UserCourseListItem, CourseBaseUser,
+    UserCourseListItem,
+    CourseBaseUser,
 )
 from app.schemas.lesson_schema import (
     LessonWithProgressResponse,
@@ -29,8 +34,8 @@ from app.schemas.lesson_schema import (
 
 class CourseService:
     def __init__(
-            self,
-            db: AsyncSession,
+        self,
+        db: AsyncSession,
     ):
         self.db = db
 
@@ -48,7 +53,8 @@ class CourseService:
     async def get_course(self, course_id: int, user_id: int | None = None):
 
         result = await self.db.execute(
-            select(Course).options(selectinload(Course.topics))
+            select(Course)
+            .options(selectinload(Course.topics))
             .filter(Course.id == course_id)
         )
         course = result.scalar_one_or_none()
@@ -334,9 +340,7 @@ class CourseService:
                 completed_lessons = progress_records.scalar() or 0
 
             progress = (
-                (completed_lessons / total_lessons * 100)
-                if total_lessons > 0
-                else 0.0
+                (completed_lessons / total_lessons * 100) if total_lessons > 0 else 0.0
             )
 
             current_topic_id = None
@@ -356,7 +360,7 @@ class CourseService:
                     if found_current:
                         break
                     for lesson in sorted(
-                            topic.lessons, key=lambda lesson: lesson.order
+                        topic.lessons, key=lambda lesson: lesson.order
                     ):
                         if lesson.id not in completed_lesson_ids:
                             current_topic_id = topic.id
@@ -399,8 +403,11 @@ class CourseService:
 
     async def get_topics(self, course_id):
         result = await self.db.execute(
-            select(Topic).options(selectinload(Topic.lessons).selectinload(Lesson.progress_records)).filter(
-                Topic.course_id == course_id))
+            select(Topic)
+            .options(selectinload(Topic.lessons).selectinload(Lesson.progress_records))
+            .order_by(Topic.order)
+            .filter(Topic.course_id == course_id)
+        )
         topics = result.scalars().all()
         return topics
 
@@ -446,9 +453,7 @@ async def update_course_thumbnail(self, course_id: int, thumbnail_url: str):
 
 async def get_course_entry_test(self, course_id: int):
     try:
-        course = await self.db.execute(
-            select(Course).filter(Course.id == course_id)
-        )
+        course = await self.db.execute(select(Course).filter(Course.id == course_id))
         course = course.scalar_one_or_none()
         if not course:
             raise HTTPException(
@@ -472,11 +477,17 @@ async def get_course_entry_test(self, course_id: int):
         )
 
 
-async def get_course_with_progress(course_id: int, user_id: Optional[int] = None
-                                   ) -> CourseBaseUser:
+async def get_course_with_progress(
+    course_id: int, user_id: Optional[int] = None
+) -> CourseBaseUser:
     async with get_independent_db_session() as db:
-        user_course = (await db.execute(select(UserCourse).filter(UserCourse.user_id == user_id).options(
-            selectinload(UserCourse.course).selectinload(Course.topics)))).scalar_one_or_none()
+        user_course = (
+            await db.execute(
+                select(UserCourse)
+                .filter(UserCourse.user_id == user_id)
+                .options(selectinload(UserCourse.course).selectinload(Course.topics))
+            )
+        ).scalar_one_or_none()
         if user_course:
             course = user_course.course
         else:
@@ -491,7 +502,7 @@ async def get_course_with_progress(course_id: int, user_id: Optional[int] = None
             raise HTTPException(status_code=404, detail="Course not found")
 
         response = CourseBaseUser.model_validate(course)
-        response.status = user_course.status
+        response.status = user_course.status if user_course else None
         return response
 
 

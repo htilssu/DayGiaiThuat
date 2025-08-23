@@ -154,7 +154,7 @@ export async function getEnrolledCourses(): Promise<EnrolledCourse[]> {
 }
 
 export async function getCourseTopics(courseId: number) {
-  return get(`/courses/${courseId}/topics`);
+  return get<Topic[]>(`/courses/${courseId}/topics`);
 }
 
 /**

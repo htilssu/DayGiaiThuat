@@ -4,7 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 from app.schemas.lesson_schema import (
-    LessonSummary,
+    BaseLesson,
     LessonWithChildSchema, LessonResponseSchema,
 )
 from app.schemas.skill_schema import SkillBase
@@ -29,7 +29,7 @@ class TopicHasSkill(TopicBase):
 
 
 class TopicForTestGenerateAgent(TopicHasSkill):
-    lessons: List[LessonSummary]
+    lessons: List[BaseLesson]
 
 
 class CreateTopicSchema(TopicBase):

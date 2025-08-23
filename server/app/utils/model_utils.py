@@ -81,23 +81,28 @@ def convert_lesson_to_schema(
 
         sections_data.append(LessonSectionSchema(**section_data))
 
+    # Lấy exercises từ lesson sections
     exercises_data = []
-    for exercise in lesson.exercises:
-        exercises_data.append(
-            ExerciseResponse(
-                id=exercise.id,
-                title=getattr(exercise, "title", None) or getattr(exercise, "name", ""),
-                description=exercise.description,
-                category=getattr(exercise, "category", None),
-                difficulty=exercise.difficulty,
-                estimated_time=getattr(exercise, "estimated_time", None),
-                completion_rate=getattr(exercise, "completion_rate", None),
-                completed=getattr(exercise, "completed", None),
-                content=getattr(exercise, "content", None),
-                code_template=getattr(exercise, "code_template", None),
-                lesson_id=exercise.lesson_id,
+    for section in lesson.sections:
+        if section.exercise_id and section.exercise:
+            exercise = section.exercise
+            exercises_data.append(
+                ExerciseResponse(
+                    id=exercise.id,
+                    title=getattr(exercise, "title", None)
+                    or getattr(exercise, "name", ""),
+                    description=exercise.description,
+                    category=getattr(exercise, "category", None),
+                    difficulty=exercise.difficulty,
+                    estimated_time=getattr(exercise, "estimated_time", None),
+                    completion_rate=getattr(exercise, "completion_rate", None),
+                    completed=getattr(exercise, "completed", None),
+                    content=getattr(exercise, "content", None),
+                    executable=getattr(exercise, "executable", None),
+                    code_template=getattr(exercise, "code_template", None),
+                    lesson_id=section.lesson_id,
+                )
             )
-        )
 
     # Kiểm tra trạng thái completed nếu có user_id và db
     is_completed = False
@@ -107,12 +112,10 @@ def convert_lesson_to_schema(
     # Tạo lesson response
     return LessonWithChildSchema(
         id=lesson.id,
-        external_id=lesson.external_id,
         title=lesson.title,
         description=lesson.description,
+        topic_id=lesson.topic_id,
         order=lesson.order,
-        next_lesson_id=lesson.next_lesson_id,
-        prev_lesson_id=lesson.prev_lesson_id,
         sections=sections_data,
         exercises=exercises_data,
         is_completed=is_completed,
