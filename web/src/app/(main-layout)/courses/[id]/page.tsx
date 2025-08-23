@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { coursesApi, topicsApi, lessonsApi } from "@/lib/api";
@@ -12,7 +12,6 @@ import { addModal } from "@/lib/store/modalStore";
 import { reloadUser } from "@/lib/store/userStore";
 import { v4 as uuidv4 } from "uuid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { topicsData } from "@/components/pages/learn/topicsData";
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -20,6 +19,7 @@ export default function CourseDetailPage() {
   const dispatch = useAppDispatch();
   const courseId = Number(params.id);
   const userState = useAppSelector((state) => state.user);
+  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<"overview" | "content" | "reviews">("overview");
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
@@ -36,11 +36,21 @@ export default function CourseDetailPage() {
     enabled: !!courseId && !!courseData,
   });
 
+  // Calculate if all lessons are completed
+  const allLessonsCompleted = useMemo(() => {
+    if (!courseData?.isEnrolled || !topicData?.length) return false;
+    
+    const totalLessons = topicData.reduce((total, topic) => 
+      total + (topic.lessons?.length || 0), 0);
+    const completedLessons = topicData.reduce((total, topic) => 
+      total + (topic.lessons?.filter(lesson => lesson.isCompleted).length || 0), 0);
+    
+    return totalLessons > 0 && completedLessons === totalLessons;
+  }, [courseData, topicData]);
+
   useEffect(() => {
     if (courseData) {
       courseData.topics.sort((a, b) => a.order - b.order);
-      setCourse(courseData);
-      setIsEnrolled(!!courseData.isEnrolled);
     }
   }, [courseData]);
 
@@ -285,7 +295,7 @@ export default function CourseDetailPage() {
                     {new Date(courseData.updatedAt).toLocaleDateString("vi-VN")}
                   </span>
                 </div>
-                {isEnrolled && course.topics && course.topics.length > 0 && (
+                {courseData?.isEnrolled && topicData && topicData.length > 0 && (
                   <div className="flex items-center">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -302,8 +312,8 @@ export default function CourseDetailPage() {
                     </svg>
                     <span>
                       {(() => {
-                        const totalLessons = course.topics.reduce((total, topic) => total + (topic.lessons?.length || 0), 0);
-                        const completedLessons = course.topics.reduce((total, topic) =>
+                        const totalLessons = topicData.reduce((total, topic) => total + (topic.lessons?.length || 0), 0);
+                        const completedLessons = topicData.reduce((total, topic) =>
                           total + (topic.lessons?.filter(lesson => lesson.isCompleted).length || 0), 0);
                         return `${completedLessons}/${totalLessons} bài học`;
                       })()}
@@ -313,13 +323,21 @@ export default function CourseDetailPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                {isEnrolled ? (
+                {courseData?.isEnrolled ? (
                   <>
-                    <Link
-                      href={`/topics/${courseId}`}
-                      className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium text-center">
-                      Tiếp tục học
-                    </Link>
+                    {allLessonsCompleted ? (
+                      <button
+                        onClick={handleStartCourseTest}
+                        className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium text-center">
+                        Làm bài kiểm tra
+                      </button>
+                    ) : (
+                      <Link
+                        href={`/topics/${courseId}`}
+                        className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium text-center">
+                        Tiếp tục học
+                      </Link>
+                    )}
                   </>
                 ) : (
                   <button
