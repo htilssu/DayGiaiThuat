@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import {
     Box,
@@ -69,7 +71,7 @@ Bạn có muốn thay đổi gì về nội dung đã tạo không?`,
                 message: currentInput,
                 context: {
                     courseData: { courseId: parseInt(courseId) },
-                    generatedContent: reviewData.generatedContent,
+                    generatedContent: reviewData.draft?.agentContent || "",
                 },
             });
 
