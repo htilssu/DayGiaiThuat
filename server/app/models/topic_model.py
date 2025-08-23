@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.lesson_model import Lesson
     from app.models.test_model import Test
     from app.models.skill_model import Skill
+    from app.models.user_topic_progress_model import UserTopicProgress
 
 
 class Topic(Base):
@@ -37,5 +38,8 @@ class Topic(Base):
     )
     skills: Mapped[List["Skill"]] = relationship(
         "Skill", back_populates="topic", cascade="all, delete-orphan"
+    )
+    user_progress: Mapped[List["UserTopicProgress"]] = relationship(
+        "UserTopicProgress", back_populates="topic", cascade="all, delete-orphan"
     )
     order: Mapped[int] = mapped_column(Integer, nullable=True)

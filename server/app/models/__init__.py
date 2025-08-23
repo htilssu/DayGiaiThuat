@@ -19,3 +19,5 @@ from app.models.document_processing_job_model import DocumentProcessingJob
 from app.models.discussion_model import Discussion
 from app.models.reply_model import Reply
 from app.models.user_assessment_model import UserAssessment
+from app.models.user_activity_model import UserActivity
+from app.models.user_topic_progress_model import UserTopicProgress

@@ -10,6 +10,8 @@ if TYPE_CHECKING:
     from app.models.discussion_model import Discussion
     from app.models.reply_model import Reply
     from app.models.user_assessment_model import UserAssessment
+    from app.models.user_activity_model import UserActivity
+    from app.models.user_topic_progress_model import UserTopicProgress
 
 
 class User(Base):
@@ -39,4 +41,10 @@ class User(Base):
     replies: Mapped[List["Reply"]] = relationship("Reply", back_populates="user")
     assessments: Mapped[List["UserAssessment"]] = relationship(
         "UserAssessment", back_populates="user"
+    )
+    activities: Mapped[List["UserActivity"]] = relationship(
+        "UserActivity", back_populates="user", cascade="all, delete-orphan"
+    )
+    topic_progress: Mapped[List["UserTopicProgress"]] = relationship(
+        "UserTopicProgress", back_populates="user", cascade="all, delete-orphan"
     )
