@@ -97,14 +97,24 @@ export function EnrolledCoursesPage() {
             <Box mb="xl">
                 <Group justify="space-between" align="center" mb="md">
                     <Title order={1}>Khóa học của bạn</Title>
-                    <Button
-                        variant="outline"
-                        className="border-primary text-primary hover:bg-primary/10"
-                        rightSection={<IconArrowRight size={16} />}
-                        onClick={handleExploreMore}
-                    >
-                        Khám phá thêm
-                    </Button>
+                    <Group gap="sm">
+                        <Button
+                            variant="light"
+                            className="border-primary/20 text-primary hover:bg-primary/10"
+                            rightSection={<IconTrophy size={16} />}
+                            onClick={() => router.push('/tests')}
+                        >
+                            Kiểm tra
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="border-primary text-primary hover:bg-primary/10"
+                            rightSection={<IconArrowRight size={16} />}
+                            onClick={handleExploreMore}
+                        >
+                            Khám phá thêm
+                        </Button>
+                    </Group>
                 </Group>
                 <Text size="lg" c="dimmed">
                     Tiếp tục hành trình học tập của bạn
