@@ -57,7 +57,7 @@ export interface UserProfile {
  * Lấy thông tin profile của người dùng hiện tại
  * @returns Thông tin profile của người dùng
  */
-async function getProfile() {
+async function getProfile(): Promise<UserProfile> {
     return get<UserProfile>('/users/me/profile');
 }
 
