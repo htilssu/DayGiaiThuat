@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { coursesApi, topicsApi, lessonsApi } from "@/lib/api";
 import { UserCourseDetail } from "@/lib/api/courses";
+import { testApi } from "@/lib/api/test";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/lib/store";
 import { addModal } from "@/lib/store/modalStore";
@@ -22,7 +23,6 @@ export default function CourseDetailPage() {
 
   const [activeTab, setActiveTab] = useState<"overview" | "content" | "reviews">("overview");
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
-  const queryClient = useQueryClient();
 
   const { data: courseData, isLoading, error } = useQuery({
     queryKey: ["course", courseId],
@@ -37,8 +37,10 @@ export default function CourseDetailPage() {
   });
 
   useEffect(() => {
-    if (topicData) {
-      topicData.sort((a, b) => a.order - b.order);
+    if (courseData) {
+      courseData.topics.sort((a, b) => a.order - b.order);
+      setCourse(courseData);
+      setIsEnrolled(!!courseData.isEnrolled);
     }
   }, [courseData]);
 
@@ -144,6 +146,48 @@ export default function CourseDetailPage() {
     }
   };
 
+  // Xử lý bắt đầu làm bài kiểm tra hoàn thành khóa học
+  const handleStartCourseTest = async () => {
+    try {
+      if (!userState.user) {
+        router.push(`/auth/login?returnUrl=${encodeURIComponent(`/courses/${courseId}`)}`);
+        return;
+      }
+
+      // Lấy danh sách tests của khóa học
+      const tests = await testApi.getTestsByCourse(courseId);
+
+      if (!tests || tests.length === 0) {
+        dispatch(addModal({
+          id: uuidv4(),
+          title: "Không có bài kiểm tra",
+          description: "Khóa học này chưa có bài kiểm tra nào. Vui lòng liên hệ với giảng viên.",
+          onConfirm: () => { },
+          onCancel: () => { },
+        }));
+        return;
+      }
+
+      // Chọn một test ngẫu nhiên
+      const randomTest = tests[Math.floor(Math.random() * tests.length)];
+
+      // Tạo test session
+      const testSession = await testApi.createTestSession({ testId: randomTest.id });
+
+      // Chuyển hướng đến trang làm bài test
+      router.push(`/tests/${testSession.id}`);
+    } catch (error: any) {
+      console.error("Lỗi khi bắt đầu bài kiểm tra:", error);
+      dispatch(addModal({
+        id: uuidv4(),
+        title: "Lỗi",
+        description: "Có lỗi xảy ra khi bắt đầu bài kiểm tra. Vui lòng thử lại sau.",
+        onConfirm: () => { },
+        onCancel: () => { },
+      }));
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -241,23 +285,43 @@ export default function CourseDetailPage() {
                     {new Date(courseData.updatedAt).toLocaleDateString("vi-VN")}
                   </span>
                 </div>
+                {isEnrolled && course.topics && course.topics.length > 0 && (
+                  <div className="flex items-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5 text-primary mr-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                      />
+                    </svg>
+                    <span>
+                      {(() => {
+                        const totalLessons = course.topics.reduce((total, topic) => total + (topic.lessons?.length || 0), 0);
+                        const completedLessons = course.topics.reduce((total, topic) =>
+                          total + (topic.lessons?.filter(lesson => lesson.isCompleted).length || 0), 0);
+                        return `${completedLessons}/${totalLessons} bài học`;
+                      })()}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                {courseData?.status === "completed" ? (<>
-                  <Link
-                    href={`/topics/${courseId}`}
-                    className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium text-center">
-                    Làm bài hoàn thành khóa
-                  </Link></>) : courseData?.status === "learning" ? (
-                    <>
-                      <Link
-                        href={`/topics/${courseId}`}
-                        className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium text-center">
-                        Tiếp tục học
-                      </Link>
-                    </>
-                  ) : (
+                {isEnrolled ? (
+                  <>
+                    <Link
+                      href={`/topics/${courseId}`}
+                      className="px-8 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition font-medium text-center">
+                      Tiếp tục học
+                    </Link>
+                  </>
+                ) : (
                   <button
                     onClick={handleRegisterCourse}
                     disabled={isRegistering}
