@@ -18,6 +18,7 @@ from app.models.lesson_model import Lesson, LessonSection
 from app.models.topic_model import Topic
 from app.models.user_course_model import UserCourse
 from app.models.user_course_progress_model import ProgressStatus, UserCourseProgress
+from sqlalchemy import func
 from app.schemas.lesson_schema import (
     CreateLessonSchema,
     UpdateLessonSchema,
@@ -26,6 +27,8 @@ from app.schemas.lesson_schema import (
     LessonCompleteResponseSchema,
 )
 from app.services.topic_service import get_topic_service, TopicService
+from app.services.profile_service import ProfileService
+from app.models.user_activity_model import ActivityType
 from app.utils.model_utils import convert_lesson_to_schema
 
 
@@ -34,6 +37,7 @@ class LessonService:
         self.db = db
         self.agent = get_lesson_generating_agent()
         self.topic_service = topic_service
+        self.profile_service = ProfileService(db)
 
     async def generate_lesson(
         self, request: GenerateLessonRequestSchema, topic_id: int, order: int
@@ -229,6 +233,19 @@ class LessonService:
             self.db.add(progress)
         await self.db.commit()
 
+        # Add user activity tracking for lesson completion
+        await self.profile_service.add_user_activity(
+            user_id=user_id,
+            activity_type=ActivityType.LESSON,
+            activity_name=f"Hoàn thành bài học: {current_lesson.title}",
+            description=f"Đã hoàn thành bài học '{current_lesson.title}' trong chủ đề '{current_lesson.topic.name}'",
+            progress="100%",
+            related_id=lesson_id
+        )
+
+        # Update topic progress after lesson completion
+        await self._update_topic_progress_after_lesson(user_id, current_lesson.topic_id, user_course.id)
+
         next_lesson = await self.get_next_lesson(current_lesson)
 
         if next_lesson:
@@ -322,6 +339,42 @@ class LessonService:
 
         res = LessonWithChildSchema.model_validate(lesson)
         return res
+
+    async def _update_topic_progress_after_lesson(self, user_id: int, topic_id: int, user_course_id: int) -> None:
+        """
+        Cập nhật tiến độ chủ đề sau khi hoàn thành bài học
+        """
+        # Đếm tổng số bài học trong chủ đề
+        total_lessons_result = await self.db.execute(
+            select(func.count(Lesson.id))
+            .where(Lesson.topic_id == topic_id)
+        )
+        total_lessons = total_lessons_result.scalar() or 0
+
+        # Đếm số bài học đã hoàn thành
+        completed_lessons_result = await self.db.execute(
+            select(func.count(UserCourseProgress.id))
+            .where(
+                UserCourseProgress.user_course_id == user_course_id,
+                UserCourseProgress.topic_id == topic_id,
+                UserCourseProgress.status == ProgressStatus.COMPLETED
+            )
+        )
+        completed_lessons = completed_lessons_result.scalar() or 0
+
+        # Tính phần trăm hoàn thành
+        if total_lessons > 0:
+            progress_percentage = (completed_lessons / total_lessons) * 100
+        else:
+            progress_percentage = 0
+
+        # Cập nhật UserTopicProgress
+        await self.profile_service.update_topic_progress(
+            user_id=user_id,
+            topic_id=topic_id,
+            progress_percentage=progress_percentage,
+            lessons_completed=completed_lessons
+        )
 
 
 def get_lesson_service(

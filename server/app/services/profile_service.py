@@ -223,7 +223,7 @@ class ProfileService:
         related_id: int = None
     ) -> UserActivity:
         """
-        Thêm hoạt động mới cho người dùng
+        Thêm hoạt động mới cho người dùng và cập nhật thống kê UserState
         """
         activity = UserActivity(
             user_id=user_id,
@@ -235,6 +235,10 @@ class ProfileService:
             related_id=related_id
         )
         self.db.add(activity)
+        
+        # Cập nhật UserState thống kê
+        await self._update_user_state_stats(user_id, activity_type, score)
+        
         await self.db.commit()
         await self.db.refresh(activity)
         return activity
@@ -282,6 +286,49 @@ class ProfileService:
         await self.db.commit()
         await self.db.refresh(topic_progress)
         return topic_progress
+
+    async def _update_user_state_stats(self, user_id: int, activity_type: ActivityType, score: int = None) -> None:
+        """
+        Cập nhật thống kê UserState khi có hoạt động mới
+        """
+        # Lấy hoặc tạo UserState
+        user_state_result = await self.db.execute(
+            select(UserState).where(UserState.user_id == user_id)
+        )
+        user_state = user_state_result.scalar_one_or_none()
+
+        if not user_state:
+            user_state = UserState(user_id=user_id)
+            self.db.add(user_state)
+
+        # Cập nhật thống kê dựa trên loại hoạt động
+        if activity_type == ActivityType.EXERCISE:
+            user_state.completed_exercises += 1
+            user_state.problems_solved += 1
+            if score:
+                user_state.total_points += score
+            
+        elif activity_type == ActivityType.LESSON:
+            # Lesson completion gives points
+            user_state.total_points += 25
+            
+        elif activity_type == ActivityType.COURSE:
+            user_state.completed_courses += 1
+            user_state.total_points += 100
+            
+        elif activity_type == ActivityType.BADGE:
+            user_state.total_points += 50
+
+        # Cập nhật level nếu cần
+        await self._update_level(user_state)
+
+    async def _update_level(self, user_state: UserState) -> None:
+        """
+        Cập nhật level dựa trên tổng điểm
+        """
+        # Level progression: 100 points per level
+        new_level = max(1, user_state.total_points // 100 + 1)
+        user_state.level = new_level
 
 
 def get_profile_service(db: AsyncSession = Depends(get_async_db)) -> ProfileService:
