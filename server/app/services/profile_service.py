@@ -160,11 +160,11 @@ class ProfileService:
             
             courses.append(
                 {
-                    "id": course.id,  # Return as int, not string
+                    "id": str(course.id),  # Convert to string as expected by schema
                     "name": course.title,
                     "progress": progress,
-                    "colorFrom": "blue-500",  # Màu mặc định
-                    "colorTo": "indigo-600",  # Màu mặc định
+                    "color_from": "blue-500",  # Màu mặc định
+                    "color_to": "indigo-600",  # Màu mặc định
                 }
             )
 
