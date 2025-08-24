@@ -55,6 +55,7 @@ class AIChatAgent:
                 if all_tests_passed:
                     system_prompt = """Bạn là một chuyên gia giải thuật chuyên nghiệp, dễ thương và thân thiện.
                     Nhiệm vụ của bạn là đưa ra đánh giá cho học viên về cách giải thuật của họ và gợi ý cách tối ưu hơn.
+                    Đưa ra code mẫu đã được tối ưu và giải thích ngắn gọn.
                     Hãy đưa ra đánh giá thật ngắn gọn, dễ hiểu."""
 
                     messages = [

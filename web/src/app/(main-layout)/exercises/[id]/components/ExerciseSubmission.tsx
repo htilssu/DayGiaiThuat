@@ -305,27 +305,11 @@ yourFunction()`,
           </div>
         </div>
 
-        {/* AI Chat */}
-        <div className="h-full">
-          <AIChat
-            code={code}
-            results={results}
-            calling={calling}
-            title={exercise.title}
-            aiResponse={aiResponse}
-            isLoading={isLoading}
-            setIsLoading={setIsLoading}
-          />
-        </div>
-      </div>
-
-      {/* Test results with Submit button */}
-      <div className="space-y-4">
         <div className="border border-foreground/10 rounded-lg overflow-hidden theme-transition">
           <div className="bg-foreground/5 p-3 border-b border-foreground/10 flex justify-between items-center">
-            <h3 className="font-medium text-foreground">Kết quả test</h3>
+            <h3 className="font-medium text-foreground px-5">Kết quả test</h3>
             <div
-              className={`text-xs ${
+              className={`flex items-center justify-center text-xs border border-primary rounded-xl px-3 py-3 shadow-sm ${
                 allTestsPassed
                   ? "text-green-500"
                   : testResults.length > 0
@@ -438,6 +422,22 @@ yourFunction()`,
             )}
           </div>
         </div>
+      </div>
+
+      {/* Test results with Submit button */}
+      <div className="space-y-4">
+        {/* AI Chat */}
+        <div className="h-full">
+          <AIChat
+            code={code}
+            results={results}
+            calling={calling}
+            title={exercise.title}
+            aiResponse={aiResponse}
+            isLoading={isLoading}
+            setIsLoading={setIsLoading}
+          />
+        </div>
 
         {/* Submit button */}
         {results.length > 0 && (
@@ -445,7 +445,7 @@ yourFunction()`,
             <button
               onClick={handleSubmit}
               disabled={isRunningTests || !allTestsPassed}
-              className={`px-6 py-3 bg-primary text-white font-medium rounded-lg transition-colors ${
+              className={`px-6 py-3 w-full bg-primary text-white font-bold text-xl rounded-lg transition-colors ${
                 isRunningTests || !allTestsPassed
                   ? "opacity-60 cursor-not-allowed"
                   : "hover:bg-primary/90"
