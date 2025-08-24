@@ -221,7 +221,7 @@ const ProfilePage = () => {
                 Khóa học đang tham gia
               </h2>
               <Link
-                href="/profile/enrolled-courses"
+                href="/courses"
                 className="text-primary hover:underline text-sm font-medium"
               >
                 Xem tất cả
