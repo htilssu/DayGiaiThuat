@@ -30,6 +30,9 @@ class StorageService:
         """
         Khởi tạo service với các thông tin cấu hình từ settings
         """
+        # Set retry attempts for S3 connection
+        self.RETRY_ATTEMPTS = getattr(settings, 'STORAGE_RETRY_ATTEMPTS', 3)
+        
         # Set environment variables để fix lỗi MissingContentLength với boto3 ≥1.36.0
         os.environ["AWS_REQUEST_CHECKSUM_CALCULATION"] = (
             settings.AWS_REQUEST_CHECKSUM_CALCULATION
@@ -57,16 +60,20 @@ class StorageService:
             for i in range(self.RETRY_ATTEMPTS):
                 try:
                     self.s3_client = boto3.client("s3", **client_config)
+                    logger.info("S3 client đã được khởi tạo thành công")
                     break
                 except Exception as e:
-                    logger.error(f"Không thể khởi tạo S3 client: {str(e)}")
-                    time.sleep(1)
+                    logger.warning(f"Lần thử {i + 1}/{self.RETRY_ATTEMPTS}: Không thể khởi tạo S3 client: {str(e)}")
+                    if i < self.RETRY_ATTEMPTS - 1:  # Don't sleep on the last attempt
+                        time.sleep(1)
+            
             if not self.s3_client:
-                raise Exception("Không thể khởi tạo S3 client")
+                raise Exception(f"Không thể khởi tạo S3 client sau {self.RETRY_ATTEMPTS} lần thử")
             self.bucket_name = settings.S3_BUCKET_NAME
             self._ensure_bucket_exists()
         except Exception as e:
             logger.error(f"Không thể khởi tạo S3 client: {str(e)}")
+            self.s3_client = None  # Ensure s3_client is None on failure
             raise e
 
     def _ensure_bucket_exists(self) -> None:
@@ -262,6 +269,8 @@ class StorageService:
                 "Metadata": metadata or {},
             }
 
+            # Type assertion since _check_service() ensures s3_client is not None
+            assert self.s3_client is not None
             self.s3_client.upload_file(
                 temp_file_path,
                 self.bucket_name,
@@ -441,6 +450,8 @@ class StorageService:
                 },
             }
 
+            # Type assertion since _check_service() ensures s3_client is not None
+            assert self.s3_client is not None
             self.s3_client.upload_file(
                 temp_file_path,
                 self.bucket_name,
@@ -516,6 +527,8 @@ class StorageService:
         self._check_service()
 
         try:
+            # Type assertion since _check_service() ensures s3_client is not None
+            assert self.s3_client is not None
             self.s3_client.delete_object(
                 Bucket=self.bucket_name,
                 Key=file_key,

@@ -147,6 +147,15 @@ class Settings(BaseSettings):
     # Judge0
     JUDGE0_API_URL: str
 
+    # RunPod API
+    RUNPOD_API_KEY: Optional[str] = None
+
+    # Storage Service Settings
+    STORAGE_RETRY_ATTEMPTS: int = 3
+    
+    # RunPod Settings
+    RUNPOD_ENDPOINT_ID: Optional[str] = None  # RunPod endpoint ID for document processing
+
     @field_validator("SEEDERS_TO_RUN", mode="before")
     def assemble_seeders_to_run(
         cls, v: Optional[Union[str, List[str]]]
@@ -203,10 +212,7 @@ class Settings(BaseSettings):
             bool: True nếu S3/R2 đã được cấu hình đầy đủ
         """
         return bool(
-            self.S3_ACCESS_KEY_ID
-            and self.S3_SECRET_ACCESS_KEY
-            and self.S3_BUCKET_NAME
-            and self.S3_REGION
+            self.S3_ACCESS_KEY_ID and self.S3_SECRET_ACCESS_KEY and self.S3_BUCKET_NAME and self.S3_REGION
         )
 
     class Config:
