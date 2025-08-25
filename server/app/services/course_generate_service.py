@@ -14,22 +14,27 @@ from app.utils.model_utils import pydantic_to_sqlalchemy_scalar
 
 class CourseGenerateService(BaseGenerateService[Course]):
     async def generate(
-            self,
-            course_request: CourseCompositionRequestSchema,
-            **kwargs,
+        self,
+        course_request: CourseCompositionRequestSchema,
+        **kwargs,
     ):
         async with get_independent_db_session() as db:
             agent = CourseCompositionAgent()
-            [course, _] = await agent.act(course_request)
+            [course_schema, _] = await agent.act(course_request)
 
-            topics = [pydantic_to_sqlalchemy_scalar(topic, Topic) for topic in course.topics]
+            topics = [
+                pydantic_to_sqlalchemy_scalar(topic, Topic)
+                for topic in course_schema.topics
+            ]
 
             result = await db.execute(
-                select(Course).options(selectinload(Course.topics)).where(Course.id == course_request.course_id)
+                select(Course)
+                .options(selectinload(Course.topics))
+                .where(Course.id == course_request.course_id)
             )
             course: Course = result.scalar_one()
-            course.duration = course.duration
-            course.description = course.description
+            course.duration = course_schema.duration
+            course.description = course_schema.description
             course.topics.clear()
             await db.flush()
 
@@ -48,7 +53,9 @@ class CourseGenerateService(BaseGenerateService[Course]):
 
             return course
 
-    async def background_create(self, composition_request: CourseCompositionRequestSchema):
+    async def background_create(
+        self, composition_request: CourseCompositionRequestSchema
+    ):
         asyncio.create_task(self.generate(composition_request))
 
 

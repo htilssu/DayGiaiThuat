@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
-from app.models.user_course_progress_model import ProgressStatus
 from datetime import datetime
 
 
@@ -14,7 +13,6 @@ class LessonCompleteResponseSchema(BaseModel):
 class BaseLesson(BaseModel):
     title: str
     description: str
-    topic_id: int
     order: int
 
     class Config:
@@ -100,9 +98,6 @@ class LessonWithChildSchema(LessonResponseSchema):
 
 
 class LessonWithProgressResponse(LessonWithChildSchema):
-    status: ProgressStatus = Field(
-        default=ProgressStatus.NOT_STARTED, description="Trạng thái học tập"
-    )
     last_viewed_at: Optional[datetime] = Field(
         None, description="Thời điểm xem gần nhất"
     )

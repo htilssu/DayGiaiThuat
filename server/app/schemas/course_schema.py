@@ -2,12 +2,11 @@ from datetime import datetime
 from typing import List, Optional
 
 from app.models.course_model import TestGenerationStatus
-from app.schemas.topic_schema import TopicWithLesson, TopicWithProgressResponse
+from app.schemas.topic_schema import TopicWithLesson
 from pydantic import BaseModel, Field
 
 
 class CourseBase(BaseModel):
-
 
     title: str = Field(
         ..., min_length=3, max_length=255, description="Tiêu đề của khóa học"
@@ -39,8 +38,10 @@ class CourseBase(BaseModel):
     class Config:
         from_attributes = True
 
+
 class CourseBaseUser(CourseBase):
-    status : Optional[str] = None
+    status: Optional[str] = None
+    is_enrolled: Optional[bool] = False
 
 
 class CourseCreate(CourseBase):
@@ -122,14 +123,13 @@ class CourseResponse(CourseBase):
 
 
 class CourseDetailResponse(CourseResponse):
-    status : Optional[str] = None
+    status: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 
 class CourseListItem(BaseModel):
-
 
     id: int = Field(..., description="ID của khóa học")
     title: str = Field(..., description="Tiêu đề của khóa học")
@@ -239,13 +239,17 @@ class CourseCompositionRequestSchema(BaseModel):
     course_id: Optional[int] = Field(default=None, description="ID của khóa học")
     course_title: str = Field(..., description="Tiêu đề khóa học")
     course_description: str = Field(..., description="Mô tả khóa học")
-    course_level: Optional[str] = Field(default="Beginner", description="Cấp độ khóa học")
+    course_level: Optional[str] = Field(
+        default="Beginner", description="Cấp độ khóa học"
+    )
     session_id: Optional[str] = Field(
         None, description="Session ID cho message history"
     )
     user_requirements: Optional[str] = Field(None, description="Yêu cầu của người dùng")
     max_topics: Optional[int] = Field(default=8, description="Số lượng topic tối đa")
-    lessons_per_topic: Optional[int] = Field(default=5, description="Số lessons cho mỗi topic")
+    lessons_per_topic: Optional[int] = Field(
+        default=5, description="Số lessons cho mỗi topic"
+    )
 
 
 class TopicGenerationResult(BaseModel):
@@ -268,9 +272,7 @@ class CourseCompositionResponseSchema(BaseModel):
     duration: int = Field(
         ..., description="Thời gian ước lượng hoàn thành khóa học (giờ)"
     )
-    description: str = Field(
-        ..., description="Mô tả chi tiết về khóa học"
-    )
+    description: str = Field(..., description="Mô tả chi tiết về khóa học")
 
     class Config:
         from_attributes = True

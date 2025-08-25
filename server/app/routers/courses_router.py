@@ -12,9 +12,14 @@ from app.schemas.test_schema import TestRead, TestSessionRead
 from app.schemas.topic_schema import TopicWithUserState, TopicWithLesson
 from app.schemas.user_course_schema import CourseEnrollmentResponse
 from app.schemas.user_profile_schema import UserExcludeSecret
-from app.services.course_service import CourseService, get_course_service, get_course_with_progress
+from app.services.course_service import (
+    CourseService,
+    get_course_service,
+    get_course_with_progress,
+)
 from app.services.test_service import TestService, get_test_service
 from app.services.topic_service import TopicService, get_topic_service
+from app.uc.get_user_topic_with_lesson_uc import GetUserTopicWithLessonUC, GetUserTopicWithLessonRequest
 from app.utils.utils import get_current_user, get_current_user_optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -30,12 +35,10 @@ router = APIRouter(
 @router.get("/{course_id}/topics")
 async def get_course_topics(
         course_id: int,
-        topic_service: TopicService = Depends(get_topic_service),
-        course_service: CourseService = Depends(get_course_service),
+        uc: GetUserTopicWithLessonUC = Depends(GetUserTopicWithLessonUC),
         current_user: UserExcludeSecret = Depends(get_current_user_optional),
 ):
-    topics = await course_service.get_topics(course_id)
-    return [TopicWithLesson.model_validate(topic) for topic in topics]
+    return await uc.execute(GetUserTopicWithLessonRequest(course_id=course_id))
 
 
 @router.get(
@@ -264,25 +267,25 @@ async def start_course_entry_test(
     },
 )
 async def mark_course_completed(
-    course_id: int,
-    test_session_id: str = Body(..., description="ID của phiên test đã vượt qua"),
-    course_service: CourseService = Depends(get_course_service),
-    test_service: TestService = Depends(get_test_service),
-    current_user: UserExcludeSecret = Depends(get_current_user),
+        course_id: int,
+        test_session_id: str = Body(..., description="ID của phiên test đã vượt qua"),
+        course_service: CourseService = Depends(get_course_service),
+        test_service: TestService = Depends(get_test_service),
+        current_user: UserExcludeSecret = Depends(get_current_user),
 ):
     """
     Đánh dấu khóa học hoàn thành dựa trên việc vượt qua test
-    
+
     Args:
         course_id: ID của khóa học
         test_session_id: ID của phiên test đã vượt qua
         course_service: Service xử lý khóa học
         test_service: Service xử lý test
         current_user: Thông tin người dùng hiện tại
-        
+
     Returns:
         dict: Thông báo kết quả
-        
+
     Raises:
         HTTPException: Nếu có lỗi khi đánh dấu hoàn thành
     """
@@ -292,7 +295,7 @@ async def mark_course_completed(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Bạn cần đăng ký khóa học trước",
         )
-    
+
     # Kiểm tra test session có thuộc về user không
     test_session = await test_service.get_test_session(test_session_id)
     if not test_session or test_session.user_id != current_user.id:
@@ -300,14 +303,14 @@ async def mark_course_completed(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Phiên test không hợp lệ hoặc không thuộc về bạn",
         )
-    
+
     # Kiểm tra test session đã hoàn thành và đạt yêu cầu chưa
     if not test_session.is_submitted:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Test chưa được hoàn thành",
         )
-    
+
     # Lấy thông tin test để kiểm tra passing score
     test = await test_service.get_test(test_session.test_id)
     if not test or test.course_id != course_id:
@@ -315,16 +318,18 @@ async def mark_course_completed(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Test không thuộc về khóa học này",
         )
-    
+
     # Kiểm tra điểm có đạt yêu cầu không
     if test.passing_score:
-        score_percentage = (test_session.score / len(test.questions)) * 100 if test.questions else 0
+        score_percentage = (
+            (test_session.score / len(test.questions)) * 100 if test.questions else 0
+        )
         if score_percentage < test.passing_score:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Điểm số chưa đạt yêu cầu. Cần tối thiểu {test.passing_score}%",
             )
-    
+
     # Đánh dấu khóa học hoàn thành (có thể implement trong course_service)
     # Tạm thời trả về thành công
     return {

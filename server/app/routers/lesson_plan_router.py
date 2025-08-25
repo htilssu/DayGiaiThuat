@@ -17,7 +17,6 @@ async def generate_lesson_test(
     Generate a lesson for testing purposes with a fixed topic_id and order.
     """
     try:
-        # Using fixed topic_id=1 and order=1 for testing
         lesson = await lesson_service.generate_lesson(request, topic_id=1, order=1)
         return lesson
     except Exception as e:

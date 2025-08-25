@@ -261,7 +261,7 @@ class GenerateExerciseQuestionAgent(BaseAgent):
                 if response_from_agent["output"] is None:
                     raise ValueError("Không thể tạo bài tập, đầu ra không hợp lệ.")
 
-                exercise_detail = self.output_fixing_parser.parse(
+                exercise_detail: ExerciseDetail = self.output_fixing_parser.parse(
                     response_from_agent["output"]
                 )
 

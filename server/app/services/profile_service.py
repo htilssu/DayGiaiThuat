@@ -12,14 +12,13 @@ from ..models import (
     UserBadge,
     UserCourse,
     Course,
-    UserCourseProgress,
+    UserLesson,
     UserState,
     UserActivity,
     UserTopicProgress,
     Topic,
 )
-from ..models.user_course_progress_model import ProgressStatus
-from ..models.user_activity_model import ActivityType
+from app.models.user_activity_model import ActivityType
 
 
 class ProfileService:
@@ -36,9 +35,7 @@ class ProfileService:
         """
         # Lấy thông tin cơ bản của người dùng với user state
         result = await self.db.execute(
-            select(User)
-            .options(selectinload(User.state))
-            .where(User.id == user_id)
+            select(User).options(selectinload(User.state)).where(User.id == user_id)
         )
         user = result.scalar_one_or_none()
         if not user:
@@ -54,8 +51,7 @@ class ProfileService:
 
         # Lấy danh sách huy hiệu
         badges_result = await self.db.execute(
-            select(Badge, UserBadge)
-            .outerjoin(
+            select(Badge, UserBadge).outerjoin(
                 UserBadge,
                 (UserBadge.badge_id == Badge.id) & (UserBadge.user_id == user_id),
             )
@@ -135,29 +131,31 @@ class ProfileService:
         # Chuyển đổi dữ liệu khóa học
         courses = []
         for course, user_course in enrolled_courses:
-            # Tính progress dựa trên UserCourseProgress
+            # Tính progress dựa trên UserLesson
             # First get total lessons
             total_result = await self.db.execute(
                 select(func.count())
-                .select_from(UserCourseProgress)
-                .where(UserCourseProgress.user_course_id == user_course.id)
+                .select_from(UserLesson)
+                .where(UserLesson.user_course_id == user_course.id)
             )
             total_lessons = total_result.scalar() or 0
-            
+
             # Then get completed lessons
             completed_result = await self.db.execute(
                 select(func.count())
-                .select_from(UserCourseProgress)
+                .select_from(UserLesson)
                 .where(
-                    UserCourseProgress.user_course_id == user_course.id,
-                    UserCourseProgress.status == ProgressStatus.COMPLETED
+                    UserLesson.user_course_id == user_course.id,
+                    UserLesson.status == ProgressStatus.COMPLETED,
                 )
             )
             completed_lessons = completed_result.scalar() or 0
-            
+
             # Calculate progress percentage
-            progress = int((completed_lessons / total_lessons * 100) if total_lessons > 0 else 0)
-            
+            progress = int(
+                (completed_lessons / total_lessons * 100) if total_lessons > 0 else 0
+            )
+
             courses.append(
                 {
                     "id": str(course.id),  # Convert to string as expected by schema
@@ -187,7 +185,9 @@ class ProfileService:
         return {
             "id": user.id,
             "username": user.username,
-            "fullName": user.full_name or f"{user.first_name or ''} {user.last_name or ''}".strip() or "Unknown User",
+            "fullName": user.full_name
+            or f"{user.first_name or ''} {user.last_name or ''}".strip()
+            or "Unknown User",
             "email": user.email,
             "avatar": user.avatar,
             "bio": user.bio or "Chưa có thông tin giới thiệu",
@@ -205,7 +205,7 @@ class ProfileService:
         topic_mapping = {
             "Thuật toán cơ bản": "algorithms",
             "Algorithms": "algorithms",
-            "Cấu trúc dữ liệu": "dataStructures", 
+            "Cấu trúc dữ liệu": "dataStructures",
             "Data Structures": "dataStructures",
             "Lập trình động": "dynamicProgramming",
             "Dynamic Programming": "dynamicProgramming",
@@ -213,14 +213,14 @@ class ProfileService:
         return topic_mapping.get(topic_name, "")
 
     async def add_user_activity(
-        self, 
-        user_id: int, 
-        activity_type: ActivityType, 
+        self,
+        user_id: int,
+        activity_type: ActivityType,
         activity_name: str,
         description: str = None,
         score: int = None,
         progress: str = None,
-        related_id: int = None
+        related_id: int = None,
     ) -> UserActivity:
         """
         Thêm hoạt động mới cho người dùng và cập nhật thống kê UserState
@@ -232,13 +232,13 @@ class ProfileService:
             description=description,
             score=score,
             progress=progress,
-            related_id=related_id
+            related_id=related_id,
         )
         self.db.add(activity)
-        
+
         # Cập nhật UserState thống kê
         await self._update_user_state_stats(user_id, activity_type, score)
-        
+
         await self.db.commit()
         await self.db.refresh(activity)
         return activity
@@ -249,21 +249,20 @@ class ProfileService:
         topic_id: int,
         progress_percentage: float,
         lessons_completed: int = None,
-        exercises_completed: int = None
+        exercises_completed: int = None,
     ) -> UserTopicProgress:
         """
         Cập nhật tiến độ học tập theo chủ đề
         """
         # Tìm hoặc tạo mới UserTopicProgress
         result = await self.db.execute(
-            select(UserTopicProgress)
-            .where(
+            select(UserTopicProgress).where(
                 UserTopicProgress.user_id == user_id,
-                UserTopicProgress.topic_id == topic_id
+                UserTopicProgress.topic_id == topic_id,
             )
         )
         topic_progress = result.scalar_one_or_none()
-        
+
         if not topic_progress:
             # Tạo mới
             topic_progress = UserTopicProgress(
@@ -271,7 +270,7 @@ class ProfileService:
                 topic_id=topic_id,
                 progress_percentage=progress_percentage,
                 lessons_completed=lessons_completed or 0,
-                exercises_completed=exercises_completed or 0
+                exercises_completed=exercises_completed or 0,
             )
             self.db.add(topic_progress)
         else:
@@ -282,12 +281,14 @@ class ProfileService:
             if exercises_completed is not None:
                 topic_progress.exercises_completed = exercises_completed
             topic_progress.last_activity_at = func.now()
-        
+
         await self.db.commit()
         await self.db.refresh(topic_progress)
         return topic_progress
 
-    async def _update_user_state_stats(self, user_id: int, activity_type: ActivityType, score: int = None) -> None:
+    async def _update_user_state_stats(
+        self, user_id: int, activity_type: ActivityType, score: int = None
+    ) -> None:
         """
         Cập nhật thống kê UserState khi có hoạt động mới
         """
@@ -307,15 +308,15 @@ class ProfileService:
             user_state.problems_solved += 1
             if score:
                 user_state.total_points += score
-            
+
         elif activity_type == ActivityType.LESSON:
             # Lesson completion gives points
             user_state.total_points += 25
-            
+
         elif activity_type == ActivityType.COURSE:
             user_state.completed_courses += 1
             user_state.total_points += 100
-            
+
         elif activity_type == ActivityType.BADGE:
             user_state.total_points += 50
 

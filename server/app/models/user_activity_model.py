@@ -11,9 +11,9 @@ from app.database.database import Base
 
 class ActivityType(str, enum.Enum):
     """Enum for activity types"""
-    
+
     EXERCISE = "exercise"
-    COURSE = "course" 
+    COURSE = "course"
     DISCUSSION = "discussion"
     LESSON = "lesson"
     TEST = "test"
@@ -23,7 +23,7 @@ class ActivityType(str, enum.Enum):
 class UserActivity(Base):
     """
     Model đại diện cho bảng user_activities trong database để lưu trữ hoạt động của người dùng
-    
+
     Attributes:
         id (int): ID của hoạt động, là primary key
         user_id (int): ID của người dùng, là foreign key tới bảng users
@@ -35,9 +35,9 @@ class UserActivity(Base):
         related_id (int): ID của đối tượng liên quan (exercise_id, course_id, etc.)
         created_at (DateTime): Thời điểm tạo hoạt động
     """
-    
+
     __tablename__ = "user_activities"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
@@ -50,12 +50,9 @@ class UserActivity(Base):
     score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     progress: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     related_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-    
+
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="activities")
-    
+
     def __repr__(self) -> str:
         return f"<UserActivity(id={self.id}, user_id={self.user_id}, type={self.activity_type}, name='{self.activity_name}')>"

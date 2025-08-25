@@ -39,26 +39,26 @@ export default function CourseDetailPage() {
   // Calculate if all lessons are completed
   const allLessonsCompleted = useMemo(() => {
     if (!courseData?.isEnrolled || !topicData?.length) return false;
-    
-    const totalLessons = topicData.reduce((total, topic) => 
+
+    const totalLessons = topicData.reduce((total, topic) =>
       total + (topic.lessons?.length || 0), 0);
-    const completedLessons = topicData.reduce((total, topic) => 
+    const completedLessons = topicData.reduce((total, topic) =>
       total + (topic.lessons?.filter(lesson => lesson.isCompleted).length || 0), 0);
-    
+
     return totalLessons > 0 && completedLessons === totalLessons;
   }, [courseData, topicData]);
 
   useEffect(() => {
-    if (courseData) {
-      courseData.topics.sort((a, b) => a.order - b.order);
+    if (topicData) {
+      topicData!.sort((a, b) => a.order - b.order);
     }
-  }, [courseData]);
+  }, [topicData]);
 
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return `${hours > 0 ? `${hours} giờ ` : ""}${mins > 0 ? `${mins} phút` : ""}`;
+    return `${hours > 0 ? `${hours} giờ ` : ""}${mins > 0 ? `${mins} phút` : "0"}`;
   };
 
   const getTagsArray = (tags: string) => {
@@ -276,25 +276,7 @@ export default function CourseDetailPage() {
                   </svg>
                   <span>{formatDuration(courseData.duration)}</span>
                 </div>
-                <div className="flex items-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 text-primary mr-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span>
-                    Cập nhật{" "}
-                    {new Date(courseData.updatedAt).toLocaleDateString("vi-VN")}
-                  </span>
-                </div>
+
                 {courseData?.isEnrolled && topicData && topicData.length > 0 && (
                   <div className="flex items-center">
                     <svg
