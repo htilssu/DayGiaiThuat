@@ -1,6 +1,7 @@
 export { Chat } from "./Chat";
 export { ChatMessage } from "./ChatMessage";
-export { AdminChat } from "./AdminChat";
+export { default as AdminChat } from "./AdminChat";
+export { default as CourseReviewChat } from "./CourseReviewChat";
 export { ContentOptions } from "./ContentOptions";
 export { ContentForm } from "./ContentForm";
 export { ContentCreationModal } from "./ContentCreationModal";

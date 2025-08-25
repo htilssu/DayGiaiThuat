@@ -45,6 +45,7 @@ export interface UserCourseDetail {
   level: string;
   duration: number;
   price: number;
+  status: string | null;
   isPublished: boolean;
   tags: string;
   requirements: string | null;
@@ -153,7 +154,7 @@ export async function getEnrolledCourses(): Promise<EnrolledCourse[]> {
 }
 
 export async function getCourseTopics(courseId: number) {
-  return get(`/courses/${courseId}/user-topics`);
+  return get<Topic[]>(`/courses/${courseId}/topics`);
 }
 
 /**
@@ -177,6 +178,25 @@ export async function startCourseEntryTest(
 }
 
 /**
+ * Đánh dấu khóa học hoàn thành dựa trên test đã vượt qua
+ * @param courseId - ID của khóa học
+ * @param testSessionId - ID của phiên test đã vượt qua
+ * @returns Kết quả đánh dấu hoàn thành
+ */
+export async function markCourseCompleted(
+  courseId: number,
+  testSessionId: string
+): Promise<{
+  message: string;
+  courseId: number;
+  completedAt: string;
+  testSessionId: string;
+  score: number;
+}> {
+  return post(`/courses/${courseId}/complete`, testSessionId);
+}
+
+/**
  * Kiểm tra trạng thái đăng ký khóa học
  * @param courseId - ID của khóa học
  * @returns Trạng thái đăng ký khóa học
@@ -196,4 +216,5 @@ export const coursesApi = {
   getCourseTopics,
   getCourseEntryTest,
   startCourseEntryTest,
+  markCourseCompleted,
 };

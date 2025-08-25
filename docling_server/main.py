@@ -15,6 +15,7 @@ def handler(event):
     if not url:
         return "No URL provided"
     converter = DocumentConverter(
+
         format_options={
             InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
         }

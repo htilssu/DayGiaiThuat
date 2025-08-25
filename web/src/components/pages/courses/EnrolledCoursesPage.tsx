@@ -10,12 +10,12 @@ import {
     Card,
     Badge,
     Progress,
-    Button,
     Loader,
     Alert,
     Group,
     Box,
-    Divider
+    Divider,
+    Button
 } from "@mantine/core";
 import { IconAlertCircle, IconBook, IconClock, IconTrophy, IconArrowRight } from "@tabler/icons-react";
 import { coursesApi, EnrolledCourse } from "@/lib/api/courses";
@@ -97,14 +97,24 @@ export function EnrolledCoursesPage() {
             <Box mb="xl">
                 <Group justify="space-between" align="center" mb="md">
                     <Title order={1}>Khóa học của bạn</Title>
-                    <Button
-                        variant="outline"
-                        className="border-primary text-primary hover:bg-primary/10"
-                        rightSection={<IconArrowRight size={16} />}
-                        onClick={handleExploreMore}
-                    >
-                        Khám phá thêm
-                    </Button>
+                    <Group gap="sm">
+                        <Button
+                            variant="light"
+                            className="border-primary/20 text-primary hover:bg-primary/10"
+                            rightSection={<IconTrophy size={16} />}
+                            onClick={() => router.push('/tests')}
+                        >
+                            Kiểm tra
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="border-primary text-primary hover:bg-primary/10"
+                            rightSection={<IconArrowRight size={16} />}
+                            onClick={handleExploreMore}
+                        >
+                            Khám phá thêm
+                        </Button>
+                    </Group>
                 </Group>
                 <Text size="lg" c="dimmed">
                     Tiếp tục hành trình học tập của bạn
@@ -115,7 +125,6 @@ export function EnrolledCoursesPage() {
 
             {courses.length === 0 ? (
                 <Box ta="center" py="xl">
-                    <IconBook size={64} stroke={1} style={{ color: 'var(--mantine-color-gray-5)', marginBottom: '1rem' }} />
                     <Title order={3} mb="md" c="dimmed">
                         Bạn chưa đăng ký khóa học nào
                     </Title>

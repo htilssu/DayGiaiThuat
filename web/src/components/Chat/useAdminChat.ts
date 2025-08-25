@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { ChatMessage } from "@/lib/api/chat";
 import { GoogleGenAI } from "@google/genai";
 
-export function useAdminChat() {
+export function useAdminChat(courseId?: number) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);

@@ -1,3 +1,4 @@
+tenacity
 # Core async web stack
 fastapi
 uvicorn
@@ -44,9 +45,12 @@ protobuf
 langchain
 pytest
 botocore
-langchain-core~=0.3.59
-langchain-google-genai~=2.1.4
-starlette~=0.47.2
-PyYAML~=6.0.2
-openai~=1.78.0
-pinecone~=6.0.2
+langchain-core
+langchain-google-genai
+starlette
+PyYAML
+openai
+pinecone
+
+pymongo
+requests

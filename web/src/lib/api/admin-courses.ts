@@ -47,6 +47,45 @@ export interface BulkDeleteCoursesResponse {
 }
 
 /**
+ * Kiểu dữ liệu cho request tạo topics với AI
+ */
+export interface GenerateTopicsRequest {
+    title: string;
+    description: string;
+    level: string;
+    maxTopics?: number;
+}
+
+/**
+ * Kiểu dữ liệu cho skill trong topic
+ */
+export interface TopicSkill {
+    description: string;
+}
+
+/**
+ * Kiểu dữ liệu cho topic được generate
+ */
+export interface GeneratedTopic {
+    name: string;
+    description: string;
+    prerequisites: string[];
+    skills: string[];
+    order: number;
+}
+
+/**
+ * Kiểu dữ liệu cho response generate topics
+ */
+export interface GenerateTopicsResponse {
+    status: string;
+    topics: GeneratedTopic[];
+    duration: string;
+    courseId?: number;
+    message: string;
+}
+
+/**
  * Lấy tất cả khóa học (admin) - bao gồm cả chưa published
  * @returns Danh sách tất cả khóa học
  */
@@ -109,6 +148,106 @@ export async function createCourseTestAdmin(courseId: number) {
     return post(`/admin/courses/${courseId}/test`);
 }
 
+/**
+ * Generate topics cho khóa học bằng AI (admin)
+ * @param request Thông tin khóa học để generate topics
+ * @returns Danh sách topics được generate bởi AI
+ */
+export async function generateCourseTopics(request: GenerateTopicsRequest): Promise<GenerateTopicsResponse> {
+    return post<GenerateTopicsResponse>("/admin/courses/generate-topics", request);
+}
+
+/**
+ * Kiểu dữ liệu cho thông tin review khóa học
+ */
+export interface CourseReview {
+    courseId: number;
+    courseTitle: string;
+    courseDescription: string;
+    draft: {
+        id: number;
+        courseId: number;
+        agentContent: string; // JSON string chứa topics, lessons
+        sessionId: string;
+        status: string;
+        createdAt: string;
+        updatedAt: string;
+    } | null;
+    chatMessages: Array<{
+        id: number;
+        courseId: number;
+        userId: number;
+        message: string;
+        isAgent: boolean;
+        createdAt: string;
+    }>;
+}
+
+/**
+ * Kiểu dữ liệu cho tin nhắn chat review
+ */
+export interface ReviewChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: string;
+}
+
+/**
+ * Kiểu dữ liệu cho request gửi tin nhắn chat review
+ */
+export interface ReviewChatRequest {
+    message: string;
+    context?: {
+        courseData?: any;
+        generatedContent?: any;
+    };
+}
+
+/**
+ * Kiểu dữ liệu cho response chat review
+ */
+export interface ReviewChatResponse {
+    message: ReviewChatMessage;
+    updatedContent?: any;
+}
+
+/**
+ * Kiểu dữ liệu cho request approve/reject
+ */
+export interface ReviewApprovalRequest {
+    approved: boolean;
+    feedback?: string;
+}
+
+/**
+ * Lấy thông tin review khóa học
+ * @param courseId ID của khóa học
+ * @returns Thông tin review khóa học
+ */
+export async function getCourseReview(courseId: number): Promise<CourseReview> {
+    return get<CourseReview>(`/admin/courses/${courseId}/review`);
+}
+
+/**
+ * Gửi tin nhắn chat với agent review
+ * @param courseId ID của khóa học
+ * @param request Dữ liệu tin nhắn chat
+ * @returns Response từ AI agent
+ */
+export async function sendReviewChatMessage(courseId: number, request: ReviewChatRequest): Promise<ReviewChatResponse> {
+    return post<ReviewChatResponse>(`/admin/courses/${courseId}/review/chat`, request);
+}
+
+/**
+ * Approve hoặc reject draft khóa học
+ * @param courseId ID của khóa học
+ * @param request Dữ liệu approve/reject
+ * @returns Kết quả xử lý
+ */
+export async function approveRejectCourse(courseId: number, request: ReviewApprovalRequest): Promise<{ success: boolean; message: string; }> {
+    return post<{ success: boolean; message: string; }>(`/admin/courses/${courseId}/review/approve`, request);
+}
+
 async function forceDeleteCourse(courseId: number) {
     return del(`/admin/courses/${courseId}?force=1`)
 }
@@ -121,5 +260,9 @@ export const adminCoursesApi = {
     deleteCourseAdmin,
     bulkDeleteCoursesAdmin,
     createCourseTestAdmin,
+    generateCourseTopics,
+    getCourseReview,
+    sendReviewChatMessage,
+    approveRejectCourse,
     forceDeleteCourse
 }; 

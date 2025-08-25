@@ -1,7 +1,12 @@
 from app.core.config import settings
 
 
-def create_new_llm_model(thinking_budget: int = 0, top_k: int = 1, top_p: float = 0.95, temperature: float = 0.1):
+def create_new_llm_model(
+    thinking_budget: int = 0,
+    top_k: int = 1,
+    top_p: float = 0.95,
+    temperature: float = 0.1,
+):
     """
     Tạo một instance mới của model LLM Gemini với thinking_budget được chỉ định
 
@@ -23,13 +28,17 @@ def create_new_llm_model(thinking_budget: int = 0, top_k: int = 1, top_p: float 
         google_api_key=settings.GOOGLE_API_KEY,
         thinking_budget=thinking_budget,
         max_retries=6,
-        top_k=top_k,
         top_p=top_p,
         temperature=temperature,
     )
 
 
-def create_new_creative_llm_model(thinking_budget: int = 200, temperature: float = 0.7, top_k: int = 1, top_p: float = 0.95):
+def create_new_creative_llm_model(
+    thinking_budget: int = 200,
+    temperature: float = 0.7,
+    top_k: int = 1,
+    top_p: float = 0.95,
+):
     """
     Tạo một instance mới của model LLM Gemini với thinking_budget cao hơn
     cho các tác vụ sáng tạo

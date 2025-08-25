@@ -9,6 +9,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 from app.models.user_course_progress_model import ProgressStatus
+from app.schemas.topic_schema import TopicBase
 
 
 class LessonWithProgressSchema(BaseModel):
@@ -36,15 +37,13 @@ class LessonWithProgressSchema(BaseModel):
         from_attributes = True
 
 
-class TopicWithProgressSchema(BaseModel):
+class TopicWithProgressSchema(TopicBase):
     """
     Schema cho topic với danh sách lessons và progress
     """
 
     id: int = Field(..., description="ID của topic")
     external_id: Optional[str] = Field(None, description="External ID của topic")
-    name: str = Field(..., description="Tên topic")
-    description: str = Field(..., description="Mô tả topic")
     order: Optional[int] = Field(None, description="Thứ tự topic trong course")
     lessons: List[LessonWithProgressSchema] = Field(
         default=[], description="Danh sách lessons với progress"

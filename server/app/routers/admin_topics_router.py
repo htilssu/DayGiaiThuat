@@ -1,17 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database.database import get_async_db
 from app.models.topic_model import Topic
+from app.schemas.course_draft_schema import TopicOrderRequest
 from app.schemas.topic_schema import (
     TopicCreate,
-    TopicResponse,
+    TopicWithLesson,
     TopicUpdate,
     TopicCourseAssignment,
 )
 from app.schemas.user_profile_schema import UserExcludeSecret
+from app.services.course_draft_service import (
+    reorder_topic_course_draft,
+)
 from app.utils.utils import get_current_user
 
 router = APIRouter(
@@ -22,7 +28,6 @@ router = APIRouter(
 
 
 def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
-    """Kiểm tra quyền admin"""
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -33,7 +38,7 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
 
 @router.post(
     "",
-    response_model=TopicResponse,
+    response_model=TopicWithLesson,
     status_code=status.HTTP_201_CREATED,
     summary="Tạo chủ đề mới (Admin)",
     responses={
@@ -44,9 +49,9 @@ def get_admin_user(current_user: UserExcludeSecret = Depends(get_current_user)):
     },
 )
 async def create_topic(
-    topic_data: TopicCreate,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        topic_data: TopicCreate,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Tạo một chủ đề mới cho một khóa học (chỉ admin)
@@ -67,7 +72,7 @@ async def create_topic(
 
 @router.get(
     "",
-    response_model=List[TopicResponse],
+    response_model=List[TopicWithLesson],
     summary="Lấy danh sách chủ đề (Admin)",
     responses={
         200: {"description": "OK"},
@@ -75,18 +80,13 @@ async def create_topic(
     },
 )
 async def get_topics_admin(
-    course_id: int | None = None,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        course_id: int | None = None,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
-    """
-    Lấy danh sách các chủ đề (chỉ admin)
-    - Nếu có course_id: lấy chủ đề của khóa học đó
-    - Nếu không có course_id: lấy tất cả chủ đề
-    """
-    query = select(Topic)
+    query = select(Topic).options(selectinload(Topic.lessons))
     if course_id is not None:
-        query = query.where(Topic.course_id == course_id)
+        query = query.filter(Topic.course_id == course_id)
     result = await db.execute(query)
     topics = result.scalars().all()
     return topics
@@ -94,7 +94,7 @@ async def get_topics_admin(
 
 @router.get(
     "/{topic_id}",
-    response_model=TopicResponse,
+    response_model=TopicWithLesson,
     summary="Lấy chi tiết chủ đề (Admin)",
     responses={
         200: {"description": "OK"},
@@ -103,26 +103,26 @@ async def get_topics_admin(
     },
 )
 async def get_topic_by_id_admin(
-    topic_id: int,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        topic_id: int,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
-    Lấy chi tiết một chủ đề theo ID (chỉ admin)
+    Lấy thông tin chi tiết của một chủ đề (chỉ admin)
     """
-    result = await db.execute(select(Topic).where(Topic.id == topic_id))
+    result = await db.execute(select(Topic).filter(Topic.id == topic_id))
     topic = result.scalar_one_or_none()
     if not topic:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Không tìm thấy chủ đề",
+            detail=f"Không tìm thấy chủ đề với ID {topic_id}",
         )
     return topic
 
 
 @router.put(
     "/{topic_id}",
-    response_model=TopicResponse,
+    response_model=TopicWithLesson,
     summary="Cập nhật chủ đề (Admin)",
     responses={
         200: {"description": "OK"},
@@ -133,32 +133,33 @@ async def get_topic_by_id_admin(
     },
 )
 async def update_topic(
-    topic_id: int,
-    topic_data: TopicUpdate,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        topic_id: int,
+        topic_data: TopicUpdate,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Cập nhật thông tin chủ đề (chỉ admin)
     """
+    result = await db.execute(select(Topic).filter(Topic.id == topic_id))
+    topic = result.scalar_one_or_none()
+    if not topic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy chủ đề với ID {topic_id}",
+        )
+
     try:
-        result = await db.execute(select(Topic).where(Topic.id == topic_id))
-        topic = result.scalar_one_or_none()
-        if not topic:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Không tìm thấy chủ đề",
-            )
+        # Cập nhật các field được gửi lên
+        update_data = topic_data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(topic, field, value)
 
-        # Cập nhật các trường
-        for key, value in topic_data.model_dump(exclude_unset=True).items():
-            setattr(topic, key, value)
-
+        # Lưu thay đổi
         await db.commit()
         await db.refresh(topic)
+
         return topic
-    except HTTPException:
-        raise
     except Exception as e:
         await db.rollback()
         raise HTTPException(
@@ -169,7 +170,7 @@ async def update_topic(
 
 @router.patch(
     "/{topic_id}/assign-course",
-    response_model=TopicResponse,
+    response_model=TopicWithLesson,
     summary="Assign/Unassign khóa học cho chủ đề (Admin)",
     responses={
         200: {"description": "OK"},
@@ -179,34 +180,30 @@ async def update_topic(
     },
 )
 async def assign_topic_to_course(
-    topic_id: int,
-    assignment_data: TopicCourseAssignment,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        topic_id: int,
+        assignment_data: TopicCourseAssignment,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
-    """
-    Gán hoặc bỏ gán khóa học cho chủ đề (chỉ admin)
-    """
-    try:
-        result = await db.execute(select(Topic).where(Topic.id == topic_id))
-        topic = result.scalar_one_or_none()
-        if not topic:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Không tìm thấy chủ đề",
-            )
+    result = await db.execute(select(Topic).filter(Topic.id == topic_id))
+    topic = result.scalar_one_or_none()
+    if not topic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy chủ đề với ID {topic_id}",
+        )
 
+    try:
+        # Cập nhật course_id
         topic.course_id = assignment_data.course_id
         await db.commit()
         await db.refresh(topic)
         return topic
-    except HTTPException:
-        raise
     except Exception as e:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi khi gán khóa học cho chủ đề: {str(e)}",
+            detail=f"Lỗi khi assign chủ đề: {str(e)}",
         )
 
 
@@ -222,29 +219,37 @@ async def assign_topic_to_course(
     },
 )
 async def delete_topic(
-    topic_id: int,
-    db: AsyncSession = Depends(get_async_db),
-    admin_user: UserExcludeSecret = Depends(get_admin_user),
+        topic_id: int,
+        db: AsyncSession = Depends(get_async_db),
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
 ):
     """
     Xóa chủ đề (chỉ admin)
     """
-    try:
-        result = await db.execute(select(Topic).where(Topic.id == topic_id))
-        topic = result.scalar_one_or_none()
-        if not topic:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Không tìm thấy chủ đề",
-            )
+    result = await db.execute(select(Topic).filter(Topic.id == topic_id))
+    topic = result.scalar_one_or_none()
+    if not topic:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy chủ đề với ID {topic_id}",
+        )
 
+    try:
+        # Xóa chủ đề
         await db.delete(topic)
         await db.commit()
-    except HTTPException:
-        raise
     except Exception as e:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi xóa chủ đề: {str(e)}",
         )
+
+
+@router.put("/draft/{course_id}")
+async def reorder(
+        topics: TopicOrderRequest,
+        course_id: int,
+        admin_user: UserExcludeSecret = Depends(get_admin_user),
+):
+    return reorder_topic_course_draft(topics, course_id)

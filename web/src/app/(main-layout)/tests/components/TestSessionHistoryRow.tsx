@@ -12,7 +12,7 @@ export default function TestSessionHistoryRow({ session }: { session: TestHistor
     };
 
     const handleViewResult = (sessionId: string) => {
-        router.push(`/tests/${sessionId}`);
+        router.push(`/tests/results/${sessionId}`);
     };
 
     const getStatusColor = (status: string) => {

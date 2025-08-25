@@ -142,6 +142,15 @@ export default function Navbar() {
             /> */}
             {user && (
               <NavItem
+                href="/tests"
+                label="Kiểm tra"
+                isActive={
+                  pathname === "/tests" || pathname.startsWith("/tests/")
+                }
+              />
+            )}
+            {user && (
+              <NavItem
                 href="/discussions"
                 label="Thảo luận"
                 isActive={
@@ -297,6 +306,16 @@ export default function Navbar() {
                 href="/courses"
                 label="Khóa học của bạn"
                 isActive={pathname === "/courses"}
+                onClick={() => setIsMenuOpen(false)}
+              />
+            )}
+            {user && (
+              <MobileNavItem
+                href="/tests"
+                label="Kiểm tra"
+                isActive={
+                  pathname === "/tests" || pathname.startsWith("/tests/")
+                }
                 onClick={() => setIsMenuOpen(false)}
               />
             )}

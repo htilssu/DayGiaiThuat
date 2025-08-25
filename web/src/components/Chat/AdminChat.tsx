@@ -8,126 +8,91 @@ import {
   ActionIcon,
   LoadingOverlay,
   Divider,
+  Stack,
+  Text,
+  ScrollArea,
 } from "@mantine/core";
 import { IconSend } from "@tabler/icons-react";
 import { ChatMessage as ChatMessageComponent } from "./ChatMessage";
-import { ContentType } from "./types";
-import { ContentOptions } from "./ContentOptions";
-import { ContentCreationModal } from "./ContentCreationModal";
 import { useAdminChat } from "./useAdminChat";
-import { useContentCreation } from "./useContentCreation";
 
-export function AdminChat() {
-  const [showContentModal, setShowContentModal] = useState(false);
-  const [selectedContentType, setSelectedContentType] =
-    useState<ContentType | null>(null);
+interface AdminChatProps {
+  // Optional props for future extensibility
+  placeholder?: string;
+  height?: string | number;
+  courseId?: number;
+}
 
+export default function AdminChat({
+  placeholder = "Nhập tin nhắn cho AI Agent...",
+  height = "500px",
+  courseId
+}: AdminChatProps) {
   const {
     messages,
     input,
     setInput,
     isLoading,
-    messagesEndRef,
     handleSend,
-    handleKeyPress,
-    addMessage,
-  } = useAdminChat();
+    messagesEndRef
+  } = useAdminChat(courseId);
 
-  const { formData, setFormData, resetFormData, createContent } =
-    useContentCreation();
-
-  const handleContentTypeSelect = (type: ContentType) => {
-    setSelectedContentType(type);
-    setShowContentModal(true);
-  };
-
-  const handleCreateContent = async () => {
-    if (!selectedContentType) return;
-
-    const userMessage = {
-      role: "user" as const,
-      content: `Creating ${selectedContentType}...`,
-      timestamp: new Date().toISOString(),
-    };
-
-    addMessage(userMessage);
-    setShowContentModal(false);
-
-    await createContent(
-      selectedContentType,
-      (successMessage) => {
-        addMessage(successMessage);
-        resetFormData();
-      },
-      (errorMessage) => {
-        addMessage(errorMessage);
-        resetFormData();
-      }
-    );
-  };
-
-  const handleModalClose = () => {
-    setShowContentModal(false);
-    setSelectedContentType(null);
-    resetFormData();
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      handleSend();
+    }
   };
 
   return (
-    <>
-      <Paper
-        shadow="sm"
-        p="md"
-        style={{
-          height: "600px",
-          display: "flex",
-          flexDirection: "column",
-        }}>
-        <Box
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: "1rem",
-            position: "relative",
-          }}>
-          <LoadingOverlay visible={isLoading} />
+    <Stack h={height} gap={0} style={{ position: 'relative' }}>
+      <ScrollArea flex={1} p="md" style={{ height: '100%' }}>
+        <Stack gap="md">
+          {messages.length === 0 && (
+            <Box ta="center" py="xl">
+              <Text size="sm" c="dimmed" style={{ fontWeight: 400 }}>
+                Chưa có tin nhắn nào. Hãy bắt đầu trò chuyện với AI Agent!
+              </Text>
+            </Box>
+          )}
           {messages.map((message, index) => (
             <ChatMessageComponent key={index} message={message} />
           ))}
+          {isLoading && (
+            <Box ta="center" py="md">
+              <Text size="sm" c="dimmed">
+                AI đang suy nghĩ...
+              </Text>
+            </Box>
+          )}
           <div ref={messagesEndRef} />
-        </Box>
+        </Stack>
+      </ScrollArea>
 
-        <Divider my="md" />
+      <Divider />
 
-        <ContentOptions onContentTypeSelect={handleContentTypeSelect} />
-
-        <Box p="xs">
+      <Box p="md">
+        <Box style={{ display: "flex", gap: "8px" }}>
           <TextInput
+            flex={1}
+            placeholder={placeholder}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyPress}
-            placeholder="Or type your message to chat with AI..."
-            rightSection={
-              <ActionIcon
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                variant="filled"
-                size="lg">
-                <IconSend size="1.2rem" />
-              </ActionIcon>
-            }
+            onKeyPress={handleKeyPress}
+            disabled={isLoading}
           />
+          <ActionIcon
+            onClick={handleSend}
+            disabled={!input.trim() || isLoading}
+            variant="filled"
+            size="lg"
+          >
+            <IconSend size={16} />
+          </ActionIcon>
         </Box>
-      </Paper>
+      </Box>
 
-      <ContentCreationModal
-        opened={showContentModal}
-        onClose={handleModalClose}
-        contentType={selectedContentType}
-        formData={formData}
-        onFormDataChange={setFormData}
-        onCreateContent={handleCreateContent}
-        isLoading={isLoading}
-      />
-    </>
+      <LoadingOverlay visible={isLoading} />
+    </Stack>
   );
 }

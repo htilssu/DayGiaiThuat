@@ -6,56 +6,11 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """
-    Cấu hình ứng dụng, đọc từ biến môi trường
-
-    Attributes:
-        PROJECT_NAME (str): Tên dự án
-        DEV_MODE (bool): Mode phát triển
-        BACKEND_CORS_ORIGINS (List[AnyHttpUrl]): Danh sách origins được phép CORS
-        DB_USER (str): Username database
-        DB_PASSWORD (str): Password database
-        DB_HOST (str): Host database
-        DB_PORT (str): Port database
-        DB_NAME (str): Tên database
-        SECRET_KEY (str): Key để mã hóa JWT token
-        AGENT_LLM_MODEL (str): Model LLM cho agent
-        CREATIVE_LLM_MODEL (str): Model LLM cho creative
-        EMBEDDING_MODEL (str): Model embedding
-        PINECONE_API_KEY (str): API key cho Pinecone
-        MONGO_URI (str): URI cho MongoDB
-        LANGSMITH_API_KEY (str): API key cho LangSmith
-        LANGSMITH_TRACING (bool): Tracing cho LangSmith
-        LANGSMITH_PROJECT (str): Project cho LangSmith
-        ACCESS_TOKEN_EXPIRE_MINUTES (int): Thời gian hết hạn của token (phút)
-        COOKIE_DOMAIN (str): Domain cho cookie
-        COOKIE_SECURE (bool): Secure flag cho cookie
-        COOKIE_SAMESITE (str): SameSite setting cho cookie
-        COOKIE_NAME (str): Tên cookie lưu JWT token
-        RUN_MIGRATIONS_ON_STARTUP (bool): Chạy migration khi khởi động
-        RUN_SEEDERS_ON_STARTUP (bool): Chạy seeder khi khởi động
-        SEEDERS_TO_RUN (List[str]): Danh sách các seeder cần chạy
-        FORCE_SEEDERS (bool): Xóa dữ liệu cũ trước khi tạo mới
-        S3_ACCESS_KEY_ID (str): S3 Access Key ID
-        S3_SECRET_ACCESS_KEY (str): S3 Secret Access Key
-        S3_REGION (str): S3 Region
-        S3_BUCKET_NAME (str): Tên bucket S3
-        S3_COURSE_IMAGE_PREFIX (str): Prefix cho ảnh khóa học trong S3
-        S3_USER_AVATAR_PREFIX (str): Prefix cho avatar người dùng trong S3
-        S3_PUBLIC_URL (str): URL công khai cho bucket S3
-        S3_ENDPOINT_URL (str): URL endpoint cho Cloudflare R2
-        UVICORN_WORKERS (int): Số workers cho uvicorn
-        UVICORN_HOST (str): Host cho uvicorn
-        UVICORN_PORT (int): Port cho uvicorn
-        UVICORN_RELOAD (bool): Auto reload cho uvicorn
-    """
-
     PROJECT_NAME: str = "default"
     DEV_MODE: Optional[bool] = True
     # CORS
     BACKEND_CORS_ORIGINS: List[str]
 
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: str | List[str]) -> List[str]:
         """
@@ -72,10 +27,8 @@ class Settings(BaseSettings):
         """
         if isinstance(v, str):
             try:
-                # Thử parse JSON string
                 return json.loads(v)
             except json.JSONDecodeError:
-                # Nếu không phải JSON, split theo dấu phẩy
                 return [i.strip() for i in v.split(",")]
         return v
 
@@ -109,22 +62,14 @@ class Settings(BaseSettings):
     LANGSMITH_TRACING: bool = False
     LANGSMITH_PROJECT: str = "default"
 
-    # File Upload Settings
     UPLOAD_DIR: str = "uploads"  # Thư mục lưu file tạm thời
 
-    # Document Processing Settings
-    DOCUMENT_PROCESSING_ENDPOINT: Optional[str] = (
-        None  # External API endpoint for document processing
-    )
-    DOCUMENT_PROCESSING_TIMEOUT: int = 300  # Timeout cho API call (seconds)
-    S3_DOCUMENT_PREFIX: str = "documents/"  # Prefix cho documents trong S3
-    BASE_URL: str = "http://localhost:8000"  # Base URL for webhook callbacks
+    DOCUMENT_PROCESSING_ENDPOINT: Optional[str] = None
+    RUNPOD_API_KEY: str
+    DOCUMENT_PROCESSING_TIMEOUT: int = 300
+    S3_DOCUMENT_PREFIX: str = "documents/"
+    BASE_URL: str = "http://localhost:8000"
 
-    # AWS/S3 Boto3 Settings (fix for MissingContentLength error)
-    AWS_REQUEST_CHECKSUM_CALCULATION: str = "when_required"
-    AWS_RESPONSE_CHECKSUM_VALIDATION: str = "when_required"
-
-    # AWS S3 Settings / Cloudflare R2 Settings
     S3_ACCESS_KEY_ID: Optional[str] = None
     S3_SECRET_ACCESS_KEY: Optional[str] = None
     S3_REGION: Optional[str] = (
@@ -138,39 +83,7 @@ class Settings(BaseSettings):
     S3_USER_AVATAR_PREFIX: str = "user-avatars/"
     S3_PUBLIC_URL: Optional[str] = None  # CloudFront URL hoặc S3 public URL
 
-    # Migration và Seeder
-    RUN_MIGRATIONS_ON_STARTUP: bool = False
-    RUN_SEEDERS_ON_STARTUP: bool = False
-    SEEDERS_TO_RUN: Optional[List[str]] = None
-    FORCE_SEEDERS: bool = False
-
-    # Judge0
     JUDGE0_API_URL: str
-
-    @field_validator("SEEDERS_TO_RUN", mode="before")
-    def assemble_seeders_to_run(
-        cls, v: Optional[Union[str, List[str]]]
-    ) -> Optional[List[str]]:
-        """
-        Xử lý giá trị SEEDERS_TO_RUN từ biến môi trường
-
-        Args:
-            v (Optional[Union[str, List[str]]]): Giá trị từ biến môi trường
-
-        Returns:
-            Optional[List[str]]: Danh sách các seeder cần chạy
-        """
-        if v is None:
-            return None
-
-        if isinstance(v, str):
-            try:
-                # Thử parse JSON string
-                return json.loads(v)
-            except json.JSONDecodeError:
-                # Nếu không phải JSON, split theo dấu phẩy
-                return [i.strip() for i in v.split(",")]
-        return v
 
     @property
     def DATABASE_URI(self) -> str:

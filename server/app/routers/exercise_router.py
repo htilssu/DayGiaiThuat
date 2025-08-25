@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
+from sqlalchemy import select
 
 from app.schemas.exercise_schema import (
     CreateExerciseSchema,
@@ -6,7 +7,15 @@ from app.schemas.exercise_schema import (
     CodeSubmissionResponse,
     ExerciseUpdate,
 )
-from app.services.exercise_service import ExerciseService, get_exercise_service
+from app.services.exercise_service import (
+    ExerciseService,
+    get_exercise_service,
+    evaluate_submission_with_judge0,
+)
+from app.database.database import get_async_db
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.exercise_model import Exercise
 
 router = APIRouter(prefix="/exercise", tags=["Bài tập"])
 
@@ -58,7 +67,7 @@ async def list_exercises(
 )
 async def get_exercise(
     exercise_id: int,
-    exercise_service: ExerciseService = Depends(get_exercise_service),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Lấy thông tin bài tập theo ID
@@ -70,7 +79,8 @@ async def get_exercise(
     Returns:
         ExerciseModel: Thông tin bài tập
     """
-    exercise = await exercise_service.get_exercise(exercise_id)
+    exercise = await db.execute(select(Exercise).where(Exercise.id == exercise_id))
+    exercise = exercise.scalar_one_or_none()
     if not exercise:
         raise HTTPException(
             status_code=404, detail=f"Không tìm thấy bài tập với ID {exercise_id}"
@@ -114,9 +124,8 @@ async def submit_exercise_code(
 async def submit_exercise_code_judge0(
     exercise_id: int,
     submission: CodeSubmissionRequest = Body(...),
-    exercise_service: ExerciseService = Depends(get_exercise_service),
 ):
     """
     Nhận code, chạy với các test case qua Judge0 và trả về kết quả từng test case.
     """
-    return await exercise_service.evaluate_submission_with_judge0(exercise_id, submission)
+    return await evaluate_submission_with_judge0(exercise_id, submission)

@@ -27,7 +27,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
     user_id = token
-    # Đảm bảo mỗi user chỉ có 1 kết nối
+
     if user_id in active_connections:
         try:
             await active_connections[user_id].close(
