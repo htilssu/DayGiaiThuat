@@ -61,6 +61,7 @@ class LessonSectionAgentGenerated(BaseModel):
 
 class LessonSectionSchema(LessonSectionAgentGenerated):
     id: int
+    exercise_id: Optional[int] = None
 
     class Config:
         from_attributes = True

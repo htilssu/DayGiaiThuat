@@ -55,10 +55,8 @@ export default function CourseDetailPage() {
   }, [topicData]);
 
 
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours > 0 ? `${hours} giờ ` : ""}${mins > 0 ? `${mins} phút` : "0"}`;
+  const formatDuration = (hours: number) => {
+    return `${hours > 0 ? `${hours} giờ ` : "0"}`;
   };
 
   const getTagsArray = (tags: string) => {
@@ -480,18 +478,6 @@ export default function CourseDetailPage() {
                         {courseData.price > 0
                           ? `${courseData.price.toLocaleString("vi-VN")}₫`
                           : "Miễn phí"}
-                      </span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span className="text-foreground/70">Ngày tạo</span>
-                      <span className="font-medium">
-                        {new Date(courseData.createdAt).toLocaleDateString("vi-VN")}
-                      </span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span className="text-foreground/70">Cập nhật</span>
-                      <span className="font-medium">
-                        {new Date(courseData.updatedAt).toLocaleDateString("vi-VN")}
                       </span>
                     </li>
                   </ul>
