@@ -255,10 +255,6 @@ export default function CourseDetailPage() {
                 {courseData.title}
               </h1>
 
-              <p className="text-foreground/80 text-lg mb-6">
-                {courseData.description}
-              </p>
-
               <div className="flex items-center gap-4 mb-8">
                 <div className="flex items-center">
                   <svg
