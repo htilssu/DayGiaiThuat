@@ -162,7 +162,8 @@ class DocumentService:
                     raise Exception(f"Job {job_id} not found")
 
                 await self._process_docling_result(job, result)
-
+                job.status = "COMPLETED"
+                await db.commit()
                 # Nếu thuộc về course, gọi agent tạo topic và lesson
                 if job.course_id:
                     await self._trigger_course_content_generation(job.course_id)

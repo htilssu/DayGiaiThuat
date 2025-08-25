@@ -14,8 +14,9 @@ from app.services.exercise_service import (
 )
 from app.database.database import get_async_db
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models.exercise_model import Exercise
+from app.schemas.user_profile_schema import UserExcludeSecret
+from app.utils.utils import get_current_user
 
 router = APIRouter(prefix="/exercise", tags=["Bài tập"])
 
@@ -108,12 +109,13 @@ async def update_exercise(
 async def submit_exercise_code(
     exercise_id: int,
     submission: CodeSubmissionRequest = Body(...),
+    current_user: UserExcludeSecret = Depends(get_current_user),
     exercise_service: ExerciseService = Depends(get_exercise_service),
 ):
     """
     Nhận code, chạy với các test case và trả về kết quả từng test case.
     """
-    return await exercise_service.evaluate_submission(exercise_id, submission)
+    return await exercise_service.evaluate_submission(exercise_id, submission, current_user.id)
 
 
 @router.post(
@@ -124,8 +126,9 @@ async def submit_exercise_code(
 async def submit_exercise_code_judge0(
     exercise_id: int,
     submission: CodeSubmissionRequest = Body(...),
+    current_user: UserExcludeSecret = Depends(get_current_user),
 ):
     """
     Nhận code, chạy với các test case qua Judge0 và trả về kết quả từng test case.
     """
-    return await evaluate_submission_with_judge0(exercise_id, submission)
+    return await evaluate_submission_with_judge0(exercise_id, submission, current_user.id)

@@ -20,11 +20,14 @@ from app.schemas.exercise_schema import (
 )
 from app.schemas.exercise_schema import ExerciseUpdate
 from app.services.topic_service import TopicService, get_topic_service
+from app.services.profile_service import ProfileService
+from app.models.user_activity_model import ActivityType
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy import func
 
 JUDGE0_API_URL = (settings.JUDGE0_API_URL or "").rstrip("/")
 
@@ -74,6 +77,7 @@ class ExerciseService:
         self.exercise_agent = exercise_agent
         self.db = session
         self.topic_service = topic_service
+        self.profile_service = ProfileService(session)
 
     async def get_exercise(self, exercise_id: int) -> Exercise:
         """
@@ -224,7 +228,7 @@ class ExerciseService:
         return exercise_detail
 
     async def evaluate_submission(
-        self, exercise_id: int, submission: CodeSubmissionRequest
+        self, exercise_id: int, submission: CodeSubmissionRequest, user_id: int
     ) -> CodeSubmissionResponse:
         """
         Chấm code của học sinh với các test case của bài tập.
@@ -273,11 +277,70 @@ class ExerciseService:
             )
             if not passed:
                 all_passed = False
+
+        # Track exercise completion activity if all tests passed
+        if all_passed:
+            await self._track_exercise_completion(user_id, exercise_id, exercise, len(results))
+
         return CodeSubmissionResponse(results=results, all_passed=all_passed)
+
+    async def _track_exercise_completion(self, user_id: int, exercise_id: int, exercise, test_count: int) -> None:
+        """
+        Theo dõi hoạt động hoàn thành bài tập
+        """
+        # Tính điểm dựa trên số test cases
+        score = test_count * 10  # 10 điểm cho mỗi test case
+
+        # Thêm hoạt động
+        await self.profile_service.add_user_activity(
+            user_id=user_id,
+            activity_type=ActivityType.EXERCISE,
+            activity_name=f"Hoàn thành bài tập: {exercise.title}",
+            description=f"Đã giải thành công bài tập '{exercise.title}' với tất cả {test_count} test case",
+            score=score,
+            progress="100%",
+            related_id=exercise_id
+        )
+
+        # Cập nhật tiến độ topic nếu có topic_id
+        if hasattr(exercise, 'topic_id') and exercise.topic_id:
+            await self._update_topic_progress_after_exercise(user_id, exercise.topic_id)
+
+    async def _update_topic_progress_after_exercise(self, user_id: int, topic_id: int) -> None:
+        """
+        Cập nhật tiến độ chủ đề sau khi hoàn thành bài tập
+        """
+        # Đếm tổng số bài tập trong chủ đề
+        total_exercises_result = await self.db.execute(
+            select(func.count(ExerciseModel.id))
+            .where(ExerciseModel.topic_id == topic_id)
+        )
+        total_exercises = total_exercises_result.scalar() or 0
+
+        # Đếm số bài tập đã hoàn thành bởi user này (cần có cách track completion)
+        # Hiện tại chưa có bảng lưu exercise completion, sẽ ước tính từ activities
+        # TODO: Implement proper exercise completion tracking
+        
+        # Tạm thời chỉ cập nhật exercises_completed counter
+        if total_exercises > 0:
+            # Lấy progress hiện tại
+            from app.models.user_topic_progress_model import UserTopicProgress
+            result = await self.db.execute(
+                select(UserTopicProgress)
+                .where(
+                    UserTopicProgress.user_id == user_id,
+                    UserTopicProgress.topic_id == topic_id
+                )
+            )
+            topic_progress = result.scalar_one_or_none()
+            
+            if topic_progress:
+                topic_progress.exercises_completed += 1
+                await self.db.commit()
 
 
 async def evaluate_submission_with_judge0(
-    exercise_id: int, submission: CodeSubmissionRequest
+    exercise_id: int, submission: CodeSubmissionRequest, user_id: int
 ) -> CodeSubmissionResponse:
     """
     Chấm code của học sinh với các test case của bài tập sử dụng Judge0.
@@ -354,6 +417,22 @@ async def evaluate_submission_with_judge0(
 
         if not passed:
             all_passed = False
+
+    # Track exercise completion activity if all tests passed
+    if all_passed:
+        async with get_independent_db_session() as profile_db:
+            profile_service = ProfileService(profile_db)
+            score = len(results) * 10  # 10 điểm cho mỗi test case
+            
+            await profile_service.add_user_activity(
+                user_id=user_id,
+                activity_type=ActivityType.EXERCISE,
+                activity_name=f"Hoàn thành bài tập: {exercise.title}",
+                description=f"Đã giải thành công bài tập '{exercise.title}' với tất cả {len(results)} test case (Judge0)",
+                score=score,
+                progress="100%",
+                related_id=exercise_id
+            )
 
     return CodeSubmissionResponse(results=results, all_passed=all_passed)
 

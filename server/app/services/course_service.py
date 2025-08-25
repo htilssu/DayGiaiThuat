@@ -1,7 +1,6 @@
 from typing import Optional
 
 from fastapi import HTTPException, status, Depends
-from google.api_core.retry import if_exception_type
 from sqlalchemy import and_, func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,19 +15,13 @@ from app.models import Lesson
 from app.models.course_model import Course
 from app.models.topic_model import Topic
 from app.models.user_course_model import UserCourse
-from app.models.user_course_progress_model import UserCourseProgress, ProgressStatus
+from app.models.user_lesson_model import UserLesson
 from app.schemas.course_draft_schema import CourseDraftSchema
 from app.schemas.course_schema import (
     BulkDeleteCoursesResponse,
     CourseCreate,
-    CourseDetailResponse,
-    CourseDetailWithProgressResponse,
-    TopicWithProgressResponse,
     UserCourseListItem,
     CourseBaseUser,
-)
-from app.schemas.lesson_schema import (
-    LessonWithProgressResponse,
 )
 
 
@@ -332,9 +325,14 @@ class CourseService:
             completed_lessons = 0
             if user_course_id:
                 progress_records = await self.db.execute(
-                    select(func.count(UserCourseProgress.id)).filter(
-                        UserCourseProgress.user_course_id == user_course_id,
-                        UserCourseProgress.status == ProgressStatus.COMPLETED,
+                    select(func.count(UserLesson.id))
+                    .join(Lesson, Lesson.id == UserLesson.lesson_id)
+                    .join(Topic, Lesson.topic_id == Topic.id)
+                    .join(Course, Topic.course_id == Course.id)
+                    .filter(
+                        Course.id == course.id,
+                        UserLesson.user_id == user_id,
+                        UserLesson.completed_at.isnot(None),
                     )
                 )
                 completed_lessons = progress_records.scalar() or 0
@@ -345,37 +343,6 @@ class CourseService:
 
             current_topic_id = None
             current_lesson_id = None
-
-            if user_course_id and total_lessons > 0:
-                completed_lesson_records = await self.db.execute(
-                    select(UserCourseProgress.lesson_id).filter(
-                        UserCourseProgress.user_course_id == user_course_id,
-                        UserCourseProgress.status == ProgressStatus.COMPLETED,
-                    )
-                )
-                completed_lesson_ids = set(completed_lesson_records.scalars().all())
-
-                found_current = False
-                for topic in sorted(course.topics, key=lambda t: t.order):
-                    if found_current:
-                        break
-                    for lesson in sorted(
-                        topic.lessons, key=lambda lesson: lesson.order
-                    ):
-                        if lesson.id not in completed_lesson_ids:
-                            current_topic_id = topic.id
-                            current_lesson_id = lesson.id
-                            found_current = True
-                            break
-
-                if not found_current and course.topics:
-                    last_topic = max(course.topics, key=lambda t: t.order)
-                    if last_topic.lessons:
-                        last_lesson = max(
-                            last_topic.lessons, key=lambda lesson: lesson.order
-                        )
-                        current_topic_id = last_topic.id
-                        current_lesson_id = last_lesson.id
 
             result.append(
                 UserCourseListItem(
@@ -400,16 +367,6 @@ class CourseService:
             )
 
         return result
-
-    async def get_topics(self, course_id):
-        result = await self.db.execute(
-            select(Topic)
-            .options(selectinload(Topic.lessons).selectinload(Lesson.progress_records))
-            .order_by(Topic.order)
-            .filter(Topic.course_id == course_id)
-        )
-        topics = result.scalars().all()
-        return topics
 
 
 def is_enrolled(self, user_id: int, course_id: int):
@@ -502,7 +459,7 @@ async def get_course_with_progress(
             raise HTTPException(status_code=404, detail="Course not found")
 
         response = CourseBaseUser.model_validate(course)
-        response.status = user_course.status if user_course else None
+        response.is_enrolled = True if user_course else False
         return response
 
 

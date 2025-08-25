@@ -4,11 +4,13 @@ from sqlalchemy import ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.database import Base
-from app.models.user_course_progress_model import ProgressStatus
 from app.schemas.lesson_schema import Options
 
+
 if TYPE_CHECKING:
-    pass
+    from app.models.topic_model import Topic
+    from app.models.user_lesson_model import UserLesson
+    from app.models.exercise_model import Exercise
 
 
 class LessonSection(Base):
@@ -21,19 +23,17 @@ class LessonSection(Base):
     type: Mapped[str] = mapped_column(String)  # "text", "code", "image", "quiz"
     content: Mapped[str] = mapped_column(Text)
     order: Mapped[int] = mapped_column(Integer)
-    options: Mapped[Optional[Options]] = mapped_column(
-        JSON, nullable=True
+    options: Mapped[Optional[Options]] = mapped_column(JSON, nullable=True)
+    exercise_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("exercises.id"), nullable=True
     )
-    exercise_id: Mapped[int] = mapped_column(Integer, ForeignKey("exercises.id"), nullable=True)
-    answer: Mapped[Optional[str]] = mapped_column(
-        String, nullable=True
-    )
-    explanation: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True
-    )
+    answer: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    explanation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="sections")
-    exercise: Mapped["Exercise"] = relationship("Exercise", back_populates="lesson_section")
+    exercise: Mapped["Exercise"] = relationship(
+        "Exercise", back_populates="lesson_section"
+    )
 
 
 class Lesson(Base):
@@ -51,12 +51,6 @@ class Lesson(Base):
     )
     topic: Mapped["Topic"] = relationship("Topic", back_populates="lessons")
 
-    progress_records: Mapped["UserCourseProgress"] = relationship("UserCourseProgress", back_populates="lesson",
-                                                                  cascade="all, delete-orphan")
-
-    @property
-    def is_completed(self) -> bool:
-        if self.progress_records.status == ProgressStatus.COMPLETED.value:
-            return True
-        else:
-            return False
+    user_lessons: Mapped[List["UserLesson"]] = relationship(
+        "UserLesson", back_populates="lesson", cascade="all, delete-orphan"
+    )
