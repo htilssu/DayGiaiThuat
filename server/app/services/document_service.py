@@ -36,12 +36,12 @@ class DocumentService:
         """
         async with get_independent_db_session() as db:
             job = DocumentProcessingJob(
+                id=document_id,  # Use 'id' instead of 'document_id'
                 job_id=job_id,
-                document_id=document_id,
                 filename=filename,
                 document_url=document_url,
                 course_id=course_id,
-                status="PENDING",
+                status="IN_QUEUE",  # Use the default status from the model
             )
             db.add(job)
             await db.commit()
@@ -131,6 +131,85 @@ class DocumentService:
         """
         # TODO: Implement course content generation
         logger.info(f"Triggering course content generation for course {course_id}")
+
+    async def call_external_document_processing_api(self, document_url: str) -> str:
+        """
+        Gọi RunPod API để xử lý tài liệu bằng Docling serverless function
+        
+        Args:
+            document_url (str): URL của tài liệu cần xử lý
+            
+        Returns:
+            str: Job ID từ RunPod API
+            
+        Raises:
+            Exception: Nếu có lỗi khi gọi API
+        """
+        try:
+            from app.core.config import settings
+            
+            # Kiểm tra xem có RunPod API key không
+            if not settings.RUNPOD_API_KEY:
+                raise Exception("RunPod API key not configured")
+            
+            import httpx
+            import uuid
+            
+            # Tạo job ID duy nhất
+            job_id = str(uuid.uuid4())
+            
+            # RunPod API endpoint
+            if settings.RUNPOD_ENDPOINT_ID:
+                runpod_endpoint = f"https://api.runpod.io/v2/{settings.RUNPOD_ENDPOINT_ID}/run"
+                logger.info(f"Using RunPod endpoint ID: {settings.RUNPOD_ENDPOINT_ID}")
+            elif settings.DOCUMENT_PROCESSING_ENDPOINT:
+                runpod_endpoint = settings.DOCUMENT_PROCESSING_ENDPOINT
+                logger.info(f"Using custom document processing endpoint: {settings.DOCUMENT_PROCESSING_ENDPOINT}")
+            else:
+                raise Exception("RunPod endpoint ID or document processing endpoint not configured")
+            
+            # Chuẩn bị payload cho RunPod API
+            payload = {
+                "input": {
+                    "url": document_url,
+                    "webhook_url": f"{settings.BASE_URL}/admin/document/webhook",
+                    "job_id": job_id
+                }
+            }
+            
+            # Headers cho RunPod API
+            headers = {
+                "Authorization": f"Bearer {settings.RUNPOD_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            # Gọi RunPod API
+            logger.info(f"Calling RunPod API at: {runpod_endpoint}")
+            logger.info(f"Payload: {payload}")
+            
+            async with httpx.AsyncClient(timeout=settings.DOCUMENT_PROCESSING_TIMEOUT) as client:
+                response = await client.post(
+                    runpod_endpoint,
+                    json=payload,
+                    headers=headers
+                )
+                
+                logger.info(f"RunPod API response status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    response_data = response.json()
+                    logger.info(f"RunPod API response: {response_data}")
+                    # RunPod trả về job ID
+                    job_id_from_api = response_data.get("id", job_id)
+                    logger.info(f"Using job ID: {job_id_from_api}")
+                    return job_id_from_api
+                else:
+                    logger.error(f"RunPod API error response: {response.text}")
+                    raise Exception(f"RunPod API returned status {response.status_code}: {response.text}")
+                    
+        except Exception as e:
+            logger.error(f"Error calling RunPod document processing API: {str(e)}")
+            raise Exception(f"Failed to call RunPod document processing API: {str(e)}")
 
 
 def get_document_service() -> DocumentService:

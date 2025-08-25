@@ -78,6 +78,9 @@ class ExerciseResponse(ExerciseBase):
     id: int
     lesson_id: int
 
+    class Config:
+        from_attributes = True
+
 
 class LessonSectionResponse(BaseModel):
     """

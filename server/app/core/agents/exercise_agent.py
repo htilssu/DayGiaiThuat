@@ -2,10 +2,21 @@ from typing import override
 
 from app.core.agents.base_agent import BaseAgent
 from app.core.agents.components.document_store import get_vector_store
-from app.core.agents.components.llm_model import get_llm_model, create_new_llm_model
+from app.core.agents.components.llm_model import create_new_llm_model
+from typing import Any, cast
+import re
 from app.core.config import settings
 from app.core.tracing import trace_agent
 from app.schemas.exercise_schema import ExerciseDetail
+
+# Expected test case format for frontend compatibility:
+# testCases: [
+#   {
+#     "input": "input data as string",
+#     "expectedOutput": "expected output as string"
+#   }
+# ]
+# This matches the format used in web/src/data/mockExercises.ts
 
 SYSTEM_PROMPT_TEMPLATE = """
 Bạn là một chuyên gia, chuyên tạo ra các bài tập giải thuật để rèn luyện và cải thiện kỹ năng lập trình.
@@ -43,6 +54,22 @@ Hãy đảm bảo bài tập:
 4. Có constraints rõ ràng
 5. Cung cấp gợi ý hữu ích
 6. Bám sát ngữ cảnh của lesson
+
+# Quan trọng về testCases:
+- testCases phải là một mảng chứa ít nhất 3 test case
+- Mỗi test case phải có format: {{"input": "dữ liệu đầu vào", "expectedOutput": "kết quả mong đợi"}}
+- Input và expectedOutput phải là string
+- Input nên bao gồm các tham số cần thiết (ví dụ: "[1,2,3], 2" cho hàm nhận mảng và số)
+- ExpectedOutput phải chính xác và dễ hiểu
+
+# Quy ước CHẶT CHẼ cho input:
+# - Luôn gói TOÀN BỘ input trong MỘT mảng, dạng chuỗi JSON HỢP LỆ: ví dụ
+#   + "[1,2,3]" thay vì "1,2,3"
+#   + "[[1,2,3,4],5]" thay vì "[1,2,3,4], 5"
+# - Nhớ dấu phẩy giữa các phần tử trong mảng (JSON bắt buộc phải có dấu phẩy)
+# - Nếu hàm nhận nhiều tham số (a, b, c), hãy đặt TẤT CẢ vào một mảng duy nhất
+#   và mỗi phần tử PHẢI cách nhau bằng dấu phẩy: ví dụ "[a, b, c]"
+# - Nếu hàm chỉ nhận một tham số, vẫn để trong mảng: ví dụ "[42]"
 
 # Suy nghĩ kỹ:
 - Khi người dùng học bài này thì họ đã có những kiến thức gì trước đó, nếu mới nhập môn thì cần tránh những ngữ cảnh quá phức tạp
@@ -186,6 +213,43 @@ class GenerateExerciseQuestionAgent(BaseAgent):
             agent=self.agent, tools=self.tools, verbose=True, handle_parsing_errors=True
         )
 
+    @staticmethod
+    def _normalize_input_array_string(raw: str) -> str:
+        """
+        Ensure input is a single JSON-like array string with commas between items.
+        Examples:
+          "1, 2, 3"     -> "[1, 2, 3]"
+          "[1 2 3]"     -> "[1, 2, 3]"
+          "[1,2,3], 5"  -> "[[1, 2, 3], 5]"
+          "[ [1 2],3 ]" -> "[[1, 2], 3]"
+        """
+        s = (raw or "").strip()
+        if not s:
+            return "[]"
+
+        # Wrap if not already an array
+        if not (s.startswith("[") and s.endswith("]")):
+            s = f"[{s}]"
+
+        # If looks like multi-arg e.g. "[...], 5", wrap whole into an outer array
+        if "]," in s and not (s.startswith("[[") and s.endswith("]]")):
+            s = f"[{s}]"
+
+        # Insert commas where numbers are separated only by whitespace inside arrays
+        # Handle integers, negatives, and decimals
+        def add_commas(segment: str) -> str:
+            # add comma between number tokens separated by spaces
+            segment = re.sub(r"(?<=\d)\s+(?=[-]?\d)", ", ", segment)
+            # also add comma after closing bracket before number e.g. "] 5" -> "], 5"
+            segment = re.sub(r"(?<=\])\s+(?=[-]?\d)", ", ", segment)
+            # and between number then opening bracket e.g. "5 [1,2]" -> "5, [1,2]"
+            segment = re.sub(r"(?<=\d)\s+(?=\[)", ", ", segment)
+            return segment
+
+        # Apply within the whole string (safe enough for our simple normalization)
+        s = add_commas(s)
+        return s
+
     @override
     @trace_agent(project_name="default", tags=["exercise", "generator"])
     async def act(self, *args, **kwargs):
@@ -201,10 +265,12 @@ class GenerateExerciseQuestionAgent(BaseAgent):
         topic = kwargs.get("topic", "")
         session_id = kwargs.get("session_id", "")
         difficulty = kwargs.get("difficulty", "")
+        lesson_ctx = kwargs.get("lesson", None)
 
-        if not topic or not session_id or not difficulty:
+        # Require either topic or lesson context, plus session and difficulty
+        if (not topic and not lesson_ctx) or not session_id or not difficulty:
             raise ValueError(
-                "Cần cung cấp 'topic', 'session_id' và 'difficulty' để tạo bài tập."
+                "Cần cung cấp 'lesson' hoặc 'topic', kèm 'session_id' và 'difficulty' để tạo bài tập."
             )
 
         from langchain_core.runnables import RunnableConfig, RunnableWithMessageHistory
@@ -215,6 +281,7 @@ class GenerateExerciseQuestionAgent(BaseAgent):
             metadata={
                 "session_id": session_id,
                 "topic": topic,
+                "lesson_title": (lesson_ctx or {}).get("name") if isinstance(lesson_ctx, dict) else None,
                 "difficulty": difficulty,
                 "agent_type": "exercise_generator",
             },
@@ -222,7 +289,7 @@ class GenerateExerciseQuestionAgent(BaseAgent):
         )
 
         agent_with_chat_history = RunnableWithMessageHistory(
-            self.agent_executor,
+            cast(Any, self.agent_executor),
             history_messages_key="history",
             get_session_history=lambda: MongoDBChatMessageHistory(
                 settings.MONGO_URI,
@@ -233,10 +300,18 @@ class GenerateExerciseQuestionAgent(BaseAgent):
         )
 
         try:
+            # Prefer lesson-based query if provided; fallback to topic
+            if lesson_ctx and isinstance(lesson_ctx, dict):
+                lesson_title = lesson_ctx.get("name") or lesson_ctx.get("title") or ""
+                lesson_desc = lesson_ctx.get("description") or ""
+                query = f"lesson: {lesson_title} - {lesson_desc}, difficulty: {difficulty}"
+            else:
+                query = f"topic: {topic}, difficulty: {difficulty}"
+
             response_from_agent = await agent_with_chat_history.ainvoke(
                 {
-                    "input": "topic: " + topic + ", difficulty: " + difficulty,
-                    "lesson": kwargs.get("lesson", None),
+                    "input": query,
+                    "lesson": lesson_ctx,
                 },
                 config=run_config,
             )
@@ -248,6 +323,17 @@ class GenerateExerciseQuestionAgent(BaseAgent):
                 exercise_detail = self.output_fixing_parser.parse(
                     response_from_agent["output"]
                 )
+
+                # Validate and ensure testCases format is correct
+                if hasattr(exercise_detail, 'testCases') and exercise_detail.testCases:
+                    for test_case in exercise_detail.testCases:
+                        if not hasattr(test_case, 'input') or not hasattr(test_case, 'expectedOutput'):
+                            raise ValueError("Test case format không đúng. Cần có 'input' và 'expectedOutput' fields.")
+                        if not isinstance(test_case.input, str) or not isinstance(test_case.expectedOutput, str):
+                            raise ValueError("Test case input và expectedOutput phải là string.")
+
+                        # Normalize input to always be a single JSON-like array string with commas
+                        test_case.input = self._normalize_input_array_string(test_case.input)
 
                 return exercise_detail
             else:

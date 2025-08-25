@@ -8,7 +8,7 @@ from app.core.agents.exercise_agent import (
 )
 from app.database.database import get_async_db
 from app.core.config import settings
-from app.models import Exercise, ExerciseTestCase
+from app.models import Exercise
 from app.models.exercise_model import Exercise as ExerciseModel
 from app.models.lesson_model import Lesson
 from app.models.exercise_test_case_model import ExerciseTestCase
@@ -178,29 +178,47 @@ class ExerciseService:
         )
 
         exercise_model = ExerciseModel.exercise_from_schema(exercise_detail)
-        exercise_model.test_cases = [ExerciseTestCase(**testc) for testc in exercise_detail.case]
+        # Bind exercise to the chosen lesson from the request
+        exercise_model.lesson_id = create_data.lesson_id
         self.db.add(exercise_model)
         await self.db.commit()
         await self.db.refresh(exercise_model)
 
         # Persist generated test cases (if provided by agent)
         try:
-            cases = getattr(exercise_detail, "case", None) or []
+            # Support both legacy `case` and new `testCases` from agent output
+            cases = (
+                getattr(exercise_detail, "case", None)
+                or getattr(exercise_detail, "testCases", None)
+                or []
+            )
             if isinstance(cases, list) and exercise_model.id:
+                to_add = []
                 for tc in cases:
-                    input_data = (
-                        getattr(tc, "input", None)
-                        or getattr(tc, "input_data", None)
-                    )
-                    output_data = (
-                        getattr(tc, "expected_output", None)
-                        or getattr(tc, "output_data", None)
-                        or getattr(tc, "output", None)
-                    )
-                    explain = getattr(tc, "explain", None)
+                    # Support both dict and Pydantic/object-style items
+                    if isinstance(tc, dict):
+                        input_data = tc.get("input") or tc.get("input_data")
+                        output_data = (
+                            tc.get("expected_output")
+                            or tc.get("expectedOutput")
+                            or tc.get("output_data")
+                            or tc.get("output")
+                        )
+                        explain = tc.get("explain")
+                    else:
+                        input_data = getattr(tc, "input", None) or getattr(tc, "input_data", None)
+                        output_data = (
+                            getattr(tc, "expected_output", None)
+                            or getattr(tc, "expectedOutput", None)
+                            or getattr(tc, "output_data", None)
+                            or getattr(tc, "output", None)
+                        )
+                        explain = getattr(tc, "explain", None)
+
                     if input_data is None or output_data is None:
                         continue
-                    self.db.add(
+
+                    to_add.append(
                         ExerciseTestCase(
                             exercise_id=exercise_model.id,
                             input_data=str(input_data),
@@ -208,7 +226,10 @@ class ExerciseService:
                             explain=explain,
                         )
                     )
-                await self.db.commit()
+
+                if to_add:
+                    self.db.add_all(to_add)
+                    await self.db.commit()
         except Exception:
             # Don't block exercise creation if test case persistence fails
             await self.db.rollback()

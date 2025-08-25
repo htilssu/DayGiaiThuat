@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { IconSend } from "@tabler/icons-react";
 import { TestResult } from "./types";
 import { sendAIChatRequest } from "@/lib/api/aiChat";
+import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 
 export default function AIChat({
   code,
@@ -37,7 +38,6 @@ export default function AIChat({
   const [input, setInput] = useState("");
 
   const handleSubmit = async () => {
-    // e.preventDefault();
     if (!input.trim() || isLoading) return;
 
     const userMessage = input.trim();
@@ -73,6 +73,13 @@ export default function AIChat({
     }
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -98,14 +105,20 @@ export default function AIChat({
   }, [aiResponse]);
 
   return (
-    <div className="flex flex-col h-full border border-foreground/10 rounded-lg overflow-hidden theme-transition">
+    <div className="flex flex-col h-full border border-foreground/10 rounded-lg overflow-hidden theme-transition bg-background">
       {/* Header */}
-      <div className="bg-foreground/5 p-3 border-b border-foreground/10">
-        <h3 className="font-medium text-foreground">Tutor Agent</h3>
+      <div className="bg-foreground/5 p-4 border-b border-foreground/10">
+        <h3 className="font-semibold text-foreground flex items-center gap-2">
+          <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+          Tutor Agent
+        </h3>
+        <p className="text-sm text-foreground/60 mt-1">
+          Hỏi đáp về bài tập và nhận hỗ trợ từ AI
+        </p>
       </div>
 
       {/* Messages */}
-      <div className="h-96 overflow-y-scroll p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (
           <div
             key={index}
@@ -113,54 +126,61 @@ export default function AIChat({
               message.role === "user" ? "justify-end" : "justify-start"
             }`}>
             <div
-              className={`max-w-[80%] rounded-lg px-4 py-2 ${
+              className={`max-w-[85%] rounded-lg px-4 py-3 ${
                 message.role === "user"
-                  ? "bg-primary text-white"
-                  : "bg-foreground/5 text-foreground border border-primary/30 shadow-sm"
+                  ? "bg-primary text-white shadow-lg"
+                  : "bg-foreground/5 text-foreground border border-foreground/20 shadow-sm"
               }`}>
-              {message.role === "assistant"
-                ? message.content.split("**").map((part, idx) => (
-                    <span key={idx}>
-                      {part}
-                      {idx !== message.content.split("**").length - 1 && <br />}
-                    </span>
-                  ))
-                : message.content}
+              {message.role === "assistant" ? (
+                <div className="prose prose-sm max-w-none">
+                  <MarkdownRenderer
+                    content={message.content}
+                    className="text-foreground"
+                  />
+                </div>
+              ) : (
+                <p className="text-sm leading-relaxed">{message.content}</p>
+              )}
             </div>
           </div>
         ))}
+
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-foreground/5 text-foreground rounded-lg px-4 py-2">
-              <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-foreground/40 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-foreground/40 rounded-full animate-bounce [animation-delay:0.2s]" />
-                <div className="w-2 h-2 bg-foreground/40 rounded-full animate-bounce [animation-delay:0.4s]" />
+            <div className="bg-foreground/5 text-foreground rounded-lg px-4 py-3">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:0.2s]" />
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:0.4s]" />
+                <span className="text-sm text-foreground/70 ml-2">
+                  AI đang suy nghĩ...
+                </span>
               </div>
             </div>
           </div>
         )}
+
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
-      <div
-        // onSubmit={handleSubmit}
-        className="p-4 border-t border-foreground/10">
-        <div className="flex gap-2">
+      <div className="p-4 border-t border-foreground/10 bg-foreground/5">
+        <div className="flex gap-3">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
             placeholder="Nhập câu hỏi của bạn..."
-            className="flex-1 px-3 py-2 rounded-md border border-foreground/10 bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="flex-1 px-4 py-3 rounded-lg border border-foreground/20 bg-background text-foreground placeholder:text-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all duration-200"
           />
           <button
             onClick={handleSubmit}
             disabled={!input.trim() || isLoading}
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl disabled:shadow-lg flex items-center gap-2"
             aria-label="Gửi tin nhắn">
-            <IconSend size={20} />
+            <IconSend size={18} />
+            <span className="hidden sm:inline">Gửi</span>
           </button>
         </div>
       </div>
