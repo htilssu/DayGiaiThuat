@@ -49,7 +49,7 @@ class Exercise(Base):
     lesson_id: Mapped[int] = mapped_column(
         ForeignKey("lessons.id"), index=True, nullable=True
     )
-    case: Mapped[str] = mapped_column(JSON, nullable=True)
+    case: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     lesson: Mapped["Lesson"] = relationship("Lesson", back_populates="exercises")
     # Quan hệ tới test cases dạng quan hệ thay vì JSON `case`
@@ -95,4 +95,53 @@ class Exercise(Base):
         exercise.content = getattr(data, "content", None)
         exercise.code_template = getattr(data, "code_template", None)
 
+        # Convert testCases to case field for backward compatibility
+        if hasattr(data, "testCases") and data.testCases:
+            # Convert the new format to the old format for backward compatibility
+            case_data = []
+            for test_case in data.testCases:
+                case_data.append({
+                    "input_data": test_case.input,
+                    "output_data": test_case.expectedOutput,
+                    "explain": getattr(test_case, "explain", None)
+                })
+            exercise.case = case_data
+
         return exercise
+
+    def to_schema_format(self) -> dict:
+        """
+        Convert Exercise model to frontend-compatible format
+
+        Returns:
+            dict: Exercise data in frontend format with testCases array
+        """
+        result = {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "category": self.category,
+            "difficulty": self.difficulty,
+            "estimated_time": self.estimated_time,
+            "completion_rate": self.completion_rate,
+            "completed": self.completed,
+            "content": self.content,
+            "code_template": self.code_template,
+            "lesson_id": self.lesson_id,
+        }
+
+        # Convert case field to testCases format for frontend
+        if self.case and isinstance(self.case, list):
+            test_cases = []
+            for tc in self.case:
+                if isinstance(tc, dict):
+                    test_cases.append({
+                        "input": tc.get("input_data", ""),
+                        "expectedOutput": tc.get("output_data", ""),
+                        "explain": tc.get("explain")
+                    })
+            result["testCases"] = test_cases
+        else:
+            result["testCases"] = []
+
+        return result

@@ -169,7 +169,9 @@ export function useContentCreation() {
           });
           successMessage = {
             role: "assistant",
-            content: `✅ Exercise "${response.id}" created successfully!`,
+            content: `✅ Exercise "${
+              response.title || response.name || "Untitled"
+            }" created successfully!`,
             timestamp: new Date().toISOString(),
           };
           break;
